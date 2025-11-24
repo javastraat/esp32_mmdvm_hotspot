@@ -629,7 +629,7 @@ void sendDMRConfig() {
            dmr_description.c_str(),  // Description (19 chars)
            '4',                      // Slots (1 char: '4' = simplex)
            dmr_url.c_str(),          // URL (124 chars)
-           "20251124_PD2EMC",               // Version (40 chars) - using date format
+           "20251124_ESP32",               // Version (40 chars) - using date format
            "MMDVM_MMDVM_HS");       // Software (40 chars)
   
   // Debug: Log first 100 chars of config string
@@ -762,18 +762,33 @@ void saveConfig() {
 
 // ===== Web Server Setup =====
 void setupWebServer() {
+  // Main pages
   server.on("/", handleRoot);
+  server.on("/status", handleStatus);
   server.on("/monitor", handleMonitor);
   server.on("/config", handleConfig);
-  server.on("/saveconfig", HTTP_POST, handleSaveConfig);
   server.on("/dmrconfig", handleDMRConfig);
+  server.on("/admin", handleAdmin);
+  
+  // Configuration handlers
+  server.on("/saveconfig", HTTP_POST, handleSaveConfig);
   server.on("/savedmrconfig", HTTP_POST, handleSaveDMRConfig);
   server.on("/resetconfig", handleResetConfig);
   server.on("/confirmreset", HTTP_POST, handleConfirmReset);
+  
+  // Data endpoints
   server.on("/logs", handleGetLogs);
+  server.on("/wifiscan", handleWifiScan);
+  
+  // Admin actions
+  server.on("/clearlogs", HTTP_POST, handleClearLogs);
+  server.on("/reboot", HTTP_POST, handleReboot);
+  server.on("/restart-services", HTTP_POST, handleRestartServices);
+  server.on("/export-config", handleExportConfig);
+  server.on("/test-mmdvm", HTTP_POST, handleTestMmdvm);
 
   server.begin();
-  logSerial("Web server started");
+  logSerial("Web server started with enhanced interface");
 }
 
 // ===== Web Server Handlers =====
