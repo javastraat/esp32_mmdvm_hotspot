@@ -629,7 +629,7 @@ void sendDMRConfig() {
            dmr_description.c_str(),  // Description (19 chars)
            '4',                      // Slots (1 char: '4' = simplex)
            dmr_url.c_str(),          // URL (124 chars)
-           "20241124",               // Version (40 chars) - using date format
+           "20251124_PD2EMC",               // Version (40 chars) - using date format
            "MMDVM_MMDVM_HS");       // Software (40 chars)
   
   // Debug: Log first 100 chars of config string
