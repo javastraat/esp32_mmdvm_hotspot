@@ -125,6 +125,9 @@ const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
 String altSSID = "";
 String altPassword = "";
 
+// Firmware version (matches the version used in DMR config)
+String firmwareVersion = "20251124_ESP32";
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -629,7 +632,7 @@ void sendDMRConfig() {
            dmr_description.c_str(),  // Description (19 chars)
            '4',                      // Slots (1 char: '4' = simplex)
            dmr_url.c_str(),          // URL (124 chars)
-           "20251124_ESP32",               // Version (40 chars) - using date format
+           firmwareVersion.c_str(),  // Version (40 chars) - from firmware variable
            "MMDVM_MMDVM_HS");       // Software (40 chars)
   
   // Debug: Log first 100 chars of config string

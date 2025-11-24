@@ -40,6 +40,7 @@ extern String altPassword;
 extern String serialLog[SERIAL_LOG_SIZE];
 extern int serialLogIndex;
 extern Preferences preferences;
+extern String firmwareVersion;
 
 // External functions
 extern void logSerial(String message);
@@ -861,7 +862,7 @@ void handleAdmin() {
   // Information Card
   html += "<div class='card'>";
   html += "<h3>System Information</h3>";
-  html += "<div class='info'><strong>Firmware Version:</strong> 1.0.0</div>";
+  html += "<div class='info'><strong>Firmware Version:</strong> " + firmwareVersion + "</div>";
   html += "<div class='info'><strong>Build Date:</strong> " + String(__DATE__) + " " + String(__TIME__) + "</div>";
   html += "<div class='info'><strong>Uptime:</strong> " + String(millis()/1000/60) + " minutes</div>";
   html += "<div class='info'><strong>Free Memory:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
