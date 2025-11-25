@@ -866,6 +866,8 @@ void handleAdmin() {
   html += ".btn-warning:hover { background: #e0a800; }";
   html += ".btn-danger { background: #dc3545; color: white; }";
   html += ".btn-danger:hover { background: #c82333; }";
+  html += ".btn-info { background: #17a2b8; color: white; }";
+  html += ".btn-info:hover { background: #138496; }";
   html += ".action-buttons { text-align: center; margin: 15px 0; }";
   html += "</style></head><body>";
   html += getNavigation("admin");
@@ -879,8 +881,8 @@ void handleAdmin() {
   html += "<h3>System Control</h3>";
   html += "<p>Control basic system functions:</p>";
   html += "<div class='action-buttons'>";
-  html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>&#8634; Reboot System</a>";
-  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-primary'>&#9889; Restart Services</a>";
+  html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>Reboot System</a>";
+  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-primary'>Restart Services</a>";
   html += "</div>";
   html += "</div>";
 
@@ -889,9 +891,16 @@ void handleAdmin() {
   html += "<h3>Configuration Management</h3>";
   html += "<p>Manage system configuration:</p>";
   html += "<div class='action-buttons'>";
-  html += "<a href='/resetconfig' class='btn btn-danger'>&#128465; Reset All Settings</a>";
-  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>&#128190; Export Config</a>";
-  html += "<a href='/showprefs' class='btn btn-primary'>&#128269; Show Preferences</a>";
+  html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
+  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
+  html += "<a href='javascript:void(0)' onclick='showImportConfig()' class='btn btn-info'>Import Config</a>";
+  html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
+  html += "</div>";
+  html += "<div id='import-area' style='display: none; margin-top: 15px; padding: 15px; border: 2px dashed #17a2b8; border-radius: 5px; background: #f8f9fa;'>";
+  html += "<h4>Import Configuration</h4>";
+  html += "<p style='color: #dc3545;'>WARNING: This will overwrite existing settings!</p>";
+  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='margin-bottom: 10px;'>";
+  html += "<br><button onclick='importConfig()' class='btn btn-warning'>Import Configuration</button>";
   html += "</div>";
   html += "</div>";
 
@@ -900,9 +909,9 @@ void handleAdmin() {
   html += "<h3>Maintenance</h3>";
   html += "<p>System maintenance tools:</p>";
   html += "<div class='action-buttons'>";
-  html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>&#129529; Clear Logs</a>";
-  html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>&#128269; Test MMDVM</a>";
-  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>&#128295; Fix Corrupted Prefs</a>";
+  html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>Clear Logs</a>";
+  html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>Test MMDVM</a>";
+  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>Fix Corrupted Prefs</a>";
   html += "</div>";
   html += "</div>";
   
@@ -911,12 +920,12 @@ void handleAdmin() {
   html += "<h3>Firmware Updates</h3>";
   html += "<p>Over-the-Air (OTA) firmware update options:</p>";
   html += "<div class='action-buttons'>";
-  html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>&#128640; Online Update</a>";
-  html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>&#128193; Upload File</a>";
+  html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Online Update</a>";
+  html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>Upload File</a>";
   html += "</div>";
   html += "<div id='upload-area' style='display:none; margin-top: 15px; padding: 15px; border: 2px dashed #007bff; border-radius: 6px; text-align: center;'>";
   html += "<input type='file' id='firmware-file' accept='.bin' style='margin: 10px 0;' />";
-  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>&#128190; Prepare Update</button>";
+  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Prepare Update</button>";
   html += "</div>";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
@@ -934,7 +943,7 @@ void handleAdmin() {
 
   // Warning message
   html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107;'>";
-  html += "<strong>&#9888; Warning:</strong> Some actions like reset and reboot will cause the system to restart. ";
+  html += "<strong>Warning:</strong> Some actions like reset and reboot will cause the system to restart. ";
   html += "Make sure you have saved any important configuration changes before proceeding.";
   html += "</div>";
 
@@ -971,6 +980,32 @@ void handleAdmin() {
   html += "    a.click();";
   html += "    window.URL.revokeObjectURL(url);";
   html += "  });";
+  html += "}";
+  html += "function showImportConfig() {";
+  html += "  var importArea = document.getElementById('import-area');";
+  html += "  importArea.style.display = importArea.style.display === 'none' ? 'block' : 'none';";
+  html += "}";
+  html += "function importConfig() {";
+  html += "  var fileInput = document.getElementById('config-file');";
+  html += "  var file = fileInput.files[0];";
+  html += "  if (!file) {";
+  html += "    alert('Please select a configuration file');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('WARNING: This will overwrite ALL current settings with the imported configuration.\\n\\nThis action cannot be undone. Continue?')) {";
+  html += "    var formData = new FormData();";
+  html += "    formData.append('config', file);";
+  html += "    fetch('/import-config', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        alert('Configuration imported successfully! System will reboot in 3 seconds.');";
+  html += "        setTimeout(() => { window.location.href = '/'; }, 3000);";
+  html += "      } else {";
+  html += "        alert('Import failed: ' + data);";
+  html += "      }";
+  html += "    }).catch(err => {";
+  html += "      alert('Import error: ' + err);";
+  html += "    });";
+  html += "  }";
   html += "}";
   html += "function testMmdvm() {";
   html += "  alert('MMDVM test started. Check the Serial Monitor for results.');";
@@ -1029,7 +1064,7 @@ void handleAdmin() {
   html += "  });";
   html += "}";
   html += "function confirmFlash() {";
-  html += "  if (confirm('⚠️ WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
+  html += "  if (confirm('WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
   html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">FLASHING FIRMWARE... DO NOT POWER OFF!</div>';";
   html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
   html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Flash complete! System rebooting...</div>';";
@@ -1225,11 +1260,16 @@ void handleRestartServices() {
 }
 
 void handleExportConfig() {
-  String config = "# ESP32 MMDVM Hotspot Configuration Export\n";
-  config += "# Generated on: " + String(__DATE__) + " " + String(__TIME__) + "\n\n";
+  String config = "# ESP32 MMDVM Hotspot Configuration Export (Complete)\n";
+  config += "# Generated on: " + String(__DATE__) + " " + String(__TIME__) + "\n";
+  config += "# WARNING: This file contains passwords - keep secure!\n\n";
+  
+  // DMR Configuration
+  config += "[DMR_CONFIG]\n";
   config += "DMR_CALLSIGN=" + dmr_callsign + "\n";
   config += "DMR_ID=" + String(dmr_id) + "\n";
   config += "DMR_SERVER=" + dmr_server + "\n";
+  config += "DMR_PASSWORD=" + dmr_password + "\n";
   config += "DMR_ESSID=" + String(dmr_essid) + "\n";
   config += "DMR_RX_FREQ=" + String(dmr_rx_freq) + "\n";
   config += "DMR_TX_FREQ=" + String(dmr_tx_freq) + "\n";
@@ -1241,9 +1281,81 @@ void handleExportConfig() {
   config += "DMR_LOCATION=" + dmr_location + "\n";
   config += "DMR_DESCRIPTION=" + dmr_description + "\n";
   config += "DMR_URL=" + dmr_url + "\n";
+  
+  // WiFi Configuration
+  config += "\n[WIFI_CONFIG]\n";
   config += "ALT_SSID=" + altSSID + "\n";
+  config += "ALT_PASSWORD=" + altPassword + "\n";
   
   server.send(200, "text/plain", config);
+}
+
+void handleImportConfig() {
+  HTTPUpload& upload = server.upload();
+  
+  if (upload.status == UPLOAD_FILE_START) {
+    logSerial("Starting configuration import: " + upload.filename);
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    // Process configuration data chunk by chunk
+    String chunk = "";
+    for (size_t i = 0; i < upload.currentSize; i++) {
+      chunk += (char)upload.buf[i];
+    }
+    
+    // Parse configuration lines
+    int lineStart = 0;
+    int lineEnd = chunk.indexOf('\n');
+    
+    while (lineEnd != -1) {
+      String line = chunk.substring(lineStart, lineEnd);
+      line.trim();
+      
+      // Skip comments and empty lines
+      if (line.length() > 0 && !line.startsWith("#") && !line.startsWith("[")) {
+        int equalPos = line.indexOf('=');
+        if (equalPos > 0) {
+          String key = line.substring(0, equalPos);
+          String value = line.substring(equalPos + 1);
+          
+          // Apply configuration values
+          if (key == "DMR_CALLSIGN") dmr_callsign = value;
+          else if (key == "DMR_ID") dmr_id = value.toInt();
+          else if (key == "DMR_SERVER") dmr_server = value;
+          else if (key == "DMR_PASSWORD") dmr_password = value;
+          else if (key == "DMR_ESSID") dmr_essid = value.toInt();
+          else if (key == "DMR_RX_FREQ") dmr_rx_freq = value.toInt();
+          else if (key == "DMR_TX_FREQ") dmr_tx_freq = value.toInt();
+          else if (key == "DMR_POWER") dmr_power = value.toInt();
+          else if (key == "DMR_COLOR_CODE") dmr_color_code = value.toInt();
+          else if (key == "DMR_LATITUDE") dmr_latitude = value.toFloat();
+          else if (key == "DMR_LONGITUDE") dmr_longitude = value.toFloat();
+          else if (key == "DMR_HEIGHT") dmr_height = value.toInt();
+          else if (key == "DMR_LOCATION") dmr_location = value;
+          else if (key == "DMR_DESCRIPTION") dmr_description = value;
+          else if (key == "DMR_URL") dmr_url = value;
+          else if (key == "ALT_SSID") altSSID = value;
+          else if (key == "ALT_PASSWORD") altPassword = value;
+          
+          logSerial("Imported: " + key + " = " + value);
+        }
+      }
+      
+      lineStart = lineEnd + 1;
+      lineEnd = chunk.indexOf('\n', lineStart);
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    logSerial("Configuration import completed, saving to NVS...");
+    
+    // Save all imported settings to NVS
+    saveConfig();
+    
+    logSerial("Configuration import successful: " + String(upload.totalSize) + " bytes processed");
+    server.send(200, "text/plain", "SUCCESS: Configuration imported and saved");
+    
+    // Reboot after successful import
+    delay(2000);
+    ESP.restart();
+  }
 }
 
 void handleTestMmdvm() {
