@@ -140,9 +140,10 @@ Once connected, access the web interface at the ESP32's IP address:
 ### Admin Panel
 - **System Control** - Restart system, complete factory reset
 - **Configuration Export** - Backup settings to file
-- **Show Preferences** - View all stored ESP32 settings for debugging
+- **Stored Preferences Viewer** - Advanced debugging tool showing all ESP32 NVS storage
 - **Complete Storage Reset** - Erase entire ESP32 NVS partition (all namespaces)
 - **Service Management** - Restart services, clear logs, test MMDVM
+- **Preference Cleanup** - Fix corrupted storage and restore defaults
 
 ## 📡 DMR Network Support
 
@@ -354,6 +355,35 @@ The admin panel includes comprehensive reset functionality:
 - Clear explanation of what will be lost
 - Automatic reinitialization of NVS after erase
 - Detailed logging of reset process
+
+### Stored Preferences Viewer
+Advanced debugging tool accessible via Admin Panel → "Show Preferences":
+
+**Comprehensive Storage View:**
+- Shows all 17 stored preferences in ESP32 NVS flash memory
+- Displays data types (String, UInt32, Float, UChar, Int32)
+- Shows storage size in bytes for each preference
+- Real-time free heap memory statistics
+
+**Security Features:**
+- **Password Masking:** All password fields automatically hidden with asterisks
+- **Interactive Toggle:** Click eye icon to reveal/hide actual password values
+- **Type Identification:** Clearly marked "String (password)" type for security fields
+- **Length Display:** Shows character count for password verification
+
+**Technical Details:**
+- **Namespace:** All preferences stored in 'mmdvm' namespace
+- **Key Detection:** Automatically identifies all application keys
+- **Corruption Detection:** Shows empty, corrupted, or missing preferences
+- **Storage Efficiency:** Displays actual flash memory usage per setting
+
+**Supported Preference Types:**
+- **DMR Configuration:** Callsign, ID, server, password, frequencies, location
+- **Network Settings:** Primary and alternate WiFi credentials  
+- **Radio Parameters:** Power, color code, coordinates, antenna height
+- **System Metadata:** Version info, operational parameters
+
+Useful for troubleshooting configuration issues, verifying stored settings, and understanding ESP32 NVS storage utilization.
 
 ### Adding Features
 1. **Additional Protocols:** Extend MMDVM packet handlers for D-STAR, YSF, P25
