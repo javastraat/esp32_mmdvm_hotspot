@@ -13,6 +13,7 @@ A comprehensive ESP32-based DMR hotspot with web interface, WiFi management, and
 - **Network Scanner** - WiFi network discovery and configuration
 - **DMR Status Monitoring** - Real-time connection status and network information
 - **Show Preferences** - View all ESP32 stored settings for debugging
+- **Complete Factory Reset** - Erase entire ESP32 NVS partition for troubleshooting
 
 ## 🔧 Hardware Requirements
 
@@ -137,9 +138,10 @@ Once connected, access the web interface at the ESP32's IP address:
 - **Debug Information** - Network packets, authentication status
 
 ### Admin Panel
-- **System Control** - Restart system, factory reset
+- **System Control** - Restart system, complete factory reset
 - **Configuration Export** - Backup settings to file
 - **Show Preferences** - View all stored ESP32 settings for debugging
+- **Complete Storage Reset** - Erase entire ESP32 NVS partition (all namespaces)
 - **Service Management** - Restart services, clear logs, test MMDVM
 
 ## 📡 DMR Network Support
@@ -186,7 +188,7 @@ The web interface includes 40+ pre-configured BrandMeister servers:
 
 **Problem:** Frequent WiFi disconnections  
 - Check signal strength in WiFi Config page
-- Add multiple networks for automatic failover
+- Configure alternate network for automatic failover
 - Verify router stability and channel congestion
 
 ### DMR Network Issues
@@ -321,7 +323,7 @@ esp32_mmdvm_hotspot/
 ```
 
 ### Key Functions
-- `setupWiFi()` - Multi-network WiFi connection with failover
+- `setupWiFi()` - Dual WiFi connection with automatic failover
 - `connectToDMRNetwork()` - BrandMeister authentication sequence  
 - `handleMMDVMSerial()` - MMDVM communication protocol
 - `handleNetwork()` - DMR packet processing and routing
@@ -336,12 +338,29 @@ Actual implemented pages:
 5. **DMR Config** (`/dmrconfig`) - Complete DMR settings with 40+ server list
 6. **Admin Panel** (`/admin`) - System control, preferences, and maintenance
 
+### Factory Reset System
+The admin panel includes comprehensive reset functionality:
+
+**Complete Storage Reset:**
+- Erases entire ESP32 NVS (Non-Volatile Storage) partition
+- Uses `nvs_flash_erase()` for thorough flash memory wipe
+- Clears ALL namespaces, not just application settings
+- Removes any residual data from previous configurations
+- Returns ESP32 to true factory state
+- Useful for troubleshooting persistent configuration issues
+
+**Safety Features:**
+- Multiple confirmation warnings before execution
+- Clear explanation of what will be lost
+- Automatic reinitialization of NVS after erase
+- Detailed logging of reset process
+
 ### Adding Features
-1. **Additional Protocols:** Extend MMDVM packet handlers
-2. **Display Support:** Add OLED/LCD display integration
-3. **OTA Updates:** Implement web-based firmware updates
-4. **Multi-WiFi Slots:** Expand beyond current dual WiFi support
-5. **Enhanced Logging:** Add persistent log storage and filtering
+1. **Additional Protocols:** Extend MMDVM packet handlers for D-STAR, YSF, P25
+2. **Display Support:** Add OLED/LCD display integration via I2C
+3. **OTA Updates:** Implement web-based firmware update system
+4. **Extended WiFi Management:** Expand beyond current dual WiFi to multiple network slots
+5. **Enhanced Logging:** Add persistent log storage with rotation and filtering
 
 ## 🌍 BrandMeister Server List
 
@@ -424,7 +443,7 @@ This project welcomes contributions! Areas for improvement:
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20251124_ESP32 (matches firmware version in code)
+- **Version:** 20251124_ESP32 (matches firmware version)
 - **License:** Open source for educational and amateur radio use
 - **Author:** Community-driven development
 - **Latest Updates:** Check GitHub repository for current version
