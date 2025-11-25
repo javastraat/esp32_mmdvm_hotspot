@@ -106,7 +106,7 @@ String getNavigation(String activePage) {
 }
 
 String getFooter() {
-  return "<div class='footer'>© 2025 einstein.amsterdam</div>";
+  return "<div class='footer'>&copy; 2025 einstein.amsterdam</div>";
 }
 
 void handleRoot() {
@@ -903,6 +903,7 @@ void handleAdmin() {
   html += "<div class='action-buttons'>";
   html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>&#129529; Clear Logs</a>";
   html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>&#128269; Test MMDVM</a>";
+  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>&#128295; Fix Corrupted Prefs</a>";
   html += "</div>";
   html += "</div>";
 
@@ -961,6 +962,14 @@ void handleAdmin() {
   html += "  alert('MMDVM test started. Check the Serial Monitor for results.');";
   html += "  fetch('/test-mmdvm', {method: 'POST'});";
   html += "}";
+  html += "function cleanupPrefs() {";
+  html += "  if (confirm('This will clean up corrupted preferences and reload from config.h defaults. Continue?')) {";
+  html += "    fetch('/cleanup-prefs', {method: 'POST'}).then(() => {";
+  html += "      alert('Preferences cleaned up successfully! System will reboot.');";
+  html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
+  html += "    });";
+  html += "  }";
+  html += "}";
   html += "</script>";
 
   html += getFooter();
@@ -977,6 +986,50 @@ void handleClearLogs() {
   serialLogIndex = 0;
   logSerial("Logs cleared by user");
   server.send(200, "text/plain", "Logs cleared");
+}
+
+void handleCleanupPreferences() {
+  logSerial("Starting preference cleanup - removing corrupted entries...");
+  
+  // Close any existing preferences connection
+  preferences.end();
+  
+  // Clear the entire mmdvm namespace to remove corruption
+  preferences.begin("mmdvm", false);
+  preferences.clear();
+  preferences.end();
+  
+  logSerial("Cleared corrupted preferences namespace");
+  
+  // Reload clean defaults from config.h and current variables
+  // Reset to config.h defaults
+  dmr_callsign = DMR_CALLSIGN;
+  dmr_id = DMR_ID;
+  dmr_server = DMR_SERVER;
+  dmr_password = DMR_PASSWORD;
+  dmr_essid = 0;
+  dmr_rx_freq = 434000000;
+  dmr_tx_freq = 434000000;
+  dmr_power = 10;
+  dmr_color_code = 1;
+  dmr_latitude = 0.0;
+  dmr_longitude = 0.0;
+  dmr_height = 0;
+  dmr_location = "ESP32 Hotspot";
+  dmr_description = "ESP32-MMDVM";
+  dmr_url = "";
+  altSSID = "";
+  altPassword = "";
+  
+  // Save clean configuration
+  saveConfig();
+  
+  logSerial("Preferences cleanup completed - clean defaults restored");
+  server.send(200, "text/plain", "Preferences cleaned up successfully");
+  
+  // Reboot system to ensure clean state
+  delay(1000);
+  ESP.restart();
 }
 
 void handleReboot() {
@@ -1052,6 +1105,10 @@ void handleShowPreferences() {
   html += ".pref-key { font-family: 'Courier New', monospace; color: #007bff; }";
   html += ".pref-value { font-family: 'Courier New', monospace; word-break: break-all; }";
   html += ".pref-type { color: #6c757d; font-size: 0.9em; }";
+  html += ".password-container { display: inline-flex; align-items: center; gap: 8px; }";
+  html += ".password-toggle { cursor: pointer; font-size: 16px; color: #007bff; user-select: none; }";
+  html += ".password-toggle:hover { color: #0056b3; }";
+  html += ".password-hidden { color: #666; }";
   html += "</style></head><body>";
   html += getNavigation("admin");
   html += "<div class='container'>";
@@ -1071,18 +1128,12 @@ void handleShowPreferences() {
   if (schLen == 0) {
     // No schema, try to enumerate by attempting to read common types
     
-    // List of all possible keys we might find (including unknown ones)
+    // List of all actual keys used by this firmware (matching saveConfig() function)
     const char* knownKeys[] = {
       "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
-      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_color_code", 
-      "dmr_latitude", "dmr_longitude", "dmr_height", "dmr_location", 
-      "dmr_description", "dmr_url", "alt_ssid", "alt_password",
-      // Add other potential keys
-      "wifi_slots", "slot0_ssid", "slot1_ssid", "slot2_ssid", "slot3_ssid", "slot4_ssid",
-      "slot0_pass", "slot1_pass", "slot2_pass", "slot3_pass", "slot4_pass",
-      "slot0_enabled", "slot1_enabled", "slot2_enabled", "slot3_enabled", "slot4_enabled",
-      "slot0_rssi", "slot1_rssi", "slot2_rssi", "slot3_rssi", "slot4_rssi",
-      "version", "first_boot", "last_reset", "boot_count", "debug_level"
+      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc", 
+      "dmr_lat", "dmr_lon", "dmr_height", "dmr_location", 
+      "dmr_desc", "dmr_url", "alt_ssid", "alt_password"
     };
     
     int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);
@@ -1099,30 +1150,9 @@ void handleShowPreferences() {
         String type = "";
         size_t keySize = 0;
         
-        // Check if it's a string
-        size_t strLen = preferences.getBytesLength(keyName.c_str());
-        if (strLen > 0) {
-          String strValue = preferences.getString(keyName.c_str(), "");
-          if (strValue.length() > 0) {
-            // Mask passwords
-            if (keyName.indexOf("password") >= 0 || keyName.indexOf("pass") >= 0) {
-              String maskedPassword = "";
-              for (int j = 0; j < strValue.length(); j++) {
-                maskedPassword += "*";
-              }
-              value = maskedPassword + " (" + String(strValue.length()) + " chars)";
-              type = "String (masked)";
-            } else {
-              value = strValue;
-              type = "String";
-            }
-            keySize = strLen;
-          }
-        }
-        
-        // If not a string, try other types
-        if (value == "") {
-          // Try UInt32
+        // Check the expected type based on key name and only try that type
+        if (keyName == "dmr_id" || keyName == "dmr_rx_freq" || keyName == "dmr_tx_freq") {
+          // Known UInt32 keys
           uint32_t uintVal = preferences.getUInt(keyName.c_str(), 0xFFFFFFFF);
           if (uintVal != 0xFFFFFFFF) {
             value = String(uintVal);
@@ -1131,56 +1161,111 @@ void handleShowPreferences() {
             }
             type = "UInt32";
             keySize = 4;
-          } else {
-            // Try Int32
-            int32_t intVal = preferences.getInt(keyName.c_str(), -999999);
-            if (intVal != -999999) {
-              value = String(intVal);
-              if (keyName.indexOf("height") >= 0) {
-                value += " meters";
-              }
-              type = "Int32";
-              keySize = 4;
-            } else {
-              // Try UChar
-              uint8_t ucharVal = preferences.getUChar(keyName.c_str(), 255);
-              if (ucharVal != 255) {
-                value = String(ucharVal);
-                type = "UChar";
-                keySize = 1;
-              } else {
-                // Try Float
-                float floatVal = preferences.getFloat(keyName.c_str(), -999.999);
-                if (floatVal != -999.999) {
-                  value = String(floatVal, 6);
-                  type = "Float";
-                  keySize = 4;
-                } else {
-                  // Try Bool
-                  bool boolVal = preferences.getBool(keyName.c_str(), false);
-                  // Since we can't distinguish between false and default, check with true
-                  bool boolVal2 = preferences.getBool(keyName.c_str(), true);
-                  if (boolVal != boolVal2) {
-                    value = boolVal ? "true" : "false";
-                    type = "Bool";
-                    keySize = 1;
-                  } else {
-                    // Check if it's binary data
-                    size_t blobLen = preferences.getBytesLength(keyName.c_str());
-                    if (blobLen > 0) {
-                      value = "[Binary data]";
-                      type = "Blob";
-                      keySize = blobLen;
-                    }
-                  }
+          }
+        }
+        else if (keyName == "dmr_essid" || keyName == "dmr_power" || keyName == "dmr_cc") {
+          // Known UChar keys
+          uint8_t ucharVal = preferences.getUChar(keyName.c_str(), 255);
+          if (ucharVal != 255) {
+            value = String(ucharVal);
+            type = "UChar";
+            keySize = 1;
+          }
+        }
+        else if (keyName == "dmr_height") {
+          // Known Int32 keys
+          int32_t intVal = preferences.getInt(keyName.c_str(), -999999);
+          if (intVal != -999999) {
+            value = String(intVal);
+            if (keyName.indexOf("height") >= 0) {
+              value += " meters";
+            }
+            type = "Int32";
+            keySize = 4;
+          }
+        }
+        else if (keyName == "dmr_lat" || keyName == "dmr_lon") {
+          // Known Float keys
+          float floatVal = preferences.getFloat(keyName.c_str(), -999.999);
+          if (floatVal != -999.999) {
+            value = String(floatVal, 6);
+            type = "Float";
+            keySize = 4;
+          }
+        }
+        else {
+          // Assume string for all other keys
+          size_t strLen = preferences.getBytesLength(keyName.c_str());
+          if (strLen > 0) {
+            String strValue = preferences.getString(keyName.c_str(), "");
+            // Check if this is a password field
+            if (keyName.equals("dmr_password") || keyName.equals("alt_password") || 
+                keyName.indexOf("password") >= 0) {
+              if (strValue.length() > 0) {
+                String maskedPassword = "";
+                for (int j = 0; j < strValue.length(); j++) {
+                  maskedPassword += "*";
                 }
+                // Create toggleable password display
+                String passwordId = "pwd" + keyName;
+                passwordId.replace("_", "");  // Remove underscores for valid ID
+                value = "<div class='password-container'>";
+                value += "<span id='" + passwordId + "masked' class='password-hidden'>" + maskedPassword + "</span>";
+                value += "<span id='" + passwordId + "real' style='display:none;'>" + strValue + "</span>";
+                value += "<span class='password-toggle' onclick='togglePassword(\"" + passwordId + "\")' title='Show/Hide Password'>&nbsp;&#x1F441;</span>";
+                value += "</div>";
+                type = "String (password)";
+              } else {
+                value = "[EMPTY PASSWORD]";
+                type = "String (empty)";
               }
+            } else {
+              if (strValue.length() > 0) {
+                value = strValue;
+                type = "String";
+              } else {
+                value = "[EMPTY STRING]";
+                type = "String (empty)";
+              }
+            }
+            keySize = strLen;
+          } else {
+            // Check if this key exists but as a different type or is completely missing
+            String testValue = preferences.getString(keyName.c_str(), "__NOT_FOUND__");
+            if (testValue != "__NOT_FOUND__") {
+              // Check if this is a password field
+              if (keyName.equals("dmr_password") || keyName.equals("alt_password") || 
+                  keyName.indexOf("password") >= 0) {
+                if (testValue.length() > 0) {
+                  String maskedPassword = "";
+                  for (int j = 0; j < testValue.length(); j++) {
+                    maskedPassword += "*";
+                  }
+                  // Create toggleable password display
+                  String passwordId = "pwd" + keyName;
+                  passwordId.replace("_", "");  // Remove underscores for valid ID
+                  value = "<div class='password-container'>";
+                  value += "<span id='" + passwordId + "masked' class='password-hidden'>" + maskedPassword + "</span>";
+                  value += "<span id='" + passwordId + "real' style='display:none;'>" + testValue + "</span>";
+                  value += "<span class='password-toggle' onclick='togglePassword(\"" + passwordId + "\")' title='Show/Hide Password'>&nbsp;&#x1F441;</span>";
+                  value += "</div>";
+                  type = "String (password)";
+                } else {
+                  value = "[EMPTY PASSWORD]";
+                  type = "String (empty)";
+                }
+              } else {
+                value = testValue.length() > 0 ? testValue : "[EMPTY STRING]";
+                type = testValue.length() > 0 ? "String" : "String (empty)";
+              }
+              keySize = testValue.length() + 1; // +1 for null terminator
             }
           }
         }
         
-        if (value != "") {
-          html += "<tr><td class='pref-key'>" + keyName + "</td><td class='pref-value'>" + value + "</td><td class='pref-type'>" + type + "</td><td class='pref-type'>" + String(keySize) + "</td></tr>";
+        // Show the preference if we found any value or type information
+        if (value != "" || type != "") {
+          html += "<tr><td class='pref-key'>" + keyName + "</td><td class='pref-value'>" + (value != "" ? value : "[NOT STORED]") + "</td><td class='pref-type'>" + (type != "" ? type : "Unknown") + "</td><td class='pref-type'>" + String(keySize) + "</td></tr>";
         }
       }
     }
@@ -1207,12 +1292,32 @@ void handleShowPreferences() {
   html += "<h3>Storage Statistics</h3>";
   html += "<div class='info'><strong>Namespace:</strong> mmdvm</div>";
   html += "<div class='info'><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
-  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Only length is shown.</div>";
+  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Click the eye icon to show/hide actual values.</div>";
   html += "</div>";
   
   html += "<div class='info'>";
   html += "<strong>Actions:</strong> <a href='/admin' style='color: #007bff;'>Back to Admin</a> | <a href='/export-config' style='color: #007bff;'>Export Config</a> | <a href='/resetconfig' style='color: #dc3545;'>Reset All</a>";
   html += "</div>";
+  
+  // Add JavaScript for password toggle functionality
+  html += "<script>";
+  html += "function togglePassword(passwordId) {";
+  html += "  var masked = document.getElementById(passwordId + 'masked');";
+  html += "  var real = document.getElementById(passwordId + 'real');";
+  html += "  var toggle = masked.parentElement.querySelector('.password-toggle');";
+  html += "  if (masked.style.display === 'none') {";
+  html += "    masked.style.display = 'inline';";
+  html += "    real.style.display = 'none';";
+  html += "    toggle.innerHTML = '&#128065;';";
+  html += "    toggle.title = 'Show Password';";
+  html += "  } else {";
+  html += "    masked.style.display = 'none';";
+  html += "    real.style.display = 'inline';";
+  html += "    toggle.innerHTML = '&#128064;';";
+  html += "    toggle.title = 'Hide Password';";
+  html += "  }";
+  html += "}";
+  html += "</script>";
   
   html += getFooter();
   html += "</div></body></html>";
