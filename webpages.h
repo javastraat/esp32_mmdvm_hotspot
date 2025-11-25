@@ -140,14 +140,6 @@ void handleRoot() {
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
   html += "<div class='status " + mmdvmClass + ">" + mmdvmIcon + " MMDVM: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
   html += "</div>";
-
-  html += "<div class='card'>";
-  html += "<h3>Station Information</h3>";
-  html += "<div class='info'><strong>Callsign:</strong> " + String(dmr_callsign) + "</div>";
-  html += "<div class='info'><strong>DMR ID:</strong> " + String(dmr_id) + "</div>";
-  html += "<div class='info'><strong>ESSID:</strong> " + (dmr_essid == 0 ? String("None") : String(dmr_essid)) + "</div>";
-  html += "<div class='info'><strong>Location:</strong> " + dmr_location + "</div>";
-  html += "</div>";
   html += "</div>";
 
   html += "<div class='card'>";
@@ -840,6 +832,15 @@ void handleStatus() {
   html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Power Level:</span><span class='metric-value'>" + String(dmr_power) + "</span></div>";
   html += "</div>";
+
+  // Station Information Card
+  html += "<div class='card'>";
+  html += "<h3>Station Information</h3>";
+  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + String(dmr_callsign) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? String("None") : String(dmr_essid)) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Location:</span><span class='metric-value'>" + dmr_location + "</span></div>";
+  html += "</div>";
   
   html += "</div>"; // Close status-grid
 
@@ -918,6 +919,12 @@ void handleAdmin() {
   // OTA Update Card
   html += "<div class='card'>";
   html += "<h3>Firmware Updates</h3>";
+  html += "<div><strong>Current Version:</strong> " + firmwareVersion + "</div>";
+  html += "<div><strong>Build Date:</strong> " + String(__DATE__) + " " + String(__TIME__) + "</div>";
+  html += "<br>";
+  html += "<div><strong>Latest Version:</strong> <span id='latest-version'>Checking...</span></div>";
+  html += "<br>";
+  html += "<div id='update-status-text' style='text-align: center; font-size: 0.9em; display: flex; justify-content: center;'></div>";
   html += "<p>Over-the-Air (OTA) firmware update options:</p>";
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Online Update</a>";
@@ -928,15 +935,6 @@ void handleAdmin() {
   html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Prepare Update</button>";
   html += "</div>";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
-  html += "</div>";
-
-  // Information Card
-  html += "<div class='card'>";
-  html += "<h3>System Information</h3>";
-  html += "<div class='info'><strong>Firmware Version:</strong> " + firmwareVersion + "</div>";
-  html += "<div class='info'><strong>Build Date:</strong> " + String(__DATE__) + " " + String(__TIME__) + "</div>";
-  html += "<div class='info'><strong>Uptime:</strong> " + String(millis()/1000/60) + " minutes</div>";
-  html += "<div class='info'><strong>Free Memory:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
   html += "</div>";
 
   html += "</div>"; // Close admin-grid
@@ -1072,6 +1070,26 @@ void handleAdmin() {
   html += "    });";
   html += "  }";
   html += "}";
+  html += "function checkLatestVersion() {";
+  html += "  fetch('" + String(OTA_VERSION_URL) + "')";
+  html += "    .then(response => response.text())";
+  html += "    .then(data => {";
+  html += "      var latestVersion = data.trim();";
+  html += "      var currentVersion = '" + firmwareVersion + "';";
+  html += "      var latestSpan = document.getElementById('latest-version');";
+  html += "      var statusDiv = document.getElementById('update-status-text');";
+  html += "      latestSpan.innerHTML = latestVersion;";
+  html += "      if (latestVersion === currentVersion) {";
+  html += "        statusDiv.innerHTML = '<div style=\"background: #28a745; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Up to date</div>';";
+  html += "      } else {";
+  html += "        statusDiv.innerHTML = '<div style=\"background: #dc3545; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Update available</div>';";
+  html += "      }";
+  html += "    })";
+  html += "    .catch(err => {";
+  html += "      document.getElementById('latest-version').innerHTML = '<span style=\"color: #dc3545;\">Error checking version</span>';";
+  html += "    });";
+  html += "}";
+  html += "window.onload = function() { checkLatestVersion(); };";
   html += "</script>";
 
   html += getFooter();
