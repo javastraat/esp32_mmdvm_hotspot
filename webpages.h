@@ -88,9 +88,17 @@ String getCommonCSS() {
   css += "input:focus, select:focus, textarea:focus { border-color: #007bff; }";
   css += "</style>";
   css += "<script>";
+  css += "function updateThemeButton() {";
+  css += "  var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';";
+  css += "  var themeButton = document.querySelector('.theme-toggle');";
+  css += "  if (themeButton) {";
+  css += "    themeButton.textContent = currentTheme === 'dark' ? 'Light' : 'Dark';";
+  css += "  }";
+  css += "}";
+  css += "var savedTheme = localStorage.getItem('theme') || 'light';";
+  css += "document.documentElement.setAttribute('data-theme', savedTheme);";
   css += "document.addEventListener('DOMContentLoaded', function() {";
-  css += "  var savedTheme = localStorage.getItem('theme') || 'light';";
-  css += "  document.documentElement.setAttribute('data-theme', savedTheme);";
+  css += "  updateThemeButton();";
   css += "});";
   css += "</script>";
   return css;
@@ -104,7 +112,12 @@ String getNavigation(String activePage) {
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/dmrconfig'" + String(activePage == "dmrconfig" ? " class='active'" : "") + ">DMR Config</a>";
   nav += "<a href='/admin'" + String(activePage == "admin" ? " class='active'" : "") + ">Admin</a>";
-  nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode'>◐</button>";
+  nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode' id='theme-btn'>Dark</button>";
+  nav += "<script>";
+  nav += "var savedTheme = localStorage.getItem('theme') || 'light';";
+  nav += "var themeBtn = document.getElementById('theme-btn');";
+  nav += "if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? 'Light' : 'Dark';";
+  nav += "</script>";
   nav += "<a href='javascript:void(0);' class='icon' onclick='toggleNav()'>&#9776;</a>";
   nav += "</div>";
   nav += "<script>";
@@ -121,11 +134,8 @@ String getNavigation(String activePage) {
   nav += "  var newTheme = currentTheme === 'dark' ? 'light' : 'dark';";
   nav += "  document.documentElement.setAttribute('data-theme', newTheme);";
   nav += "  localStorage.setItem('theme', newTheme);";
+  nav += "  updateThemeButton();";
   nav += "}";
-  nav += "window.onload = function() {";
-  nav += "  var savedTheme = localStorage.getItem('theme') || 'light';";
-  nav += "  document.documentElement.setAttribute('data-theme', savedTheme);";
-  nav += "};";
   nav += "</script>";
   return nav;
 }
