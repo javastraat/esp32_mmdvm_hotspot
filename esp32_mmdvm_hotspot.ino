@@ -772,7 +772,7 @@ void setupWebServer() {
   server.on("/", handleRoot);
   server.on("/status", handleStatus);
   server.on("/monitor", handleMonitor);
-  server.on("/config", handleConfig);
+  server.on("/wificonfig", handleConfig);
   server.on("/dmrconfig", handleDMRConfig);
   server.on("/admin", handleAdmin);
   
