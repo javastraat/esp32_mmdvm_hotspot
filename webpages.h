@@ -959,7 +959,7 @@ void handleAdmin() {
   html += "</div>"; // Close admin-grid
 
   // Warning message
-  html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107;'>";
+  html += "<div class='info' style='background: var(--info-bg); border-left-color: #ffc107; color: var(--text-color);'>";
   html += "<strong>Warning:</strong> Some actions like reset and reboot will cause the system to restart. ";
   html += "Make sure you have saved any important configuration changes before proceeding.";
   html += "</div>";
