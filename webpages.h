@@ -124,20 +124,19 @@ void handleRoot() {
   html += "<h3>Quick Status</h3>";
   
   if (wifiConnected) {
-    html += "<div class='status connected'>&#10004; WiFi Connected</div>";
+    html += "<div class='status connected'>WiFi Connected</div>";
     html += "<div class='info'>IP: " + WiFi.localIP().toString() + "</div>";
   } else if (apMode) {
-    html += "<div class='status warning'>&#9888; Access Point Mode</div>";
+    html += "<div class='status warning'>Access Point Mode</div>";
     html += "<div class='info'>AP IP: " + WiFi.softAPIP().toString() + "</div>";
   } else {
-    html += "<div class='status disconnected'>&#10006; WiFi Disconnected</div>";
+    html += "<div class='status disconnected'>WiFi Disconnected</div>";
   }
   
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
-  String bmIcon = dmrLoggedIn ? "&#10004;" : "&#10006;";
-  html += "<div class='status " + bmStatusClass + ">" + bmIcon + " DMR: " + dmrLoginStatus + "</div>";
+  html += "<div class='status " + bmStatusClass + ">DMR: " + dmrLoginStatus + "</div>";
   
-  String mmdvmIcon = mmdvmReady ? "&#10004;" : "&#10006;";
+  String mmdvmIcon = mmdvmReady ? "[OK]" : "[ERR]";
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
   html += "<div class='status " + mmdvmClass + ">" + mmdvmIcon + " MMDVM: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
   html += "</div>";
@@ -273,12 +272,12 @@ void handleConfig() {
   html += "<div class='card'>";
   html += "<h3>Current WiFi Status</h3>";
   if (wifiConnected) {
-    html += "<div class='status connected'>&#10004; Connected to: " + WiFi.SSID() + "</div>";
+    html += "<div class='status connected'>Connected to: " + WiFi.SSID() + "</div>";
     html += "<div class='info'>IP Address: " + WiFi.localIP().toString() + "</div>";
     html += "<div class='info'>Signal Strength: " + String(WiFi.RSSI()) + " dBm</div>";
     html += "<div class='info'>MAC Address: " + WiFi.macAddress() + "</div>";
   } else if (apMode) {
-    html += "<div class='status warning'>&#9888; Access Point Mode Active</div>";
+    html += "<div class='status warning'>Access Point Mode Active</div>";
     html += "<div class='info'>AP IP: " + WiFi.softAPIP().toString() + "</div>";
     html += "<div class='info'>Connected Clients: " + String(WiFi.softAPgetStationNum()) + "</div>";
   } else {
@@ -799,7 +798,7 @@ void handleStatus() {
   html += "<div class='card'>";
   html += "<h3>WiFi Status</h3>";
   if (wifiConnected) {
-    html += "<div class='status connected'>&#10004; Connected</div>";
+    html += "<div class='status connected'>Connected</div>";
     html += "<div class='metric'><span class='metric-label'>SSID:</span><span class='metric-value'>" + WiFi.SSID() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>IP Address:</span><span class='metric-value'>" + WiFi.localIP().toString() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>Signal Strength:</span><span class='metric-value'>" + String(WiFi.RSSI()) + " dBm</span></div>";
@@ -809,7 +808,7 @@ void handleStatus() {
     html += "<div class='metric'><span class='metric-label'>AP IP:</span><span class='metric-value'>" + WiFi.softAPIP().toString() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>Clients:</span><span class='metric-value'>" + String(WiFi.softAPgetStationNum()) + "</span></div>";
   } else {
-    html += "<div class='status disconnected'>&#10006; Disconnected</div>";
+    html += "<div class='status disconnected'>Disconnected</div>";
   }
   html += "</div>";
 
@@ -988,15 +987,15 @@ void handleAdmin() {
   html += "function startOnlineUpdate() {";
   html += "  if (confirm('Download firmware update from GitHub? This will check for the latest version.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">🚀 Downloading firmware from GitHub...</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">Downloading firmware from GitHub...</div>';";
   html += "    fetch('/download-update', {method: 'POST'}).then(response => response.text()).then(data => {";
   html += "      if (data.includes('SUCCESS')) {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">⚡ Flash Now</button></div>';";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">Flash Now</button></div>';";
   html += "      } else {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Download failed: ' + data + '</div>';";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Download failed: ' + data + '</div>';";
   html += "      }";
   html += "    }).catch(err => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Network error: ' + err + '</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Network error: ' + err + '</div>';";
   html += "    });";
   html += "  }";
   html += "}";
@@ -1016,24 +1015,24 @@ void handleAdmin() {
   html += "    return;";
   html += "  }";
   html += "  document.getElementById('update-status').style.display = 'block';";
-  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">📦 Uploading firmware...</div>';";
+  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">Uploading firmware...</div>';";
   html += "  var formData = new FormData();";
   html += "  formData.append('firmware', file);";
   html += "  fetch('/upload-firmware', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
   html += "    if (data.includes('SUCCESS')) {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">⚡ Flash Now</button></div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">Flash Now</button></div>';";
   html += "    } else {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Upload failed: ' + data + '</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Upload failed: ' + data + '</div>';";
   html += "    }";
   html += "  }).catch(err => {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Upload error: ' + err + '</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Upload error: ' + err + '</div>';";
   html += "  });";
   html += "}";
   html += "function confirmFlash() {";
   html += "  if (confirm('⚠️ WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">⚡ Flashing firmware... DO NOT POWER OFF!</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">FLASHING FIRMWARE... DO NOT POWER OFF!</div>';";
   html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Flash complete! System rebooting...</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Flash complete! System rebooting...</div>';";
   html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
   html += "    });";
   html += "  }";
@@ -1122,7 +1121,7 @@ void handleDownloadUpdate() {
         size_t written = Update.writeStream(*client);
         
         if (written == contentLength) {
-          logSerial("Firmware downloaded and prepared for flashing");
+          logSerial("Firmware downloaded and prepared for flashing - DO NOT call Update.end() yet");
           server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
         } else {
           Update.abort();
@@ -1182,13 +1181,15 @@ void handleFlashFirmware() {
     return;
   }
   
-  // If update is ready but not finished (online download case), finalize it
+  // For online downloads, finalize the update that was prepared earlier
   if (!Update.isFinished() && Update.size() > 0) {
+    logSerial("Finalizing online downloaded firmware...");
     if (!Update.end(true)) {
-      logSerial("Failed to finalize firmware update");
-      server.send(500, "text/plain", "ERROR: Failed to finalize firmware");
+      logSerial("Failed to finalize firmware update - Error: " + String(Update.getError()));
+      server.send(500, "text/plain", "ERROR: Failed to finalize firmware - " + String(Update.getError()));
       return;
     }
+    logSerial("Online firmware finalized successfully");
   }
   
   if (Update.isFinished()) {
