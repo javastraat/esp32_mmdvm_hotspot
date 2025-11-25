@@ -8,6 +8,7 @@ A comprehensive ESP32-based DMR hotspot with web interface, WiFi management, and
 - **Advanced Web Interface** - Configuration and monitoring via responsive web browser
 - **Dual WiFi Support** - Primary network from config.h + alternate network via web interface
 - **Real-time Serial Monitor** - Live MMDVM communication logs via web interface
+- **OTA Firmware Updates** - Web-based updates via GitHub download or file upload
 - **Responsive Design** - Mobile-friendly web interface with navigation menu
 - **Configuration Storage** - Persistent settings stored in ESP32 flash memory
 - **Network Scanner** - WiFi network discovery and configuration
@@ -69,6 +70,8 @@ All required libraries are built into ESP32 Arduino Core:
 - WebServer (Web interface)  
 - ESPmDNS (Network discovery)
 - Preferences (Configuration storage)
+- HTTPClient (OTA firmware downloads)
+- Update (OTA firmware flashing)
 - mbedtls (Cryptographic functions)
 
 ### 3. Configuration
@@ -92,6 +95,10 @@ Update the configuration file with your settings:
 #define MMDVM_TX_PIN 17             // ESP32 TX pin  
 #define MMDVM_PTT_PIN 4             // PTT control pin
 #define MMDVM_COS_LED_PIN 2         // Status LED pin
+
+// OTA Update Configuration (optional)
+#define OTA_UPDATE_URL "https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/update.bin"
+#define OTA_TIMEOUT 30000           // Download timeout in milliseconds
 ```
 
 ### 4. Upload Firmware
@@ -140,6 +147,7 @@ Once connected, access the web interface at the ESP32's IP address:
 ### Admin Panel
 - **System Control** - Restart system, complete factory reset
 - **Configuration Export** - Backup settings to file
+- **OTA Firmware Updates** - Web-based firmware update system with dual methods
 - **Stored Preferences Viewer** - Advanced debugging tool showing all ESP32 NVS storage
 - **Complete Storage Reset** - Erase entire ESP32 NVS partition (all namespaces)
 - **Service Management** - Restart services, clear logs, test MMDVM
@@ -224,6 +232,27 @@ The web interface includes 40+ pre-configured BrandMeister servers:
 - Try: http://esp32-mmdvm.local (if mDNS working)
 - Access via AP mode: http://192.168.4.1
 - Clear browser cache and try different browser
+
+### OTA Update Issues
+**Problem:** Online update fails to download
+- Check internet connectivity on ESP32
+- Verify GitHub URL in config.h is accessible
+- Check if firmware file exists at specified URL
+- Monitor serial output for HTTP error codes
+- Ensure sufficient free flash memory
+
+**Problem:** File upload fails
+- Verify .bin file format and size
+- Check available flash memory space
+- Use smaller firmware files if memory limited
+- Ensure stable WiFi connection during upload
+
+**Problem:** Flash process fails after download/upload
+- Check firmware integrity (file not corrupted)
+- Ensure firmware is compatible with ESP32 hardware
+- Verify sufficient power supply during flash
+- Monitor serial output for detailed error messages
+- Use factory reset if flash process is interrupted
 
 ## 📊 Monitoring and Status
 
@@ -385,12 +414,51 @@ Advanced debugging tool accessible via Admin Panel → "Show Preferences":
 
 Useful for troubleshooting configuration issues, verifying stored settings, and understanding ESP32 NVS storage utilization.
 
+## 🔄 OTA Firmware Updates
+
+The admin panel includes a comprehensive Over-The-Air (OTA) firmware update system with two methods:
+
+### Online Update (GitHub)
+- **Automatic Download** - Downloads latest firmware directly from GitHub repository
+- **Source URL** - Configurable in config.h: `OTA_UPDATE_URL`
+- **Default Source** - `https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/update.bin`
+- **Size Validation** - Verifies firmware size and integrity before flashing
+- **Error Handling** - Detailed error reporting with HTTP status codes
+
+### Manual Upload (File)
+- **Local File Upload** - Upload firmware .bin files via web interface
+- **Drag & Drop Support** - Modern file selection interface
+- **Progress Tracking** - Real-time upload progress display
+- **Format Validation** - Ensures only .bin files are accepted
+
+### Safety Features
+- **Two-Step Process** - Download/Upload → Confirmation → Flash
+- **Pre-flash Validation** - Firmware integrity check before flashing
+- **Progress Indicators** - Clear status messages throughout process
+- **Automatic Reboot** - System restart after successful flash
+- **Error Recovery** - Detailed error messages for troubleshooting
+
+### Update Process
+1. **Access Admin Panel** - Navigate to `/admin` page
+2. **Choose Method** - Select "Online Update" or "File Upload"
+3. **Download/Upload** - Firmware prepared for flashing
+4. **Confirmation** - Click "Flash Now" button to apply
+5. **Automatic Reboot** - System restarts with new firmware
+
+### Configuration
+Customize the GitHub update source in `config.h`:
+```cpp
+// OTA Update Configuration
+#define OTA_UPDATE_URL "https://github.com/username/repository/raw/branch/update.bin"
+#define OTA_TIMEOUT 30000  // Download timeout in milliseconds
+```
+
 ### Adding Features
 1. **Additional Protocols:** Extend MMDVM packet handlers for D-STAR, YSF, P25
 2. **Display Support:** Add OLED/LCD display integration via I2C
-3. **OTA Updates:** Implement web-based firmware update system
-4. **Extended WiFi Management:** Expand beyond current dual WiFi to multiple network slots
-5. **Enhanced Logging:** Add persistent log storage with rotation and filtering
+3. **Extended WiFi Management:** Expand beyond current dual WiFi to multiple network slots
+4. **Enhanced Logging:** Add persistent log storage with rotation and filtering
+5. **Remote Monitoring:** SNMP support, external monitoring integration
 
 ## 🌍 BrandMeister Server List
 
@@ -473,7 +541,7 @@ This project welcomes contributions! Areas for improvement:
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20251124_ESP32 (matches firmware version)
+- **Version:** 20251125_ESP32 (includes OTA update system)
 - **License:** Open source for educational and amateur radio use
 - **Author:** Community-driven development
 - **Latest Updates:** Check GitHub repository for current version
