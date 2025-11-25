@@ -1105,8 +1105,8 @@ void handleDownloadUpdate() {
   logSerial("Starting online firmware download from GitHub...");
   
   HTTPClient http;
-  http.begin("https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/update.bin");
-  http.setTimeout(30000); // 30 second timeout
+  http.begin(OTA_UPDATE_URL);
+  http.setTimeout(OTA_TIMEOUT);
   
   int httpCode = http.GET();
   

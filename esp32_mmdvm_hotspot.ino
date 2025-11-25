@@ -129,7 +129,7 @@ String altSSID = "";
 String altPassword = "";
 
 // Firmware version (matches the version used in DMR config)
-String firmwareVersion = "20251126_ESP32";
+String firmwareVersion = "20251125_ESP32";
 
 // ===== Function Prototypes =====
 void setupWiFi();

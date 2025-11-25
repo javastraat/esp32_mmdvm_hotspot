@@ -80,6 +80,10 @@
 #define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
+// ===== OTA Update Configuration =====
+#define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
+#define OTA_TIMEOUT 30000          // OTA download timeout in milliseconds
+
 // OLED Display Settings (if enabled)
 #define OLED_I2C_ADDRESS 0x3C
 #define OLED_SDA_PIN 21
