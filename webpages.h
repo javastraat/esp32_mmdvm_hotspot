@@ -988,15 +988,15 @@ void handleAdmin() {
   html += "function startOnlineUpdate() {";
   html += "  if (confirm('Download firmware update from GitHub? This will check for the latest version.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">&#128640; Downloading firmware from GitHub...</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">🚀 Downloading firmware from GitHub...</div>';";
   html += "    fetch('/download-update', {method: 'POST'}).then(response => response.text()).then(data => {";
   html += "      if (data.includes('SUCCESS')) {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">&#9889; Flash Now</button></div>';";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">⚡ Flash Now</button></div>';";
   html += "      } else {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Download failed: ' + data + '</div>';";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Download failed: ' + data + '</div>';";
   html += "      }";
   html += "    }).catch(err => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Network error: ' + err + '</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Network error: ' + err + '</div>';";
   html += "    });";
   html += "  }";
   html += "}";
@@ -1016,24 +1016,24 @@ void handleAdmin() {
   html += "    return;";
   html += "  }";
   html += "  document.getElementById('update-status').style.display = 'block';";
-  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">&#128190; Uploading firmware...</div>';";
+  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">📦 Uploading firmware...</div>';";
   html += "  var formData = new FormData();";
   html += "  formData.append('firmware', file);";
   html += "  fetch('/upload-firmware', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
   html += "    if (data.includes('SUCCESS')) {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">&#9889; Flash Now</button></div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">⚡ Flash Now</button></div>';";
   html += "    } else {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Upload failed: ' + data + '</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Upload failed: ' + data + '</div>';";
   html += "    }";
   html += "  }).catch(err => {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Upload error: ' + err + '</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">❌ Upload error: ' + err + '</div>';";
   html += "  });";
   html += "}";
   html += "function confirmFlash() {";
   html += "  if (confirm('⚠️ WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">&#9889; Flashing firmware... DO NOT POWER OFF!</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">⚡ Flashing firmware... DO NOT POWER OFF!</div>';";
   html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Flash complete! System rebooting...</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">✓ Flash complete! System rebooting...</div>';";
   html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
   html += "    });";
   html += "  }";
@@ -1174,6 +1174,22 @@ void handleUploadFirmware() {
 
 void handleFlashFirmware() {
   logSerial("Starting firmware flash process...");
+  
+  // For online downloads, we need to finalize the update first
+  if (Update.hasError()) {
+    logSerial("Update has errors, cannot flash");
+    server.send(400, "text/plain", "ERROR: Update has errors - " + String(Update.getError()));
+    return;
+  }
+  
+  // If update is ready but not finished (online download case), finalize it
+  if (!Update.isFinished() && Update.size() > 0) {
+    if (!Update.end(true)) {
+      logSerial("Failed to finalize firmware update");
+      server.send(500, "text/plain", "ERROR: Failed to finalize firmware");
+      return;
+    }
+  }
   
   if (Update.isFinished()) {
     logSerial("Firmware flash completed successfully!");
