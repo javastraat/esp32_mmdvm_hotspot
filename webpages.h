@@ -647,27 +647,27 @@ void handleResetConfig() {
   html += ".btn-danger:hover { background: #c82333; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
-  html += "<h1>⚠️ Complete Storage Reset</h1>";
+  html += "<h1>Complete Storage Reset</h1>";
   html += "<div class='danger'>";
-  html += "<strong>⚠️ EXTREME WARNING!</strong><br>";
+  html += "<strong>EXTREME WARNING!</strong><br>";
   html += "This will completely erase ALL ESP32 flash storage including:<br>";
-  html += "• DMR configuration (callsign, ID, server, ESSID, frequencies)<br>";
-  html += "• All WiFi credentials (primary and alternate)<br>";
-  html += "• Location and RF settings<br>";
-  html += "• ALL stored preferences in ANY namespace<br>";
-  html += "• Complete NVS (Non-Volatile Storage) partition<br>";
-  html += "• Any other data stored by any application<br>";
+  html += "- DMR configuration (callsign, ID, server, ESSID, frequencies)<br>";
+  html += "- All WiFi credentials (primary and alternate)<br>";
+  html += "- Location and RF settings<br>";
+  html += "- ALL stored preferences in ANY namespace<br>";
+  html += "- Complete NVS (Non-Volatile Storage) partition<br>";
+  html += "- Any other data stored by any application<br>";
   html += "</div>";
   html += "<div class='warning'>";
   html += "<strong>After reset:</strong><br>";
-  html += "• Device will restart with factory defaults from config.h<br>";
-  html += "• You will need to reconfigure ALL settings<br>";
-  html += "• This action cannot be undone!<br>";
+  html += "- Device will restart with factory defaults from config.h<br>";
+  html += "- You will need to reconfigure ALL settings<br>";
+  html += "- This action cannot be undone!<br>";
   html += "</div>";
   html += "<p><strong>Are you absolutely sure you want to erase ALL storage?</strong></p>";
   html += "<p style='color: #dc3545; font-weight: bold;'>This will reset the ESP32 to completely factory state!</p>";
   html += "<form action='/confirmreset' method='POST'>";
-  html += "<button type='submit' class='btn-danger'>⚠️ Yes, Erase Everything!</button>";
+  html += "<button type='submit' class='btn-danger'>Yes, Erase Everything!</button>";
   html += "</form>";
   html += "<div class='nav'><a href='/admin'>Cancel & Go Back to Admin</a></div>";
   html += getFooter();
@@ -724,10 +724,10 @@ void handleConfirmReset() {
   html += "<h1>Complete Storage Reset!</h1>";
   html += "<div class='info'>";
   html += "<strong>What was cleared:</strong><br>";
-  html += "• All ESP32 Preferences namespaces<br>";
-  html += "• Complete NVS (Non-Volatile Storage) partition<br>";
-  html += "• All WiFi, DMR, and system settings<br>";
-  html += "• Any other stored configuration data<br>";
+  html += "- All ESP32 Preferences namespaces<br>";
+  html += "- Complete NVS (Non-Volatile Storage) partition<br>";
+  html += "- All WiFi, DMR, and system settings<br>";
+  html += "- Any other stored configuration data<br>";
   html += "</div>";
   html += "<p><strong>The device will restart with factory defaults in 5 seconds...</strong></p>";
   html += "<p>After restart, reconfigure your settings via the web interface.</p>";
@@ -798,17 +798,17 @@ void handleStatus() {
   html += "<div class='card'>";
   html += "<h3>WiFi Status</h3>";
   if (wifiConnected) {
-    html += "<div class='status connected'>Connected</div>";
+    html += "<div class='status connected'>Status: Connected</div>";
     html += "<div class='metric'><span class='metric-label'>SSID:</span><span class='metric-value'>" + WiFi.SSID() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>IP Address:</span><span class='metric-value'>" + WiFi.localIP().toString() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>Signal Strength:</span><span class='metric-value'>" + String(WiFi.RSSI()) + " dBm</span></div>";
     html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.macAddress() + "</span></div>";
   } else if (apMode) {
-    html += "<div class='status warning'>&#9888; Access Point Mode</div>";
+    html += "<div class='status warning'>Status: Access Point Mode</div>";
     html += "<div class='metric'><span class='metric-label'>AP IP:</span><span class='metric-value'>" + WiFi.softAPIP().toString() + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>Clients:</span><span class='metric-value'>" + String(WiFi.softAPgetStationNum()) + "</span></div>";
   } else {
-    html += "<div class='status disconnected'>Disconnected</div>";
+    html += "<div class='status disconnected'>Status: Disconnected</div>";
   }
   html += "</div>";
 
@@ -816,8 +816,7 @@ void handleStatus() {
   html += "<div class='card'>";
   html += "<h3>DMR Network Status</h3>";
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
-  String bmIcon = dmrLoggedIn ? "&#10004;" : "&#10006;";
-  html += "<div class='status " + bmStatusClass + "'>" + bmIcon + " Status: " + dmrLoginStatus + "</div>";
+  html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
   html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + dmr_server + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
@@ -834,9 +833,8 @@ void handleStatus() {
   // MMDVM Status Card
   html += "<div class='card'>";
   html += "<h3>MMDVM Hardware</h3>";
-  String mmdvmIcon = mmdvmReady ? "&#10004;" : "&#10006;";
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
-  html += "<div class='status " + mmdvmClass + ">" + mmdvmIcon + " " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
+  html += "<div class='status " + mmdvmClass + "'>Status: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
   html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 3) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 3) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
@@ -869,6 +867,8 @@ void handleAdmin() {
   html += ".btn-info { background: #17a2b8; color: white; }";
   html += ".btn-info:hover { background: #138496; }";
   html += ".action-buttons { text-align: center; margin: 15px 0; }";
+  html += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
+  html += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
   html += "</style></head><body>";
   html += getNavigation("admin");
   html += "<div class='container'>";
@@ -880,7 +880,7 @@ void handleAdmin() {
   html += "<div class='card'>";
   html += "<h3>System Control</h3>";
   html += "<p>Control basic system functions:</p>";
-  html += "<div class='action-buttons'>";
+  html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>Reboot System</a>";
   html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-primary'>Restart Services</a>";
   html += "</div>";
@@ -890,7 +890,7 @@ void handleAdmin() {
   html += "<div class='card'>";
   html += "<h3>Configuration Management</h3>";
   html += "<p>Manage system configuration:</p>";
-  html += "<div class='action-buttons'>";
+  html += "<div class='action-buttons-vertical'>";
   html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
   html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
   html += "<a href='javascript:void(0)' onclick='showImportConfig()' class='btn btn-info'>Import Config</a>";
@@ -908,7 +908,7 @@ void handleAdmin() {
   html += "<div class='card'>";
   html += "<h3>Maintenance</h3>";
   html += "<p>System maintenance tools:</p>";
-  html += "<div class='action-buttons'>";
+  html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>Clear Logs</a>";
   html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>Test MMDVM</a>";
   html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>Fix Corrupted Prefs</a>";
@@ -919,7 +919,7 @@ void handleAdmin() {
   html += "<div class='card'>";
   html += "<h3>Firmware Updates</h3>";
   html += "<p>Over-the-Air (OTA) firmware update options:</p>";
-  html += "<div class='action-buttons'>";
+  html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Online Update</a>";
   html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>Upload File</a>";
   html += "</div>";
@@ -1385,6 +1385,15 @@ void handleShowPreferences() {
   html += getNavigation("admin");
   html += "<div class='container'>";
   html += "<h1>Stored Preferences</h1>";
+  
+  // Storage Statistics
+  html += "<div class='card'>";
+  html += "<h3>Storage Statistics</h3>";
+  html += "<div class='info'><strong>Namespace:</strong> mmdvm</div>";
+  html += "<div class='info'><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
+  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Click the eye icon to show/hide actual values.</div>";
+  html += "</div>";
+  
   html += "<div class='info'>";
   html += "All settings currently stored in ESP32 flash memory (Preferences namespace: 'mmdvm'):";
   html += "</div>";
@@ -1559,16 +1568,8 @@ void handleShowPreferences() {
   
   html += "</tbody></table>";
   
-  // Statistics
-  html += "<div class='card'>";
-  html += "<h3>Storage Statistics</h3>";
-  html += "<div class='info'><strong>Namespace:</strong> mmdvm</div>";
-  html += "<div class='info'><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
-  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Click the eye icon to show/hide actual values.</div>";
-  html += "</div>";
-  
   html += "<div class='info'>";
-  html += "<strong>Actions:</strong> <a href='/admin' style='color: #007bff;'>Back to Admin</a> | <a href='/export-config' style='color: #007bff;'>Export Config</a> | <a href='/resetconfig' style='color: #dc3545;'>Reset All</a>";
+  html += "<strong>Actions:</strong> <a href='/admin' style='color: #007bff;'>Back to Admin</a>";
   html += "</div>";
   
   // Add JavaScript for password toggle functionality
