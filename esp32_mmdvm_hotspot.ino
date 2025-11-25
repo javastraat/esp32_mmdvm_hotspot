@@ -788,6 +788,7 @@ void setupWebServer() {
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
+  server.on("/showprefs", handleShowPreferences);
   server.on("/test-mmdvm", HTTP_POST, handleTestMmdvm);
 
   server.begin();

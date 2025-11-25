@@ -5,14 +5,14 @@ A comprehensive ESP32-based DMR hotspot with web interface, WiFi management, and
 ## 🌟 Features
 
 - **Full DMR Protocol Support** - Complete BrandMeister network integration with authentication
-- **Advanced Web Interface** - Configuration and monitoring via web browser
-- **Multi-WiFi Management** - Up to 5 WiFi networks with automatic failover
+- **Advanced Web Interface** - Configuration and monitoring via responsive web browser
+- **Dual WiFi Support** - Primary network from config.h + alternate network via web interface
 - **Real-time Serial Monitor** - Live MMDVM communication logs via web interface
 - **Responsive Design** - Mobile-friendly web interface with navigation menu
 - **Configuration Storage** - Persistent settings stored in ESP32 flash memory
 - **Network Scanner** - WiFi network discovery and configuration
-- **DMR Status Monitoring** - Real-time connection status and talkgroup display
-- **OTA Ready** - Firmware update capability (configurable)
+- **DMR Status Monitoring** - Real-time connection status and network information
+- **Show Preferences** - View all ESP32 stored settings for debugging
 
 ## 🔧 Hardware Requirements
 
@@ -20,7 +20,6 @@ A comprehensive ESP32-based DMR hotspot with web interface, WiFi management, and
 1. **ESP32 Development Board** (ESP32-WROOM-32 recommended)
 2. **MMDVM Hat** (JumboSPOT, MMDVM_HS, or compatible)
 3. **Antenna** (UHF/VHF as appropriate for your frequency)
-4. **MicroSD Card** (optional, for logging)
 
 ### Supported MMDVM Hardware
 - JumboSPOT (recommended)
@@ -119,10 +118,11 @@ Once connected, access the web interface at the ESP32's IP address:
 - **System Overview** - Firmware version, server connection
 
 ### WiFi Configuration
-- **Multi-Network Management** - Configure up to 5 WiFi networks
-- **Automatic Failover** - Tries networks in priority order
-- **Network Scanner** - Discover and add nearby WiFi networks
-- **Connection Priority** - Reorder networks for optimal connectivity
+- **Primary Network** - Main WiFi configured in config.h file
+- **Alternate Network** - Backup WiFi configured via web interface
+- **Automatic Failover** - Tries alternate network if primary fails
+- **Network Scanner** - Discover and select nearby WiFi networks
+- **Access Point Mode** - Creates hotspot if both WiFi networks fail
 
 ### DMR Configuration  
 - **BrandMeister Integration** - Built-in server list with 40+ servers worldwide
@@ -137,10 +137,10 @@ Once connected, access the web interface at the ESP32's IP address:
 - **Debug Information** - Network packets, authentication status
 
 ### Admin Panel
-- **System Control** - Restart, factory reset
-- **Configuration Export** - Backup/restore settings
-- **Firmware Updates** - OTA update capability (when enabled)
-- **Service Management** - Restart network services
+- **System Control** - Restart system, factory reset
+- **Configuration Export** - Backup settings to file
+- **Show Preferences** - View all stored ESP32 settings for debugging
+- **Service Management** - Restart services, clear logs, test MMDVM
 
 ## 📡 DMR Network Support
 
@@ -158,15 +158,15 @@ The web interface includes 40+ pre-configured BrandMeister servers:
 
 ## 🔧 Advanced Configuration
 
-### WiFi Slot Management
+### Dual WiFi Configuration
 ```cpp
-// Configure via web interface or programmatically
-WiFiSlot slots[5] = {
-  {"HomeWiFi", "password1", true, -45},      // Slot 1: Primary
-  {"OfficeWiFi", "password2", true, -67},    // Slot 2: Backup
-  {"MobileHotspot", "password3", false, 0},  // Slot 3: Disabled
-  // ... up to 5 slots
-};
+// Primary WiFi (configured in config.h)
+#define WIFI_SSID "YourNetwork"
+#define WIFI_PASSWORD "YourPassword"
+
+// Alternate WiFi (configured via web interface)
+// Stored in ESP32 Preferences as "alt_ssid" and "alt_password"
+// Automatic failover if primary network unavailable
 ```
 
 ### DMR Authentication Flow
@@ -281,28 +281,26 @@ Web interface implementation with:
 - REST API endpoints for configuration
 
 ### Persistent Storage
-Settings stored in ESP32 flash memory:
-- DMR credentials and server settings
-- WiFi network configurations (up to 5 slots)
-- RF parameters and location data
-- System preferences and debugging options
+Settings stored in ESP32 flash memory (Preferences namespace: "mmdvm"):
+- DMR credentials and server settings (callsign, ID, password, ESSID)
+- Alternate WiFi network credentials
+- RF parameters (frequencies, power, color code) and location data
+- All settings viewable via "Show Preferences" admin function
 
 ## 🔧 Advanced Features
 
-### Multi-Protocol Support (Configurable)
-```cpp  
-#define ENABLE_DMR true     // DMR (Digital Mobile Radio)
-#define ENABLE_DSTAR false  // D-STAR (requires MMDVM firmware)
-#define ENABLE_YSF false    // Yaesu System Fusion
-#define ENABLE_P25 false    // Project 25
-#define ENABLE_NXDN false   // NXDN (Kenwood/Icom)
-```
+### Protocol Support
+Currently implemented:
+- **DMR (Digital Mobile Radio)** - Full BrandMeister network support
+
+Future protocols (configurable in config.h but not yet implemented):
+- D-STAR, YSF (System Fusion), P25, NXDN, POCSAG
 
 ### Network Protocols
-- **BrandMeister:** Full authentication with SHA256 hashing
-- **DMRplus:** IPSC protocol support (configurable)  
-- **HBlink:** HomeBrew protocol compatibility
-- **Custom Networks:** Manual server configuration
+- **BrandMeister:** Full authentication with SHA256 hashing (RPTL/RPTK/RPTC sequence)
+- **Custom DMR Servers:** Manual server configuration via web interface
+
+*Note: Currently optimized for BrandMeister. Other DMR networks may work but are not tested.*
 
 ### RF Configuration (Web Interface)
 - **Frequency Settings:** RX/TX frequencies in Hz
@@ -316,11 +314,10 @@ Settings stored in ESP32 flash memory:
 ### Code Structure
 ```
 esp32_mmdvm_hotspot/
-├── esp32_mmdvm_hotspot.ino    # Main firmware with DMR protocol
+├── esp32_mmdvm_hotspot.ino    # Main firmware with DMR BrandMeister protocol
 ├── config.h                   # Hardware and network configuration  
-├── webpages.h                 # Web interface implementation
-├── README.md                  # This documentation
-└── DMRplus_IPSC_Protocol.pdf  # Protocol documentation
+├── webpages.h                 # Complete web interface implementation
+└── README.md                  # This comprehensive documentation
 ```
 
 ### Key Functions
@@ -330,24 +327,37 @@ esp32_mmdvm_hotspot/
 - `handleNetwork()` - DMR packet processing and routing
 - Web handlers in webpages.h for configuration interface
 
+### Web Interface Pages
+Actual implemented pages:
+1. **Main Dashboard** (`/`) - System status and station information
+2. **Status Page** (`/status`) - Detailed system metrics with auto-refresh
+3. **Serial Monitor** (`/monitor`) - Real-time MMDVM communication logs
+4. **WiFi Config** (`/config`) - Primary and alternate network configuration
+5. **DMR Config** (`/dmrconfig`) - Complete DMR settings with 40+ server list
+6. **Admin Panel** (`/admin`) - System control, preferences, and maintenance
+
 ### Adding Features
-1. **Additional Protocols:** Modify MMDVM commands and packet handlers
-2. **Display Support:** Add OLED/LCD display via I2C  
-3. **GPS Integration:** Add location services and APRS
-4. **Database Integration:** Connect to user/talkgroup databases
-5. **Logging:** Implement SD card or cloud logging
+1. **Additional Protocols:** Extend MMDVM packet handlers
+2. **Display Support:** Add OLED/LCD display integration
+3. **OTA Updates:** Implement web-based firmware updates
+4. **Multi-WiFi Slots:** Expand beyond current dual WiFi support
+5. **Enhanced Logging:** Add persistent log storage and filtering
 
 ## 🌍 BrandMeister Server List
 
 The web interface includes 40+ servers worldwide:
 
-**Europe:** Netherlands (2041), Germany (2622), UK (2341), France (2081), Italy (2222), Spain (2141), Belgium (2061), Austria (2322), Switzerland (2282), Denmark (2382), Sweden (2401), Norway (2421), Finland (2441)
+**Europe:** Netherlands (2041), Germany (2621/2622), UK (2341), France (2081/2082), Italy (2222), Spain (2141), Belgium (2061), Austria (2322), Switzerland (2282), Denmark (2382), Sweden (2402), Norway (2421), Finland (2441), Czech Republic (2302), Hungary (2162), Romania (2262), Poland (2602), Portugal (2682), Ireland (2721), Bulgaria (2841), Slovenia (2931), Russia (2502/2503), Ukraine (2551), Greece (2022)
 
-**North America:** USA (3021), Canada (3023)
+**North America:** USA (3102/3103/3104), Canada (3021), Mexico (3341)
 
-**Asia-Pacific:** Australia (5001), Japan (4401), Thailand (5201), New Zealand (5301)
+**Asia-Pacific:** Australia (5051), South Korea (4501), China (4602), Malaysia (5021), Philippines (5151)
 
-**Others:** South Africa (6551), Brazil (7241), Argentina (7221)
+**Middle East/Africa:** Israel (4251), South Africa (6551)
+
+**South America:** Brazil (7242), Chile (7301)
+
+All servers use standard BrandMeister port 62031.
 
 ## 📖 Resources and Documentation
 
@@ -414,7 +424,7 @@ This project welcomes contributions! Areas for improvement:
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20251125_ESP32 (matches firmware version)
+- **Version:** 20251124_ESP32 (matches firmware version in code)
 - **License:** Open source for educational and amateur radio use
 - **Author:** Community-driven development
 - **Latest Updates:** Check GitHub repository for current version

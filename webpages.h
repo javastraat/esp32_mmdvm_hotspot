@@ -634,12 +634,13 @@ void handleSaveDMRConfig() {
 void handleResetConfig() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>Reset Settings - ESP32 MMDVM</title>";
+  html += "<title>Complete Storage Reset - ESP32 MMDVM</title>";
   html += "<style>";
   html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
   html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }";
   html += "h1 { color: #dc3545; border-bottom: 2px solid #dc3545; padding-bottom: 10px; }";
   html += ".warning { padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; margin: 20px 0; text-align: left; }";
+  html += ".danger { padding: 15px; background: #f8d7da; border-left: 4px solid #dc3545; margin: 20px 0; text-align: left; }";
   html += ".nav { margin: 20px 0; }";
   html += ".nav a { display: inline-block; padding: 10px 20px; margin: 5px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }";
   html += ".nav a:hover { background: #0056b3; }";
@@ -647,20 +648,29 @@ void handleResetConfig() {
   html += ".btn-danger:hover { background: #c82333; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
-  html += "<h1>Reset All Settings</h1>";
-  html += "<div class='warning'>";
-  html += "<strong>Warning!</strong><br>";
-  html += "This will erase all saved settings including:<br>";
-  html += "- DMR configuration (callsign, ID, server, ESSID)<br>";
-  html += "- Alternate WiFi credentials<br>";
-  html += "- All stored preferences<br><br>";
-  html += "The device will restart with default settings from config.h";
+  html += "<h1>⚠️ Complete Storage Reset</h1>";
+  html += "<div class='danger'>";
+  html += "<strong>⚠️ EXTREME WARNING!</strong><br>";
+  html += "This will completely erase ALL ESP32 flash storage including:<br>";
+  html += "• DMR configuration (callsign, ID, server, ESSID, frequencies)<br>";
+  html += "• All WiFi credentials (primary and alternate)<br>";
+  html += "• Location and RF settings<br>";
+  html += "• ALL stored preferences in ANY namespace<br>";
+  html += "• Complete NVS (Non-Volatile Storage) partition<br>";
+  html += "• Any other data stored by any application<br>";
   html += "</div>";
-  html += "<p><strong>Are you sure you want to reset all settings?</strong></p>";
+  html += "<div class='warning'>";
+  html += "<strong>After reset:</strong><br>";
+  html += "• Device will restart with factory defaults from config.h<br>";
+  html += "• You will need to reconfigure ALL settings<br>";
+  html += "• This action cannot be undone!<br>";
+  html += "</div>";
+  html += "<p><strong>Are you absolutely sure you want to erase ALL storage?</strong></p>";
+  html += "<p style='color: #dc3545; font-weight: bold;'>This will reset the ESP32 to completely factory state!</p>";
   html += "<form action='/confirmreset' method='POST'>";
-  html += "<button type='submit' class='btn-danger'>Yes, Reset Everything</button>";
+  html += "<button type='submit' class='btn-danger'>⚠️ Yes, Erase Everything!</button>";
   html += "</form>";
-  html += "<div class='nav'><a href='/'>Cancel & Go Back</a></div>";
+  html += "<div class='nav'><a href='/admin'>Cancel & Go Back to Admin</a></div>";
   html += getFooter();
   html += "</div></body></html>";
 
@@ -668,32 +678,68 @@ void handleResetConfig() {
 }
 
 void handleConfirmReset() {
-  // Clear all preferences
-  preferences.begin("mmdvm", false);
-  preferences.clear();
-  preferences.end();
+  // Clear ALL ESP32 flash storage (not just our namespace)
+  logSerial("Starting complete ESP32 flash storage reset...");
+  
+  // Method 1: Clear known namespaces
+  const char* knownNamespaces[] = {"mmdvm", "wifi", "nvs", "app", "system", "user", "config", "settings"};
+  int namespaceCount = sizeof(knownNamespaces) / sizeof(knownNamespaces[0]);
+  
+  for (int i = 0; i < namespaceCount; i++) {
+    preferences.begin(knownNamespaces[i], false);
+    if (preferences.clear()) {
+      logSerial("Cleared namespace: " + String(knownNamespaces[i]));
+    }
+    preferences.end();
+    delay(10); // Small delay between operations
+  }
+  
+  // Method 2: Use ESP32 NVS erase (more thorough)
+  // This erases the entire NVS partition
+  #include "nvs_flash.h"
+  esp_err_t err = nvs_flash_erase();
+  if (err == ESP_OK) {
+    logSerial("NVS flash partition completely erased");
+    // Reinitialize NVS after erase
+    err = nvs_flash_init();
+    if (err == ESP_OK) {
+      logSerial("NVS reinitialized successfully");
+    } else {
+      logSerial("NVS reinitialize failed: " + String(esp_err_to_name(err)));
+    }
+  } else {
+    logSerial("NVS erase failed: " + String(esp_err_to_name(err)));
+  }
 
   String html = "<!DOCTYPE html><html><head>";
-  html += "<meta http-equiv='refresh' content='3;url=/'>";
+  html += "<meta http-equiv='refresh' content='5;url=/'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>Settings Reset</title>";
+  html += "<title>Complete Storage Reset</title>";
   html += "<style>";
   html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
   html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
   html += "h1 { color: #28a745; }";
+  html += ".info { text-align: left; margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #007bff; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
-  html += "<h1>Settings Reset Complete!</h1>";
-  html += "<p>All settings have been cleared.</p>";
-  html += "<p>The device will restart in 3 seconds...</p>";
+  html += "<h1>Complete Storage Reset!</h1>";
+  html += "<div class='info'>";
+  html += "<strong>What was cleared:</strong><br>";
+  html += "• All ESP32 Preferences namespaces<br>";
+  html += "• Complete NVS (Non-Volatile Storage) partition<br>";
+  html += "• All WiFi, DMR, and system settings<br>";
+  html += "• Any other stored configuration data<br>";
+  html += "</div>";
+  html += "<p><strong>The device will restart with factory defaults in 5 seconds...</strong></p>";
+  html += "<p>After restart, reconfigure your settings via the web interface.</p>";
   html += "<p><a href='/'>Return to Home</a></p>";
   html += getFooter();
   html += "</div></body></html>";
 
   server.send(200, "text/html", html);
 
-  logSerial("All settings reset to defaults!");
-  delay(3000);
+  logSerial("Complete ESP32 storage reset completed - restarting...");
+  delay(5000);
   ESP.restart();
 }
 
@@ -846,6 +892,7 @@ void handleAdmin() {
   html += "<div class='action-buttons'>";
   html += "<a href='/resetconfig' class='btn btn-danger'>&#128465; Reset All Settings</a>";
   html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>&#128190; Export Config</a>";
+  html += "<a href='/showprefs' class='btn btn-primary'>&#128269; Show Preferences</a>";
   html += "</div>";
   html += "</div>";
 
@@ -990,6 +1037,188 @@ void handleTestMmdvm() {
   logSerial("MMDVM test initiated by user");
   // Add MMDVM test logic here
   server.send(200, "text/plain", "MMDVM test started");
+}
+
+void handleShowPreferences() {
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>ESP32 MMDVM Hotspot - Stored Preferences</title>";
+  html += getCommonCSS();
+  html += "<style>";
+  html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0; }";
+  html += ".pref-table th, .pref-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }";
+  html += ".pref-table th { background-color: #f8f9fa; font-weight: bold; color: #495057; }";
+  html += ".pref-table tr:nth-child(even) { background-color: #f8f9fa; }";
+  html += ".pref-key { font-family: 'Courier New', monospace; color: #007bff; }";
+  html += ".pref-value { font-family: 'Courier New', monospace; word-break: break-all; }";
+  html += ".pref-type { color: #6c757d; font-size: 0.9em; }";
+  html += "</style></head><body>";
+  html += getNavigation("admin");
+  html += "<div class='container'>";
+  html += "<h1>Stored Preferences</h1>";
+  html += "<div class='info'>";
+  html += "All settings currently stored in ESP32 flash memory (Preferences namespace: 'mmdvm'):";
+  html += "</div>";
+
+  // Open preferences in read-only mode
+  preferences.begin("mmdvm", true);
+  
+  html += "<table class='pref-table'>";
+  html += "<thead><tr><th>Key</th><th>Value</th><th>Type</th><th>Size (bytes)</th></tr></thead><tbody>";
+  
+  // Get all keys in the namespace
+  size_t schLen = preferences.getBytesLength("schema");
+  if (schLen == 0) {
+    // No schema, try to enumerate by attempting to read common types
+    
+    // List of all possible keys we might find (including unknown ones)
+    const char* knownKeys[] = {
+      "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
+      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_color_code", 
+      "dmr_latitude", "dmr_longitude", "dmr_height", "dmr_location", 
+      "dmr_description", "dmr_url", "alt_ssid", "alt_password",
+      // Add other potential keys
+      "wifi_slots", "slot0_ssid", "slot1_ssid", "slot2_ssid", "slot3_ssid", "slot4_ssid",
+      "slot0_pass", "slot1_pass", "slot2_pass", "slot3_pass", "slot4_pass",
+      "slot0_enabled", "slot1_enabled", "slot2_enabled", "slot3_enabled", "slot4_enabled",
+      "slot0_rssi", "slot1_rssi", "slot2_rssi", "slot3_rssi", "slot4_rssi",
+      "version", "first_boot", "last_reset", "boot_count", "debug_level"
+    };
+    
+    int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);
+    int foundKeys = 0;
+    
+    for (int i = 0; i < keyCount; i++) {
+      String keyName = String(knownKeys[i]);
+      
+      if (preferences.isKey(keyName.c_str())) {
+        foundKeys++;
+        
+        // Try to determine the type by attempting different reads
+        String value = "";
+        String type = "";
+        size_t keySize = 0;
+        
+        // Check if it's a string
+        size_t strLen = preferences.getBytesLength(keyName.c_str());
+        if (strLen > 0) {
+          String strValue = preferences.getString(keyName.c_str(), "");
+          if (strValue.length() > 0) {
+            // Mask passwords
+            if (keyName.indexOf("password") >= 0 || keyName.indexOf("pass") >= 0) {
+              String maskedPassword = "";
+              for (int j = 0; j < strValue.length(); j++) {
+                maskedPassword += "*";
+              }
+              value = maskedPassword + " (" + String(strValue.length()) + " chars)";
+              type = "String (masked)";
+            } else {
+              value = strValue;
+              type = "String";
+            }
+            keySize = strLen;
+          }
+        }
+        
+        // If not a string, try other types
+        if (value == "") {
+          // Try UInt32
+          uint32_t uintVal = preferences.getUInt(keyName.c_str(), 0xFFFFFFFF);
+          if (uintVal != 0xFFFFFFFF) {
+            value = String(uintVal);
+            if (keyName.indexOf("freq") >= 0 && uintVal > 100000) {
+              value += " Hz";
+            }
+            type = "UInt32";
+            keySize = 4;
+          } else {
+            // Try Int32
+            int32_t intVal = preferences.getInt(keyName.c_str(), -999999);
+            if (intVal != -999999) {
+              value = String(intVal);
+              if (keyName.indexOf("height") >= 0) {
+                value += " meters";
+              }
+              type = "Int32";
+              keySize = 4;
+            } else {
+              // Try UChar
+              uint8_t ucharVal = preferences.getUChar(keyName.c_str(), 255);
+              if (ucharVal != 255) {
+                value = String(ucharVal);
+                type = "UChar";
+                keySize = 1;
+              } else {
+                // Try Float
+                float floatVal = preferences.getFloat(keyName.c_str(), -999.999);
+                if (floatVal != -999.999) {
+                  value = String(floatVal, 6);
+                  type = "Float";
+                  keySize = 4;
+                } else {
+                  // Try Bool
+                  bool boolVal = preferences.getBool(keyName.c_str(), false);
+                  // Since we can't distinguish between false and default, check with true
+                  bool boolVal2 = preferences.getBool(keyName.c_str(), true);
+                  if (boolVal != boolVal2) {
+                    value = boolVal ? "true" : "false";
+                    type = "Bool";
+                    keySize = 1;
+                  } else {
+                    // Check if it's binary data
+                    size_t blobLen = preferences.getBytesLength(keyName.c_str());
+                    if (blobLen > 0) {
+                      value = "[Binary data]";
+                      type = "Blob";
+                      keySize = blobLen;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        if (value != "") {
+          html += "<tr><td class='pref-key'>" + keyName + "</td><td class='pref-value'>" + value + "</td><td class='pref-type'>" + type + "</td><td class='pref-type'>" + String(keySize) + "</td></tr>";
+        }
+      }
+    }
+    
+    // Also try to find any unknown keys by checking for common patterns
+    // Note: ESP32 Preferences doesn't provide a direct way to enumerate all keys
+    // This is a limitation of the ESP32 Preferences library
+    
+    if (foundKeys == 0) {
+      html += "<tr><td colspan='4' style='text-align: center; color: #6c757d; font-style: italic;'>No preferences found in 'mmdvm' namespace</td></tr>";
+    } else {
+      html += "<tr><td colspan='4' style='text-align: center; color: #6c757d; font-style: italic; border-top: 2px solid #007bff; padding-top: 10px;'>";
+      html += "Found " + String(foundKeys) + " stored preferences. Note: ESP32 Preferences library doesn't support full key enumeration, so this shows known keys only.";
+      html += "</td></tr>";
+    }
+  }
+  
+  preferences.end();
+  
+  html += "</tbody></table>";
+  
+  // Statistics
+  html += "<div class='card'>";
+  html += "<h3>Storage Statistics</h3>";
+  html += "<div class='info'><strong>Namespace:</strong> mmdvm</div>";
+  html += "<div class='info'><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
+  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Only length is shown.</div>";
+  html += "</div>";
+  
+  html += "<div class='info'>";
+  html += "<strong>Actions:</strong> <a href='/admin' style='color: #007bff;'>Back to Admin</a> | <a href='/export-config' style='color: #007bff;'>Export Config</a> | <a href='/resetconfig' style='color: #dc3545;'>Reset All</a>";
+  html += "</div>";
+  
+  html += getFooter();
+  html += "</div></body></html>";
+  
+  server.send(200, "text/html", html);
+  logSerial("Preferences display requested by user");
 }
 
 #endif // WEBPAGES_H
