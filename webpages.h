@@ -906,6 +906,21 @@ void handleAdmin() {
   html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>&#128295; Fix Corrupted Prefs</a>";
   html += "</div>";
   html += "</div>";
+  
+  // OTA Update Card
+  html += "<div class='card'>";
+  html += "<h3>Firmware Updates</h3>";
+  html += "<p>Over-the-Air (OTA) firmware update options:</p>";
+  html += "<div class='action-buttons'>";
+  html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>&#128640; Online Update</a>";
+  html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>&#128193; Upload File</a>";
+  html += "</div>";
+  html += "<div id='upload-area' style='display:none; margin-top: 15px; padding: 15px; border: 2px dashed #007bff; border-radius: 6px; text-align: center;'>";
+  html += "<input type='file' id='firmware-file' accept='.bin' style='margin: 10px 0;' />";
+  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>&#128190; Prepare Update</button>";
+  html += "</div>";
+  html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
+  html += "</div>";
 
   // Information Card
   html += "<div class='card'>";
@@ -970,6 +985,59 @@ void handleAdmin() {
   html += "    });";
   html += "  }";
   html += "}";
+  html += "function startOnlineUpdate() {";
+  html += "  if (confirm('Download firmware update from GitHub? This will check for the latest version.')) {";
+  html += "    document.getElementById('update-status').style.display = 'block';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">&#128640; Downloading firmware from GitHub...</div>';";
+  html += "    fetch('/download-update', {method: 'POST'}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">&#9889; Flash Now</button></div>';";
+  html += "      } else {";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Download failed: ' + data + '</div>';";
+  html += "      }";
+  html += "    }).catch(err => {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Network error: ' + err + '</div>';";
+  html += "    });";
+  html += "  }";
+  html += "}";
+  html += "function showFileUpload() {";
+  html += "  var uploadArea = document.getElementById('upload-area');";
+  html += "  uploadArea.style.display = uploadArea.style.display === 'none' ? 'block' : 'none';";
+  html += "}";
+  html += "function uploadFirmware() {";
+  html += "  var fileInput = document.getElementById('firmware-file');";
+  html += "  var file = fileInput.files[0];";
+  html += "  if (!file) {";
+  html += "    alert('Please select a firmware file (.bin)');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (!file.name.endsWith('.bin')) {";
+  html += "    alert('Please select a valid .bin firmware file');";
+  html += "    return;";
+  html += "  }";
+  html += "  document.getElementById('update-status').style.display = 'block';";
+  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">&#128190; Uploading firmware...</div>';";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('firmware', file);";
+  html += "  fetch('/upload-firmware', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">&#9889; Flash Now</button></div>';";
+  html += "    } else {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Upload failed: ' + data + '</div>';";
+  html += "    }";
+  html += "  }).catch(err => {";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">&#10060; Upload error: ' + err + '</div>';";
+  html += "  });";
+  html += "}";
+  html += "function confirmFlash() {";
+  html += "  if (confirm('⚠️ WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">&#9889; Flashing firmware... DO NOT POWER OFF!</div>';";
+  html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">&#10004; Flash complete! System rebooting...</div>';";
+  html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
+  html += "    });";
+  html += "  }";
+  html += "}";
   html += "</script>";
 
   html += getFooter();
@@ -1030,6 +1098,93 @@ void handleCleanupPreferences() {
   // Reboot system to ensure clean state
   delay(1000);
   ESP.restart();
+}
+
+// OTA Update Functions
+void handleDownloadUpdate() {
+  logSerial("Starting online firmware download from GitHub...");
+  
+  HTTPClient http;
+  http.begin("https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/update.bin");
+  http.setTimeout(30000); // 30 second timeout
+  
+  int httpCode = http.GET();
+  
+  if (httpCode == HTTP_CODE_OK) {
+    int contentLength = http.getSize();
+    
+    if (contentLength > 0) {
+      logSerial("Firmware download successful, size: " + String(contentLength) + " bytes");
+      
+      // Check if there's enough space
+      if (Update.begin(contentLength)) {
+        WiFiClient *client = http.getStreamPtr();
+        size_t written = Update.writeStream(*client);
+        
+        if (written == contentLength) {
+          logSerial("Firmware downloaded and prepared for flashing");
+          server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
+        } else {
+          Update.abort();
+          logSerial("Download incomplete: " + String(written) + " of " + String(contentLength) + " bytes");
+          server.send(500, "text/plain", "ERROR: Download incomplete");
+        }
+      } else {
+        logSerial("Not enough space for firmware update");
+        server.send(500, "text/plain", "ERROR: Not enough space for update");
+      }
+    } else {
+      logSerial("Invalid firmware size from server");
+      server.send(500, "text/plain", "ERROR: Invalid firmware file");
+    }
+  } else {
+    logSerial("Failed to download firmware, HTTP code: " + String(httpCode));
+    server.send(500, "text/plain", "ERROR: Failed to download (HTTP " + String(httpCode) + ")");
+  }
+  
+  http.end();
+}
+
+void handleUploadFirmware() {
+  HTTPUpload& upload = server.upload();
+  
+  if (upload.status == UPLOAD_FILE_START) {
+    logSerial("Starting firmware upload: " + upload.filename);
+    
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      logSerial("Failed to begin OTA update");
+      return;
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      logSerial("OTA write failed");
+      Update.abort();
+      return;
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) {
+      logSerial("Firmware upload successful: " + String(upload.totalSize) + " bytes");
+      server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(upload.totalSize) + " bytes)");
+    } else {
+      logSerial("Upload failed: " + String(Update.getError()));
+      server.send(500, "text/plain", "ERROR: Upload failed - " + String(Update.getError()));
+    }
+  }
+}
+
+void handleFlashFirmware() {
+  logSerial("Starting firmware flash process...");
+  
+  if (Update.isFinished()) {
+    logSerial("Firmware flash completed successfully!");
+    server.send(200, "text/plain", "SUCCESS: Firmware flashed, rebooting...");
+    
+    delay(2000);
+    ESP.restart();
+  } else {
+    logSerial("No firmware ready for flashing");
+    server.send(400, "text/plain", "ERROR: No firmware prepared for flash");
+  }
 }
 
 void handleReboot() {

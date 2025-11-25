@@ -29,6 +29,8 @@
 #include <Preferences.h>
 #include "mbedtls/md.h"
 #include "nvs_flash.h"
+#include <Update.h>
+#include <HTTPClient.h>
 #include "config.h"
 #include "webpages.h"
 
@@ -127,7 +129,7 @@ String altSSID = "";
 String altPassword = "";
 
 // Firmware version (matches the version used in DMR config)
-String firmwareVersion = "20251125_ESP32";
+String firmwareVersion = "20251126_ESP32";
 
 // ===== Function Prototypes =====
 void setupWiFi();
@@ -792,6 +794,9 @@ void setupWebServer() {
   server.on("/showprefs", handleShowPreferences);
   server.on("/test-mmdvm", HTTP_POST, handleTestMmdvm);
   server.on("/cleanup-prefs", HTTP_POST, handleCleanupPreferences);
+  server.on("/download-update", HTTP_POST, handleDownloadUpdate);
+  server.on("/upload-firmware", HTTP_POST, [](){}, handleUploadFirmware);
+  server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
 
   server.begin();
   logSerial("Web server started with enhanced interface");
