@@ -1121,8 +1121,13 @@ void handleDownloadUpdate() {
         size_t written = Update.writeStream(*client);
         
         if (written == contentLength) {
-          logSerial("Firmware downloaded and prepared for flashing - DO NOT call Update.end() yet");
-          server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
+          if (Update.end(true)) {
+            logSerial("Firmware downloaded and finalized successfully: " + String(contentLength) + " bytes");
+            server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
+          } else {
+            logSerial("Failed to finalize downloaded firmware - Error: " + String(Update.getError()));
+            server.send(500, "text/plain", "ERROR: Failed to finalize firmware - " + String(Update.getError()));
+          }
         } else {
           Update.abort();
           logSerial("Download incomplete: " + String(written) + " of " + String(contentLength) + " bytes");
@@ -1174,24 +1179,7 @@ void handleUploadFirmware() {
 void handleFlashFirmware() {
   logSerial("Starting firmware flash process...");
   
-  // For online downloads, we need to finalize the update first
-  if (Update.hasError()) {
-    logSerial("Update has errors, cannot flash");
-    server.send(400, "text/plain", "ERROR: Update has errors - " + String(Update.getError()));
-    return;
-  }
-  
-  // For online downloads, finalize the update that was prepared earlier
-  if (!Update.isFinished() && Update.size() > 0) {
-    logSerial("Finalizing online downloaded firmware...");
-    if (!Update.end(true)) {
-      logSerial("Failed to finalize firmware update - Error: " + String(Update.getError()));
-      server.send(500, "text/plain", "ERROR: Failed to finalize firmware - " + String(Update.getError()));
-      return;
-    }
-    logSerial("Online firmware finalized successfully");
-  }
-  
+  // Check if firmware was properly prepared by either download or upload method
   if (Update.isFinished()) {
     logSerial("Firmware flash completed successfully!");
     server.send(200, "text/plain", "SUCCESS: Firmware flashed, rebooting...");
@@ -1199,7 +1187,7 @@ void handleFlashFirmware() {
     delay(2000);
     ESP.restart();
   } else {
-    logSerial("No firmware ready for flashing");
+    logSerial("No firmware ready for flashing - Update.isFinished() = false");
     server.send(400, "text/plain", "ERROR: No firmware prepared for flash");
   }
 }
