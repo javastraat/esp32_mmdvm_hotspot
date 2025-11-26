@@ -148,6 +148,10 @@ void handleConfirmReset() {
     logSerial("NVS erase failed: " + String(esp_err_to_name(err)));
   }
 
+  // Method 3: Clear WiFi credentials stored by ESP32 WiFi library
+  WiFi.disconnect(true, true);  // Disconnect and erase WiFi credentials from flash
+  logSerial("WiFi credentials erased from flash");
+
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta http-equiv='refresh' content='5;url=/'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -164,7 +168,8 @@ void handleConfirmReset() {
   html += "<strong>What was cleared:</strong><br>";
   html += "- All ESP32 Preferences namespaces<br>";
   html += "- Complete NVS (Non-Volatile Storage) partition<br>";
-  html += "- All WiFi, DMR, and system settings<br>";
+  html += "- WiFi credentials stored by ESP32 WiFi library<br>";
+  html += "- All DMR and system settings<br>";
   html += "- Any other stored configuration data<br>";
   html += "</div>";
   html += "<p><strong>The device will restart with factory defaults in 5 seconds...</strong></p>";

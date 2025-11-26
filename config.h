@@ -12,11 +12,18 @@
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"
-#define WIFI_PASSWORD "itoldyoualready"
+#define WIFI_PASSWORD "itoldyoualread"
 
 // Fallback Access Point mode settings (when WiFi fails)
 #define AP_SSID "ESP32-MMDVM-Config"
 #define AP_PASSWORD "mmdvm1234"
+
+// Default labels for alternate WiFi network slots
+#define WIFI_SLOT1_LABEL "Home"
+#define WIFI_SLOT2_LABEL "Mobile"
+#define WIFI_SLOT3_LABEL "Work"
+#define WIFI_SLOT4_LABEL "Friends"
+#define WIFI_SLOT5_LABEL "Other"
 
 // ===== DMR Network Configuration =====
 // Choose your network and uncomment the appropriate server

@@ -135,13 +135,13 @@ unsigned long lastKeepalive = 0;
 const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
 
 // Store alternate WiFi credentials
-// Alternate WiFi Networks (up to 5)
+// Alternate WiFi Networks (up to 5) - labels from config.h
 WiFiNetwork wifiNetworks[5] = {
-  {"Home", "", ""},
-  {"Mobile", "", ""},
-  {"Work", "", ""},
-  {"Friends", "", ""},
-  {"Other", "", ""}
+  {WIFI_SLOT1_LABEL, "", ""},
+  {WIFI_SLOT2_LABEL, "", ""},
+  {WIFI_SLOT3_LABEL, "", ""},
+  {WIFI_SLOT4_LABEL, "", ""},
+  {WIFI_SLOT5_LABEL, "", ""}
 };
 
 // Firmware version from config.h
@@ -273,7 +273,13 @@ void setupWiFi() {
 
   setLEDMode(LED_MODE::FAST_BLINK);  // Fast blink while connecting
   
+  // Prevent ESP32 WiFi library from auto-connecting with stored credentials
   WiFi.mode(WIFI_STA);
+  WiFi.persistent(false);  // Disable WiFi credential storage in flash (must be before disconnect/begin)
+  WiFi.setAutoReconnect(false);  // Disable auto-reconnect to prevent using old credentials
+  WiFi.disconnect(true, true);  // Disconnect and erase any stored credentials from WiFi library
+  delay(100);
+  
   WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname (must be before WiFi.begin)
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
   WiFi.setHostname(device_hostname.c_str());  // Set hostname again after config

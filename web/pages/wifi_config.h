@@ -195,7 +195,7 @@ void handleConfig() {
   
   html += "function resetSlot() {";
   html += "  if (confirm('Clear this network slot? This will reset to the original label and erase the SSID and password.')) {";
-  html += "    var defaultLabels = ['Home', 'Mobile', 'Work', 'Friends', 'Other'];";
+  html += "    var defaultLabels = ['" + String(WIFI_SLOT1_LABEL) + "', '" + String(WIFI_SLOT2_LABEL) + "', '" + String(WIFI_SLOT3_LABEL) + "', '" + String(WIFI_SLOT4_LABEL) + "', '" + String(WIFI_SLOT5_LABEL) + "'];";
   html += "    document.getElementById('labelInput').value = defaultLabels[currentSlot];";
   html += "    document.getElementById('ssidInput').value = '';";
   html += "    document.getElementById('passwordInput').value = '';";
@@ -228,7 +228,7 @@ void handleSaveConfig() {
   saveConfig();
 
   String html = "<!DOCTYPE html><html><head>";
-  html += "<meta http-equiv='refresh' content='3;url=/wificonfig'>";
+  html += "<meta http-equiv='refresh' content='10;url=/wificonfig'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Network Saved</title>";
   html += "<style>";
@@ -236,6 +236,11 @@ void handleSaveConfig() {
   html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
   html += "h1 { color: #28a745; }";
   html += ".network-info { text-align: left; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
+  html += ".btn-primary { background: #007bff; color: white; }";
+  html += ".btn-primary:hover { background: #0056b3; }";
+  html += ".btn-warning { background: #ffc107; color: #212529; }";
+  html += ".btn-warning:hover { background: #e0a800; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
   html += "<h1>Network Saved!</h1>";
@@ -243,8 +248,13 @@ void handleSaveConfig() {
   html += "<strong>Slot " + String(slot + 1) + ":</strong> " + wifiNetworks[slot].label + "<br>";
   html += "<strong>SSID:</strong> " + wifiNetworks[slot].ssid;
   html += "</div>";
-  html += "<p>Returning to WiFi configuration...</p>";
-  html += "<p><a href='/wificonfig'>Back to WiFi Config</a></p>";
+  html += "<p>Returning to WiFi configuration in 10 seconds...</p>";
+  html += "<div style='margin: 20px 0;'>";
+  html += "<a href='/wificonfig' class='btn btn-primary'>Back to WiFi Config</a>";
+  html += "<form action='/reboot' method='POST' style='display:inline;'>";
+  html += "<button type='submit' class='btn btn-warning'>Reboot to Connect</button>";
+  html += "</form>";
+  html += "</div>";
   html += "</div></body></html>";
 
   server.send(200, "text/html", html);
