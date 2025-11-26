@@ -888,7 +888,7 @@ void setupWebServer() {
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
   server.on("/savedmrconfig", HTTP_POST, handleSaveDMRConfig);
-  server.on("/toggledmr", HTTP_POST, handleToggleDMR);
+  server.on("/savemodes", HTTP_POST, handleSaveModes);
   server.on("/resetconfig", handleResetConfig);
   server.on("/confirmreset", HTTP_POST, handleConfirmReset);
   

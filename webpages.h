@@ -433,20 +433,21 @@ void handleDMRConfig() {
 
   html += "<div class='grid'>";
   
-  // Mode Status Card with toggle for DMR
+  // Mode Status Card with toggle switches
   html += "<div class='card'>";
   html += "<h3>Active Modes</h3>";
+  html += "<form action='/savemodes' method='POST'>";
   
   // DMR Mode - Toggle switch (functional)
-  html += "<form action='/toggledmr' method='POST' style='margin: 10px 0;'>";
+  html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color);'>";
   html += "<span style='font-weight: bold;'>DMR:</span>";
   html += "<label style='display: flex; align-items: center; cursor: pointer;'>";
-  html += "<input type='checkbox' name='enabled' value='1' " + String(mode_dmr_enabled ? "checked" : "") + " onchange='this.form.submit()' style='width: auto; margin-right: 8px; transform: scale(1.5);'>";
-  html += "<span style='color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; font-weight: bold;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</span>";
+  html += "<input type='checkbox' name='mode_dmr' value='1' " + String(mode_dmr_enabled ? "checked" : "") + " style='width: auto; margin-right: 8px; transform: scale(1.5);'>";
+  html += "<span id='dmr-status' style='color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; font-weight: bold;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</span>";
   html += "</label>";
   html += "</div>";
-  html += "</form>";
+  html += "</div>";
   
   // Other modes - Read-only status (not yet implemented)
   html += "<div style='margin: 10px 0;'>";
@@ -484,8 +485,11 @@ void handleDMRConfig() {
   html += "</div>";
   html += "</div>";
   
+  html += "<input type='submit' value='Activate Mode Changes'>";
+  html += "</form>";
+  
   html += "<div class='info' style='margin-top: 15px; font-size: 0.9em;'>";
-  html += "<strong>Note:</strong> Toggling DMR mode requires a reboot to take effect. Other modes are not yet implemented.";
+  html += "<strong>Note:</strong> Click 'Activate Mode Changes' to apply changes. Device will restart to activate the new mode configuration.";
   html += "</div>";
   html += "</div>";
   
@@ -501,6 +505,9 @@ void handleDMRConfig() {
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
   html += "<div class='status " + bmStatusClass + "'><strong>Status:</strong> " + dmrLoginStatus + "</div>";
   html += "</div>";
+  
+  // Only show configuration cards if DMR mode is enabled
+  if (mode_dmr_enabled) {
   
   // Card 1: Basic Identity (Callsign, DMR ID, ESSID)
   html += "<div class='card'>";
@@ -608,6 +615,8 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
+  } // End of DMR enabled check - close Cards 1 & 2 (Identity & Network Settings)
+
   // Card 3: Radio Settings (Frequencies, Power, Color Code)
   html += "<div class='card'>";
   html += "<h3>Radio Settings</h3>";
@@ -636,7 +645,8 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
-  // Card 4: Location Settings (GPS and descriptive info)
+  // Card 4: Location Settings (GPS and descriptive info) - Only show if DMR enabled
+  if (mode_dmr_enabled) {
   html += "<div class='card'>";
   html += "<h3>Location & Description</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
@@ -665,6 +675,7 @@ void handleDMRConfig() {
   html += "<input type='submit' value='Save Location Settings'>";
   html += "</form>";
   html += "</div>";
+  } // End of DMR enabled check - close Card 4 (Location & Description)
 
   // JavaScript for server dropdown and password toggle
   html += "<script>";
@@ -692,14 +703,22 @@ void handleDMRConfig() {
   html += "</script>";
   html += "</div>";
 
-  html += "<div class='info'>";
-  html += "<strong>Note:</strong> After saving, the device will restart and connect to the DMR network with the new settings.<br><br>";
-  html += "<strong>Tips:</strong><br>";
-  html += "- Select a server from the dropdown menu or choose 'Custom Server' to enter your own<br>";
-  html += "- Choose a server closest to your location for best performance<br>";
-  html += "- All servers use port 62031 by default<br>";
-  html += "- Get your password from <a href='https://brandmeister.network' target='_blank' style='color: #007bff;'>brandmeister.network</a>";
-  html += "</div>";
+  // Show info section only if DMR is enabled
+  if (mode_dmr_enabled) {
+    html += "<div class='info'>";
+    html += "<strong>Note:</strong> After saving, the device will restart and connect to the DMR network with the new settings.<br><br>";
+    html += "<strong>Tips:</strong><br>";
+    html += "- Select a server from the dropdown menu or choose 'Custom Server' to enter your own<br>";
+    html += "- Choose a server closest to your location for best performance<br>";
+    html += "- All servers use port 62031 by default<br>";
+    html += "- Get your password from <a href='https://brandmeister.network' target='_blank' style='color: #007bff;'>brandmeister.network</a>";
+    html += "</div>";
+  } else {
+    html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107;'>";
+    html += "<strong>DMR Mode is Disabled</strong><br>";
+    html += "Enable DMR mode in the 'Active Modes' section above to configure and use DMR functionality.";
+    html += "</div>";
+  }
 
   html += getFooter();
   html += "</div></body></html>";
@@ -776,9 +795,10 @@ void handleSaveDMRConfig() {
   }
 }
 
-void handleToggleDMR() {
-  // Toggle DMR mode on/off
-  mode_dmr_enabled = server.hasArg("enabled");
+void handleSaveModes() {
+  // Update mode settings from form
+  mode_dmr_enabled = server.hasArg("mode_dmr");
+  // Other modes are read-only for now (coming soon)
   
   // Save to preferences
   saveConfig();
@@ -786,30 +806,32 @@ void handleToggleDMR() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta http-equiv='refresh' content='3;url=/dmrconfig'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>DMR Mode Updated</title>";
+  html += "<title>Mode Configuration Updated</title>";
   html += "<style>";
   html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
   html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
-  html += "h1 { color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; }";
+  html += "h1 { color: #28a745; }";
   html += ".info { margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #007bff; text-align: left; }";
+  html += ".mode-status { padding: 10px; margin: 10px 0; background: #f8f9fa; border-radius: 4px; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
-  html += "<h1>DMR Mode " + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "!</h1>";
+  html += "<h1>Mode Configuration Updated!</h1>";
   html += "<div class='info'>";
-  html += "<strong>Status:</strong> DMR mode is now " + String(mode_dmr_enabled ? "ENABLED" : "DISABLED") + "<br><br>";
-  if (mode_dmr_enabled) {
-    html += "The device will restart to connect to the DMR network.";
-  } else {
-    html += "The device will restart and DMR network connection will be skipped.";
-  }
+  html += "<strong>New Mode Configuration:</strong><br>";
+  html += "<div class='mode-status'>DMR: <strong style='color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + ";'>" + String(mode_dmr_enabled ? "ENABLED" : "DISABLED") + "</strong></div>";
+  html += "<div class='mode-status'>D-Star: <span style='color: #6c757d;'>Coming Soon</span></div>";
+  html += "<div class='mode-status'>YSF: <span style='color: #6c757d;'>Coming Soon</span></div>";
+  html += "<div class='mode-status'>P25: <span style='color: #6c757d;'>Coming Soon</span></div>";
+  html += "<div class='mode-status'>NXDN: <span style='color: #6c757d;'>Coming Soon</span></div>";
+  html += "<div class='mode-status'>POCSAG: <span style='color: #6c757d;'>Coming Soon</span></div>";
   html += "</div>";
-  html += "<p><strong>Restarting in 3 seconds...</strong></p>";
+  html += "<p><strong>Restarting device in 3 seconds to activate new configuration...</strong></p>";
   html += "<p><a href='/dmrconfig'>Return to DMR Config</a></p>";
   html += "</div></body></html>";
 
   server.send(200, "text/html", html);
 
-  logSerial("DMR mode toggled to: " + String(mode_dmr_enabled ? "ON" : "OFF"));
+  logSerial("Mode configuration updated - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF"));
   delay(3000);
   ESP.restart();
 }
@@ -1266,15 +1288,34 @@ void handleAdmin() {
   html += "function startOnlineUpdate() {";
   html += "  if (confirm('Download firmware update from GitHub? This will check for the latest version.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">Downloading firmware from GitHub...</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Downloading firmware from GitHub...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"progress-text\">0%</span></div></div><div id=\"progress-status\">Initializing download...</div></div>';";
+  html += "    var startTime = Date.now();";
+  html += "    var progressInterval = setInterval(() => {";
+  html += "      var elapsed = Math.floor((Date.now() - startTime) / 1000);";
+  html += "      var fakeProgress = Math.min(90, elapsed * 3);";
+  html += "      document.getElementById('progress-bar').style.width = fakeProgress + '%';";
+  html += "      document.getElementById('progress-text').textContent = fakeProgress + '%';";
+  html += "      document.getElementById('progress-status').textContent = 'Downloading... (' + elapsed + 's)';";
+  html += "    }, 1000);";
   html += "    fetch('/download-update', {method: 'POST'}).then(response => response.text()).then(data => {";
+  html += "      clearInterval(progressInterval);";
   html += "      if (data.includes('SUCCESS')) {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Download complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">Flash Now</button></div>';";
+  html += "        document.getElementById('progress-bar').style.width = '100%';";
+  html += "        document.getElementById('progress-text').textContent = '100%';";
+  html += "        document.getElementById('progress-status').textContent = 'Download complete!';";
+  html += "        setTimeout(() => {";
+  html += "          if (confirm('Firmware downloaded successfully!\\n\\nSize: ' + data.split('(')[1]?.split(')')[0] + '\\n\\nFlash the new firmware now?')) {";
+  html += "            confirmFlash();";
+  html += "          } else {";
+  html += "            document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Download complete! <button onclick=\"confirmFlash()\" style=\"padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;\">Flash Now</button></div>';";
+  html += "          }";
+  html += "        }, 500);";
   html += "      } else {";
-  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Download failed: ' + data + '</div>';";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Download failed</strong><br>' + data + '</div>';";
   html += "      }";
   html += "    }).catch(err => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Network error: ' + err + '</div>';";
+  html += "      clearInterval(progressInterval);";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Network error</strong><br>' + err + '</div>';";
   html += "    });";
   html += "  }";
   html += "}";
@@ -1294,18 +1335,37 @@ void handleAdmin() {
   html += "    return;";
   html += "  }";
   html += "  document.getElementById('update-status').style.display = 'block';";
-  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\">Uploading firmware...</div>';";
+  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Uploading firmware...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"upload-progress-text\">0%</span></div></div><div id=\"upload-progress-status\">Uploading ' + file.name + '...</div></div>';";
   html += "  var formData = new FormData();";
   html += "  formData.append('firmware', file);";
-  html += "  fetch('/upload-firmware', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
-  html += "    if (data.includes('SUCCESS')) {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Upload complete! <button onclick=\"confirmFlash()\" class=\"btn btn-danger\">Flash Now</button></div>';";
-  html += "    } else {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Upload failed: ' + data + '</div>';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.addEventListener('progress', function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var percentComplete = Math.round((e.loaded / e.total) * 100);";
+  html += "      document.getElementById('upload-progress-bar').style.width = percentComplete + '%';";
+  html += "      document.getElementById('upload-progress-text').textContent = percentComplete + '%';";
+  html += "      document.getElementById('upload-progress-status').textContent = 'Uploaded ' + Math.round(e.loaded/1024) + ' KB of ' + Math.round(e.total/1024) + ' KB';";
   html += "    }";
-  html += "  }).catch(err => {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\">ERROR: Upload error: ' + err + '</div>';";
   html += "  });";
+  html += "  xhr.onload = function() {";
+  html += "    if (xhr.status === 200 && xhr.responseText.includes('SUCCESS')) {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">✓ Upload Complete!</div>';";
+  html += "      setTimeout(() => {";
+  html += "        if (confirm('Firmware uploaded successfully!\\n\\nSize: ' + xhr.responseText.split('(')[1]?.split(')')[0] + '\\n\\nFlash the new firmware now?')) {";
+  html += "          confirmFlash();";
+  html += "        } else {";
+  html += "          document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Upload complete! <button onclick=\"confirmFlash()\" style=\"padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;\">Flash Now</button></div>';";
+  html += "        }";
+  html += "      }, 500);";
+  html += "    } else {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed</strong><br>' + xhr.responseText + '</div>';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload error</strong><br>Network connection failed</div>';";
+  html += "  };";
+  html += "  xhr.open('POST', '/upload-firmware');";
+  html += "  xhr.send(formData);";
   html += "}";
   html += "function confirmFlash() {";
   html += "  if (confirm('WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
