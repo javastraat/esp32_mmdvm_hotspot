@@ -66,6 +66,9 @@ String dmr_url = "";
 // Hostname setting
 String device_hostname = MDNS_HOSTNAME;
 
+// Verbose logging setting (shows keepalive messages)
+bool verbose_logging = false;
+
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
 #define MMDVM_SERIAL Serial2
@@ -134,6 +137,26 @@ String altPassword = "";
 // Firmware version (matches the version used in DMR config)
 String firmwareVersion = "20251125_ESP32";
 
+// LED Status Control
+#define STATUS_LED_PIN 2  // GPIO2 - onboard LED
+enum class LED_MODE {
+  OFF,
+  STEADY,        // Connected to WiFi
+  FAST_BLINK,    // Connecting to WiFi
+  SLOW_BLINK     // Access Point mode
+};
+LED_MODE currentLedMode = LED_MODE::OFF;
+unsigned long lastLedToggle = 0;
+bool ledState = false;
+
+// Mode Enable/Disable Settings
+bool mode_dmr_enabled = true;      // DMR mode (functional)
+bool mode_dstar_enabled = false;   // D-Star mode (not yet implemented)
+bool mode_ysf_enabled = false;     // YSF/Fusion mode (not yet implemented)
+bool mode_p25_enabled = false;     // P25 mode (not yet implemented)
+bool mode_nxdn_enabled = false;    // NXDN mode (not yet implemented)
+bool mode_pocsag_enabled = false;  // POCSAG paging mode (not yet implemented)
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -145,11 +168,14 @@ void handleMMDVMSerial();
 void handleNetwork();
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
 void processMMDVMFrame();
+void updateStatusLED();
+void setLEDMode(LED_MODE mode);
 void sendDMRKeepalive();
 void connectToDMRNetwork();
 void sendDMRAuth();
 void sendDMRConfig();
 void logSerial(String message);
+void logSerialVerbose(String message);
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -165,8 +191,10 @@ void setup() {
   // Setup GPIO
   pinMode(PTT_PIN, OUTPUT);
   pinMode(COS_LED_PIN, OUTPUT);
+  pinMode(STATUS_LED_PIN, OUTPUT);  // Setup status LED
   digitalWrite(PTT_PIN, LOW);
   digitalWrite(COS_LED_PIN, LOW);
+  digitalWrite(STATUS_LED_PIN, LOW);
 
   // Setup MMDVM Serial
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -186,9 +214,11 @@ void setup() {
   // Initialize MMDVM
   setupMMDVM();
 
-  // Connect to DMR Network
-  if (wifiConnected) {
+  // Connect to DMR Network (only if DMR mode is enabled)
+  if (wifiConnected && mode_dmr_enabled) {
     connectToDMRNetwork();
+  } else if (wifiConnected && !mode_dmr_enabled) {
+    logSerial("DMR mode is disabled - skipping network connection");
   }
 
   logSerial("Setup complete!");
@@ -201,6 +231,9 @@ void setup() {
 }
 
 void loop() {
+  // Update status LED
+  updateStatusLED();
+  
   // Handle web server
   server.handleClient();
 
@@ -211,11 +244,13 @@ void loop() {
   if (wifiConnected) {
     handleNetwork();
 
-    // Send keepalive packets
-    unsigned long currentMillis = millis();
-    if (currentMillis - lastKeepalive >= KEEPALIVE_INTERVAL) {
-      sendDMRKeepalive();
-      lastKeepalive = currentMillis;
+    // Send keepalive packets only if DMR mode is enabled and connected
+    if (mode_dmr_enabled && dmrLoggedIn) {
+      unsigned long currentMillis = millis();
+      if (currentMillis - lastKeepalive >= KEEPALIVE_INTERVAL) {
+        sendDMRKeepalive();
+        lastKeepalive = currentMillis;
+      }
     }
   }
 
@@ -226,12 +261,17 @@ void loop() {
 void setupWiFi() {
   logSerial("Connecting to WiFi: " + String(ssid));
 
+  setLEDMode(LED_MODE::FAST_BLINK);  // Fast blink while connecting
+  
   WiFi.mode(WIFI_STA);
-  WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname (what shows on router)
+  WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname (must be before WiFi.begin)
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
+  WiFi.setHostname(device_hostname.c_str());  // Set hostname again after config
   WiFi.begin(ssid, password);
 
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    updateStatusLED();  // Update LED during connection attempts
     delay(500);
     Serial.print(".");
     attempts++;
@@ -239,6 +279,7 @@ void setupWiFi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     wifiConnected = true;
+    setLEDMode(LED_MODE::STEADY);  // Steady on when connected
     logSerial("\nWiFi Connected!");
     logSerial("IP Address: " + WiFi.localIP().toString());
 
@@ -250,10 +291,13 @@ void setupWiFi() {
     // Try alternate WiFi if configured
     if (altSSID.length() > 0) {
       logSerial("Trying alternate WiFi: " + altSSID);
+      WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
+      WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname for alternate network
       WiFi.begin(altSSID.c_str(), altPassword.c_str());
 
       attempts = 0;
       while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+        updateStatusLED();  // Update LED during connection attempts
         delay(500);
         Serial.print(".");
         attempts++;
@@ -261,6 +305,7 @@ void setupWiFi() {
 
       if (WiFi.status() == WL_CONNECTED) {
         wifiConnected = true;
+        setLEDMode(LED_MODE::STEADY);  // Steady on when connected
         logSerial("\nAlternate WiFi Connected!");
         logSerial("IP Address: " + WiFi.localIP().toString());
         udp.begin(LOCAL_PORT);
@@ -278,6 +323,8 @@ void setupAccessPoint() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ap_ssid, ap_password);
 
+  setLEDMode(LED_MODE::SLOW_BLINK);  // Slow blink in AP mode
+  
   IPAddress IP = WiFi.softAPIP();
   logSerial("AP IP address: " + IP.toString());
   logSerial("AP SSID: " + String(ap_ssid));
@@ -416,6 +463,9 @@ void handleNetwork() {
     int len = udp.read(packet, sizeof(packet));
 
     if (len > 0) {
+      // Check if this is a keepalive packet first (for conditional logging)
+      bool isKeepalive = (memcmp(packet, "MSTPONG", 7) == 0 && len >= 7);
+
       // Debug: Log packet details
       String hexDump = "RX [" + String(len) + "]: ";
       for (int i = 0; i < min(len, 16); i++) {
@@ -423,7 +473,13 @@ void handleNetwork() {
         hexDump += String(packet[i], HEX);
         hexDump += " ";
       }
-      logSerial(hexDump);
+
+      // Use verbose logging for keepalive packets (always USB, conditionally web)
+      if (isKeepalive) {
+        logSerialVerbose(hexDump);
+      } else {
+        logSerial(hexDump);
+      }
 
       // Check for BrandMeister responses (binary comparison)
       if (len >= 4) {
@@ -488,7 +544,7 @@ void handleNetwork() {
         }
         // Check for ping response (MSTPONG)
         else if (memcmp(packet, "MSTPONG", 7) == 0 && len >= 7) {
-          logSerial("Keepalive ACK");
+          logSerialVerbose("Keepalive ACK");
         }
         // DMR data packet
         else if (memcmp(packet, "DMRD", 4) == 0 && len > 15) {
@@ -692,16 +748,29 @@ void sendDMRKeepalive() {
   udp.write(keepalive, 11);
   udp.endPacket();
 
-  logSerial("Keepalive sent");
+  logSerialVerbose("Keepalive sent");
 }
 
-// ===== Serial Logging Function =====
+// ===== Serial Logging Functions =====
+// Log to both USB serial and web buffer
 void logSerial(String message) {
   Serial.println(message);
 
-  // Store in circular buffer
+  // Store in circular buffer for web monitor
   serialLog[serialLogIndex] = message;
   serialLogIndex = (serialLogIndex + 1) % SERIAL_LOG_SIZE;
+}
+
+// Log with verbose flag - always to USB serial, conditionally to web buffer
+void logSerialVerbose(String message) {
+  // Always log to USB serial for debugging
+  Serial.println(message);
+
+  // Only store in web buffer if verbose logging is enabled
+  if (verbose_logging) {
+    serialLog[serialLogIndex] = message;
+    serialLogIndex = (serialLogIndex + 1) % SERIAL_LOG_SIZE;
+  }
 }
 
 // ===== Configuration Load/Save =====
@@ -743,6 +812,24 @@ void loadConfig() {
   device_hostname = preferences.getString("hostname", MDNS_HOSTNAME);
   logSerial("Hostname: " + device_hostname);
 
+  // Load verbose logging setting
+  verbose_logging = preferences.getBool("verbose_log", false);
+  logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
+
+  // Load mode enable/disable settings
+  mode_dmr_enabled = preferences.getBool("mode_dmr", true);
+  mode_dstar_enabled = preferences.getBool("mode_dstar", false);
+  mode_ysf_enabled = preferences.getBool("mode_ysf", false);
+  mode_p25_enabled = preferences.getBool("mode_p25", false);
+  mode_nxdn_enabled = preferences.getBool("mode_nxdn", false);
+  mode_pocsag_enabled = preferences.getBool("mode_pocsag", false);
+  logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + 
+            " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") +
+            " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") +
+            " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") +
+            " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") +
+            " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
+
   preferences.end();
 }
 
@@ -773,6 +860,17 @@ void saveConfig() {
   // Save hostname
   preferences.putString("hostname", device_hostname);
 
+  // Save verbose logging
+  preferences.putBool("verbose_log", verbose_logging);
+
+  // Save mode enable/disable settings
+  preferences.putBool("mode_dmr", mode_dmr_enabled);
+  preferences.putBool("mode_dstar", mode_dstar_enabled);
+  preferences.putBool("mode_ysf", mode_ysf_enabled);
+  preferences.putBool("mode_p25", mode_p25_enabled);
+  preferences.putBool("mode_nxdn", mode_nxdn_enabled);
+  preferences.putBool("mode_pocsag", mode_pocsag_enabled);
+
   preferences.end();
   logSerial("Configuration saved to storage");
 }
@@ -790,6 +888,7 @@ void setupWebServer() {
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
   server.on("/savedmrconfig", HTTP_POST, handleSaveDMRConfig);
+  server.on("/toggledmr", HTTP_POST, handleToggleDMR);
   server.on("/resetconfig", handleResetConfig);
   server.on("/confirmreset", HTTP_POST, handleConfirmReset);
   
@@ -800,6 +899,7 @@ void setupWebServer() {
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
+  server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
@@ -813,6 +913,56 @@ void setupWebServer() {
 
   server.begin();
   logSerial("Web server started with enhanced interface");
+}
+
+// ===== Status LED Control =====
+void setLEDMode(LED_MODE mode) {
+  currentLedMode = mode;
+  lastLedToggle = millis();
+  
+  // Set initial state based on mode
+  if (mode == LED_MODE::STEADY) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    ledState = true;
+  } else if (mode == LED_MODE::OFF) {
+    digitalWrite(STATUS_LED_PIN, LOW);
+    ledState = false;
+  }
+}
+
+void updateStatusLED() {
+  unsigned long currentMillis = millis();
+  unsigned long interval;
+  
+  switch (currentLedMode) {
+    case LED_MODE::OFF:
+      // LED stays off
+      break;
+      
+    case LED_MODE::STEADY:
+      // LED stays on
+      break;
+      
+    case LED_MODE::FAST_BLINK:
+      // Fast blink (200ms interval) - connecting to WiFi
+      interval = 200;
+      if (currentMillis - lastLedToggle >= interval) {
+        ledState = !ledState;
+        digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+        lastLedToggle = currentMillis;
+      }
+      break;
+      
+    case LED_MODE::SLOW_BLINK:
+      // Slow blink (1000ms interval) - Access Point mode
+      interval = 1000;
+      if (currentMillis - lastLedToggle >= interval) {
+        ledState = !ledState;
+        digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+        lastLedToggle = currentMillis;
+      }
+      break;
+  }
 }
 
 // ===== Web Server Handlers =====

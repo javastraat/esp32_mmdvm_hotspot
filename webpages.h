@@ -38,10 +38,19 @@ extern String dmr_url;
 extern String altSSID;
 extern String altPassword;
 extern String device_hostname;
+extern bool verbose_logging;
 extern String serialLog[SERIAL_LOG_SIZE];
 extern int serialLogIndex;
 extern Preferences preferences;
 extern String firmwareVersion;
+
+// Mode enable/disable settings
+extern bool mode_dmr_enabled;
+extern bool mode_dstar_enabled;
+extern bool mode_ysf_enabled;
+extern bool mode_p25_enabled;
+extern bool mode_nxdn_enabled;
+extern bool mode_pocsag_enabled;
 
 // External functions
 extern void logSerial(String message);
@@ -148,12 +157,12 @@ String getFooter() {
 void handleRoot() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - Main</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "</head><body>";
   html += getNavigation("main");
   html += "<div class='container'>";
-  html += "<h1>" + dmr_callsign + " - ESP32 MMDVM Hotspot</h1>";
+  html += "<h1><center>" + dmr_callsign + " - ESP32 MMDVM Hotspot</center></h1>";
 
   html += "<div class='grid'>";
   html += "<div class='card'>";
@@ -209,7 +218,7 @@ void handleRoot() {
 void handleMonitor() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - Serial Monitor</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += "#logs { background: #0e0e0e; color: #d4d4d4; font-family: 'Courier New', monospace; padding: 15px; border: 1px solid var(--border-color); border-radius: 4px; min-height: 400px; max-height: 600px; overflow-y: auto; }";
@@ -270,7 +279,7 @@ void handleMonitor() {
 void handleConfig() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - WiFi Config</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += "form { margin: 20px 0; }";
@@ -405,7 +414,7 @@ void handleSaveConfig() {
 void handleDMRConfig() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - DMR Config</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += "form { margin: 20px 0; }";
@@ -423,6 +432,63 @@ void handleDMRConfig() {
   html += "<h1>DMR Configuration</h1>";
 
   html += "<div class='grid'>";
+  
+  // Mode Status Card with toggle for DMR
+  html += "<div class='card'>";
+  html += "<h3>Active Modes</h3>";
+  
+  // DMR Mode - Toggle switch (functional)
+  html += "<form action='/toggledmr' method='POST' style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color);'>";
+  html += "<span style='font-weight: bold;'>DMR:</span>";
+  html += "<label style='display: flex; align-items: center; cursor: pointer;'>";
+  html += "<input type='checkbox' name='enabled' value='1' " + String(mode_dmr_enabled ? "checked" : "") + " onchange='this.form.submit()' style='width: auto; margin-right: 8px; transform: scale(1.5);'>";
+  html += "<span style='color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; font-weight: bold;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</span>";
+  html += "</label>";
+  html += "</div>";
+  html += "</form>";
+  
+  // Other modes - Read-only status (not yet implemented)
+  html += "<div style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
+  html += "<span style='font-weight: bold;'>D-Star:</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_dstar_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
+  html += "<span style='font-weight: bold;'>YSF:</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_ysf_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
+  html += "<span style='font-weight: bold;'>P25:</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_p25_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
+  html += "<span style='font-weight: bold;'>NXDN:</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_nxdn_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div style='margin: 10px 0;'>";
+  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
+  html += "<span style='font-weight: bold;'>POCSAG:</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_pocsag_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div class='info' style='margin-top: 15px; font-size: 0.9em;'>";
+  html += "<strong>Note:</strong> Toggling DMR mode requires a reboot to take effect. Other modes are not yet implemented.";
+  html += "</div>";
+  html += "</div>";
+  
   html += "<div class='card'>";
   html += "<h3>Current DMR Settings</h3>";
   html += "<div class='info'><strong>Callsign:</strong> " + dmr_callsign + "</div>";
@@ -652,6 +718,44 @@ void handleSaveDMRConfig() {
   }
 }
 
+void handleToggleDMR() {
+  // Toggle DMR mode on/off
+  mode_dmr_enabled = server.hasArg("enabled");
+  
+  // Save to preferences
+  saveConfig();
+
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta http-equiv='refresh' content='3;url=/dmrconfig'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>DMR Mode Updated</title>";
+  html += "<style>";
+  html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
+  html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
+  html += "h1 { color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; }";
+  html += ".info { margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #007bff; text-align: left; }";
+  html += "</style></head><body>";
+  html += "<div class='container'>";
+  html += "<h1>DMR Mode " + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "!</h1>";
+  html += "<div class='info'>";
+  html += "<strong>Status:</strong> DMR mode is now " + String(mode_dmr_enabled ? "ENABLED" : "DISABLED") + "<br><br>";
+  if (mode_dmr_enabled) {
+    html += "The device will restart to connect to the DMR network.";
+  } else {
+    html += "The device will restart and DMR network connection will be skipped.";
+  }
+  html += "</div>";
+  html += "<p><strong>Restarting in 3 seconds...</strong></p>";
+  html += "<p><a href='/dmrconfig'>Return to DMR Config</a></p>";
+  html += "</div></body></html>";
+
+  server.send(200, "text/html", html);
+
+  logSerial("DMR mode toggled to: " + String(mode_dmr_enabled ? "ON" : "OFF"));
+  delay(3000);
+  ESP.restart();
+}
+
 void handleResetConfig() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -787,7 +891,7 @@ void handleStatus() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<meta http-equiv='refresh' content='10'>";  // Auto-refresh every 10 seconds
-  html += "<title>ESP32 MMDVM Hotspot - Status</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += ".status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }";
@@ -882,7 +986,7 @@ void handleStatus() {
 void handleAdmin() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - Admin</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
@@ -925,6 +1029,21 @@ void handleAdmin() {
   html += "<form id='hostname-form' onsubmit='saveHostname(event)'>";
   html += "<input type='text' id='hostname-input' value='" + device_hostname + "' placeholder='e.g., mmdvm-hotspot' style='width:100%;padding:10px;margin:10px 0;border:1px solid var(--border-color);border-radius:4px;box-sizing:border-box;background:var(--container-bg);color:var(--text-color);' pattern='[a-zA-Z0-9-]{1,32}' required>";
   html += "<button type='submit' class='btn btn-success' style='width:100%;'>Save Hostname</button>";
+  html += "</form>";
+  html += "</div>";
+
+  // Verbose Logging Card
+  html += "<div class='card'>";
+  html += "<h3>Verbose Logging</h3>";
+  html += "<p>Control keepalive message visibility in Serial Monitor</p>";
+  html += "<p>Current status: <strong>" + String(verbose_logging ? "Enabled" : "Disabled") + "</strong></p>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);'>When enabled, keepalive messages (RPTPING/MSTPONG) will be shown in the serial monitor.</p>";
+  html += "<form id='verbose-form' onsubmit='saveVerboseLogging(event)'>";
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='verbose-checkbox' " + String(verbose_logging ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span>Enable verbose logging (show keepalive messages)</span>";
+  html += "</label>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save Setting</button>";
   html += "</form>";
   html += "</div>";
 
@@ -1002,6 +1121,18 @@ void handleAdmin() {
   html += "  } else {";
   html += "    alert('Invalid hostname. Use only letters, numbers, and hyphens (1-32 characters).');";
   html += "  }";
+  html += "}";
+  html += "function saveVerboseLogging(event) {";
+  html += "  event.preventDefault();";
+  html += "  var verbose = document.getElementById('verbose-checkbox').checked ? '1' : '0';";
+  html += "  fetch('/save-verbose', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'verbose=' + verbose}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      alert('Verbose logging setting saved!');";
+  html += "      location.reload();";
+  html += "    } else {";
+  html += "      alert('Error: ' + data);";
+  html += "    }";
+  html += "  });";
   html += "}";
   html += "function rebootSystem() {";
   html += "  if (confirm('Are you sure you want to reboot the system? This will temporarily interrupt service.')) {";
@@ -1198,6 +1329,7 @@ void handleCleanupPreferences() {
   altSSID = "";
   altPassword = "";
   device_hostname = MDNS_HOSTNAME;
+  verbose_logging = false;
 
   // Save clean configuration
   saveConfig();
@@ -1325,6 +1457,19 @@ void handleSaveHostname() {
   }
 }
 
+void handleSaveVerbose() {
+  if (server.hasArg("verbose")) {
+    String verboseValue = server.arg("verbose");
+    verbose_logging = (verboseValue == "1");
+    saveConfig();
+
+    server.send(200, "text/plain", "SUCCESS: Verbose logging " + String(verbose_logging ? "enabled" : "disabled"));
+    logSerial("Verbose logging " + String(verbose_logging ? "enabled" : "disabled"));
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing verbose parameter");
+  }
+}
+
 void handleReboot() {
   server.send(200, "text/plain", "Rebooting...");
   logSerial("System reboot requested");
@@ -1388,6 +1533,16 @@ void handleExportConfig() {
   // System Configuration
   config += "\n[SYSTEM_CONFIG]\n";
   config += "HOSTNAME=" + device_hostname + "\n";
+  config += "VERBOSE_LOGGING=" + String(verbose_logging ? "1" : "0") + "\n";
+  
+  // Mode Configuration
+  config += "\n[MODE_CONFIG]\n";
+  config += "MODE_DMR=" + String(mode_dmr_enabled ? "1" : "0") + "\n";
+  config += "MODE_DSTAR=" + String(mode_dstar_enabled ? "1" : "0") + "\n";
+  config += "MODE_YSF=" + String(mode_ysf_enabled ? "1" : "0") + "\n";
+  config += "MODE_P25=" + String(mode_p25_enabled ? "1" : "0") + "\n";
+  config += "MODE_NXDN=" + String(mode_nxdn_enabled ? "1" : "0") + "\n";
+  config += "MODE_POCSAG=" + String(mode_pocsag_enabled ? "1" : "0") + "\n";
 
   server.send(200, "text/plain", config);
 }
@@ -1438,6 +1593,13 @@ void handleImportConfig() {
           else if (key == "ALT_SSID") altSSID = value;
           else if (key == "ALT_PASSWORD") altPassword = value;
           else if (key == "HOSTNAME") device_hostname = value;
+          else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
+          else if (key == "MODE_DMR") mode_dmr_enabled = (value == "1");
+          else if (key == "MODE_DSTAR") mode_dstar_enabled = (value == "1");
+          else if (key == "MODE_YSF") mode_ysf_enabled = (value == "1");
+          else if (key == "MODE_P25") mode_p25_enabled = (value == "1");
+          else if (key == "MODE_NXDN") mode_nxdn_enabled = (value == "1");
+          else if (key == "MODE_POCSAG") mode_pocsag_enabled = (value == "1");
 
           logSerial("Imported: " + key + " = " + value);
         }
@@ -1470,7 +1632,7 @@ void handleTestMmdvm() {
 void handleShowPreferences() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>ESP32 MMDVM Hotspot - Stored Preferences</title>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
   html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0 10px 0; }";
@@ -1506,7 +1668,7 @@ void handleShowPreferences() {
       "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
       "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
       "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
-      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname"
+      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname", "verbose_log"
     };
     
     int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);
@@ -1565,6 +1727,13 @@ void handleShowPreferences() {
             type = "Float";
             keySize = 4;
           }
+        }
+        else if (keyName == "verbose_log") {
+          // Known Bool keys
+          bool boolVal = preferences.getBool(keyName.c_str(), false);
+          value = String(boolVal ? "true" : "false");
+          type = "Bool";
+          keySize = 1;
         }
         else {
           // Assume string for all other keys
