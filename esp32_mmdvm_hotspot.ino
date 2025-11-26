@@ -137,8 +137,8 @@ const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
 String altSSID = "";
 String altPassword = "";
 
-// Firmware version (matches the version used in DMR config)
-String firmwareVersion = "20251125_ESP32";
+// Firmware version from config.h
+String firmwareVersion = FIRMWARE_VERSION;
 
 // LED Status Control
 #define STATUS_LED_PIN 2  // GPIO2 - onboard LED
@@ -895,7 +895,7 @@ void setupWebServer() {
   server.on("/status", handleStatus);
   server.on("/serialmonitor", handleMonitor);
   server.on("/wificonfig", handleConfig);
-  server.on("/dmrconfig", handleDMRConfig);
+  server.on("/modeconfig", handleDMRConfig);
   server.on("/admin", handleAdmin);
   
   // Configuration handlers

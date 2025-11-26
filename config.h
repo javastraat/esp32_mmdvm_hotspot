@@ -7,6 +7,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// ===== Firmware Version =====
+#define FIRMWARE_VERSION "20251125_ESP32"
+
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"
 #define WIFI_PASSWORD "itoldyoualready"

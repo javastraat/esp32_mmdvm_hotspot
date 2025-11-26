@@ -121,7 +121,7 @@ String getNavigation(String activePage) {
   nav += "<a href='/status'" + String(activePage == "status" ? " class='active'" : "") + ">Status</a>";
   nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
-  nav += "<a href='/dmrconfig'" + String(activePage == "dmrconfig" ? " class='active'" : "") + ">DMR Config</a>";
+  nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " class='active'" : "") + ">Mode Config</a>";
   nav += "<a href='/admin'" + String(activePage == "admin" ? " class='active'" : "") + ">Admin</a>";
   nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode' id='theme-btn'>Dark</button>";
   nav += "<script>";
@@ -447,9 +447,9 @@ void handleDMRConfig() {
   html += ".toggle-password { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none; color: var(--text-color); opacity: 0.7; }";
   html += "h3 { color: var(--text-color); margin-top: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }";
   html += "</style></head><body>";
-  html += getNavigation("dmrconfig");
+  html += getNavigation("modeconfig");
   html += "<div class='container'>";
-  html += "<h1>DMR Configuration</h1>";
+  html += "<h1>Mode Configuration</h1>";
 
   html += "<div class='grid'>";
   
@@ -828,7 +828,7 @@ void handleSaveModes() {
   saveConfig();
 
   String html = "<!DOCTYPE html><html><head>";
-  html += "<meta http-equiv='refresh' content='3;url=/dmrconfig'>";
+  html += "<meta http-equiv='refresh' content='3;url=/modeconfig'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Mode Configuration Updated</title>";
   html += "<style>";
@@ -850,7 +850,7 @@ void handleSaveModes() {
   html += "<div class='mode-status'>POCSAG: <span style='color: #6c757d;'>Coming Soon</span></div>";
   html += "</div>";
   html += "<p><strong>Restarting device in 3 seconds to activate new configuration...</strong></p>";
-  html += "<p><a href='/dmrconfig'>Return to DMR Config</a></p>";
+  html += "<p><a href='/modeconfig'>Return to Mode Config</a></p>";
   html += "</div></body></html>";
 
   server.send(200, "text/html", html);
