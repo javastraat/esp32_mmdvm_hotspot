@@ -1670,11 +1670,7 @@ void handleShowPreferences() {
   preferences.end();
   
   html += "</tbody></table>";
-  
-  html += "<div class='info'>";
-  html += "<strong>Actions:</strong> <a href='/admin' style='color: #007bff;'>Back to Admin</a>";
-  html += "</div>";
-  
+
   // Add JavaScript for password toggle functionality
   html += "<script>";
   html += "function togglePassword(passwordId) {";
