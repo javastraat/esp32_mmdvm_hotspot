@@ -36,8 +36,7 @@ extern int dmr_height;
 extern String dmr_location;
 extern String dmr_description;
 extern String dmr_url;
-extern String altSSID;
-extern String altPassword;
+extern WiFiNetwork wifiNetworks[5];
 extern String device_hostname;
 extern bool verbose_logging;
 extern String web_password;
@@ -661,8 +660,12 @@ void handleCleanupPreferences() {
   dmr_location = "ESP32 Hotspot";
   dmr_description = "ESP32-MMDVM";
   dmr_url = "";
-  altSSID = "";
-  altPassword = "";
+  // Clear all WiFi networks
+  for (int i = 0; i < 5; i++) {
+    wifiNetworks[i].label = (i == 0) ? "Home" : (i == 1) ? "Mobile" : (i == 2) ? "Work" : (i == 3) ? "Friends" : "Other";
+    wifiNetworks[i].ssid = "";
+    wifiNetworks[i].password = "";
+  }
   device_hostname = MDNS_HOSTNAME;
   verbose_logging = false;
 
@@ -906,8 +909,11 @@ void handleExportConfig() {
 
   // WiFi Configuration
   config += "\n[WIFI_CONFIG]\n";
-  config += "ALT_SSID=" + altSSID + "\n";
-  config += "ALT_PASSWORD=" + altPassword + "\n";
+  for (int i = 0; i < 5; i++) {
+    config += "WIFI" + String(i) + "_LABEL=" + wifiNetworks[i].label + "\n";
+    config += "WIFI" + String(i) + "_SSID=" + wifiNetworks[i].ssid + "\n";
+    config += "WIFI" + String(i) + "_PASSWORD=" + wifiNetworks[i].password + "\n";
+  }
 
   // System Configuration
   config += "\n[SYSTEM_CONFIG]\n";
@@ -971,8 +977,21 @@ void handleImportConfig() {
           else if (key == "DMR_LOCATION") dmr_location = value;
           else if (key == "DMR_DESCRIPTION") dmr_description = value;
           else if (key == "DMR_URL") dmr_url = value;
-          else if (key == "ALT_SSID") altSSID = value;
-          else if (key == "ALT_PASSWORD") altPassword = value;
+          // WiFi networks (5 slots)
+          else if (key.startsWith("WIFI") && key.indexOf("_LABEL") > 0) {
+            int slot = key.substring(4, key.indexOf("_LABEL")).toInt();
+            if (slot >= 0 && slot < 5) wifiNetworks[slot].label = value;
+          }
+          else if (key.startsWith("WIFI") && key.indexOf("_SSID") > 0) {
+            int slot = key.substring(4, key.indexOf("_SSID")).toInt();
+            if (slot >= 0 && slot < 5) wifiNetworks[slot].ssid = value;
+          }
+          else if (key.startsWith("WIFI") && key.indexOf("_PASSWORD") > 0) {
+            int slot = key.substring(4, key.indexOf("_PASSWORD")).toInt();
+            if (slot >= 0 && slot < 5) wifiNetworks[slot].password = value;
+          }
+          else if (key == "ALT_SSID") wifiNetworks[0].ssid = value;  // Legacy support
+          else if (key == "ALT_PASSWORD") wifiNetworks[0].password = value;  // Legacy support
           else if (key == "HOSTNAME") device_hostname = value;
           else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
           else if (key == "WEB_USERNAME") web_username = value;
@@ -1053,7 +1072,13 @@ void handleShowPreferences() {
       "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
       "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
       "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
-      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname", "verbose_log",
+      "dmr_desc", "dmr_url",
+      "wifi0_label", "wifi0_ssid", "wifi0_pass",
+      "wifi1_label", "wifi1_ssid", "wifi1_pass",
+      "wifi2_label", "wifi2_ssid", "wifi2_pass",
+      "wifi3_label", "wifi3_ssid", "wifi3_pass",
+      "wifi4_label", "wifi4_ssid", "wifi4_pass",
+      "hostname", "verbose_log",
       "web_username", "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
     };
 

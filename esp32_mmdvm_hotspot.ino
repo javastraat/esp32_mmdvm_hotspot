@@ -135,8 +135,14 @@ unsigned long lastKeepalive = 0;
 const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
 
 // Store alternate WiFi credentials
-String altSSID = "";
-String altPassword = "";
+// Alternate WiFi Networks (up to 5)
+WiFiNetwork wifiNetworks[5] = {
+  {"Home", "", ""},
+  {"Mobile", "", ""},
+  {"Work", "", ""},
+  {"Friends", "", ""},
+  {"Other", "", ""}
+};
 
 // Firmware version from config.h
 String firmwareVersion = FIRMWARE_VERSION;
@@ -292,28 +298,30 @@ void setupWiFi() {
   } else {
     logSerial("\nWiFi Connection Failed!");
 
-    // Try alternate WiFi if configured
-    if (altSSID.length() > 0) {
-      logSerial("Trying alternate WiFi: " + altSSID);
-      WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
-      WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname for alternate network
-      WiFi.begin(altSSID.c_str(), altPassword.c_str());
+    // Try all configured alternate WiFi networks
+    for (int i = 0; i < 5; i++) {
+      if (wifiNetworks[i].ssid.length() > 0) {
+        logSerial("Trying WiFi [" + wifiNetworks[i].label + "]: " + wifiNetworks[i].ssid);
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
+        WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname
+        WiFi.begin(wifiNetworks[i].ssid.c_str(), wifiNetworks[i].password.c_str());
 
-      attempts = 0;
-      while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-        updateStatusLED();  // Update LED during connection attempts
-        delay(500);
-        Serial.print(".");
-        attempts++;
-      }
+        attempts = 0;
+        while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+          updateStatusLED();  // Update LED during connection attempts
+          delay(500);
+          Serial.print(".");
+          attempts++;
+        }
 
-      if (WiFi.status() == WL_CONNECTED) {
-        wifiConnected = true;
-        setLEDMode(LED_MODE::STEADY);  // Steady on when connected
-        logSerial("\nAlternate WiFi Connected!");
-        logSerial("IP Address: " + WiFi.localIP().toString());
-        udp.begin(LOCAL_PORT);
-        return;
+        if (WiFi.status() == WL_CONNECTED) {
+          wifiConnected = true;
+          setLEDMode(LED_MODE::STEADY);  // Steady on when connected
+          logSerial("\nWiFi Connected [" + wifiNetworks[i].label + "]!");
+          logSerial("IP Address: " + WiFi.localIP().toString());
+          udp.begin(LOCAL_PORT);
+          return;
+        }
       }
     }
 
@@ -809,8 +817,15 @@ void loadConfig() {
   }
 
   // Load WiFi alternate settings
-  altSSID = preferences.getString("alt_ssid", "");
-  altPassword = preferences.getString("alt_password", "");
+  // Load alternate WiFi networks
+  for (int i = 0; i < 5; i++) {
+    String labelKey = "wifi" + String(i) + "_label";
+    String ssidKey = "wifi" + String(i) + "_ssid";
+    String passKey = "wifi" + String(i) + "_pass";
+    wifiNetworks[i].label = preferences.getString(labelKey.c_str(), wifiNetworks[i].label);
+    wifiNetworks[i].ssid = preferences.getString(ssidKey.c_str(), "");
+    wifiNetworks[i].password = preferences.getString(passKey.c_str(), "");
+  }
 
   // Load hostname setting
   device_hostname = preferences.getString("hostname", MDNS_HOSTNAME);
@@ -871,8 +886,15 @@ void saveConfig() {
   preferences.putString("dmr_desc", dmr_description);
   preferences.putString("dmr_url", dmr_url);
   
-  preferences.putString("alt_ssid", altSSID);
-  preferences.putString("alt_password", altPassword);
+  // Save alternate WiFi networks
+  for (int i = 0; i < 5; i++) {
+    String labelKey = "wifi" + String(i) + "_label";
+    String ssidKey = "wifi" + String(i) + "_ssid";
+    String passKey = "wifi" + String(i) + "_pass";
+    preferences.putString(labelKey.c_str(), wifiNetworks[i].label);
+    preferences.putString(ssidKey.c_str(), wifiNetworks[i].ssid);
+    preferences.putString(passKey.c_str(), wifiNetworks[i].password);
+  }
 
   // Save hostname
   preferences.putString("hostname", device_hostname);

@@ -8,6 +8,13 @@
 #include <Arduino.h>
 #include <WebServer.h>
 
+// WiFi Network structure
+struct WiFiNetwork {
+  String label;
+  String ssid;
+  String password;
+};
+
 // External variables
 extern WebServer server;
 extern String web_username;
