@@ -452,35 +452,35 @@ void handleDMRConfig() {
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
   html += "<span style='font-weight: bold;'>D-Star:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_dstar_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_dstar_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
   html += "</div>";
   
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
   html += "<span style='font-weight: bold;'>YSF:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_ysf_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_ysf_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
   html += "</div>";
   
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
   html += "<span style='font-weight: bold;'>P25:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_p25_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_p25_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
   html += "</div>";
   
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
   html += "<span style='font-weight: bold;'>NXDN:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_nxdn_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_nxdn_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
   html += "</div>";
   
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
   html += "<span style='font-weight: bold;'>POCSAG:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_pocsag_enabled ? "✓ Enabled" : "✗ Disabled") + " (Coming Soon)</span>";
+  html += "<span style='color: #6c757d;'>" + String(mode_pocsag_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
   html += "</div>";
   
@@ -501,15 +501,15 @@ void handleDMRConfig() {
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
   html += "<div class='status " + bmStatusClass + "'><strong>Status:</strong> " + dmrLoginStatus + "</div>";
   html += "</div>";
+  
+  // Card 1: Basic Identity (Callsign, DMR ID, ESSID)
   html += "<div class='card'>";
-  html += "<h3>Configuration Form</h3>";
-
+  html += "<h3>Basic Identity</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
   html += "<label>Callsign:</label>";
   html += "<input type='text' name='callsign' placeholder='e.g., N0CALL' value='" + dmr_callsign + "' required>";
   html += "<label>DMR ID (7 digits):</label>";
   html += "<input type='number' name='dmr_id' placeholder='e.g., 1234567' value='" + String(dmr_id) + "' min='1000000' max='9999999' required>";
-
   html += "<label>ESSID (Radio ID Suffix):</label>";
   html += "<select name='essid' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px;'>";
   html += "<option value='0'" + String(dmr_essid == 0 ? " selected" : "") + ">None</option>";
@@ -517,7 +517,27 @@ void handleDMRConfig() {
     html += "<option value='" + String(i) + "'" + String(dmr_essid == i ? " selected" : "") + ">" + String(i) + "</option>";
   }
   html += "</select>";
+  // Hidden fields to preserve other settings
+  html += "<input type='hidden' name='server' value='" + dmr_server + "'>";
+  html += "<input type='hidden' name='password' value='" + dmr_password + "'>";
+  html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
+  html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
+  html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
+  html += "<input type='hidden' name='color_code' value='" + String(dmr_color_code) + "'>";
+  html += "<input type='hidden' name='latitude' value='" + String(dmr_latitude, 6) + "'>";
+  html += "<input type='hidden' name='longitude' value='" + String(dmr_longitude, 6) + "'>";
+  html += "<input type='hidden' name='height' value='" + String(dmr_height) + "'>";
+  html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
+  html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
+  html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  html += "<input type='submit' value='Save Identity Settings'>";
+  html += "</form>";
+  html += "</div>";
 
+  // Card 2: Network Settings (Server and Password)
+  html += "<div class='card'>";
+  html += "<h3>Network Settings</h3>";
+  html += "<form action='/savedmrconfig' method='POST'>";
   html += "<label>DMR Server:</label>";
   html += "<select name='server' id='serverSelect' onchange='updateServerField()' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;'>";
   html += "<option value='custom'>Custom Server (enter below)</option>";
@@ -564,47 +584,89 @@ void handleDMRConfig() {
   html += "<option value='7242.master.brandmeister.network'>BM_7242_Brazil</option>";
   html += "<option value='7301.master.brandmeister.network'>BM_7301_Chile</option>";
   html += "</select>";
-
   html += "<input type='text' name='server' id='serverInput' placeholder='Or enter custom server' value='" + dmr_server + "' required style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;'>";
-
   html += "<label>DMR Password:</label>";
   html += "<div class='password-container'>";
   html += "<input type='password' id='passwordInput' name='password' placeholder='Your hotspot password' value='" + dmr_password + "' required>";
   html += "<span class='toggle-password' onclick='togglePassword()'>&#128065;</span>";
   html += "</div>";
-  
-  html += "<h3 style='color: #555; margin-top: 25px;'>Additional Settings</h3>";
-  
+  // Hidden fields to preserve other settings
+  html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
+  html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
+  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
+  html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
+  html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
+  html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
+  html += "<input type='hidden' name='color_code' value='" + String(dmr_color_code) + "'>";
+  html += "<input type='hidden' name='latitude' value='" + String(dmr_latitude, 6) + "'>";
+  html += "<input type='hidden' name='longitude' value='" + String(dmr_longitude, 6) + "'>";
+  html += "<input type='hidden' name='height' value='" + String(dmr_height) + "'>";
+  html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
+  html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
+  html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  html += "<input type='submit' value='Save Network Settings'>";
+  html += "</form>";
+  html += "</div>";
+
+  // Card 3: Radio Settings (Frequencies, Power, Color Code)
+  html += "<div class='card'>";
+  html += "<h3>Radio Settings</h3>";
+  html += "<form action='/savedmrconfig' method='POST'>";
   html += "<label>RX Frequency (Hz):</label>";
   html += "<input type='number' name='rx_freq' value='" + String(dmr_rx_freq) + "' min='400000000' max='480000000' required>";
-  
   html += "<label>TX Frequency (Hz):</label>";
   html += "<input type='number' name='tx_freq' value='" + String(dmr_tx_freq) + "' min='400000000' max='480000000' required>";
-  
   html += "<label>Power (0-99):</label>";
   html += "<input type='number' name='power' value='" + String(dmr_power) + "' min='0' max='99' required>";
-  
   html += "<label>Color Code (0-15):</label>";
   html += "<input type='number' name='color_code' value='" + String(dmr_color_code) + "' min='0' max='15' required>";
-  
+  // Hidden fields to preserve other settings
+  html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
+  html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
+  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
+  html += "<input type='hidden' name='server' value='" + dmr_server + "'>";
+  html += "<input type='hidden' name='password' value='" + dmr_password + "'>";
+  html += "<input type='hidden' name='latitude' value='" + String(dmr_latitude, 6) + "'>";
+  html += "<input type='hidden' name='longitude' value='" + String(dmr_longitude, 6) + "'>";
+  html += "<input type='hidden' name='height' value='" + String(dmr_height) + "'>";
+  html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
+  html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
+  html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  html += "<input type='submit' value='Save Radio Settings'>";
+  html += "</form>";
+  html += "</div>";
+
+  // Card 4: Location Settings (GPS and descriptive info)
+  html += "<div class='card'>";
+  html += "<h3>Location & Description</h3>";
+  html += "<form action='/savedmrconfig' method='POST'>";
   html += "<label>Latitude:</label>";
   html += "<input type='text' name='latitude' value='" + String(dmr_latitude, 6) + "' placeholder='0.000000'>";
-  
   html += "<label>Longitude:</label>";
   html += "<input type='text' name='longitude' value='" + String(dmr_longitude, 6) + "' placeholder='0.000000'>";
-  
   html += "<label>Height (meters):</label>";
   html += "<input type='number' name='height' value='" + String(dmr_height) + "' min='0' max='999'>";
-  
   html += "<label>Location:</label>";
-  html += "<input type='text' name='location' value='" + dmr_location + "' maxlength='20'>";
-  
+  html += "<input type='text' name='location' value='" + dmr_location + "' maxlength='20' placeholder='City, Country'>";
   html += "<label>Description:</label>";
-  html += "<input type='text' name='description' value='" + dmr_description + "' maxlength='19'>";
-  
+  html += "<input type='text' name='description' value='" + dmr_description + "' maxlength='19' placeholder='Station description'>";
   html += "<label>URL:</label>";
-  html += "<input type='text' name='url' value='" + dmr_url + "' maxlength='124'>";
+  html += "<input type='text' name='url' value='" + dmr_url + "' maxlength='124' placeholder='https://example.com'>";
+  // Hidden fields to preserve other settings
+  html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
+  html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
+  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
+  html += "<input type='hidden' name='server' value='" + dmr_server + "'>";
+  html += "<input type='hidden' name='password' value='" + dmr_password + "'>";
+  html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
+  html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
+  html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
+  html += "<input type='hidden' name='color_code' value='" + String(dmr_color_code) + "'>";
+  html += "<input type='submit' value='Save Location Settings'>";
+  html += "</form>";
+  html += "</div>";
 
+  // JavaScript for server dropdown and password toggle
   html += "<script>";
   html += "function updateServerField() {";
   html += "  var select = document.getElementById('serverSelect');";
@@ -628,10 +690,6 @@ void handleDMRConfig() {
   html += "  }";
   html += "}";
   html += "</script>";
-
-  html += "<input type='submit' value='Save DMR Configuration'>";
-  html += "</form>";
-  html += "</div>";
   html += "</div>";
 
   html += "<div class='info'>";
