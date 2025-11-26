@@ -12,7 +12,7 @@
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"
-#define WIFI_PASSWORD "itoldyoualread"
+#define WIFI_PASSWORD "itoldyoualready"
 
 // Fallback Access Point mode settings (when WiFi fails)
 #define AP_SSID "ESP32-MMDVM-Config"
