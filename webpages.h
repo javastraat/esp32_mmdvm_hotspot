@@ -41,6 +41,7 @@ extern String altSSID;
 extern String altPassword;
 extern String device_hostname;
 extern bool verbose_logging;
+extern String web_username;
 extern String web_password;
 extern String serialLog[SERIAL_LOG_SIZE];
 extern int serialLogIndex;

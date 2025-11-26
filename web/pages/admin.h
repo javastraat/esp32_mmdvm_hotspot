@@ -247,16 +247,52 @@ void handleAdmin() {
   html += "</form>";
   html += "</div>";
 
-  // Password Protection Card
+  // Web Username Card
+  html += "<div class='card'>";
+  html += "<h3>Web Username</h3>";
+  html += "<p>Manage web interface username</p>";
+  html += "<div style='background:var(--info-bg);padding:10px;border-radius:4px;margin-bottom:15px;'>";
+  html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
+  html += "<span><strong>Current Username:</strong></span>";
+  html += "<span id='current-username-display'>" + web_username + "</span>";
+  html += "</div>";
+  html += "</div>";
+
+  html += "<form id='username-form' onsubmit='saveUsername(event)'>";
+  html += "<label>New Username:</label>";
+  html += "<input type='text' id='new-username' placeholder='Enter new username' value='" + web_username + "' required style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+  html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>Username must be at least 3 characters</p>";
+  html += "<button type='submit' class='btn btn-info' style='width:100%;margin-top:10px;'>Update Username</button>";
+  html += "</form>";
+  html += "</div>";
+
+  // Web Password Card
   html += "<div class='card'>";
   html += "<h3>Web Password</h3>";
-  html += "<p>Change the password for web interface access</p>";
-  html += "<p style='font-size:0.9em;color:var(--text-color);'>Username is always: <strong>admin</strong></p>";
+  html += "<p>Manage web interface password</p>";
+  html += "<div style='background:var(--info-bg);padding:10px;border-radius:4px;margin-bottom:15px;'>";
+  html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
+  html += "<span><strong>Current Password:</strong></span>";
+  html += "<div style='display:flex;align-items:center;gap:8px;'>";
+  html += "<span id='current-password-display' style='font-family:monospace;'>********</span>";
+  html += "<span onclick='toggleCurrentPassword()' style='cursor:pointer;font-size:18px;' title='Show/Hide Password'>&#128065;</span>";
+  html += "<span id='current-password-real' style='display:none;font-family:monospace;'>" + web_password + "</span>";
+  html += "</div>";
+  html += "</div>";
+  html += "</div>";
+
   html += "<form id='password-form' onsubmit='saveWebPassword(event)'>";
   html += "<label>New Password:</label>";
-  html += "<input type='password' id='new-password' placeholder='Enter new password' required style='width:100%;padding:8px;margin:5px 0;'>";
+  html += "<div style='position:relative;'>";
+  html += "<input type='password' id='new-password' placeholder='Enter new password' required style='width:100%;padding:8px;padding-right:40px;margin:5px 0;box-sizing:border-box;'>";
+  html += "<span onclick='togglePasswordField(\"new-password\")' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;' title='Show/Hide'>&#128065;</span>";
+  html += "</div>";
   html += "<label>Confirm Password:</label>";
-  html += "<input type='password' id='confirm-password' placeholder='Confirm new password' required style='width:100%;padding:8px;margin:5px 0;'>";
+  html += "<div style='position:relative;'>";
+  html += "<input type='password' id='confirm-password' placeholder='Confirm new password' required style='width:100%;padding:8px;padding-right:40px;margin:5px 0;box-sizing:border-box;'>";
+  html += "<span onclick='togglePasswordField(\"confirm-password\")' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;' title='Show/Hide'>&#128065;</span>";
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>Password must be at least 4 characters</p>";
   html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Change Password</button>";
   html += "</form>";
   html += "</div>";
@@ -347,6 +383,39 @@ void handleAdmin() {
   html += "      alert('Error: ' + data);";
   html += "    }";
   html += "  });";
+  html += "}";
+  html += "function toggleCurrentPassword() {";
+  html += "  var masked = document.getElementById('current-password-display');";
+  html += "  var real = document.getElementById('current-password-real');";
+  html += "  if (masked.style.display === 'none') {";
+  html += "    masked.style.display = 'inline';";
+  html += "    real.style.display = 'none';";
+  html += "  } else {";
+  html += "    masked.style.display = 'none';";
+  html += "    real.style.display = 'inline';";
+  html += "  }";
+  html += "}";
+  html += "function togglePasswordField(fieldId) {";
+  html += "  var field = document.getElementById(fieldId);";
+  html += "  field.type = field.type === 'password' ? 'text' : 'password';";
+  html += "}";
+  html += "function saveUsername(event) {";
+  html += "  event.preventDefault();";
+  html += "  var newUsername = document.getElementById('new-username').value.trim();";
+  html += "  if (newUsername.length < 3) {";
+  html += "    alert('Username must be at least 3 characters long!');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('Are you sure you want to change the web username to \"' + newUsername + '\"? You will need to log in again with the new username.')) {";
+  html += "    fetch('/save-username', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'username=' + encodeURIComponent(newUsername)}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        alert('Username changed successfully! Please log in again with your new username.');";
+  html += "        window.location.href = '/';";
+  html += "      } else {";
+  html += "        alert('Error: ' + data);";
+  html += "      }";
+  html += "    });";
+  html += "  }";
   html += "}";
   html += "function saveWebPassword(event) {";
   html += "  event.preventDefault();";
@@ -739,6 +808,34 @@ void handleSaveVerbose() {
   }
 }
 
+void handleSaveUsername() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("username")) {
+    String newUsername = server.arg("username");
+
+    // Validate username length
+    if (newUsername.length() < 3) {
+      server.send(400, "text/plain", "ERROR: Username must be at least 3 characters long");
+      return;
+    }
+
+    if (newUsername.length() > 32) {
+      server.send(400, "text/plain", "ERROR: Username must be less than 32 characters");
+      return;
+    }
+
+    // Save the new username
+    web_username = newUsername;
+    saveConfig();
+
+    server.send(200, "text/plain", "SUCCESS: Username changed successfully");
+    logSerial("Web username changed to: " + web_username);
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing username parameter");
+  }
+}
+
 void handleSavePassword() {
   if (!checkAuthentication()) return;
 
@@ -816,6 +913,7 @@ void handleExportConfig() {
   config += "\n[SYSTEM_CONFIG]\n";
   config += "HOSTNAME=" + device_hostname + "\n";
   config += "VERBOSE_LOGGING=" + String(verbose_logging ? "1" : "0") + "\n";
+  config += "WEB_USERNAME=" + web_username + "\n";
   config += "WEB_PASSWORD=" + web_password + "\n";
 
   // Mode Configuration
@@ -877,6 +975,7 @@ void handleImportConfig() {
           else if (key == "ALT_PASSWORD") altPassword = value;
           else if (key == "HOSTNAME") device_hostname = value;
           else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
+          else if (key == "WEB_USERNAME") web_username = value;
           else if (key == "WEB_PASSWORD") web_password = value;
           else if (key == "MODE_DMR") mode_dmr_enabled = (value == "1");
           else if (key == "MODE_DSTAR") mode_dstar_enabled = (value == "1");
@@ -955,7 +1054,7 @@ void handleShowPreferences() {
       "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
       "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
       "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname", "verbose_log",
-      "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
+      "web_username", "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
     };
 
     int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);

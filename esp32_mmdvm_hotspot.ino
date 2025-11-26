@@ -69,7 +69,8 @@ String device_hostname = MDNS_HOSTNAME;
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
 
-// Web interface password (from config.h)
+// Web interface credentials (from config.h)
+String web_username = WEB_USERNAME;
 String web_password = WEB_PASSWORD;
 
 // MMDVM Settings
@@ -819,12 +820,18 @@ void loadConfig() {
   verbose_logging = preferences.getBool("verbose_log", false);
   logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
 
+  // Load web username
+  web_username = preferences.getString("web_username", WEB_USERNAME);
+  if (web_username.length() == 0) {
+    web_username = WEB_USERNAME; // Fallback to default if empty
+  }
+
   // Load web password
   web_password = preferences.getString("web_password", WEB_PASSWORD);
   if (web_password.length() == 0) {
     web_password = WEB_PASSWORD; // Fallback to default if empty
   }
-  logSerial("Web authentication: enabled");
+  logSerial("Web authentication: enabled (user: " + web_username + ")");
 
   // Load mode enable/disable settings
   mode_dmr_enabled = preferences.getBool("mode_dmr", true);
@@ -873,7 +880,8 @@ void saveConfig() {
   // Save verbose logging
   preferences.putBool("verbose_log", verbose_logging);
 
-  // Save web password
+  // Save web credentials
+  preferences.putString("web_username", web_username);
   preferences.putString("web_password", web_password);
 
   // Save mode enable/disable settings
@@ -913,6 +921,7 @@ void setupWebServer() {
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
+  server.on("/save-username", HTTP_POST, handleSaveUsername);
   server.on("/save-password", HTTP_POST, handleSavePassword);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);

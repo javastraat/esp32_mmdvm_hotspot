@@ -93,6 +93,7 @@
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
 // ===== Web Interface Settings =====
+#define WEB_USERNAME "admin"      // Web interface username
 #define WEB_PASSWORD "pi-star"    // Default web interface password
 #define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
 

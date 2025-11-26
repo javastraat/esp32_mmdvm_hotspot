@@ -10,6 +10,7 @@
 
 // External variables
 extern WebServer server;
+extern String web_username;
 extern String web_password;
 
 String getFooter() {
@@ -18,7 +19,7 @@ String getFooter() {
 
 // Authentication check function
 bool checkAuthentication() {
-  if (!server.authenticate("admin", web_password.c_str())) {
+  if (!server.authenticate(WEB_USERNAME, web_password.c_str())) {
     server.requestAuthentication();
     return false;
   }
