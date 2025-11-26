@@ -109,7 +109,7 @@ String getNavigation(String activePage) {
   String nav = "<div class='topnav' id='myTopnav'>";
   nav += "<a href='/'" + String(activePage == "main" ? " class='active'" : "") + ">Main</a>";
   nav += "<a href='/status'" + String(activePage == "status" ? " class='active'" : "") + ">Status</a>";
-  nav += "<a href='/monitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
+  nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/dmrconfig'" + String(activePage == "dmrconfig" ? " class='active'" : "") + ">DMR Config</a>";
   nav += "<a href='/admin'" + String(activePage == "admin" ? " class='active'" : "") + ">Admin</a>";
@@ -142,7 +142,7 @@ String getNavigation(String activePage) {
 }
 
 String getFooter() {
-  return "<div class='footer'>&copy; 2025 einstein.amsterdam</div>";
+  return "<div class='footer'>" + String(COPYRIGHT_TEXT) + "</div>";
 }
 
 void handleRoot() {
@@ -153,7 +153,7 @@ void handleRoot() {
   html += "</head><body>";
   html += getNavigation("main");
   html += "<div class='container'>";
-  html += "<h1>ESP32 MMDVM Hotspot - Main Dashboard</h1>";
+  html += "<h1>" + dmr_callsign + " - ESP32 MMDVM Hotspot</h1>";
 
   html += "<div class='grid'>";
   html += "<div class='card'>";
@@ -1473,8 +1473,9 @@ void handleShowPreferences() {
   html += "<title>ESP32 MMDVM Hotspot - Stored Preferences</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0; }";
+  html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0 10px 0; }";
   html += ".pref-table th, .pref-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }";
+  html += ".pref-table tbody tr:last-child td { border-bottom: none; }";
   html += ".pref-table th { background-color: var(--hover-bg); font-weight: bold; color: var(--text-color); }";
   html += ".pref-table tr:nth-child(even) { background-color: var(--hover-bg); }";
   html += ".pref-key { font-family: 'Courier New', monospace; color: var(--primary-color); }";
@@ -1488,18 +1489,6 @@ void handleShowPreferences() {
   html += getNavigation("admin");
   html += "<div class='container'>";
   html += "<h1>Stored Preferences</h1>";
-  
-  // Storage Statistics
-  html += "<div class='card'>";
-  html += "<h3>Storage Statistics</h3>";
-  html += "<div class='info'><strong>Namespace:</strong> mmdvm</div>";
-  html += "<div class='info'><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + " bytes</div>";
-  html += "<div class='info'><strong>Note:</strong> Password fields are masked for security. Click the eye icon to show/hide actual values.</div>";
-  html += "</div>";
-  
-  html += "<div class='info'>";
-  html += "All settings currently stored in ESP32 flash memory (Preferences namespace: 'mmdvm'):";
-  html += "</div>";
 
   // Open preferences in read-only mode
   preferences.begin("mmdvm", true);
@@ -1661,16 +1650,14 @@ void handleShowPreferences() {
     if (foundKeys == 0) {
       html += "<tr><td colspan='4' style='text-align: center; color: #6c757d; font-style: italic;'>No preferences found in 'mmdvm' namespace</td></tr>";
     } else {
-      html += "<tr><td colspan='4' style='text-align: center; color: #6c757d; font-style: italic; border-top: 2px solid #007bff; padding-top: 10px;'>";
-      html += "Found " + String(foundKeys) + " stored preferences. Note: ESP32 Preferences library doesn't support full key enumeration, so this shows known keys only.";
+      html += "<tr><td colspan='4' style='text-align: center; color: var(--text-muted); font-style: italic; padding-top: 10px;'>";
+      html += "Found " + String(foundKeys) + " stored preferences.";
       html += "</td></tr>";
     }
   }
-  
-  preferences.end();
-  
-  html += "</tbody></table>";
 
+  preferences.end();
+  html += "</tbody></table>";
   // Add JavaScript for password toggle functionality
   html += "<script>";
   html += "function togglePassword(passwordId) {";
@@ -1690,10 +1677,8 @@ void handleShowPreferences() {
   html += "  }";
   html += "}";
   html += "</script>";
-  
   html += getFooter();
   html += "</div></body></html>";
-  
   server.send(200, "text/html", html);
   logSerial("Preferences display requested by user");
 }

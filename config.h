@@ -80,6 +80,9 @@
 #define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
+// ===== Web Interface Settings =====
+#define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
+
 // ===== OTA Update Configuration =====
 #define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"

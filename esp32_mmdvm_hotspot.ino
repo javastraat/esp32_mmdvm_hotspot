@@ -132,7 +132,7 @@ String altSSID = "";
 String altPassword = "";
 
 // Firmware version (matches the version used in DMR config)
-String firmwareVersion = "20251126_ESP32";
+String firmwareVersion = "20251125_ESP32";
 
 // ===== Function Prototypes =====
 void setupWiFi();
@@ -782,7 +782,7 @@ void setupWebServer() {
   // Main pages
   server.on("/", handleRoot);
   server.on("/status", handleStatus);
-  server.on("/monitor", handleMonitor);
+  server.on("/serialmonitor", handleMonitor);
   server.on("/wificonfig", handleConfig);
   server.on("/dmrconfig", handleDMRConfig);
   server.on("/admin", handleAdmin);

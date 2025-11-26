@@ -363,7 +363,7 @@ esp32_mmdvm_hotspot/
 Actual implemented pages:
 1. **Main Dashboard** (`/`) - System status and station information
 2. **Status Page** (`/status`) - Detailed system metrics with auto-refresh
-3. **Serial Monitor** (`/monitor`) - Real-time MMDVM communication logs
+3. **Serial Monitor** (`/serialmonitor`) - Real-time MMDVM communication logs
 4. **WiFi Config** (`/config`) - Primary and alternate network configuration
 5. **DMR Config** (`/dmrconfig`) - Complete DMR settings with 40+ server list
 6. **Admin Panel** (`/admin`) - System control, preferences, and maintenance
