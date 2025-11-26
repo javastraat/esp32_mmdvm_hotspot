@@ -273,12 +273,13 @@ void handleWifiScan() {
       String security = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured";
       String ssid = WiFi.SSID(i);
       String escapedSsid = ssid;
-      // Escape for JavaScript string inside single quotes: escape backslash and single quote
+      // Escape for JavaScript string inside double quotes: escape backslash, double quote, and special chars
       escapedSsid.replace("\\", "\\\\");
+      escapedSsid.replace("\"", "\\\"");
       escapedSsid.replace("'", "\\'");
-      html += "<div class='network-item' onclick='selectNetwork(\"";
+      html += "<div class='network-item' onclick=\"selectNetwork('";
       html += escapedSsid;
-      html += "\")'>";
+      html += "')\">";
       html += "<strong>" + ssid + "</strong>";
       html += "<span class='signal-strength'>" + String(WiFi.RSSI(i)) + " dBm (" + security + ")</span>";
       html += "</div>";

@@ -157,6 +157,7 @@ void handleDMRConfig() {
   html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
   html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
   html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  if (mode_dmr_enabled) html += "<input type='hidden' name='mode_dmr' value='1'>";
   html += "<input type='submit' value='Save General Settings'>";
   html += "</form>";
   html += "</div>";
@@ -305,6 +306,7 @@ void handleDMRConfig() {
   html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
   html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
   html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  if (mode_dmr_enabled) html += "<input type='hidden' name='mode_dmr' value='1'>";
   html += "<input type='submit' value='Save Radio Settings'>";
   html += "</form>";
   html += "</div>";
@@ -335,6 +337,7 @@ void handleDMRConfig() {
   html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
   html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
   html += "<input type='hidden' name='color_code' value='" + String(dmr_color_code) + "'>";
+  if (mode_dmr_enabled) html += "<input type='hidden' name='mode_dmr' value='1'>";
   html += "<input type='submit' value='Save Location Settings'>";
   html += "</form>";
   html += "</div>";
