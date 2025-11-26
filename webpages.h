@@ -37,6 +37,7 @@ extern String dmr_description;
 extern String dmr_url;
 extern String altSSID;
 extern String altPassword;
+extern String device_hostname;
 extern String serialLog[SERIAL_LOG_SIZE];
 extern int serialLogIndex;
 extern Preferences preferences;
@@ -916,6 +917,17 @@ void handleAdmin() {
   html += "</div>";
   html += "</div>";
 
+  // Hostname Configuration Card
+  html += "<div class='card'>";
+  html += "<h3>Hostname Configuration</h3>";
+  html += "<p>Current hostname: <strong>" + device_hostname + "</strong></p>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);'>Access via: http://" + device_hostname + ".local</p>";
+  html += "<form id='hostname-form' onsubmit='saveHostname(event)'>";
+  html += "<input type='text' id='hostname-input' value='" + device_hostname + "' placeholder='e.g., mmdvm-hotspot' style='width:100%;padding:10px;margin:10px 0;border:1px solid var(--border-color);border-radius:4px;box-sizing:border-box;background:var(--container-bg);color:var(--text-color);' pattern='[a-zA-Z0-9-]{1,32}' required>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;'>Save Hostname</button>";
+  html += "</form>";
+  html += "</div>";
+
   // Configuration Management Card
   html += "<div class='card'>";
   html += "<h3>Configuration Management</h3>";
@@ -975,6 +987,22 @@ void handleAdmin() {
   html += "</div>";
 
   html += "<script>";
+  html += "function saveHostname(event) {";
+  html += "  event.preventDefault();";
+  html += "  var hostname = document.getElementById('hostname-input').value;";
+  html += "  if (hostname && /^[a-zA-Z0-9-]{1,32}$/.test(hostname)) {";
+  html += "    fetch('/save-hostname', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'hostname=' + encodeURIComponent(hostname)}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        alert('Hostname saved! System will reboot in 3 seconds.\\n\\nNew URL: http://' + hostname + '.local');";
+  html += "        setTimeout(() => { window.location.href = 'http://' + hostname + '.local'; }, 3000);";
+  html += "      } else {";
+  html += "        alert('Error: ' + data);";
+  html += "      }";
+  html += "    });";
+  html += "  } else {";
+  html += "    alert('Invalid hostname. Use only letters, numbers, and hyphens (1-32 characters).');";
+  html += "  }";
+  html += "}";
   html += "function rebootSystem() {";
   html += "  if (confirm('Are you sure you want to reboot the system? This will temporarily interrupt service.')) {";
   html += "    fetch('/reboot', {method: 'POST'}).then(() => {";
@@ -1169,7 +1197,8 @@ void handleCleanupPreferences() {
   dmr_url = "";
   altSSID = "";
   altPassword = "";
-  
+  device_hostname = MDNS_HOSTNAME;
+
   // Save clean configuration
   saveConfig();
   
@@ -1274,6 +1303,28 @@ void handleFlashFirmware() {
   }
 }
 
+void handleSaveHostname() {
+  if (server.hasArg("hostname")) {
+    String newHostname = server.arg("hostname");
+
+    // Validate hostname
+    if (newHostname.length() > 0 && newHostname.length() <= 32) {
+      device_hostname = newHostname;
+      saveConfig();
+
+      server.send(200, "text/plain", "SUCCESS: Hostname saved");
+      logSerial("Hostname changed to: " + device_hostname);
+
+      delay(1000);
+      ESP.restart();
+    } else {
+      server.send(400, "text/plain", "ERROR: Invalid hostname length");
+    }
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing hostname parameter");
+  }
+}
+
 void handleReboot() {
   server.send(200, "text/plain", "Rebooting...");
   logSerial("System reboot requested");
@@ -1333,7 +1384,11 @@ void handleExportConfig() {
   config += "\n[WIFI_CONFIG]\n";
   config += "ALT_SSID=" + altSSID + "\n";
   config += "ALT_PASSWORD=" + altPassword + "\n";
-  
+
+  // System Configuration
+  config += "\n[SYSTEM_CONFIG]\n";
+  config += "HOSTNAME=" + device_hostname + "\n";
+
   server.send(200, "text/plain", config);
 }
 
@@ -1382,7 +1437,8 @@ void handleImportConfig() {
           else if (key == "DMR_URL") dmr_url = value;
           else if (key == "ALT_SSID") altSSID = value;
           else if (key == "ALT_PASSWORD") altPassword = value;
-          
+          else if (key == "HOSTNAME") device_hostname = value;
+
           logSerial("Imported: " + key + " = " + value);
         }
       }
@@ -1418,16 +1474,16 @@ void handleShowPreferences() {
   html += getCommonCSS();
   html += "<style>";
   html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0; }";
-  html += ".pref-table th, .pref-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }";
-  html += ".pref-table th { background-color: #f8f9fa; font-weight: bold; color: #495057; }";
-  html += ".pref-table tr:nth-child(even) { background-color: #f8f9fa; }";
-  html += ".pref-key { font-family: 'Courier New', monospace; color: #007bff; }";
-  html += ".pref-value { font-family: 'Courier New', monospace; word-break: break-all; }";
-  html += ".pref-type { color: #6c757d; font-size: 0.9em; }";
+  html += ".pref-table th, .pref-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }";
+  html += ".pref-table th { background-color: var(--hover-bg); font-weight: bold; color: var(--text-color); }";
+  html += ".pref-table tr:nth-child(even) { background-color: var(--hover-bg); }";
+  html += ".pref-key { font-family: 'Courier New', monospace; color: var(--primary-color); }";
+  html += ".pref-value { font-family: 'Courier New', monospace; word-break: break-all; color: var(--text-color); }";
+  html += ".pref-type { color: var(--text-muted); font-size: 0.9em; }";
   html += ".password-container { display: inline-flex; align-items: center; gap: 8px; }";
-  html += ".password-toggle { cursor: pointer; font-size: 16px; color: #007bff; user-select: none; }";
-  html += ".password-toggle:hover { color: #0056b3; }";
-  html += ".password-hidden { color: #666; }";
+  html += ".password-toggle { cursor: pointer; font-size: 16px; color: var(--primary-color); user-select: none; }";
+  html += ".password-toggle:hover { color: var(--primary-hover); }";
+  html += ".password-hidden { color: var(--text-muted); }";
   html += "</style></head><body>";
   html += getNavigation("admin");
   html += "<div class='container'>";
@@ -1459,9 +1515,9 @@ void handleShowPreferences() {
     // List of all actual keys used by this firmware (matching saveConfig() function)
     const char* knownKeys[] = {
       "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
-      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc", 
-      "dmr_lat", "dmr_lon", "dmr_height", "dmr_location", 
-      "dmr_desc", "dmr_url", "alt_ssid", "alt_password"
+      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
+      "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
+      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname"
     };
     
     int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);

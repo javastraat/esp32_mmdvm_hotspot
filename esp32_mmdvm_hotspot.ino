@@ -63,6 +63,9 @@ String dmr_location = "ESP32 Hotspot";
 String dmr_description = "ESP32-MMDVM";
 String dmr_url = "";
 
+// Hostname setting
+String device_hostname = MDNS_HOSTNAME;
+
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
 #define MMDVM_SERIAL Serial2
@@ -176,8 +179,8 @@ void setup() {
   setupWebServer();
 
   // Start mDNS
-  if (MDNS.begin(MDNS_HOSTNAME)) {
-    logSerial("mDNS started: http://" + String(MDNS_HOSTNAME) + ".local");
+  if (MDNS.begin(device_hostname.c_str())) {
+    logSerial("mDNS started: http://" + device_hostname + ".local");
   }
 
   // Initialize MMDVM
@@ -224,6 +227,7 @@ void setupWiFi() {
   logSerial("Connecting to WiFi: " + String(ssid));
 
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname (what shows on router)
   WiFi.begin(ssid, password);
 
   int attempts = 0;
@@ -735,6 +739,10 @@ void loadConfig() {
   altSSID = preferences.getString("alt_ssid", "");
   altPassword = preferences.getString("alt_password", "");
 
+  // Load hostname setting
+  device_hostname = preferences.getString("hostname", MDNS_HOSTNAME);
+  logSerial("Hostname: " + device_hostname);
+
   preferences.end();
 }
 
@@ -762,6 +770,9 @@ void saveConfig() {
   preferences.putString("alt_ssid", altSSID);
   preferences.putString("alt_password", altPassword);
 
+  // Save hostname
+  preferences.putString("hostname", device_hostname);
+
   preferences.end();
   logSerial("Configuration saved to storage");
 }
@@ -788,6 +799,7 @@ void setupWebServer() {
   
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
+  server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
