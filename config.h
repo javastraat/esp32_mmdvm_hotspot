@@ -14,6 +14,10 @@
 #define WIFI_SSID "TechInc"
 #define WIFI_PASSWORD "itoldyoualready"
 
+// Fallback Access Point mode settings (when WiFi fails)
+#define AP_SSID "ESP32-MMDVM-Config"
+#define AP_PASSWORD "mmdvm1234"
+
 // ===== DMR Network Configuration =====
 // Choose your network and uncomment the appropriate server
 
@@ -30,6 +34,11 @@
 #define DMR_ID 1234567             // Your DMR ID (7 digits)
 #define DMR_PASSWORD "passw0rd"    // Your hotspot password from BrandMeister
 #define DMR_COLORCODE 1            // Color code (1-15, usually 1 for BrandMeister)
+
+// DMR Hotspot Defaults
+#define DMR_LOCATION "ESP32 Hotspot"     // Default location name
+#define DMR_DESCRIPTION "ESP32-MMDVM"    // Default description
+#define DMR_URL ""                       // Default URL (empty)
 
 // ===== MMDVM Hardware Configuration =====
 // Serial communication
@@ -84,6 +93,7 @@
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
 // ===== Web Interface Settings =====
+#define WEB_PASSWORD "pi-star"    // Default web interface password
 #define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
 
 // ===== OTA Update Configuration =====
@@ -109,12 +119,13 @@
 
 // ===== Multi-Protocol Support =====
 // Enable/disable protocols (requires appropriate MMDVM firmware)
-#define ENABLE_DMR true
-#define ENABLE_DSTAR false
-#define ENABLE_YSF false
-#define ENABLE_P25 false
-#define ENABLE_NXDN false
-#define ENABLE_POCSAG false
+// These are default values - can be changed via web interface
+#define DEFAULT_MODE_DMR true       // DMR mode (functional)
+#define DEFAULT_MODE_DSTAR false    // D-Star mode (not yet implemented)
+#define DEFAULT_MODE_YSF false      // YSF/Fusion mode (not yet implemented)
+#define DEFAULT_MODE_P25 false      // P25 mode (not yet implemented)
+#define DEFAULT_MODE_NXDN false     // NXDN mode (not yet implemented)
+#define DEFAULT_MODE_POCSAG false   // POCSAG paging mode (not yet implemented)
 
 // ===== Validation =====
 #if !defined(DMR_CALLSIGN) || !defined(DMR_ID)

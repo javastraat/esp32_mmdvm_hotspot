@@ -39,9 +39,9 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 
-// Fallback AP mode settings
-const char* ap_ssid = "ESP32-MMDVM-Config";
-const char* ap_password = "mmdvm1234";
+// Fallback AP mode settings (from config.h)
+const char* ap_ssid = AP_SSID;
+const char* ap_password = AP_PASSWORD;
 
 // DMR Network Settings (can be overridden by stored config)
 String dmr_callsign = DMR_CALLSIGN;
@@ -59,9 +59,9 @@ uint8_t dmr_color_code = 1;         // Color Code 0-15
 float dmr_latitude = 0.0;           // Latitude
 float dmr_longitude = 0.0;          // Longitude
 int dmr_height = 0;                 // Height in meters
-String dmr_location = "ESP32 Hotspot";
-String dmr_description = "ESP32-MMDVM";
-String dmr_url = "";
+String dmr_location = DMR_LOCATION;
+String dmr_description = DMR_DESCRIPTION;
+String dmr_url = DMR_URL;
 
 // Hostname setting
 String device_hostname = MDNS_HOSTNAME;
@@ -69,8 +69,8 @@ String device_hostname = MDNS_HOSTNAME;
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
 
-// Web interface password (default: pi-star)
-String web_password = "pi-star";
+// Web interface password (from config.h)
+String web_password = WEB_PASSWORD;
 
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
@@ -152,13 +152,13 @@ LED_MODE currentLedMode = LED_MODE::OFF;
 unsigned long lastLedToggle = 0;
 bool ledState = false;
 
-// Mode Enable/Disable Settings
-bool mode_dmr_enabled = true;      // DMR mode (functional)
-bool mode_dstar_enabled = false;   // D-Star mode (not yet implemented)
-bool mode_ysf_enabled = false;     // YSF/Fusion mode (not yet implemented)
-bool mode_p25_enabled = false;     // P25 mode (not yet implemented)
-bool mode_nxdn_enabled = false;    // NXDN mode (not yet implemented)
-bool mode_pocsag_enabled = false;  // POCSAG paging mode (not yet implemented)
+// Mode Enable/Disable Settings (defaults from config.h)
+bool mode_dmr_enabled = DEFAULT_MODE_DMR;
+bool mode_dstar_enabled = DEFAULT_MODE_DSTAR;
+bool mode_ysf_enabled = DEFAULT_MODE_YSF;
+bool mode_p25_enabled = DEFAULT_MODE_P25;
+bool mode_nxdn_enabled = DEFAULT_MODE_NXDN;
+bool mode_pocsag_enabled = DEFAULT_MODE_POCSAG;
 
 // ===== Function Prototypes =====
 void setupWiFi();
@@ -820,9 +820,9 @@ void loadConfig() {
   logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
 
   // Load web password
-  web_password = preferences.getString("web_password", "pi-star");
+  web_password = preferences.getString("web_password", WEB_PASSWORD);
   if (web_password.length() == 0) {
-    web_password = "pi-star"; // Fallback to default if empty
+    web_password = WEB_PASSWORD; // Fallback to default if empty
   }
   logSerial("Web authentication: enabled");
 
