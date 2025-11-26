@@ -67,16 +67,13 @@ void handleDMRConfig() {
   // Mode Status Card with toggle switches
   html += "<div class='card'>";
   html += "<h3>Active Modes</h3>";
-  html += "<form action='/savemodes' method='POST'>";
 
-  // DMR Mode - Toggle switch (functional)
+  // DMR Mode - Read-only status display
   html += "<div style='margin: 10px 0;'>";
   html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color);'>";
   html += "<span style='font-weight: bold;'>DMR:</span>";
-  html += "<label style='display: flex; align-items: center; cursor: pointer;'>";
-  html += "<input type='checkbox' name='mode_dmr' value='1' " + String(mode_dmr_enabled ? "checked" : "") + " style='width: auto; margin-right: 8px; transform: scale(1.5);'>";
-  html += "<span id='dmr-status' style='color: " + String(mode_dmr_enabled ? "#28a745" : "#dc3545") + "; font-weight: bold;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</span>";
-  html += "</label>";
+  String dmrStatusClass = mode_dmr_enabled ? "connected" : "disconnected";
+  html += "<div class='status " + dmrStatusClass + "' style='margin: 0;'><strong>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</strong></div>";
   html += "</div>";
   html += "</div>";
 
@@ -116,11 +113,8 @@ void handleDMRConfig() {
   html += "</div>";
   html += "</div>";
 
-  html += "<input type='submit' value='Activate Mode Changes'>";
-  html += "</form>";
-
   html += "<div class='info' style='margin-top: 15px; font-size: 0.9em;'>";
-  html += "<strong>Note:</strong> Click 'Activate Mode Changes' to apply changes. Device will restart to activate the new mode configuration.";
+  html += "<strong>Note:</strong> Enable or disable modes in the BrandMeister Settings card below. Changes require device restart.";
   html += "</div>";
   html += "</div>";
 
@@ -136,9 +130,6 @@ void handleDMRConfig() {
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
   html += "<div class='status " + bmStatusClass + "'><strong>Status:</strong> " + dmrLoginStatus + "</div>";
   html += "</div>";
-
-  // Only show configuration cards if DMR mode is enabled
-  if (mode_dmr_enabled) {
 
   // Card 1: General (Callsign, DMR ID, Frequencies)
   html += "<div class='card'>";
@@ -172,64 +163,111 @@ void handleDMRConfig() {
 
   // Card 2: Network Settings (Server and Password)
   html += "<div class='card'>";
-  html += "<h3>Network Settings</h3>";
+  html += "<h3>BrandMeister Settings</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
+  html += "<label>Enable DMR Mode:</label>";
+  html += "<div style='margin: 10px 0 20px 0;'>";
+  html += "<label style='display: flex; align-items: center; cursor: pointer; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color);'>";
+  html += "<input type='checkbox' name='mode_dmr' value='1' " + String(mode_dmr_enabled ? "checked" : "") + " style='width: auto; margin-right: 12px; transform: scale(1.5);'>";
+  html += "<span style='font-weight: bold;'>DMR Mode " + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</span>";
+  html += "</label>";
+  html += "</div>";
+  
+  // BrandMeister server list
+  struct BMServer {
+    const char* address;
+    const char* name;
+  };
+  
+  const BMServer bmServers[] = {
+    {"2041.master.brandmeister.network", "BM_2041_Netherlands"},
+    {"44.148.230.201", "BM_2001_Europe_HAMNET"},
+    {"2022.master.brandmeister.network", "BM_2022_Greece"},
+    {"2061.master.brandmeister.network", "BM_2061_Belgium"},
+    {"2081.master.brandmeister.network", "BM_2081_France"},
+    {"2082.master.brandmeister.network", "BM_2082_France"},
+    {"2141.master.brandmeister.network", "BM_2141_Spain"},
+    {"2162.master.brandmeister.network", "BM_2162_Hungary"},
+    {"2222.master.brandmeister.network", "BM_2222_Italy"},
+    {"2262.master.brandmeister.network", "BM_2262_Romania"},
+    {"2282.master.brandmeister.network", "BM_2282_Switzerland"},
+    {"2302.master.brandmeister.network", "BM_2302_Czech_Republic"},
+    {"2322.master.brandmeister.network", "BM_2322_Austria"},
+    {"2341.master.brandmeister.network", "BM_2341_United_Kingdom"},
+    {"2382.master.brandmeister.network", "BM_2382_Denmark"},
+    {"2402.master.brandmeister.network", "BM_2402_Sweden"},
+    {"2421.master.brandmeister.network", "BM_2421_Norway"},
+    {"2441.master.brandmeister.network", "BM_2441_Finland"},
+    {"2502.master.brandmeister.network", "BM_2502_Russia"},
+    {"2503.master.brandmeister.network", "BM_2503_Russia"},
+    {"23.111.17.39", "BM_2551_Ukraine"},
+    {"2602.master.brandmeister.network", "BM_2602_Poland"},
+    {"2621.master.brandmeister.network", "BM_2621_Germany"},
+    {"2622.master.brandmeister.network", "BM_2622_Germany"},
+    {"2682.master.brandmeister.network", "BM_2682_Portugal"},
+    {"2721.master.brandmeister.network", "BM_2721_Ireland"},
+    {"2841.master.brandmeister.network", "BM_2841_Bulgaria"},
+    {"2931.master.brandmeister.network", "BM_2931_Slovenia"},
+    {"3021.master.brandmeister.network", "BM_3021_Canada"},
+    {"3102.master.brandmeister.network", "BM_3102_United_States"},
+    {"3103.master.brandmeister.network", "BM_3103_United_States"},
+    {"3104.master.brandmeister.network", "BM_3104_United_States"},
+    {"3341.master.brandmeister.network", "BM_3341_Mexico"},
+    {"4251.master.brandmeister.network", "BM_4251_Israel"},
+    {"4501.master.brandmeister.network", "BM_4501_South_Korea"},
+    {"4602.master.brandmeister.network", "BM_4602_China"},
+    {"5021.master.brandmeister.network", "BM_5021_Malaysia"},
+    {"5051.master.brandmeister.network", "BM_5051_Australia"},
+    {"5151.master.brandmeister.network", "BM_5151_Philippines"},
+    {"6551.master.brandmeister.network", "BM_6551_South_Africa"},
+    {"7242.master.brandmeister.network", "BM_7242_Brazil"},
+    {"7301.master.brandmeister.network", "BM_7301_Chile"}
+  };
+  const int serverCount = sizeof(bmServers) / sizeof(bmServers[0]);
+  
+  // Check if current server is in the predefined list
+  bool isKnownServer = false;
+  for (int i = 0; i < serverCount; i++) {
+    if (dmr_server == bmServers[i].address) {
+      isKnownServer = true;
+      break;
+    }
+  }
+  
   html += "<label>DMR Server:</label>";
-  html += "<select name='server' id='serverSelect' onchange='updateServerField()' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;'>";
-  html += "<option value='custom'>Custom Server (enter below)</option>";
-  html += "<option value='2041.master.brandmeister.network'>BM_2041_Netherlands</option>";
-  html += "<option value='44.148.230.201'>BM_2001_Europe_HAMNET</option>";
-  html += "<option value='2022.master.brandmeister.network'>BM_2022_Greece</option>";
-  html += "<option value='2061.master.brandmeister.network'>BM_2061_Belgium</option>";
-  html += "<option value='2081.master.brandmeister.network'>BM_2081_France</option>";
-  html += "<option value='2082.master.brandmeister.network'>BM_2082_France</option>";
-  html += "<option value='2141.master.brandmeister.network'>BM_2141_Spain</option>";
-  html += "<option value='2162.master.brandmeister.network'>BM_2162_Hungary</option>";
-  html += "<option value='2222.master.brandmeister.network'>BM_2222_Italy</option>";
-  html += "<option value='2262.master.brandmeister.network'>BM_2262_Romania</option>";
-  html += "<option value='2282.master.brandmeister.network'>BM_2282_Switzerland</option>";
-  html += "<option value='2302.master.brandmeister.network'>BM_2302_Czech_Republic</option>";
-  html += "<option value='2322.master.brandmeister.network'>BM_2322_Austria</option>";
-  html += "<option value='2341.master.brandmeister.network'>BM_2341_United_Kingdom</option>";
-  html += "<option value='2382.master.brandmeister.network'>BM_2382_Denmark</option>";
-  html += "<option value='2402.master.brandmeister.network'>BM_2402_Sweden</option>";
-  html += "<option value='2421.master.brandmeister.network'>BM_2421_Norway</option>";
-  html += "<option value='2441.master.brandmeister.network'>BM_2441_Finland</option>";
-  html += "<option value='2502.master.brandmeister.network'>BM_2502_Russia</option>";
-  html += "<option value='2503.master.brandmeister.network'>BM_2503_Russia</option>";
-  html += "<option value='23.111.17.39'>BM_2551_Ukraine</option>";
-  html += "<option value='2602.master.brandmeister.network'>BM_2602_Poland</option>";
-  html += "<option value='2621.master.brandmeister.network'>BM_2621_Germany</option>";
-  html += "<option value='2622.master.brandmeister.network'>BM_2622_Germany</option>";
-  html += "<option value='2682.master.brandmeister.network'>BM_2682_Portugal</option>";
-  html += "<option value='2721.master.brandmeister.network'>BM_2721_Ireland</option>";
-  html += "<option value='2841.master.brandmeister.network'>BM_2841_Bulgaria</option>";
-  html += "<option value='2931.master.brandmeister.network'>BM_2931_Slovenia</option>";
-  html += "<option value='3021.master.brandmeister.network'>BM_3021_Canada</option>";
-  html += "<option value='3102.master.brandmeister.network'>BM_3102_United_States</option>";
-  html += "<option value='3103.master.brandmeister.network'>BM_3103_United_States</option>";
-  html += "<option value='3104.master.brandmeister.network'>BM_3104_United_States</option>";
-  html += "<option value='3341.master.brandmeister.network'>BM_3341_Mexico</option>";
-  html += "<option value='4251.master.brandmeister.network'>BM_4251_Israel</option>";
-  html += "<option value='4501.master.brandmeister.network'>BM_4501_South_Korea</option>";
-  html += "<option value='4602.master.brandmeister.network'>BM_4602_China</option>";
-  html += "<option value='5021.master.brandmeister.network'>BM_5021_Malaysia</option>";
-  html += "<option value='5051.master.brandmeister.network'>BM_5051_Australia</option>";
-  html += "<option value='5151.master.brandmeister.network'>BM_5151_Philippines</option>";
-  html += "<option value='6551.master.brandmeister.network'>BM_6551_South_Africa</option>";
-  html += "<option value='7242.master.brandmeister.network'>BM_7242_Brazil</option>";
-  html += "<option value='7301.master.brandmeister.network'>BM_7301_Chile</option>";
+  html += "<select id='serverSelect' onchange='updateServerField()' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;'>";
+  html += "<option value='custom'\" + String(!isKnownServer ? \" selected\" : \"\") + \">Custom Server (enter below)</option>";
+  
+  // Generate options from array
+  for (int i = 0; i < serverCount; i++) {
+    html += "<option value='";
+    html += bmServers[i].address;
+    html += "'";
+    if (dmr_server == bmServers[i].address) {
+      html += " selected";
+    }
+    html += ">";
+    html += bmServers[i].name;
+    html += "</option>";
+  }
+  
   html += "</select>";
-  html += "<input type='text' name='server' id='serverInput' placeholder='Or enter custom server' value='" + dmr_server + "' required style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;'>";
+  html += "<input type='text' name='server' id='serverInput' placeholder='IP or FQDN' value='" + dmr_server + "' required style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;'>";
   html += "<label>DMR Password:</label>";
   html += "<div class='password-container'>";
   html += "<input type='password' id='passwordInput' name='password' placeholder='Your hotspot password' value='" + dmr_password + "' required>";
   html += "<span class='toggle-password' onclick='togglePassword()'>&#128065;</span>";
   html += "</div>";
+  html += "<label>ESSID (Radio ID Suffix):</label>";
+  html += "<select name='essid' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px;'>";
+  html += "<option value='0'" + String(dmr_essid == 0 ? " selected" : "") + ">None</option>";
+  for (int i = 1; i <= 99; i++) {
+    html += "<option value='" + String(i) + "'" + String(dmr_essid == i ? " selected" : "") + ">" + String(i) + "</option>";
+  }
+  html += "</select>";
   // Hidden fields to preserve other settings
   html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
   html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
-  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
   html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
   html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
   html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
@@ -240,11 +278,9 @@ void handleDMRConfig() {
   html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
   html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
   html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
-  html += "<input type='submit' value='Save Network Settings'>";
+  html += "<input type='submit' value='Save BrandMeister Settings'>";
   html += "</form>";
   html += "</div>";
-
-  } // End of DMR enabled check - close Cards 1 & 2 (Identity & Network Settings)
 
   // Card 3: Radio Settings (Power, Color Code)
   html += "<div class='card'>";
@@ -254,19 +290,11 @@ void handleDMRConfig() {
   html += "<input type='number' name='power' value='" + String(dmr_power) + "' min='0' max='99' required>";
   html += "<label>Color Code (0-15):</label>";
   html += "<input type='number' name='color_code' value='" + String(dmr_color_code) + "' min='0' max='15' required>";
-  html += "<label>ESSID (Radio ID Suffix):</label>";
-  html += "<select name='essid' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px;'>";
-  html += "<option value='0'" + String(dmr_essid == 0 ? " selected" : "") + ">None</option>";
-  for (int i = 1; i <= 99; i++) {
-    html += "<option value='" + String(i) + "'" + String(dmr_essid == i ? " selected" : "") + ">" + String(i) + "</option>";
-  }
-  html += "</select>";
 
   // Hidden fields to preserve other settings
   html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
   html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
   html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
-  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
   html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
   html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
   html += "<input type='hidden' name='server' value='" + dmr_server + "'>";
@@ -281,8 +309,7 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
-  // Card 4: Location Settings (GPS and descriptive info) - Only show if DMR enabled
-  if (mode_dmr_enabled) {
+  // Card 4: Location Settings (GPS and descriptive info)
   html += "<div class='card'>";
   html += "<h3>Location & Description</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
@@ -311,7 +338,6 @@ void handleDMRConfig() {
   html += "<input type='submit' value='Save Location Settings'>";
   html += "</form>";
   html += "</div>";
-  } // End of DMR enabled check - close Card 4 (Location & Description)
 
   // JavaScript for server dropdown and password toggle
   html += "<script>";
@@ -339,22 +365,15 @@ void handleDMRConfig() {
   html += "</script>";
   html += "</div>";
 
-  // Show info section only if DMR is enabled
-  if (mode_dmr_enabled) {
-    html += "<div class='info'>";
-    html += "<strong>Note:</strong> After saving, the device will restart and connect to the DMR network with the new settings.<br><br>";
-    html += "<strong>Tips:</strong><br>";
-    html += "- Select a server from the dropdown menu or choose 'Custom Server' to enter your own<br>";
-    html += "- Choose a server closest to your location for best performance<br>";
-    html += "- All servers use port 62031 by default<br>";
-    html += "- Get your password from <a href='https://brandmeister.network' target='_blank' style='color: #007bff;'>brandmeister.network</a>";
-    html += "</div>";
-  } else {
-    html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107;'>";
-    html += "<strong>DMR Mode is Disabled</strong><br>";
-    html += "Enable DMR mode in the 'Active Modes' section above to configure and use DMR functionality.";
-    html += "</div>";
-  }
+  // Info section
+  html += "<div class='info'>";
+  html += "<strong>Note:</strong> After saving, the device will restart and connect to the DMR network with the new settings.<br><br>";
+  html += "<strong>Tips:</strong><br>";
+  html += "- Select a server from the dropdown menu or choose 'Custom Server' to enter your own<br>";
+  html += "- Choose a server closest to your location for best performance<br>";
+  html += "- All servers use port 62031 by default<br>";
+  html += "- Get your password from <a href='https://brandmeister.network' target='_blank' style='color: #007bff;'>brandmeister.network</a>";
+  html += "</div>";
 
   html += getFooter();
   html += "</div></body></html>";
@@ -372,6 +391,9 @@ void handleSaveDMRConfig() {
     dmr_server = server.arg("server");
     dmr_password = server.arg("password");
     dmr_essid = server.arg("essid").toInt();
+
+    // Update DMR mode enable/disable status
+    mode_dmr_enabled = server.hasArg("mode_dmr");
 
     // Load additional settings
     if (server.hasArg("rx_freq")) dmr_rx_freq = server.arg("rx_freq").toInt();
