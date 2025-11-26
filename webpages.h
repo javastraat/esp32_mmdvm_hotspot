@@ -39,6 +39,7 @@ extern String altSSID;
 extern String altPassword;
 extern String device_hostname;
 extern bool verbose_logging;
+extern String web_password;
 extern String serialLog[SERIAL_LOG_SIZE];
 extern int serialLogIndex;
 extern Preferences preferences;
@@ -154,7 +155,18 @@ String getFooter() {
   return "<div class='footer'>" + String(COPYRIGHT_TEXT) + "</div>";
 }
 
+// Authentication check function
+bool checkAuthentication() {
+  if (!server.authenticate("admin", web_password.c_str())) {
+    server.requestAuthentication();
+    return false;
+  }
+  return true;
+}
+
 void handleRoot() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -216,6 +228,8 @@ void handleRoot() {
 }
 
 void handleMonitor() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -277,6 +291,8 @@ void handleMonitor() {
 }
 
 void handleConfig() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -378,6 +394,8 @@ void handleConfig() {
 }
 
 void handleSaveConfig() {
+  if (!checkAuthentication()) return;
+  
   if (server.hasArg("ssid") && server.hasArg("password")) {
     altSSID = server.arg("ssid");
     altPassword = server.arg("password");
@@ -412,6 +430,8 @@ void handleSaveConfig() {
 }
 
 void handleDMRConfig() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -726,6 +746,8 @@ void handleDMRConfig() {
 }
 
 void handleSaveDMRConfig() {
+  if (!checkAuthentication()) return;
+  
   if (server.hasArg("callsign") && server.hasArg("dmr_id") &&
       server.hasArg("server") && server.hasArg("password") && server.hasArg("essid")) {
 
@@ -796,6 +818,8 @@ void handleSaveDMRConfig() {
 }
 
 void handleSaveModes() {
+  if (!checkAuthentication()) return;
+  
   // Update mode settings from form
   mode_dmr_enabled = server.hasArg("mode_dmr");
   // Other modes are read-only for now (coming soon)
@@ -837,6 +861,8 @@ void handleSaveModes() {
 }
 
 void handleResetConfig() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Complete Storage Reset - ESP32 MMDVM</title>";
@@ -883,6 +909,8 @@ void handleResetConfig() {
 }
 
 void handleConfirmReset() {
+  if (!checkAuthentication()) return;
+  
   // Clear ALL ESP32 flash storage (not just our namespace)
   logSerial("Starting complete ESP32 flash storage reset...");
   
@@ -949,6 +977,8 @@ void handleConfirmReset() {
 }
 
 void handleGetLogs() {
+  if (!checkAuthentication()) return;
+  
   String logs = "";
 
   // Display logs in order (oldest first)
@@ -968,6 +998,8 @@ void handleGetLogs() {
 }
 
 void handleStatus() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<meta http-equiv='refresh' content='10'>";  // Auto-refresh every 10 seconds
@@ -1064,6 +1096,8 @@ void handleStatus() {
 }
 
 void handleAdmin() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -1124,6 +1158,20 @@ void handleAdmin() {
   html += "<span>Enable verbose logging (show keepalive messages)</span>";
   html += "</label>";
   html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save Setting</button>";
+  html += "</form>";
+  html += "</div>";
+
+  // Password Protection Card
+  html += "<div class='card'>";
+  html += "<h3>Web Password</h3>";
+  html += "<p>Change the password for web interface access</p>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);'>Username is always: <strong>admin</strong></p>";
+  html += "<form id='password-form' onsubmit='saveWebPassword(event)'>";
+  html += "<label>New Password:</label>";
+  html += "<input type='password' id='new-password' placeholder='Enter new password' required style='width:100%;padding:8px;margin:5px 0;'>";
+  html += "<label>Confirm Password:</label>";
+  html += "<input type='password' id='confirm-password' placeholder='Confirm new password' required style='width:100%;padding:8px;margin:5px 0;'>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Change Password</button>";
   html += "</form>";
   html += "</div>";
 
@@ -1213,6 +1261,29 @@ void handleAdmin() {
   html += "      alert('Error: ' + data);";
   html += "    }";
   html += "  });";
+  html += "}";
+  html += "function saveWebPassword(event) {";
+  html += "  event.preventDefault();";
+  html += "  var newPassword = document.getElementById('new-password').value;";
+  html += "  var confirmPassword = document.getElementById('confirm-password').value;";
+  html += "  if (newPassword !== confirmPassword) {";
+  html += "    alert('Passwords do not match!');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (newPassword.length < 4) {";
+  html += "    alert('Password must be at least 4 characters long!');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('Are you sure you want to change the web password? You will need to log in again with the new password.')) {";
+  html += "    fetch('/save-password', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'password=' + encodeURIComponent(newPassword)}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        alert('Password changed successfully! Please log in again with your new password.');";
+  html += "        window.location.href = '/';";
+  html += "      } else {";
+  html += "        alert('Error: ' + data);";
+  html += "      }";
+  html += "    });";
+  html += "  }";
   html += "}";
   html += "function rebootSystem() {";
   html += "  if (confirm('Are you sure you want to reboot the system? This will temporarily interrupt service.')) {";
@@ -1511,6 +1582,8 @@ void handleDownloadUpdate() {
 }
 
 void handleUploadFirmware() {
+  if (!checkAuthentication()) return;
+  
   HTTPUpload& upload = server.upload();
   
   if (upload.status == UPLOAD_FILE_START) {
@@ -1554,6 +1627,8 @@ void handleFlashFirmware() {
 }
 
 void handleSaveHostname() {
+  if (!checkAuthentication()) return;
+  
   if (server.hasArg("hostname")) {
     String newHostname = server.arg("hostname");
 
@@ -1588,7 +1663,37 @@ void handleSaveVerbose() {
   }
 }
 
+void handleSavePassword() {
+  if (!checkAuthentication()) return;
+  
+  if (server.hasArg("password")) {
+    String newPassword = server.arg("password");
+    
+    // Validate password length
+    if (newPassword.length() < 4) {
+      server.send(400, "text/plain", "ERROR: Password must be at least 4 characters long");
+      return;
+    }
+    
+    if (newPassword.length() > 64) {
+      server.send(400, "text/plain", "ERROR: Password must be less than 64 characters");
+      return;
+    }
+    
+    // Save the new password
+    web_password = newPassword;
+    saveConfig();
+    
+    server.send(200, "text/plain", "SUCCESS: Password changed successfully");
+    logSerial("Web password changed by admin");
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing password parameter");
+  }
+}
+
 void handleReboot() {
+  if (!checkAuthentication()) return;
+  
   server.send(200, "text/plain", "Rebooting...");
   logSerial("System reboot requested");
   delay(1000);
@@ -1615,6 +1720,8 @@ void handleWifiScan() {
 }
 
 void handleRestartServices() {
+  if (!checkAuthentication()) return;
+  
   // Add logic here to restart DMR services without full reboot
   logSerial("Services restarted by user");
   server.send(200, "text/plain", "Services restarted");
@@ -1652,6 +1759,7 @@ void handleExportConfig() {
   config += "\n[SYSTEM_CONFIG]\n";
   config += "HOSTNAME=" + device_hostname + "\n";
   config += "VERBOSE_LOGGING=" + String(verbose_logging ? "1" : "0") + "\n";
+  config += "WEB_PASSWORD=" + web_password + "\n";
   
   // Mode Configuration
   config += "\n[MODE_CONFIG]\n";
@@ -1712,6 +1820,7 @@ void handleImportConfig() {
           else if (key == "ALT_PASSWORD") altPassword = value;
           else if (key == "HOSTNAME") device_hostname = value;
           else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
+          else if (key == "WEB_PASSWORD") web_password = value;
           else if (key == "MODE_DMR") mode_dmr_enabled = (value == "1");
           else if (key == "MODE_DSTAR") mode_dstar_enabled = (value == "1");
           else if (key == "MODE_YSF") mode_ysf_enabled = (value == "1");
@@ -1748,6 +1857,8 @@ void handleTestMmdvm() {
 }
 
 void handleShowPreferences() {
+  if (!checkAuthentication()) return;
+  
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
@@ -1786,7 +1897,8 @@ void handleShowPreferences() {
       "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
       "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
       "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
-      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname", "verbose_log"
+      "dmr_desc", "dmr_url", "alt_ssid", "alt_password", "hostname", "verbose_log",
+      "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
     };
     
     int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);
@@ -1860,7 +1972,7 @@ void handleShowPreferences() {
             String strValue = preferences.getString(keyName.c_str(), "");
             // Check if this is a password field
             if (keyName.equals("dmr_password") || keyName.equals("alt_password") || 
-                keyName.indexOf("password") >= 0) {
+                keyName.equals("web_password") || keyName.indexOf("password") >= 0) {
               if (strValue.length() > 0) {
                 String maskedPassword = "";
                 for (int j = 0; j < strValue.length(); j++) {
@@ -1895,7 +2007,7 @@ void handleShowPreferences() {
             if (testValue != "__NOT_FOUND__") {
               // Check if this is a password field
               if (keyName.equals("dmr_password") || keyName.equals("alt_password") || 
-                  keyName.indexOf("password") >= 0) {
+                  keyName.equals("web_password") || keyName.indexOf("password") >= 0) {
                 if (testValue.length() > 0) {
                   String maskedPassword = "";
                   for (int j = 0; j < testValue.length(); j++) {

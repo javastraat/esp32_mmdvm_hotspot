@@ -69,6 +69,9 @@ String device_hostname = MDNS_HOSTNAME;
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
 
+// Web interface password (default: pi-star)
+String web_password = "pi-star";
+
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
 #define MMDVM_SERIAL Serial2
@@ -816,6 +819,13 @@ void loadConfig() {
   verbose_logging = preferences.getBool("verbose_log", false);
   logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
 
+  // Load web password
+  web_password = preferences.getString("web_password", "pi-star");
+  if (web_password.length() == 0) {
+    web_password = "pi-star"; // Fallback to default if empty
+  }
+  logSerial("Web authentication: enabled");
+
   // Load mode enable/disable settings
   mode_dmr_enabled = preferences.getBool("mode_dmr", true);
   mode_dstar_enabled = preferences.getBool("mode_dstar", false);
@@ -863,6 +873,9 @@ void saveConfig() {
   // Save verbose logging
   preferences.putBool("verbose_log", verbose_logging);
 
+  // Save web password
+  preferences.putString("web_password", web_password);
+
   // Save mode enable/disable settings
   preferences.putBool("mode_dmr", mode_dmr_enabled);
   preferences.putBool("mode_dstar", mode_dstar_enabled);
@@ -900,6 +913,7 @@ void setupWebServer() {
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
+  server.on("/save-password", HTTP_POST, handleSavePassword);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
