@@ -102,10 +102,15 @@ void handleResetConfig() {
   html += "</div>";
   html += "<p><strong>Are you absolutely sure you want to erase ALL storage?</strong></p>";
   html += "<p style='color: #dc3545; font-weight: bold;'>This will reset the ESP32 to completely factory state!</p>";
-  html += "<form action='/confirmreset' method='POST'>";
+  html += "<form action='/confirmreset' method='POST' onsubmit='return confirmReset()'>";
   html += "<button type='submit' class='btn-danger'>Yes, Erase Everything!</button>";
   html += "</form>";
   html += "<div class='nav'><a href='/admin'>Cancel & Go Back to Admin</a></div>";
+  html += "<script>";
+  html += "function confirmReset() {";
+  html += "  return confirm('FINAL WARNING!\\n\\nYou are about to PERMANENTLY ERASE all settings and data.\\n\\nThis action CANNOT be undone!\\n\\nPress OK to proceed with complete storage reset, or Cancel to abort.');";
+  html += "}";
+  html += "</script>";
   html += getFooter();
   html += "</div></body></html>";
 
@@ -153,7 +158,6 @@ void handleConfirmReset() {
   logSerial("WiFi credentials erased from flash");
 
   String html = "<!DOCTYPE html><html><head>";
-  html += "<meta http-equiv='refresh' content='5;url=/'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Complete Storage Reset</title>";
   html += "<style>";
@@ -161,6 +165,13 @@ void handleConfirmReset() {
   html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
   html += "h1 { color: #28a745; }";
   html += ".info { text-align: left; margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #007bff; }";
+  html += ".warning { text-align: left; margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; }";
+  html += ".countdown { font-size: 24px; font-weight: bold; color: #007bff; margin: 20px 0; }";
+  html += ".spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }";
+  html += ".btn:hover { background: #0056b3; }";
+  html += "#reconnectBtn { display: none; }";
+  html += "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
   html += "</style></head><body>";
   html += "<div class='container'>";
   html += "<h1>Complete Storage Reset!</h1>";
@@ -172,9 +183,32 @@ void handleConfirmReset() {
   html += "- All DMR and system settings<br>";
   html += "- Any other stored configuration data<br>";
   html += "</div>";
-  html += "<p><strong>The device will restart with factory defaults in 5 seconds...</strong></p>";
-  html += "<p>After restart, reconfigure your settings via the web interface.</p>";
-  html += "<p><a href='/'>Return to Home</a></p>";
+  html += "<div class='spinner' id='spinner'></div>";
+  html += "<div class='countdown' id='countdown'>Restarting in 5 seconds...</div>";
+  html += "<div class='warning' id='instructions' style='display:none;'>";
+  html += "<strong>Device has restarted!</strong><br>";
+  html += "The ESP32 is now running with factory defaults.<br><br>";
+  html += "Click the button below to reload and access the configuration interface.";
+  html += "</div>";
+  html += "<a href='/' class='btn' id='reconnectBtn'>Reload Page</a>";
+  html += "<script>";
+  html += "var timeLeft = 5;";
+  html += "var countdown = setInterval(function() {";
+  html += "  timeLeft--;";
+  html += "  if (timeLeft > 0) {";
+  html += "    document.getElementById('countdown').innerHTML = 'Restarting in ' + timeLeft + ' second' + (timeLeft != 1 ? 's' : '') + '...';";
+  html += "  } else {";
+  html += "    document.getElementById('countdown').innerHTML = 'Device is restarting...';";
+  html += "    clearInterval(countdown);";
+  html += "    setTimeout(function() {";
+  html += "      document.getElementById('spinner').style.display = 'none';";
+  html += "      document.getElementById('countdown').style.display = 'none';";
+  html += "      document.getElementById('instructions').style.display = 'block';";
+  html += "      document.getElementById('reconnectBtn').style.display = 'inline-block';";
+  html += "    }, 8000);";
+  html += "  }";
+  html += "}, 1000);";
+  html += "</script>";
   html += getFooter();
   html += "</div></body></html>";
 
