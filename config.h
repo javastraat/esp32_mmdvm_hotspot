@@ -8,114 +8,114 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251128_ESP32"
+#define FIRMWARE_VERSION "20251128_ESP32"  // Update version as needed
 
 // ===== WiFi Configuration =====
-#define WIFI_SSID "TechInc"
-#define WIFI_PASSWORD "itoldyoualready"
+#define WIFI_SSID "TechInc"              // Your WiFi SSID
+#define WIFI_PASSWORD "itoldyoualready"  // Your WiFi password
 
 // Fallback Access Point mode settings (when WiFi fails)
-#define AP_SSID "ESP32-MMDVM-Config"
-#define AP_PASSWORD "mmdvm1234"
+#define AP_SSID "ESP32-MMDVM-Config"  // AP SSID
+#define AP_PASSWORD "mmdvm1234"       // AP Password
 
 // Default labels for alternate WiFi network slots
-#define WIFI_SLOT1_LABEL "Home"
-#define WIFI_SLOT2_LABEL "Mobile"
-#define WIFI_SLOT3_LABEL "Work"
-#define WIFI_SLOT4_LABEL "Friends"
-#define WIFI_SLOT5_LABEL "Other"
+#define WIFI_SLOT1_LABEL "Home"     // WiFi Slot 1 Label
+#define WIFI_SLOT2_LABEL "Mobile"   // WiFi Slot 2 Label
+#define WIFI_SLOT3_LABEL "Work"     // WiFi Slot 3 Label
+#define WIFI_SLOT4_LABEL "Friends"  // WiFi Slot 4 Label
+#define WIFI_SLOT5_LABEL "Other"    // WiFi Slot 5 Label
 
 // ===== DMR Network Configuration =====
 // Choose your network and uncomment the appropriate server
 
 // BrandMeister Servers
-#define DMR_SERVER "44.131.4.1"    // BrandMeister US
+#define DMR_SERVER "44.131.4.1"  // BrandMeister US
 // #define DMR_SERVER "44.225.62.11"  // BrandMeister EU
 // #define DMR_SERVER "45.248.50.1"   // BrandMeister Australia
 
-#define DMR_PORT 62031
-#define LOCAL_PORT 62032
+#define DMR_PORT 62031    // BrandMeister default port
+#define LOCAL_PORT 62032  // Local UDP port for hotspot
 
 // Your DMR credentials
-#define DMR_CALLSIGN "N0CALL"      // Your callsign
-#define DMR_ID 1234567             // Your DMR ID (7 digits)
-#define DMR_PASSWORD "passw0rd"    // Your hotspot password from BrandMeister
-#define DMR_COLORCODE 1            // Color code (1-15, usually 1 for BrandMeister)
+#define DMR_CALLSIGN "N0CALL"    // Your callsign
+#define DMR_ID 1234567           // Your DMR ID (7 digits)
+#define DMR_PASSWORD "passw0rd"  // Your hotspot password from BrandMeister
+#define DMR_COLORCODE 1          // Color code (1-15, usually 1 for BrandMeister)
 
 // DMR Hotspot Defaults
-#define DMR_LOCATION "ESP32 Hotspot"     // Default location name
-#define DMR_DESCRIPTION "ESP32-MMDVM"    // Default description
-#define DMR_URL ""                       // Default URL (empty)
+#define DMR_LOCATION "ESP32 Hotspot"   // Default location name
+#define DMR_DESCRIPTION "ESP32-MMDVM"  // Default description
+#define DMR_URL ""                     // Default URL (empty)
 
 // ===== MMDVM Hardware Configuration =====
 //#define LILYGO_T_ETH_ELITE_ESP32S3
 
 #if defined(LILYGO_T_ETH_ELITE_ESP32S3)
 
-#define ETH_MISO_PIN                     47
-#define ETH_MOSI_PIN                     21
-#define ETH_SCLK_PIN                     48
-#define ETH_CS_PIN                       45
-#define ETH_INT_PIN                      14
-#define ETH_RST_PIN                      -1
-#define ETH_ADDR                         1
+#define ETH_MISO_PIN 47
+#define ETH_MOSI_PIN 21
+#define ETH_SCLK_PIN 48
+#define ETH_CS_PIN 45
+#define ETH_INT_PIN 14
+#define ETH_RST_PIN -1
+#define ETH_ADDR 1
 
-#define SPI_MISO_PIN                     9
-#define SPI_MOSI_PIN                     11
-#define SPI_SCLK_PIN                     10
+#define SPI_MISO_PIN 9
+#define SPI_MOSI_PIN 11
+#define SPI_SCLK_PIN 10
 
-#define SD_MISO_PIN                     SPI_MISO_PIN
-#define SD_MOSI_PIN                     SPI_MOSI_PIN
-#define SD_SCLK_PIN                     SPI_SCLK_PIN
-#define SD_CS_PIN                       12
+#define SD_MISO_PIN SPI_MISO_PIN
+#define SD_MOSI_PIN SPI_MOSI_PIN
+#define SD_SCLK_PIN SPI_SCLK_PIN
+#define SD_CS_PIN 12
 
-#define I2C_SDA_PIN                     17
-#define I2C_SCL_PIN                     18
+#define I2C_SDA_PIN 17
+#define I2C_SCL_PIN 18
 
-#define RADIO_MISO_PIN                  SPI_MISO_PIN
-#define RADIO_MOSI_PIN                  SPI_MOSI_PIN
-#define RADIO_SCLK_PIN                  SPI_SCLK_PIN
-#define RADIO_CS_PIN                    40
-#define RADIO_RST_PIN                   46
+#define RADIO_MISO_PIN SPI_MISO_PIN
+#define RADIO_MOSI_PIN SPI_MOSI_PIN
+#define RADIO_SCLK_PIN SPI_SCLK_PIN
+#define RADIO_CS_PIN 40
+#define RADIO_RST_PIN 46
 // #define RADIO_DIO1_PIN                  16
-#define RADIO_IRQ_PIN                   8
-#define RADIO_BUSY_PIN                  16
+#define RADIO_IRQ_PIN 8
+#define RADIO_BUSY_PIN 16
 
-#define ADC_BUTTONS_PIN                 7
+#define ADC_BUTTONS_PIN 7
 
-#define MODEM_RX_PIN                    4
-#define MODEM_TX_PIN                    6
-#define MODEM_DTR_PIN                   5
-#define MODEM_RI_PIN                    1
-#define MODEM_PWRKEY_PIN                3
+#define MODEM_RX_PIN 4
+#define MODEM_TX_PIN 6
+#define MODEM_DTR_PIN 5
+#define MODEM_RI_PIN 1
+#define MODEM_PWRKEY_PIN 3
 
-#define GPS_RX_PIN                      39
-#define GPS_TX_PIN                      42
+#define GPS_RX_PIN 39
+#define GPS_TX_PIN 42
 
-#define LED_PIN                         38
+#define LED_PIN 38
 
 #else
 
 #endif
 
 // Serial communication
-#define MMDVM_SERIAL_BAUD 115200
-#define MMDVM_RX_PIN 15
-#define MMDVM_TX_PIN 14
+#define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
+#define MMDVM_RX_PIN 15           // MMDVM RX pin
+#define MMDVM_TX_PIN 14           // MMDVM TX pin
 
 // GPIO Pins
-#define MMDVM_PTT_PIN 4            // Push-to-talk control
-#define MMDVM_COS_LED_PIN 2        // Carrier detect LED
-#define STATUS_LED_PIN 2           // Status LED (can be same as COS)
+#define MMDVM_PTT_PIN 4      // Push-to-talk control
+#define MMDVM_COS_LED_PIN 2  // Carrier detect LED
+#define STATUS_LED_PIN 2     // Status LED (can be same as COS)
 
 // RF Configuration
-#define MMDVM_RX_INVERT false      // RX signal inversion
-#define MMDVM_TX_INVERT false      // TX signal inversion  
-#define MMDVM_PTT_INVERT false     // PTT signal inversion
-#define MMDVM_TX_DELAY 20          // TX delay in milliseconds (10-50)
-#define MMDVM_RX_LEVEL 128         // RX level (0-255, 128 = 50%)
-#define MMDVM_TX_LEVEL 128         // TX level (0-255, 128 = 50%)
-#define MMDVM_RF_LEVEL 100         // RF output power percentage (0-100)
+#define MMDVM_RX_INVERT false   // RX signal inversion
+#define MMDVM_TX_INVERT false   // TX signal inversion
+#define MMDVM_PTT_INVERT false  // PTT signal inversion
+#define MMDVM_TX_DELAY 20       // TX delay in milliseconds (10-50)
+#define MMDVM_RX_LEVEL 128      // RX level (0-255, 128 = 50%)
+#define MMDVM_TX_LEVEL 128      // TX level (0-255, 128 = 50%)
+#define MMDVM_RF_LEVEL 100      // RF output power percentage (0-100)
 
 // Frequency Settings (for software-defined MMDVM hats)
 #define MMDVM_FREQUENCY 434000000  // Frequency in Hz (e.g., 434 MHz)
@@ -124,11 +124,11 @@
 
 // ===== Hotspot Information =====
 #define HOTSPOT_CALLSIGN DMR_CALLSIGN
-#define HOTSPOT_SUFFIX "HS"        // Suffix for hotspot callsign
-#define HOTSPOT_LATITUDE 0.0       // Your latitude (decimal degrees)
-#define HOTSPOT_LONGITUDE 0.0      // Your longitude (decimal degrees)
-#define HOTSPOT_HEIGHT 0           // Antenna height in meters
-#define HOTSPOT_LOCATION "Home"    // Location description
+#define HOTSPOT_SUFFIX "HS"      // Suffix for hotspot callsign
+#define HOTSPOT_LATITUDE 0.0     // Your latitude (decimal degrees)
+#define HOTSPOT_LONGITUDE 0.0    // Your longitude (decimal degrees)
+#define HOTSPOT_HEIGHT 0         // Antenna height in meters
+#define HOTSPOT_LOCATION "Home"  // Location description
 #define HOTSPOT_DESCRIPTION "ESP32 MMDVM Hotspot"
 
 // ===== Network Settings =====
@@ -137,42 +137,42 @@
 #define NETWORK_RECONNECT_DELAY 5000     // Delay before reconnecting
 
 // ===== Debug Settings =====
-#define DEBUG_SERIAL true          // Enable serial debug output
-#define DEBUG_MMDVM false          // Enable MMDVM protocol debug
-#define DEBUG_NETWORK false        // Enable network debug
-#define DEBUG_DMR false            // Enable DMR protocol debug
-#define DEBUG_PASSWORD false       // Enable password debug output (shows password length/last2 chars)
+#define DEBUG_SERIAL true     // Enable serial debug output
+#define DEBUG_MMDVM false     // Enable MMDVM protocol debug
+#define DEBUG_NETWORK false   // Enable network debug
+#define DEBUG_DMR false       // Enable DMR protocol debug
+#define DEBUG_PASSWORD false  // Enable password debug output (shows password length/last2 chars)
 
 // ===== Optional Features =====
-#define ENABLE_OTA false           // always on for now Enable over-the-air updates
+#define ENABLE_OTA false  // always on for now Enable over-the-air updates
 
 // ===== mDNS Settings =====
-#define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
-#define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
+#define ENABLE_MDNS true             // Enable mDNS (find hotspot by hostname)
+#define MDNS_HOSTNAME "esp32-mmdvm"  // mDNS hostname
 
 // ===== Web Interface Settings =====
-#define ENABLE_WEBSERVER true     // Enable web configuration interface
-#define WEB_USERNAME "admin"      // Web interface username
-#define WEB_PASSWORD "pi-star"    // Default web interface password
+#define ENABLE_WEBSERVER true                            // Enable web configuration interface
+#define WEB_USERNAME "admin"                             // Web interface username
+#define WEB_PASSWORD "pi-star"                           // Default web interface password
 #define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
 
 // ===== OTA Update Configuration =====
 #define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
-#define OTA_TIMEOUT 30000          // OTA download timeout in milliseconds
+#define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
 // OLED Display Settings (not yet implemented)
-#define ENABLE_OLED false       // Enable OLED display support
-#define OLED_I2C_ADDRESS 0x3C   // I2C address for OLED display
-#define OLED_SDA_PIN 2          // SDA pin for OLED display
-#define OLED_SCL_PIN 3          // SCL pin for OLED display
-#define OLED_WIDTH 128          // OLED display width
-#define OLED_HEIGHT 64          // OLED display height
+#define ENABLE_OLED false      // Enable OLED display support
+#define OLED_I2C_ADDRESS 0x3C  // I2C address for OLED display
+#define OLED_SDA_PIN 2         // SDA pin for OLED display
+#define OLED_SCL_PIN 3         // SCL pin for OLED display
+#define OLED_WIDTH 128         // OLED display width
+#define OLED_HEIGHT 64         // OLED display height
 
 // ===== Advanced Settings =====
 // Buffer sizes
-#define SERIAL_RX_BUFFER_SIZE 512
-#define UDP_BUFFER_SIZE 512
+#define SERIAL_RX_BUFFER_SIZE 512  // MMDVM serial RX buffer size
+#define UDP_BUFFER_SIZE 512        // UDP buffer size
 
 // Timeouts
 #define MMDVM_RESPONSE_TIMEOUT 1000  // Milliseconds to wait for MMDVM response
@@ -181,20 +181,20 @@
 // ===== Multi-Protocol Support =====
 // Enable/disable protocols (requires appropriate MMDVM firmware)
 // These are default values - can be changed via web interface
-#define DEFAULT_MODE_DMR false      // DMR mode (functional) - OFF by default, enable via web interface
-#define DEFAULT_MODE_DSTAR false    // D-Star mode (not yet implemented)
-#define DEFAULT_MODE_YSF false      // YSF/Fusion mode (not yet implemented)
-#define DEFAULT_MODE_P25 false      // P25 mode (not yet implemented)
-#define DEFAULT_MODE_NXDN false     // NXDN mode (not yet implemented)
-#define DEFAULT_MODE_POCSAG false   // POCSAG paging mode (not yet implemented)
+#define DEFAULT_MODE_DMR false     // DMR mode (functional) - OFF by default, enable via web interface
+#define DEFAULT_MODE_DSTAR false   // D-Star mode (not yet implemented)
+#define DEFAULT_MODE_YSF false     // YSF/Fusion mode (not yet implemented)
+#define DEFAULT_MODE_P25 false     // P25 mode (not yet implemented)
+#define DEFAULT_MODE_NXDN false    // NXDN mode (not yet implemented)
+#define DEFAULT_MODE_POCSAG false  // POCSAG paging mode (not yet implemented)
 
 // ===== Validation =====
 #if !defined(DMR_CALLSIGN) || !defined(DMR_ID)
-  #error "Please configure your DMR callsign and ID in config.h"
+#error "Please configure your DMR callsign and ID in config.h"
 #endif
 
 #if DMR_ID < 1000000 || DMR_ID > 9999999
-  #error "DMR ID must be 7 digits"
+#error "DMR ID must be 7 digits"
 #endif
 
-#endif // CONFIG_H
+#endif  // CONFIG_H

@@ -75,4 +75,4 @@ extern void saveConfig();
 #include "web/pages/mode_config.h"
 #include "web/pages/admin.h"
 
-#endif // WEBPAGES_H
+#endif  // WEBPAGES_H
