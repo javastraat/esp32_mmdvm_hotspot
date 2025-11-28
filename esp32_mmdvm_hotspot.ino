@@ -856,13 +856,13 @@ void loadConfig() {
   }
   logSerial("Web authentication: enabled (user: " + web_username + ")");
 
-  // Load mode enable/disable settings
-  mode_dmr_enabled = preferences.getBool("mode_dmr", true);
-  mode_dstar_enabled = preferences.getBool("mode_dstar", false);
-  mode_ysf_enabled = preferences.getBool("mode_ysf", false);
-  mode_p25_enabled = preferences.getBool("mode_p25", false);
-  mode_nxdn_enabled = preferences.getBool("mode_nxdn", false);
-  mode_pocsag_enabled = preferences.getBool("mode_pocsag", false);
+  // Load mode enable/disable settings (use config.h defaults if not saved)
+  mode_dmr_enabled = preferences.getBool("mode_dmr", DEFAULT_MODE_DMR);
+  mode_dstar_enabled = preferences.getBool("mode_dstar", DEFAULT_MODE_DSTAR);
+  mode_ysf_enabled = preferences.getBool("mode_ysf", DEFAULT_MODE_YSF);
+  mode_p25_enabled = preferences.getBool("mode_p25", DEFAULT_MODE_P25);
+  mode_nxdn_enabled = preferences.getBool("mode_nxdn", DEFAULT_MODE_NXDN);
+  mode_pocsag_enabled = preferences.getBool("mode_pocsag", DEFAULT_MODE_POCSAG);
   logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + 
             " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") +
             " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") +

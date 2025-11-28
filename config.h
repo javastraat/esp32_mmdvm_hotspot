@@ -129,7 +129,7 @@
 // ===== Multi-Protocol Support =====
 // Enable/disable protocols (requires appropriate MMDVM firmware)
 // These are default values - can be changed via web interface
-#define DEFAULT_MODE_DMR true       // DMR mode (functional)
+#define DEFAULT_MODE_DMR false      // DMR mode (functional) - OFF by default, enable via web interface
 #define DEFAULT_MODE_DSTAR false    // D-Star mode (not yet implemented)
 #define DEFAULT_MODE_YSF false      // YSF/Fusion mode (not yet implemented)
 #define DEFAULT_MODE_P25 false      // P25 mode (not yet implemented)
