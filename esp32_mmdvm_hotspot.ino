@@ -54,11 +54,11 @@ const int dmr_port = DMR_PORT;
 // Additional DMR Configuration
 uint32_t dmr_rx_freq = 434000000;  // RX Frequency in Hz
 uint32_t dmr_tx_freq = 434000000;  // TX Frequency in Hz
-uint8_t dmr_power = 10;             // Power 0-99
-uint8_t dmr_color_code = 1;         // Color Code 0-15
-float dmr_latitude = 0.0;           // Latitude
-float dmr_longitude = 0.0;          // Longitude
-int dmr_height = 0;                 // Height in meters
+uint8_t dmr_power = 10;            // Power 0-99
+uint8_t dmr_color_code = 1;        // Color Code 0-15
+float dmr_latitude = 0.0;          // Latitude
+float dmr_longitude = 0.0;         // Longitude
+int dmr_height = 0;                // Height in meters
 String dmr_location = DMR_LOCATION;
 String dmr_description = DMR_DESCRIPTION;
 String dmr_url = DMR_URL;
@@ -85,18 +85,18 @@ String web_password = WEB_PASSWORD;
 #define MMDVM_FRAME_START 0xE0
 
 // MMDVM Commands
-#define CMD_GET_VERSION    0x00
-#define CMD_GET_STATUS     0x01
-#define CMD_SET_CONFIG     0x02
-#define CMD_SET_MODE       0x03
-#define CMD_SET_FREQ       0x04
-#define CMD_CAL_DATA       0x08
-#define CMD_DMR_DATA1      0x18
-#define CMD_DMR_DATA2      0x19
-#define CMD_DMR_LOST       0x1A
-#define CMD_DMR_SHORTLC    0x1B
-#define CMD_DMR_START      0x1C
-#define CMD_DMR_ABORT      0x1D
+#define CMD_GET_VERSION 0x00
+#define CMD_GET_STATUS 0x01
+#define CMD_SET_CONFIG 0x02
+#define CMD_SET_MODE 0x03
+#define CMD_SET_FREQ 0x04
+#define CMD_CAL_DATA 0x08
+#define CMD_DMR_DATA1 0x18
+#define CMD_DMR_DATA2 0x19
+#define CMD_DMR_LOST 0x1A
+#define CMD_DMR_SHORTLC 0x1B
+#define CMD_DMR_START 0x1C
+#define CMD_DMR_ABORT 0x1D
 
 // DMR Protocol
 #define DMR_SLOT1 0x00
@@ -132,16 +132,16 @@ String serialLog[SERIAL_LOG_SIZE];
 int serialLogIndex = 0;
 
 unsigned long lastKeepalive = 0;
-const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
+const unsigned long KEEPALIVE_INTERVAL = 5000;  // 5 seconds
 
 // Store alternate WiFi credentials
 // Alternate WiFi Networks (up to 5) - labels from config.h
 WiFiNetwork wifiNetworks[5] = {
-  {WIFI_SLOT1_LABEL, "", ""},
-  {WIFI_SLOT2_LABEL, "", ""},
-  {WIFI_SLOT3_LABEL, "", ""},
-  {WIFI_SLOT4_LABEL, "", ""},
-  {WIFI_SLOT5_LABEL, "", ""}
+  { WIFI_SLOT1_LABEL, "", "" },
+  { WIFI_SLOT2_LABEL, "", "" },
+  { WIFI_SLOT3_LABEL, "", "" },
+  { WIFI_SLOT4_LABEL, "", "" },
+  { WIFI_SLOT5_LABEL, "", "" }
 };
 
 // Firmware version from config.h
@@ -151,9 +151,9 @@ String firmwareVersion = FIRMWARE_VERSION;
 #define STATUS_LED_PIN 2  // GPIO2 - onboard LED
 enum class LED_MODE {
   OFF,
-  STEADY,        // Connected to WiFi
-  FAST_BLINK,    // Connecting to WiFi
-  SLOW_BLINK     // Access Point mode
+  STEADY,      // Connected to WiFi
+  FAST_BLINK,  // Connecting to WiFi
+  SLOW_BLINK   // Access Point mode
 };
 LED_MODE currentLedMode = LED_MODE::OFF;
 unsigned long lastLedToggle = 0;
@@ -224,11 +224,51 @@ void setup() {
   // Initialize MMDVM
   setupMMDVM();
 
-  // Connect to DMR Network (only if DMR mode is enabled)
-  if (wifiConnected && mode_dmr_enabled) {
-    connectToDMRNetwork();
-  } else if (wifiConnected && !mode_dmr_enabled) {
-    logSerial("DMR mode is disabled - skipping network connection");
+  // Connect to Networks (based on enabled modes)
+  if (wifiConnected) {
+    // DMR Network Connection
+    if (mode_dmr_enabled) {
+      connectToDMRNetwork();
+    } else {
+      logSerial("DMR mode is disabled - skipping DMR network connection");
+    }
+
+    // D-Star Network Connection (not implemented yet)
+    if (mode_dstar_enabled) {
+      logSerial("D-Star mode is enabled but network connection not implemented yet");
+    } else {
+      logSerial("D-Star mode is disabled by default (not implemented yet)");
+    }
+
+    // YSF Network Connection (not implemented yet)
+    if (mode_ysf_enabled) {
+      logSerial("YSF mode is enabled but network connection not implemented yet");
+    } else {
+      logSerial("YSF mode is disabled by default (not implemented yet)");
+    }
+
+    // P25 Network Connection (not implemented yet)
+    if (mode_p25_enabled) {
+      logSerial("P25 mode is enabled but network connection not implemented yet");
+    } else {
+      logSerial("P25 mode is disabled by default (not implemented yet)");
+    }
+
+    // NXDN Network Connection (not implemented yet)
+    if (mode_nxdn_enabled) {
+      logSerial("NXDN mode is enabled but network connection not implemented yet");
+    } else {
+      logSerial("NXDN mode is disabled by default (not implemented yet)");
+    }
+
+    // POCSAG Network Connection (not implemented yet)
+    if (mode_pocsag_enabled) {
+      logSerial("POCSAG mode is enabled but network connection not implemented yet");
+    } else {
+      logSerial("POCSAG mode is disabled by default (not implemented yet)");
+    }
+  } else {
+    logSerial("WiFi not connected - skipping all network connections");
   }
 
   logSerial("Setup complete!");
@@ -243,7 +283,7 @@ void setup() {
 void loop() {
   // Update status LED
   updateStatusLED();
-  
+
   // Handle web server
   server.handleClient();
 
@@ -272,17 +312,17 @@ void setupWiFi() {
   logSerial("Connecting to WiFi: " + String(ssid));
 
   setLEDMode(LED_MODE::FAST_BLINK);  // Fast blink while connecting
-  
+
   // Prevent ESP32 WiFi library from auto-connecting with stored credentials
   WiFi.mode(WIFI_STA);
-  WiFi.persistent(false);  // Disable WiFi credential storage in flash (must be before disconnect/begin)
+  WiFi.persistent(false);        // Disable WiFi credential storage in flash (must be before disconnect/begin)
   WiFi.setAutoReconnect(false);  // Disable auto-reconnect to prevent using old credentials
-  WiFi.disconnect(true, true);  // Disconnect and erase any stored credentials from WiFi library
+  WiFi.disconnect(true, true);   // Disconnect and erase any stored credentials from WiFi library
   delay(100);
-  
-  WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname (must be before WiFi.begin)
+
+  WiFi.setHostname(device_hostname.c_str());                        // Set WiFi hostname (must be before WiFi.begin)
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
-  WiFi.setHostname(device_hostname.c_str());  // Set hostname again after config
+  WiFi.setHostname(device_hostname.c_str());                        // Set hostname again after config
   WiFi.begin(ssid, password);
 
   int attempts = 0;
@@ -309,7 +349,7 @@ void setupWiFi() {
       if (wifiNetworks[i].ssid.length() > 0) {
         logSerial("Trying WiFi [" + wifiNetworks[i].label + "]: " + wifiNetworks[i].ssid);
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
-        WiFi.setHostname(device_hostname.c_str());  // Set WiFi hostname
+        WiFi.setHostname(device_hostname.c_str());                        // Set WiFi hostname
         WiFi.begin(wifiNetworks[i].ssid.c_str(), wifiNetworks[i].password.c_str());
 
         attempts = 0;
@@ -342,7 +382,7 @@ void setupAccessPoint() {
   WiFi.softAP(ap_ssid, ap_password);
 
   setLEDMode(LED_MODE::SLOW_BLINK);  // Slow blink in AP mode
-  
+
   IPAddress IP = WiFi.softAPIP();
   logSerial("AP IP address: " + IP.toString());
   logSerial("AP SSID: " + String(ap_ssid));
@@ -377,7 +417,7 @@ void setupMMDVM() {
   delay(100);
 
   // Set mode to DMR
-  uint8_t mode = 0x02; // DMR mode
+  uint8_t mode = 0x02;  // DMR mode
   sendMMDVMCommand(CMD_SET_MODE, &mode, 1);
   delay(100);
 
@@ -388,37 +428,37 @@ void setupMMDVM() {
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length) {
   uint8_t buffer[512];
   buffer[0] = MMDVM_FRAME_START;
-  buffer[1] = length + 3; // Length includes START, LEN, and CMD
+  buffer[1] = length + 3;  // Length includes START, LEN, and CMD
   buffer[2] = cmd;
-  
+
   if (data != NULL && length > 0) {
     memcpy(&buffer[3], data, length);
   }
-  
+
   MMDVM_SERIAL.write(buffer, length + 3);
 }
 
 void handleMMDVMSerial() {
   while (MMDVM_SERIAL.available()) {
     uint8_t byte = MMDVM_SERIAL.read();
-    
+
     if (rxBufferPtr == 0 && byte != MMDVM_FRAME_START) {
-      continue; // Wait for frame start
+      continue;  // Wait for frame start
     }
-    
+
     rxBuffer[rxBufferPtr++] = byte;
-    
+
     // Check if we have enough bytes to read length
     if (rxBufferPtr >= 2) {
       uint8_t frameLength = rxBuffer[1];
-      
+
       // Check if we have a complete frame
       if (rxBufferPtr >= frameLength) {
         processMMDVMFrame();
         rxBufferPtr = 0;
       }
     }
-    
+
     // Prevent buffer overflow
     if (rxBufferPtr >= sizeof(rxBuffer)) {
       rxBufferPtr = 0;
@@ -444,9 +484,7 @@ void processMMDVMFrame() {
 
     case CMD_GET_STATUS:
       {
-        String status = "MMDVM Status - Mode: " + String(rxBuffer[3]) +
-                       " TX: " + String(rxBuffer[4]) +
-                       " Overflow: " + String(rxBuffer[7]);
+        String status = "MMDVM Status - Mode: " + String(rxBuffer[3]) + " TX: " + String(rxBuffer[4]) + " Overflow: " + String(rxBuffer[7]);
         logSerial(status);
       }
       break;
@@ -505,7 +543,7 @@ void handleNetwork() {
         if (memcmp(packet, "MSTNAK", 6) == 0 && len >= 6) {
           dmrLoggedIn = false;
           dmrLoginStatus = "Login Failed";
-          
+
           // Log which stage failed
           String stageMsg = "BrandMeister NAK at stage: ";
           switch (dmrState) {
@@ -516,7 +554,7 @@ void handleNetwork() {
           }
           logSerial(stageMsg);
           logSerial("STOPPING - Please check configuration and reboot");
-          
+
           // Stop trying to prevent ban
           dmrState = DMR_STATE::DISCONNECTED;
         }
@@ -524,7 +562,7 @@ void handleNetwork() {
         else if (memcmp(packet, "RPTACK", 6) == 0 && len >= 10) {
           // RPTACK response includes salt for password authentication
           memcpy(dmrSalt, packet + 6, 4);
-          
+
           // Debug: Show salt
           String saltHex = "Salt: ";
           for (int i = 0; i < 4; i++) {
@@ -570,7 +608,7 @@ void handleNetwork() {
 
           // Parse and forward to MMDVM
           if (mmdvmReady) {
-            uint8_t cmd = CMD_DMR_DATA1; // or CMD_DMR_DATA2 based on slot
+            uint8_t cmd = CMD_DMR_DATA1;  // or CMD_DMR_DATA2 based on slot
             sendMMDVMCommand(cmd, packet, len);
           }
         }
@@ -606,7 +644,7 @@ void connectToDMRNetwork() {
   loginPacket[4] = (id_to_send >> 24) & 0xFF;  // Most significant byte
   loginPacket[5] = (id_to_send >> 16) & 0xFF;
   loginPacket[6] = (id_to_send >> 8) & 0xFF;
-  loginPacket[7] = id_to_send & 0xFF;          // Least significant byte
+  loginPacket[7] = id_to_send & 0xFF;  // Least significant byte
 
   udp.beginPacket(dmr_server.c_str(), dmr_port);
   udp.write(loginPacket, 8);
@@ -616,26 +654,26 @@ void connectToDMRNetwork() {
 }
 
 void sendDMRAuth() {
-  // Send RPTK (authorization) packet with SHA256(salt + password)
-  // Format: "RPTK" + DMR_ID (4 bytes binary) + SHA256 hash (32 bytes binary)
-  // SHA256 input: salt (4 binary bytes) + password (ASCII string)
+// Send RPTK (authorization) packet with SHA256(salt + password)
+// Format: "RPTK" + DMR_ID (4 bytes binary) + SHA256 hash (32 bytes binary)
+// SHA256 input: salt (4 binary bytes) + password (ASCII string)
 
-  // Debug: Show password being used (with more detail)
-  #if DEBUG_PASSWORD
+// Debug: Show password being used (with more detail)
+#if DEBUG_PASSWORD
   String passDebug = "Using password: length=" + String(dmr_password.length());
   if (dmr_password.length() > 0) {
-    passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length()-4));
+    passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length() - 4));
   } else {
     passDebug += " [EMPTY!]";
   }
   logSerial(passDebug);
-  #endif
+#endif
 
   // Calculate SHA256 hash of (salt + password)
   size_t passLen = dmr_password.length();
   size_t inputLen = 4 + passLen;
   uint8_t* input = new uint8_t[inputLen];
-  
+
   // Salt is 4 binary bytes, not hex string
   memcpy(input, dmrSalt, 4);
   memcpy(input + 4, dmr_password.c_str(), passLen);
@@ -664,7 +702,7 @@ void sendDMRAuth() {
   authPacket[5] = (id_to_send >> 16) & 0xFF;
   authPacket[6] = (id_to_send >> 8) & 0xFF;
   authPacket[7] = id_to_send & 0xFF;
-  memcpy(authPacket + 8, hash, 32);           // SHA256 hash as 32 binary bytes
+  memcpy(authPacket + 8, hash, 32);  // SHA256 hash as 32 binary bytes
 
   udp.beginPacket(dmr_server.c_str(), dmr_port);
   udp.write(authPacket, 40);
@@ -688,22 +726,22 @@ void sendDMRConfig() {
   // Config format (callsign + basic info) - 294 bytes
   // Format per MMDVMHost writeConfig():
   // %-8.8s%09u%09u%02u%02u%8.8s%9.9s%03d%-20.20s%-19.19s%c%-124.124s%-40.40s%-40.40s
-  
+
   // Format latitude and longitude properly as floats with exact widths
   char latitude[20];
   char longitude[20];
-  sprintf(latitude, "%08f", dmr_latitude);   // %08f = 8 chars total
-  sprintf(longitude, "%09f", dmr_longitude); // %09f = 9 chars total
-  
+  sprintf(latitude, "%08f", dmr_latitude);    // %08f = 8 chars total
+  sprintf(longitude, "%09f", dmr_longitude);  // %09f = 9 chars total
+
   // Validate and limit values
   unsigned int power = dmr_power;
   if (power > 99) power = 99;
   int height = dmr_height;
   if (height > 999) height = 999;
-  
+
   snprintf(configString, sizeof(configString),
            "%-8.8s%09u%09u%02u%02u%8.8s%9.9s%03d%-20.20s%-19.19s%c%-124.124s%-40.40s%-40.40s",
-           dmr_callsign.c_str(),    // Callsign (8 chars, left-aligned)
+           dmr_callsign.c_str(),     // Callsign (8 chars, left-aligned)
            dmr_rx_freq,              // RX Frequency (9 digits)
            dmr_tx_freq,              // TX Frequency (9 digits)
            power,                    // Power (2 digits)
@@ -716,8 +754,8 @@ void sendDMRConfig() {
            '4',                      // Slots (1 char: '4' = simplex)
            dmr_url.c_str(),          // URL (124 chars)
            firmwareVersion.c_str(),  // Version (40 chars) - from firmware variable
-           "MMDVM_MMDVM_HS");       // Software (40 chars)
-  
+           "MMDVM_MMDVM_HS");        // Software (40 chars)
+
   // Debug: Log first 100 chars of config string
   String configDebug = "Config string preview: ";
   for (int i = 0; i < min(100, (int)strlen(configString)); i++) {
@@ -733,7 +771,7 @@ void sendDMRConfig() {
   // Build the packet with binary ID
   uint8_t configPacket[302];
   memset(configPacket, 0, sizeof(configPacket));
-  
+
   memcpy(configPacket, "RPTC", 4);
   configPacket[4] = (id_to_send >> 24) & 0xFF;  // ID as 4 binary bytes (big-endian)
   configPacket[5] = (id_to_send >> 16) & 0xFF;
@@ -753,7 +791,7 @@ void sendDMRKeepalive() {
   // Format: "RPTPING" (7 bytes) + DMR_ID (4 bytes binary) = 11 bytes
   uint8_t keepalive[11];
   uint32_t id_to_send = dmr_id;
-  
+
   if (dmr_essid > 0) {
     id_to_send = dmr_id * 100 + dmr_essid;
   }
@@ -804,7 +842,7 @@ void loadConfig() {
     dmr_server = preferences.getString("dmr_server", DMR_SERVER);
     dmr_password = preferences.getString("dmr_password", DMR_PASSWORD);
     dmr_essid = preferences.getUChar("dmr_essid", 0);
-    
+
     // Load additional config options
     dmr_rx_freq = preferences.getUInt("dmr_rx_freq", 434000000);
     dmr_tx_freq = preferences.getUInt("dmr_tx_freq", 434000000);
@@ -846,13 +884,13 @@ void loadConfig() {
   // Load web username
   web_username = preferences.getString("web_username", WEB_USERNAME);
   if (web_username.length() == 0) {
-    web_username = WEB_USERNAME; // Fallback to default if empty
+    web_username = WEB_USERNAME;  // Fallback to default if empty
   }
 
   // Load web password
   web_password = preferences.getString("web_password", WEB_PASSWORD);
   if (web_password.length() == 0) {
-    web_password = WEB_PASSWORD; // Fallback to default if empty
+    web_password = WEB_PASSWORD;  // Fallback to default if empty
   }
   logSerial("Web authentication: enabled (user: " + web_username + ")");
 
@@ -863,12 +901,7 @@ void loadConfig() {
   mode_p25_enabled = preferences.getBool("mode_p25", DEFAULT_MODE_P25);
   mode_nxdn_enabled = preferences.getBool("mode_nxdn", DEFAULT_MODE_NXDN);
   mode_pocsag_enabled = preferences.getBool("mode_pocsag", DEFAULT_MODE_POCSAG);
-  logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + 
-            " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") +
-            " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") +
-            " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") +
-            " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") +
-            " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
+  logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
 
   preferences.end();
 }
@@ -881,7 +914,7 @@ void saveConfig() {
   preferences.putString("dmr_server", dmr_server);
   preferences.putString("dmr_password", dmr_password);
   preferences.putUChar("dmr_essid", dmr_essid);
-  
+
   // Save additional config options
   preferences.putUInt("dmr_rx_freq", dmr_rx_freq);
   preferences.putUInt("dmr_tx_freq", dmr_tx_freq);
@@ -893,7 +926,7 @@ void saveConfig() {
   preferences.putString("dmr_location", dmr_location);
   preferences.putString("dmr_desc", dmr_description);
   preferences.putString("dmr_url", dmr_url);
-  
+
   // Save alternate WiFi networks
   for (int i = 0; i < 5; i++) {
     String labelKey = "wifi" + String(i) + "_label";
@@ -935,18 +968,18 @@ void setupWebServer() {
   server.on("/wificonfig", handleConfig);
   server.on("/modeconfig", handleDMRConfig);
   server.on("/admin", handleAdmin);
-  
+
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
   server.on("/savedmrconfig", HTTP_POST, handleSaveDMRConfig);
   server.on("/savemodes", HTTP_POST, handleSaveModes);
   server.on("/resetconfig", handleResetConfig);
   server.on("/confirmreset", HTTP_POST, handleConfirmReset);
-  
+
   // Data endpoints
   server.on("/logs", handleGetLogs);
   server.on("/wifiscan", handleWifiScan);
-  
+
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
@@ -956,12 +989,14 @@ void setupWebServer() {
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
-  server.on("/import-config", HTTP_POST, [](){}, handleImportConfig);
+  server.on(
+    "/import-config", HTTP_POST, []() {}, handleImportConfig);
   server.on("/showprefs", handleShowPreferences);
   server.on("/test-mmdvm", HTTP_POST, handleTestMmdvm);
   server.on("/cleanup-prefs", HTTP_POST, handleCleanupPreferences);
   server.on("/download-update", HTTP_POST, handleDownloadUpdate);
-  server.on("/upload-firmware", HTTP_POST, [](){}, handleUploadFirmware);
+  server.on(
+    "/upload-firmware", HTTP_POST, []() {}, handleUploadFirmware);
   server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
 
   server.begin();
@@ -972,7 +1007,7 @@ void setupWebServer() {
 void setLEDMode(LED_MODE mode) {
   currentLedMode = mode;
   lastLedToggle = millis();
-  
+
   // Set initial state based on mode
   if (mode == LED_MODE::STEADY) {
     digitalWrite(STATUS_LED_PIN, HIGH);
@@ -986,16 +1021,16 @@ void setLEDMode(LED_MODE mode) {
 void updateStatusLED() {
   unsigned long currentMillis = millis();
   unsigned long interval;
-  
+
   switch (currentLedMode) {
     case LED_MODE::OFF:
       // LED stays off
       break;
-      
+
     case LED_MODE::STEADY:
       // LED stays on
       break;
-      
+
     case LED_MODE::FAST_BLINK:
       // Fast blink (200ms interval) - connecting to WiFi
       interval = 200;
@@ -1005,7 +1040,7 @@ void updateStatusLED() {
         lastLedToggle = currentMillis;
       }
       break;
-      
+
     case LED_MODE::SLOW_BLINK:
       // Slow blink (1000ms interval) - Access Point mode
       interval = 1000;
@@ -1017,4 +1052,3 @@ void updateStatusLED() {
       break;
   }
 }
-
