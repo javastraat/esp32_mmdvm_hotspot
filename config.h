@@ -144,8 +144,7 @@
 #define DEBUG_PASSWORD false       // Enable password debug output (shows password length/last2 chars)
 
 // ===== Optional Features =====
-#define ENABLE_OLED false          // Enable OLED display support
-#define ENABLE_OTA false           // Enable over-the-air updates
+#define ENABLE_OTA false           // always on for now Enable over-the-air updates
 
 // ===== mDNS Settings =====
 #define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
@@ -162,12 +161,13 @@
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
 #define OTA_TIMEOUT 30000          // OTA download timeout in milliseconds
 
-// OLED Display Settings (if enabled)
-#define OLED_I2C_ADDRESS 0x3C
-#define OLED_SDA_PIN 2
-#define OLED_SCL_PIN 3
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 64
+// OLED Display Settings (not yet implemented)
+#define ENABLE_OLED false       // Enable OLED display support
+#define OLED_I2C_ADDRESS 0x3C   // I2C address for OLED display
+#define OLED_SDA_PIN 2          // SDA pin for OLED display
+#define OLED_SCL_PIN 3          // SCL pin for OLED display
+#define OLED_WIDTH 128          // OLED display width
+#define OLED_HEIGHT 64          // OLED display height
 
 // ===== Advanced Settings =====
 // Buffer sizes

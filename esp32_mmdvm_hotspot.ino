@@ -213,21 +213,21 @@ void setup() {
   // Setup WiFi
   setupWiFi();
 
-  // Setup Web Server
-  //setupWebServer();
-  #if ENABLE_WEBSERVER
-    setupWebServer();
-  #endif
-  
-  // Start mDNS
-  // if (MDNS.begin(device_hostname.c_str())) {
-  //   logSerial("mDNS started: http://" + device_hostname + ".local");
-  // }
-  #if ENABLE_MDNS
-    if (MDNS.begin(device_hostname.c_str())) {
-      logSerial("mDNS started: http://" + device_hostname + ".local");
-    }
-  #endif
+// Setup Web Server
+//setupWebServer();
+#if ENABLE_WEBSERVER
+  setupWebServer();
+#endif
+
+// Start mDNS
+// if (MDNS.begin(device_hostname.c_str())) {
+//   logSerial("mDNS started: http://" + device_hostname + ".local");
+// }
+#if ENABLE_MDNS
+  if (MDNS.begin(device_hostname.c_str())) {
+    logSerial("mDNS started: http://" + device_hostname + ".local");
+  }
+#endif
 
   // Initialize MMDVM
   setupMMDVM();
