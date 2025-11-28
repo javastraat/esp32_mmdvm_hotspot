@@ -1,5 +1,5 @@
 /*
- * ESP32 MMDVM Hotspot - Sample Code
+ * ESP32 MMDVM Hotspot 
  *
  * This code provides a basic framework for using an ESP32 with an MMDVM hat
  * to create a DMR hotspot similar to Pi-Star.
@@ -963,7 +963,7 @@ void setupWebServer() {
   server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
 
   server.begin();
-  logSerial("Web server started with enhanced interface");
+  logSerial("Web server started.");
 }
 
 // ===== Status LED Control =====
@@ -1016,5 +1016,3 @@ void updateStatusLED() {
   }
 }
 
-// ===== Web Server Handlers =====
-// All web page handlers are now in webpages.h
