@@ -214,12 +214,20 @@ void setup() {
   setupWiFi();
 
   // Setup Web Server
-  setupWebServer();
-
+  //setupWebServer();
+  #if ENABLE_WEBSERVER
+    setupWebServer();
+  #endif
+  
   // Start mDNS
-  if (MDNS.begin(device_hostname.c_str())) {
-    logSerial("mDNS started: http://" + device_hostname + ".local");
-  }
+  // if (MDNS.begin(device_hostname.c_str())) {
+  //   logSerial("mDNS started: http://" + device_hostname + ".local");
+  // }
+  #if ENABLE_MDNS
+    if (MDNS.begin(device_hostname.c_str())) {
+      logSerial("mDNS started: http://" + device_hostname + ".local");
+    }
+  #endif
 
   // Initialize MMDVM
   setupMMDVM();

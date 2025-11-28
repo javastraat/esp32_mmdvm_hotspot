@@ -100,8 +100,8 @@
 
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200
-#define MMDVM_RX_PIN 16
-#define MMDVM_TX_PIN 17
+#define MMDVM_RX_PIN 15
+#define MMDVM_TX_PIN 14
 
 // GPIO Pins
 #define MMDVM_PTT_PIN 4            // Push-to-talk control
@@ -145,12 +145,14 @@
 
 // ===== Optional Features =====
 #define ENABLE_OLED false          // Enable OLED display support
-#define ENABLE_WEBSERVER false     // Enable web configuration interface
 #define ENABLE_OTA false           // Enable over-the-air updates
+
+// ===== mDNS Settings =====
 #define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
 // ===== Web Interface Settings =====
+#define ENABLE_WEBSERVER true     // Enable web configuration interface
 #define WEB_USERNAME "admin"      // Web interface username
 #define WEB_PASSWORD "pi-star"    // Default web interface password
 #define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
@@ -162,8 +164,8 @@
 
 // OLED Display Settings (if enabled)
 #define OLED_I2C_ADDRESS 0x3C
-#define OLED_SDA_PIN 21
-#define OLED_SCL_PIN 22
+#define OLED_SDA_PIN 2
+#define OLED_SCL_PIN 3
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 
