@@ -91,6 +91,7 @@
 #define DEBUG_MMDVM false          // Enable MMDVM protocol debug
 #define DEBUG_NETWORK false        // Enable network debug
 #define DEBUG_DMR false            // Enable DMR protocol debug
+#define DEBUG_PASSWORD false       // Enable password debug output (shows password length/last2 chars)
 
 // ===== Optional Features =====
 #define ENABLE_OLED false          // Enable OLED display support

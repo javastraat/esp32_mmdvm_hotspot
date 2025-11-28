@@ -621,13 +621,15 @@ void sendDMRAuth() {
   // SHA256 input: salt (4 binary bytes) + password (ASCII string)
 
   // Debug: Show password being used (with more detail)
+  #if DEBUG_PASSWORD
   String passDebug = "Using password: length=" + String(dmr_password.length());
   if (dmr_password.length() > 0) {
-    passDebug += ", last2=" + dmr_password.substring(max(0, (int)dmr_password.length()-2));
+    passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length()-4));
   } else {
     passDebug += " [EMPTY!]";
   }
   logSerial(passDebug);
+  #endif
 
   // Calculate SHA256 hash of (salt + password)
   size_t passLen = dmr_password.length();
