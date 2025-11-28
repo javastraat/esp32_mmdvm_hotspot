@@ -8,7 +8,7 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251127_ESP32"
+#define FIRMWARE_VERSION "20251128_ESP32"
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"
