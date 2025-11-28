@@ -623,7 +623,7 @@ void sendDMRAuth() {
   // Debug: Show password being used (with more detail)
   String passDebug = "Using password: length=" + String(dmr_password.length());
   if (dmr_password.length() > 0) {
-    passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length()-4));
+    passDebug += ", last2=" + dmr_password.substring(max(0, (int)dmr_password.length()-2));
   } else {
     passDebug += " [EMPTY!]";
   }
