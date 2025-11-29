@@ -714,10 +714,16 @@ void handleAdmin() {
   html += "      var latestSpan = document.getElementById('latest-version');";
   html += "      var statusDiv = document.getElementById('update-status-text');";
   html += "      latestSpan.innerHTML = latestVersion;";
+  html += "      var currentBase = currentVersion.replace('_BETA', '');";
+  html += "      var isBeta = currentVersion.includes('_BETA');";
   html += "      if (latestVersion === currentVersion) {";
   html += "        statusDiv.innerHTML = '<div style=\"background: #28a745; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Up to date</div>';";
-  html += "      } else {";
+  html += "      } else if (isBeta && latestVersion === currentBase) {";
+  html += "        statusDiv.innerHTML = '<div style=\"background: #ffc107; color: black; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Beta Version</div>';";
+  html += "      } else if (currentBase < latestVersion) {";
   html += "        statusDiv.innerHTML = '<div style=\"background: #dc3545; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Update available</div>';";
+  html += "      } else {";
+  html += "        statusDiv.innerHTML = '<div style=\"background: #28a745; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; text-align: center; display: inline-block; margin: 0 auto;\">Up to date</div>';";
   html += "      }";
   html += "    })";
   html += "    .catch(err => {";
