@@ -143,9 +143,6 @@
 #define DEBUG_DMR false       // Enable DMR protocol debug
 #define DEBUG_PASSWORD false  // Enable password debug output (shows password length/last2 chars)
 
-// ===== Optional Features =====
-#define ENABLE_OTA false  // always on for now Enable over-the-air updates
-
 // ===== mDNS Settings =====
 #define ENABLE_MDNS true             // Enable mDNS (find hotspot by hostname)
 #define MDNS_HOSTNAME "esp32-mmdvm"  // mDNS hostname
@@ -157,7 +154,9 @@
 #define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
 
 // ===== OTA Update Configuration =====
+#define ENABLE_OTA false  // always on for now Enable over-the-air updates
 #define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
+#define OTA_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update_beta.bin"
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
 #define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
