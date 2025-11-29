@@ -411,7 +411,8 @@ void handleAdmin() {
   html += "<div><strong>Current Version:</strong> " + firmwareVersion + "</div>";
   html += "<div><strong>Build Date:</strong> " + String(__DATE__) + " " + String(__TIME__) + "</div>";
   html += "<br>";
-  html += "<div><strong>Latest Version:</strong> <span id='latest-version'>Checking...</span></div>";
+  html += "<div><strong>Stable Version:</strong> <span id='latest-version'>Checking...</span></div>";
+  html += "<div><strong>Beta Version:</strong> <span id='latest-beta-version'>Checking...</span></div>";
   html += "<br>";
   html += "<div id='update-status-text' style='text-align: center; font-size: 0.9em; display: flex; justify-content: center;'></div>";
   html += "<p>Over-the-Air (OTA) firmware update options:</p>";
@@ -723,7 +724,19 @@ void handleAdmin() {
   html += "      document.getElementById('latest-version').innerHTML = '<span style=\"color: #dc3545;\">Error checking version</span>';";
   html += "    });";
   html += "}";
-  html += "window.onload = function() { checkLatestVersion(); };";
+  html += "function checkLatestBetaVersion() {";
+  html += "  fetch('" + String(OTA_VERSION_BETA_URL) + "')";
+  html += "    .then(response => response.text())";
+  html += "    .then(data => {";
+  html += "      var latestBetaVersion = data.trim();";
+  html += "      var latestBetaSpan = document.getElementById('latest-beta-version');";
+  html += "      latestBetaSpan.innerHTML = latestBetaVersion;";
+  html += "    })";
+  html += "    .catch(err => {";
+  html += "      document.getElementById('latest-beta-version').innerHTML = '<span style=\"color: #dc3545;\">Error checking version</span>';";
+  html += "    });";
+  html += "}";
+  html += "window.onload = function() { checkLatestVersion(); checkLatestBetaVersion(); };";
   html += "</script>";
 
   html += getFooter();
