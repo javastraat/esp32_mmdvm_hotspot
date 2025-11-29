@@ -384,7 +384,7 @@ void handleAdmin() {
   html += "</div>";
   html += "<div id='upload-area' style='display:none; margin-top: 15px; padding: 15px; border: 2px dashed #007bff; border-radius: 6px; text-align: center;'>";
   html += "<input type='file' id='firmware-file' accept='.bin' style='margin: 10px 0;' />";
-  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Prepare Update</button>";
+  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Upload Firmware</button>";
   html += "</div>";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
@@ -623,7 +623,7 @@ void handleAdmin() {
   html += "  });";
   html += "  xhr.onload = function() {";
   html += "    if (xhr.status === 200 && xhr.responseText.includes('SUCCESS')) {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">Update Complete!</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">Upload Complete!</div>';";
   html += "      setTimeout(() => {";
   html += "        if (confirm('Firmware uploaded successfully!\\n\\nSize: ' + xhr.responseText.split('(')[1]?.split(')')[0] + '\\n\\nFlash the new firmware now?')) {";
   html += "          confirmFlash();";
@@ -655,7 +655,7 @@ void handleAdmin() {
   html += "  if (confirm('WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
   html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">FLASHING FIRMWARE... DO NOT POWER OFF!</div>';";
   html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Flash complete! System rebooting...</div>';";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Update completed! System rebooting...</div>';";
   html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
   html += "    });";
   html += "  }";
@@ -749,7 +749,7 @@ void handleDownloadUpdate() {
   // Select appropriate URL based on version
   String downloadUrl;
   if (version == "beta") {
-    downloadUrl = OTA_BETA_URL;
+    downloadUrl = OTA_UPDATE_BETA_URL;
     logSerial("Starting BETA firmware download from GitHub...");
   } else {
     downloadUrl = OTA_UPDATE_URL;
