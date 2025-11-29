@@ -56,10 +56,7 @@ extern String getCommonCSS();
 extern String getNavigation(String activePage);
 extern String getFooter();
 
-// OTA Update Constants (from config.h)
-#define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
-#define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
-#define OTA_TIMEOUT 30000
+// Constants already defined in config.h
 #define SERIAL_LOG_SIZE 50
 
 // ===== ADMIN PAGE HANDLERS =====
@@ -374,6 +371,13 @@ void handleAdmin() {
   html += "<br>";
   html += "<div id='update-status-text' style='text-align: center; font-size: 0.9em; display: flex; justify-content: center;'></div>";
   html += "<p>Over-the-Air (OTA) firmware update options:</p>";
+  html += "<div style='margin-bottom: 10px;'>";
+  html += "<label for='version-select' style='display: block; margin-bottom: 5px; font-weight: bold;'>Update Version:</label>";
+  html += "<select id='version-select' style='width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
+  html += "<option value='stable'>Stable Release</option>";
+  html += "<option value='beta'>Beta Release</option>";
+  html += "</select>";
+  html += "</div>";
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Online Update</a>";
   html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>Upload File</a>";
@@ -550,9 +554,11 @@ void handleAdmin() {
   html += "  }";
   html += "}";
   html += "function startOnlineUpdate() {";
-  html += "  if (confirm('Download firmware update from GitHub? This will check for the latest version.')) {";
+  html += "  var selectedVersion = document.getElementById('version-select').value;";
+  html += "  var versionText = selectedVersion === 'beta' ? 'BETA' : 'Stable';";
+  html += "  if (confirm('Download ' + versionText + ' firmware update from GitHub? This will check for the latest version.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Downloading firmware from GitHub...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"progress-text\">0%</span></div></div><div id=\"progress-status\">Initializing download...</div></div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Downloading ' + versionText + ' firmware from GitHub...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"progress-text\">0%</span></div></div><div id=\"progress-status\">Initializing download...</div></div>';";
   html += "    var startTime = Date.now();";
   html += "    var progressInterval = setInterval(() => {";
   html += "      var elapsed = Math.floor((Date.now() - startTime) / 1000);";
@@ -561,7 +567,7 @@ void handleAdmin() {
   html += "      document.getElementById('progress-text').textContent = fakeProgress + '%';";
   html += "      document.getElementById('progress-status').textContent = 'Downloading... (' + elapsed + 's)';";
   html += "    }, 1000);";
-  html += "    fetch('/download-update', {method: 'POST'}).then(response => response.text()).then(data => {";
+  html += "    fetch('/download-update', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'version=' + encodeURIComponent(selectedVersion)}).then(response => response.text()).then(data => {";
   html += "      clearInterval(progressInterval);";
   html += "      if (data.includes('SUCCESS')) {";
   html += "        document.getElementById('progress-bar').style.width = '100%';";
@@ -598,8 +604,12 @@ void handleAdmin() {
   html += "    alert('Please select a valid .bin firmware file');";
   html += "    return;";
   html += "  }";
+  html += "  attemptUpload(file, 1, 3);";
+  html += "}";
+  html += "function attemptUpload(file, attempt, maxAttempts) {";
   html += "  document.getElementById('update-status').style.display = 'block';";
-  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Uploading firmware...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"upload-progress-text\">0%</span></div></div><div id=\"upload-progress-status\">Uploading ' + file.name + '...</div></div>';";
+  html += "  var attemptText = attempt > 1 ? ' (Attempt ' + attempt + '/' + maxAttempts + ')' : '';";
+  html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Uploading firmware...' + attemptText + '</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"upload-progress-text\">0%</span></div></div><div id=\"upload-progress-status\">Uploading ' + file.name + '...</div></div>';";
   html += "  var formData = new FormData();";
   html += "  formData.append('firmware', file);";
   html += "  var xhr = new XMLHttpRequest();";
@@ -622,11 +632,21 @@ void handleAdmin() {
   html += "        }";
   html += "      }, 500);";
   html += "    } else {";
-  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed</strong><br>' + xhr.responseText + '</div>';";
+  html += "      if (attempt < maxAttempts) {";
+  html += "        document.getElementById('upload-progress-status').textContent = 'Upload failed, retrying in 2 seconds... (Attempt ' + (attempt + 1) + '/' + maxAttempts + ')';";
+  html += "        setTimeout(() => attemptUpload(file, attempt + 1, maxAttempts), 2000);";
+  html += "      } else {";
+  html += "        document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed after ' + maxAttempts + ' attempts</strong><br>' + xhr.responseText + '<br><br><button onclick=\"uploadFirmware()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "      }";
   html += "    }";
   html += "  };";
   html += "  xhr.onerror = function() {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload error</strong><br>Network connection failed</div>';";
+  html += "    if (attempt < maxAttempts) {";
+  html += "      document.getElementById('upload-progress-status').textContent = 'Network error, retrying in 2 seconds... (Attempt ' + (attempt + 1) + '/' + maxAttempts + ')';";
+  html += "      setTimeout(() => attemptUpload(file, attempt + 1, maxAttempts), 2000);";
+  html += "    } else {";
+  html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed after ' + maxAttempts + ' attempts</strong><br>Network connection failed<br><br><button onclick=\"uploadFirmware()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "    }";
   html += "  };";
   html += "  xhr.open('POST', '/upload-firmware');";
   html += "  xhr.send(formData);";
@@ -720,10 +740,24 @@ void handleCleanupPreferences() {
 }
 
 void handleDownloadUpdate() {
-  logSerial("Starting online firmware download from GitHub...");
+  // Get version parameter (default to stable if not specified)
+  String version = "stable";
+  if (server.hasArg("version")) {
+    version = server.arg("version");
+  }
+  
+  // Select appropriate URL based on version
+  String downloadUrl;
+  if (version == "beta") {
+    downloadUrl = OTA_BETA_URL;
+    logSerial("Starting BETA firmware download from GitHub...");
+  } else {
+    downloadUrl = OTA_UPDATE_URL;
+    logSerial("Starting stable firmware download from GitHub...");
+  }
 
   HTTPClient http;
-  http.begin(OTA_UPDATE_URL);
+  http.begin(downloadUrl);
   http.setTimeout(OTA_TIMEOUT);
 
   int httpCode = http.GET();

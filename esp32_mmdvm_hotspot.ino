@@ -900,7 +900,7 @@ void loadConfig() {
   if (web_password.length() == 0) {
     web_password = WEB_PASSWORD;  // Fallback to default if empty
   }
-  logSerial("Web authentication: enabled (user: " + web_username + ")");
+  logSerial("Web authentication: enabled (user/password: " + web_username + "/" + web_password + ")");
 
   // Load mode enable/disable settings (use config.h defaults if not saved)
   mode_dmr_enabled = preferences.getBool("mode_dmr", DEFAULT_MODE_DMR);

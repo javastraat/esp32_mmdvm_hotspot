@@ -9,8 +9,8 @@
 
 String getCommonCSS() {
   String css = "<style>";
-  css += ":root { --bg-color: #f0f0f0; --container-bg: white; --text-color: #333; --border-color: #dee2e6; --card-bg: #f8f9fa; --info-bg: #e7f3ff; --topnav-bg: #333; --topnav-text: #f2f2f2; --topnav-hover: #ddd; --topnav-hover-text: black; }";
-  css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #ffffff; --border-color: #555; --card-bg: #3a3a3a; --info-bg: #1e3a5f; --topnav-bg: #000; --topnav-text: #f2f2f2; --topnav-hover: #444; --topnav-hover-text: #ffffff; }";
+  css += ":root { --bg-color: #f0f0f0; --container-bg: white; --text-color: #333; --border-color: #dee2e6; --card-bg: #f8f9fa; --info-bg: #e7f3ff; --topnav-bg: #333; --topnav-text: #f2f2f2; --topnav-hover: #ddd; --topnav-hover-text: black; --link-color: #007bff; --link-hover-color: #0056b3; }";
+  css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #ffffff; --border-color: #555; --card-bg: #3a3a3a; --info-bg: #1e3a5f; --topnav-bg: #000; --topnav-text: #f2f2f2; --topnav-hover: #444; --topnav-hover-text: #ffffff; --link-color: #4da6ff; --link-hover-color: #66b3ff; }";
   css += "body { font-family: Arial, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }";
   css += ".topnav { background-color: var(--topnav-bg); overflow: hidden; }";
   css += ".topnav a { float: left; display: block; color: var(--topnav-text); text-align: center; padding: 14px 20px; text-decoration: none; }";
@@ -39,7 +39,10 @@ String getCommonCSS() {
   css += ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0; }";
   css += ".card { background: var(--card-bg); padding: 15px; border-radius: 6px; border: 1px solid var(--border-color); }";
   css += ".card h3 { margin-top: 0; color: var(--text-color); }";
-  css += ".footer { text-align: center; padding: 20px; margin-top: 30px; border-top: 1px solid var(--border-color); color: var(--text-color); font-size: 14px; }";
+  css += ".footer { text-align: center; padding: 20px 20px 5px 20px; margin-top: 30px; border-top: 1px solid var(--border-color); color: var(--text-color); font-size: 14px; }";
+  css += ".footer2 { text-align: center; padding: 0px 20px 20px 20px; color: var(--text-color); font-size: 12px; }";
+  css += ".footer2 a { color: var(--link-color); text-decoration: none; }";
+  css += ".footer2 a:hover { color: var(--link-hover-color); text-decoration: underline; }";
   css += "p, div, span, strong, label { color: var(--text-color); }";
   css += ".metric-label, .metric-value { color: var(--text-color) !important; }";
   css += "input, select, textarea { background: var(--container-bg); color: var(--text-color); border: 1px solid var(--border-color); }";

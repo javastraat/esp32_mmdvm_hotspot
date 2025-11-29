@@ -21,7 +21,15 @@ extern String web_username;
 extern String web_password;
 
 String getFooter() {
-  return "<div class='footer'>" + String(COPYRIGHT_TEXT) + "</div>";
+  String footer = "<div class='footer'>" + String(COPYRIGHT_TEXT) + "</div>";
+  footer += "<div class='footer2'>";
+  footer += "<a href='" + String(FOOTER_LINK1_URL) + "' target='_blank'>" + String(FOOTER_LINK1_TEXT) + "</a>";
+  footer += " | ";
+  footer += "<a href='" + String(FOOTER_LINK2_URL) + "' target='_blank'>" + String(FOOTER_LINK2_TEXT) + "</a>";
+  footer += " | ";
+  footer += "<a href='" + String(FOOTER_LINK3_URL) + "' target='_blank'>" + String(FOOTER_LINK3_TEXT) + "</a>";
+  footer += "</div>";
+  return footer;
 }
 
 // Authentication check function

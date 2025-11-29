@@ -151,7 +151,15 @@
 #define ENABLE_WEBSERVER true                            // Enable web configuration interface
 #define WEB_USERNAME "admin"                             // Web interface username
 #define WEB_PASSWORD "pi-star"                           // Default web interface password
-#define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"  // Footer copyright text
+#define COPYRIGHT_TEXT "&copy; 2025 by PD2EMC & PD8JO"  // Footer copyright text
+
+// Footer Links Configuration
+#define FOOTER_LINK1_URL "https://einstein.amsterdam"                              // First footer link URL
+#define FOOTER_LINK1_TEXT "einstein.amsterdam"                                     // First footer link text
+#define FOOTER_LINK2_URL "https://pd8jo.nl"                                        // Second footer link URL  
+#define FOOTER_LINK2_TEXT "pd8jo.nl"                                               // Second footer link text
+#define FOOTER_LINK3_URL "https://github.com/javastraat/esp32_mmdvm_hotspot"      // Third footer link URL
+#define FOOTER_LINK3_TEXT "GitHub Project"                                         // Third footer link text
 
 // ===== OTA Update Configuration =====
 #define ENABLE_OTA false  // always on for now Enable over-the-air updates
