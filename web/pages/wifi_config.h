@@ -47,6 +47,10 @@ void handleConfig() {
   html += ".password-container { position: relative; }";
   html += ".password-container input { padding-right: 40px; }";
   html += ".toggle-password { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none; color: var(--text-color); opacity: 0.7; }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  html += ".metric:last-child { border-bottom: none; }";
+  html += ".metric-label { font-weight: bold; color: var(--text-muted); }";
+  html += ".metric-value { color: var(--text-color); }";
   html += "</style></head><body>";
   html += getNavigation("wificonfig");
   html += "<div class='container'>";
@@ -56,16 +60,30 @@ void handleConfig() {
   html += "<div class='card'>";
   html += "<h3>Current WiFi Status</h3>";
   if (wifiConnected) {
-    html += "<div class='status connected'>Connected to: " + WiFi.SSID() + "</div>";
-    html += "<div class='info'>IP Address: " + WiFi.localIP().toString() + "</div>";
-    html += "<div class='info'>Signal Strength: " + String(WiFi.RSSI()) + " dBm</div>";
-    html += "<div class='info'>MAC Address: " + WiFi.macAddress() + "</div>";
+    html += "<div class='status connected'>Status: Connected</div>";
+    html += "<div class='metric'><span class='metric-label'>Network (SSID):</span><span class='metric-value'>" + WiFi.SSID() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>IP Address:</span><span class='metric-value'>" + WiFi.localIP().toString() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Gateway:</span><span class='metric-value'>" + WiFi.gatewayIP().toString() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Subnet Mask:</span><span class='metric-value'>" + WiFi.subnetMask().toString() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>DNS Server:</span><span class='metric-value'>" + WiFi.dnsIP().toString() + "</span></div>";
+    int rssi = WiFi.RSSI();
+    String signalQuality = "";
+    if (rssi >= -50) signalQuality = "Excellent";
+    else if (rssi >= -60) signalQuality = "Good";
+    else if (rssi >= -70) signalQuality = "Fair";
+    else signalQuality = "Weak";
+    html += "<div class='metric'><span class='metric-label'>Signal Strength:</span><span class='metric-value'>" + String(rssi) + " dBm (" + signalQuality + ")</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Channel:</span><span class='metric-value'>" + String(WiFi.channel()) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.macAddress() + "</span></div>";
   } else if (apMode) {
-    html += "<div class='status warning'>Access Point Mode Active</div>";
-    html += "<div class='info'>AP IP: " + WiFi.softAPIP().toString() + "</div>";
-    html += "<div class='info'>Connected Clients: " + String(WiFi.softAPgetStationNum()) + "</div>";
+    html += "<div class='status warning'>Status: Access Point Mode</div>";
+    html += "<div class='metric'><span class='metric-label'>AP SSID:</span><span class='metric-value'>" + WiFi.softAPSSID() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>AP IP Address:</span><span class='metric-value'>" + WiFi.softAPIP().toString() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Connected Clients:</span><span class='metric-value'>" + String(WiFi.softAPgetStationNum()) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.softAPmacAddress() + "</span></div>";
   } else {
-    html += "<div class='status disconnected'>&#10006; WiFi Disconnected</div>";
+    html += "<div class='status disconnected'>Status: Disconnected</div>";
+    html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.macAddress() + "</span></div>";
   }
   html += "</div>";
 
