@@ -64,14 +64,14 @@ void setup() {
   
   Serial.println("DMR/Radio Settings:");
   Serial.println("  Callsign: '" + callsign + "'");
-  // Serial.println("  DMR ID: '" + dmrId + "'");
-  // Serial.println("  Color Code: '" + colorCode + "'");
-  // Serial.println("  RX Frequency: '" + rxFreq + "'");
-  // Serial.println("  TX Frequency: '" + txFreq + "'");
-  // Serial.println("  Hotspot Mode: '" + hotspotMode + "'");
-  // Serial.println("  Location: '" + location + "'");
-  // Serial.println("  Description: '" + description + "'");
-  // Serial.println("  URL: '" + url + "'");
+  Serial.println("  DMR ID: '" + dmrId + "'");
+  Serial.println("  Color Code: '" + colorCode + "'");
+  Serial.println("  RX Frequency: '" + rxFreq + "'");
+  Serial.println("  TX Frequency: '" + txFreq + "'");
+  Serial.println("  Hotspot Mode: '" + hotspotMode + "'");
+  Serial.println("  Location: '" + location + "'");
+  Serial.println("  Description: '" + description + "'");
+  Serial.println("  URL: '" + url + "'");
   
   int totalPrefs = (savedSSID.length() > 0 ? 1 : 0) + (savedPassword.length() > 0 ? 1 : 0) + 
                    (callsign.length() > 0 ? 1 : 0) + (dmrId.length() > 0 ? 1 : 0) + 

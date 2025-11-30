@@ -424,11 +424,9 @@ void handleAdmin() {
   if (isBetaVersion) {
     html += "<option value='stable'>Stable Release</option>";
     html += "<option value='beta' selected>Beta Release</option>";
-    html += "<option value='factory'>Factory Default</option>";
   } else {
     html += "<option value='stable' selected>Stable Release</option>";
     html += "<option value='beta'>Beta Release</option>";
-    html += "<option value='factory'>Factory Default</option>";
   }
   html += "</select>";
   html += "</div>";
@@ -607,11 +605,9 @@ void handleAdmin() {
   html += "    });";
   html += "  }";
   html += "}";
-  html += "var currentFirmwareVersion = ''; // Global variable to track selected version";
   html += "function startOnlineUpdate() {";
   html += "  var selectedVersion = document.getElementById('version-select').value;";
-  html += "  currentFirmwareVersion = selectedVersion; // Store for later use in flash";
-  html += "  var versionText = selectedVersion === 'beta' ? 'BETA' : selectedVersion === 'factory' ? 'Factory Default' : 'Stable';";
+  html += "  var versionText = selectedVersion === 'beta' ? 'BETA' : 'Stable';";
   html += "  if (confirm('Download ' + versionText + ' firmware update from GitHub? This will check for the latest version.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
   html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Downloading ' + versionText + ' firmware from GitHub...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"progress-text\">0%</span></div></div><div id=\"progress-status\">Initializing download...</div></div>';";
@@ -708,14 +704,9 @@ void handleAdmin() {
   html += "  xhr.send(formData);";
   html += "}";
   html += "function confirmFlash() {";
-  html += "  var warningMessage = 'WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.';";
-  html += "  if (currentFirmwareVersion === 'factory') {";
-  html += "    warningMessage += '\\n\\n⚠️  FACTORY RESET: This will also CLEAR ALL SETTINGS (WiFi, callsign, DMR ID, etc.)!\\nYou will need to reconfigure everything after the update.';";
-  html += "  }";
-  html += "  warningMessage += '\\n\\nContinue with firmware flash?';";
-  html += "  if (confirm(warningMessage)) {";
+  html += "  if (confirm('WARNING: This will flash new firmware and reboot the system.\\n\\nThe hotspot will be unavailable for 1-2 minutes during update.\\n\\nContinue with firmware flash?')) {";
   html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107;\">FLASHING FIRMWARE... DO NOT POWER OFF!</div>';";
-  html += "    fetch('/flash-firmware', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'version=' + encodeURIComponent(currentFirmwareVersion)}).then(() => {";
+  html += "    fetch('/flash-firmware', {method: 'POST'}).then(() => {";
   html += "      document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745;\">Update completed! System rebooting...</div>';";
   html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
   html += "    });";
@@ -830,9 +821,6 @@ void handleDownloadUpdate() {
   if (version == "beta") {
     downloadUrl = OTA_UPDATE_BETA_URL;
     logSerial("Starting BETA firmware download from GitHub...");
-  } else if (version == "factory") {
-    downloadUrl = OTA_UPDATE_FACTORY_URL;
-    logSerial("Starting Factory Default firmware download from GitHub...");
   } else {
     downloadUrl = OTA_UPDATE_URL;
     logSerial("Starting stable firmware download from GitHub...");
@@ -915,20 +903,6 @@ void handleUploadFirmware() {
 
 void handleFlashFirmware() {
   logSerial("Starting firmware flash process...");
-
-  // Check if this is a factory firmware flash and clear preferences
-  String lastVersion = "unknown";
-  if (server.hasArg("version")) {
-    lastVersion = server.arg("version");
-  }
-  
-  if (lastVersion == "factory") {
-    logSerial("Factory firmware detected - clearing all preferences for fresh start...");
-    preferences.begin("mmdvm", false);
-    preferences.clear();
-    preferences.end();
-    logSerial("All preferences cleared for factory reset");
-  }
 
   // Check if firmware was properly prepared by either download or upload method
   if (Update.isFinished()) {
