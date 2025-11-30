@@ -43,13 +43,44 @@ void setup() {
   size_t freeEntries = preferences.freeEntries();
   Serial.println("Free preference entries: " + String(freeEntries));
   
+  // Load WiFi credentials
   savedSSID = preferences.getString("ssid", "");
   savedPassword = preferences.getString("password", "");
   
-  Serial.println("Stored SSID: '" + savedSSID + "'");
-  Serial.println("Stored Password: '" + savedPassword + "'");
-  Serial.println("SSID length: " + String(savedSSID.length()));
-  Serial.println("Password length: " + String(savedPassword.length()));
+  // Load and display ALL preferences that might be stored by main firmware
+  String callsign = preferences.getString("callsign", "");
+  String dmrId = preferences.getString("dmrId", "");
+  String colorCode = preferences.getString("colorCode", "");
+  String rxFreq = preferences.getString("rxFreq", "");
+  String txFreq = preferences.getString("txFreq", "");
+  String hotspotMode = preferences.getString("hotspotMode", "");
+  String location = preferences.getString("location", "");
+  String description = preferences.getString("description", "");
+  String url = preferences.getString("url", "");
+  
+  Serial.println("WiFi Settings:");
+  Serial.println("  SSID: '" + savedSSID + "' (length: " + String(savedSSID.length()) + ")");
+  Serial.println("  Password: '" + savedPassword + "' (length: " + String(savedPassword.length()) + ")");
+  
+  Serial.println("DMR/Radio Settings:");
+  Serial.println("  Callsign: '" + callsign + "'");
+  // Serial.println("  DMR ID: '" + dmrId + "'");
+  // Serial.println("  Color Code: '" + colorCode + "'");
+  // Serial.println("  RX Frequency: '" + rxFreq + "'");
+  // Serial.println("  TX Frequency: '" + txFreq + "'");
+  // Serial.println("  Hotspot Mode: '" + hotspotMode + "'");
+  // Serial.println("  Location: '" + location + "'");
+  // Serial.println("  Description: '" + description + "'");
+  // Serial.println("  URL: '" + url + "'");
+  
+  int totalPrefs = (savedSSID.length() > 0 ? 1 : 0) + (savedPassword.length() > 0 ? 1 : 0) + 
+                   (callsign.length() > 0 ? 1 : 0) + (dmrId.length() > 0 ? 1 : 0) + 
+                   (colorCode.length() > 0 ? 1 : 0) + (rxFreq.length() > 0 ? 1 : 0) + 
+                   (txFreq.length() > 0 ? 1 : 0) + (hotspotMode.length() > 0 ? 1 : 0) + 
+                   (location.length() > 0 ? 1 : 0) + (description.length() > 0 ? 1 : 0) + 
+                   (url.length() > 0 ? 1 : 0);
+  
+  Serial.println("Total stored preferences: " + String(totalPrefs));
   Serial.println("=== End preferences debug ===");
 
   String wifiSSID = WIFI_SSID;

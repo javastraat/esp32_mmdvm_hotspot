@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-//#define FIRMWARE_VERSION "20251130_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20251130_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20251130_ESP32"  // Update version as needed
+//#define FIRMWARE_VERSION "20251130_ESP32_BETA"  // Update version as needed
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -164,6 +164,7 @@
 
 // ===== OTA Update Configuration =====
 #define ENABLE_OTA false  // always on for now Enable over-the-air updates
+#define OTA_UPDATE_FACTORY_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/factory-setup.bin"
 #define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update.bin"
 #define OTA_UPDATE_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/update_beta.bin"
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
