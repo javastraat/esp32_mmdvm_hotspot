@@ -1297,7 +1297,8 @@ void handleShowPreferences() {
             String strValue = preferences.getString(keyName.c_str(), "");
             // Check if this is a password field
             if (keyName.equals("dmr_password") || keyName.equals("alt_password") ||
-                keyName.equals("web_password") || keyName.indexOf("password") >= 0) {
+                keyName.equals("web_password") || keyName.indexOf("password") >= 0 ||
+                keyName.endsWith("_pass")) {
               if (strValue.length() > 0) {
                 String maskedPassword = "";
                 for (int j = 0; j < strValue.length(); j++) {
@@ -1332,7 +1333,8 @@ void handleShowPreferences() {
             if (testValue != "__NOT_FOUND__") {
               // Check if this is a password field
               if (keyName.equals("dmr_password") || keyName.equals("alt_password") ||
-                  keyName.equals("web_password") || keyName.indexOf("password") >= 0) {
+                  keyName.equals("web_password") || keyName.indexOf("password") >= 0 ||
+                  keyName.endsWith("_pass")) {
                 if (testValue.length() > 0) {
                   String maskedPassword = "";
                   for (int j = 0; j < testValue.length(); j++) {
