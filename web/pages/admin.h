@@ -419,8 +419,15 @@ void handleAdmin() {
   html += "<div style='margin-bottom: 10px;'>";
   html += "<label for='version-select' style='display: block; margin-bottom: 5px; font-weight: bold;'>Update Version:</label>";
   html += "<select id='version-select' style='width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
-  html += "<option value='stable'>Stable Release</option>";
-  html += "<option value='beta'>Beta Release</option>";
+  // Auto-select beta if current version contains _BETA
+  bool isBetaVersion = String(firmwareVersion).indexOf("_BETA") != -1;
+  if (isBetaVersion) {
+    html += "<option value='stable'>Stable Release</option>";
+    html += "<option value='beta' selected>Beta Release</option>";
+  } else {
+    html += "<option value='stable' selected>Stable Release</option>";
+    html += "<option value='beta'>Beta Release</option>";
+  }
   html += "</select>";
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
