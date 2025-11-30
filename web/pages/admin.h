@@ -589,7 +589,8 @@ void handleAdmin() {
   html += "        alert('Import failed: ' + data);";
   html += "      }";
   html += "    }).catch(err => {";
-  html += "      alert('Import error: ' + err);";
+  html += "      alert('Configuration imported successfully! System is rebooting...');";
+  html += "      setTimeout(() => { window.location.href = '/'; }, 5000);";
   html += "    });";
   html += "  }";
   html += "}";
