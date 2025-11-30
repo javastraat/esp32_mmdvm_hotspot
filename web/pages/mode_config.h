@@ -56,7 +56,10 @@ void handleDMRConfig() {
   html += ".password-container { position: relative; }";
   html += ".password-container input { padding-right: 40px; }";
   html += ".toggle-password { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none; color: var(--text-color); opacity: 0.7; }";
-  html += "h3 { color: var(--text-color); margin-top: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  html += ".metric:last-child { border-bottom: none; }";
+  html += ".metric-label { font-weight: bold; color: var(--text-muted); }";
+  html += ".metric-value { color: var(--text-color); }";
   html += "</style></head><body>";
   html += getNavigation("modeconfig");
   html += "<div class='container'>";
@@ -64,53 +67,41 @@ void handleDMRConfig() {
 
   html += "<div class='grid'>";
 
-  // Mode Status Card with toggle switches
+  // Mode Status Card with metric style
   html += "<div class='card'>";
   html += "<h3>Active Modes</h3>";
 
-  // DMR Mode - Read-only status display
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color);'>";
-  html += "<span style='font-weight: bold;'>DMR:</span>";
+  // DMR Mode - with status badge
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>DMR:</span>";
   String dmrStatusClass = mode_dmr_enabled ? "connected" : "disconnected";
-  html += "<div class='status " + dmrStatusClass + "' style='margin: 0;'><strong>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</strong></div>";
-  html += "</div>";
+  html += "<div class='status " + dmrStatusClass + "' style='margin: 0; padding: 6px 12px;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</div>";
   html += "</div>";
 
   // Other modes - Read-only status (not yet implemented)
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
-  html += "<span style='font-weight: bold;'>D-Star:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_dstar_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
-  html += "</div>";
+  html += "<div class='metric' style='opacity: 0.6;'>";
+  html += "<span class='metric-label'>D-Star:</span>";
+  html += "<span class='metric-value' style='color: var(--text-muted);'>" + String(mode_dstar_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
 
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
-  html += "<span style='font-weight: bold;'>YSF:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_ysf_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
-  html += "</div>";
+  html += "<div class='metric' style='opacity: 0.6;'>";
+  html += "<span class='metric-label'>YSF:</span>";
+  html += "<span class='metric-value' style='color: var(--text-muted);'>" + String(mode_ysf_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
 
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
-  html += "<span style='font-weight: bold;'>P25:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_p25_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
-  html += "</div>";
+  html += "<div class='metric' style='opacity: 0.6;'>";
+  html += "<span class='metric-label'>P25:</span>";
+  html += "<span class='metric-value' style='color: var(--text-muted);'>" + String(mode_p25_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
 
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
-  html += "<span style='font-weight: bold;'>NXDN:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_nxdn_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
-  html += "</div>";
+  html += "<div class='metric' style='opacity: 0.6;'>";
+  html += "<span class='metric-label'>NXDN:</span>";
+  html += "<span class='metric-value' style='color: var(--text-muted);'>" + String(mode_nxdn_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
 
-  html += "<div style='margin: 10px 0;'>";
-  html += "<div style='display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.6;'>";
-  html += "<span style='font-weight: bold;'>POCSAG:</span>";
-  html += "<span style='color: #6c757d;'>" + String(mode_pocsag_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
-  html += "</div>";
+  html += "<div class='metric' style='opacity: 0.6;'>";
+  html += "<span class='metric-label'>POCSAG:</span>";
+  html += "<span class='metric-value' style='color: var(--text-muted);'>" + String(mode_pocsag_enabled ? "Enabled" : "Disabled") + " (Coming Soon)</span>";
   html += "</div>";
 
   html += "<div class='info' style='margin-top: 15px; font-size: 0.9em;'>";
@@ -120,15 +111,15 @@ void handleDMRConfig() {
 
   html += "<div class='card'>";
   html += "<h3>Current DMR Settings</h3>";
-  html += "<div class='info'><strong>Callsign:</strong> " + dmr_callsign + "</div>";
-  html += "<div class='info'><strong>DMR ID:</strong> " + String(dmr_id) + "</div>";
-  html += "<div class='info'><strong>Server:</strong> " + dmr_server + "</div>";
-  html += "<div class='info'><strong>ESSID:</strong> " + (dmr_essid == 0 ? "None" : String(dmr_essid)) + "</div>";
-  html += "<div class='info'><strong>RX Freq:</strong> " + String(dmr_rx_freq/1000000.0, 3) + " MHz</div>";
-  html += "<div class='info'><strong>TX Freq:</strong> " + String(dmr_tx_freq/1000000.0, 3) + " MHz</div>";
-  html += "<div class='info'><strong>Color Code:</strong> " + String(dmr_color_code) + "</div>";
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
-  html += "<div class='status " + bmStatusClass + "'><strong>Status:</strong> " + dmrLoginStatus + "</div>";
+  html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
+  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + dmr_server + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? "None" : String(dmr_essid)) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 3) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 3) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
   html += "</div>";
 
   // Card 1: General (Callsign, DMR ID, Frequencies)
