@@ -43,6 +43,23 @@ struct DMRActivity {
 };
 extern DMRActivity dmrActivity[2];
 
+// DMR History structure (matches esp32_mmdvm_hotspot.ino)
+struct DMRHistory {
+  String timestamp;
+  uint32_t srcId;
+  String srcCallsign;
+  String srcName;
+  String srcLocation;
+  uint32_t dstId;
+  bool isGroup;
+  uint32_t duration;
+  uint8_t ber;
+  uint8_t rssi;
+  uint8_t slotNo;
+};
+extern DMRHistory dmrHistory[15];
+extern int dmrHistoryIndex;
+
 // DMR Callsign lookup function
 extern String lookupCallsign(uint32_t dmrId);
 
@@ -119,6 +136,75 @@ void handleDMRActivity() {
   server.send(200, "text/html", getDMRActivityHTML());
 }
 
+// Helper function to generate DMR History HTML
+String getDMRHistoryHTML() {
+  String html = "<div class='history-container'>";
+  
+  // Count actual history entries
+  int entryCount = 0;
+  for (int i = 0; i < 15; i++) {
+    if (dmrHistory[i].srcId > 0) entryCount++;
+  }
+  
+  if (entryCount == 0) {
+    html += "<div class='no-history'>No recent transmissions</div>";
+  } else {
+    html += "<div class='history-header'>";
+    html += "<div class='col-time'>Time</div>";
+    html += "<div class='col-station'>Station</div>";
+    html += "<div class='col-destination'>Destination</div>";
+    html += "<div class='col-duration'>Duration</div>";
+    html += "<div class='col-slot'>Slot</div>";
+    html += "</div>";
+    
+    // Show entries in reverse chronological order (newest first)
+    for (int i = 0; i < 15; i++) {
+      int index = (dmrHistoryIndex - 1 - i + 15) % 15;
+      if (dmrHistory[index].srcId > 0) {
+        html += "<div class='history-row'>";
+        
+        // Time
+        html += "<div class='col-time'>" + dmrHistory[index].timestamp + "</div>";
+        
+        // Station info
+        html += "<div class='col-station'>";
+        if (dmrHistory[index].srcCallsign.length() > 0) {
+          html += "<div class='callsign'>" + dmrHistory[index].srcCallsign + "</div>";
+          if (dmrHistory[index].srcName.length() > 0) {
+            html += "<div class='name'>" + dmrHistory[index].srcName + "</div>";
+          }
+          if (dmrHistory[index].srcLocation.length() > 0) {
+            html += "<div class='location'>" + dmrHistory[index].srcLocation + "</div>";
+          }
+        } else {
+          html += "<div class='callsign'>" + String(dmrHistory[index].srcId) + "</div>";
+        }
+        html += "</div>";
+        
+        // Destination
+        html += "<div class='col-destination'>";
+        if (dmrHistory[index].isGroup) html += "TG ";
+        html += String(dmrHistory[index].dstId) + "</div>";
+        
+        // Duration
+        html += "<div class='col-duration'>" + String(dmrHistory[index].duration) + "s</div>";
+        
+        // Slot
+        html += "<div class='col-slot'>" + String(dmrHistory[index].slotNo) + "</div>";
+        
+        html += "</div>";
+      }
+    }
+  }
+  
+  html += "</div>";
+  return html;
+}
+
+void handleDMRHistory() {
+  server.send(200, "text/html", getDMRHistoryHTML());
+}
+
 void handleRoot() {
   if (!checkAuthentication()) return;
 
@@ -138,6 +224,22 @@ void handleRoot() {
   html += ".label { font-weight: bold; color: #555; }";
   html += ".value { color: #333; font-family: monospace; }";
   html += ".no-activity { text-align: center; padding: 30px; color: #999; font-style: italic; }";
+  // History card styles
+  html += ".history-card { margin-top: 20px; }";
+  html += ".history-container { overflow-x: auto; }";
+  html += ".history-header { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 10px; background: #e9ecef; font-weight: bold; border-radius: 5px; margin-bottom: 5px; }";
+  html += ".history-row { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #e0e0e0; }";
+  html += ".history-row:nth-child(even) { background: #f8f9fa; }";
+  html += ".history-row:hover { background: #e3f2fd; }";
+  html += ".col-time { font-family: monospace; font-size: 0.9em; }";
+  html += ".col-station .callsign { font-weight: bold; color: #2196F3; }";
+  html += ".col-station .name { font-size: 0.85em; color: #666; }";
+  html += ".col-station .location { font-size: 0.8em; color: #999; }";
+  html += ".col-destination { font-family: monospace; font-weight: bold; }";
+  html += ".col-duration { text-align: center; font-family: monospace; }";
+  html += ".col-slot { text-align: center; font-weight: bold; }";
+  html += ".no-history { text-align: center; padding: 40px; color: #999; font-style: italic; }";
+  html += "@media (max-width: 768px) { .history-header, .history-row { grid-template-columns: 60px 1fr 80px 50px; } .col-slot { display: none; } }";
   html += "</style>";
   html += "<script>";
   html += "function refreshActivity() {";
@@ -145,7 +247,13 @@ void handleRoot() {
   html += "    document.getElementById('dmr-activity-content').innerHTML = data;";
   html += "  });";
   html += "}";
-  html += "setInterval(refreshActivity, 1000);";  // Refresh every 1 second
+  html += "function refreshHistory() {";
+  html += "  fetch('/dmr-history').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('dmr-history-content').innerHTML = data;";
+  html += "  });";
+  html += "}";
+  html += "setInterval(refreshActivity, 1000);";
+  html += "setInterval(refreshHistory, 2000);";
   html += "</script>";
   html += "</head><body>";
   html += getNavigation("main");
@@ -154,9 +262,17 @@ void handleRoot() {
 
   // Live DMR Activity Section (moved to top)
   html += "<div class='card'>";
-  html += "<h3>🔴 Live DMR Activity</h3>";
+  html += "<h3>Live DMR Activity</h3>";
   html += "<div id='dmr-activity-content'>";
   html += getDMRActivityHTML();
+  html += "</div>";
+  html += "</div>";
+
+  // Recent Activity History Card (full width)
+  html += "<div class='card history-card'>";
+  html += "<h3>Recent DMR Activity (Last 15 Transmissions)</h3>";
+  html += "<div id='dmr-history-content'>";
+  html += getDMRHistoryHTML();
   html += "</div>";
   html += "</div>";
 

@@ -176,6 +176,13 @@ struct DMRTransmission {
 };
 DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
 
+// DMR Transmission History (for Recent Activity display)
+// struct DMRHistory is defined in webpages.h/home.h
+const int DMR_HISTORY_SIZE = 15;
+DMRHistory dmrHistory[DMR_HISTORY_SIZE];
+int dmrHistoryIndex = 0;
+void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
+
 // DMR User Information Lookup Cache
 struct UserInfoCache {
   uint32_t dmrId;
@@ -259,6 +266,7 @@ String getCachedCallsign(uint32_t dmrId);
 String getCachedUserInfo(uint32_t dmrId);
 void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
+void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -413,7 +421,20 @@ void loop() {
   // Check for DMR activity timeout
   unsigned long currentMillis = millis();
   for (int i = 0; i < 2; i++) {
+    // Check if DMR activity has timed out and add to history before deactivating
     if (dmrActivity[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
+      // Add to history when activity times out (transmission ended)
+      if (dmrActivity[i].srcId > 0) {
+        uint32_t duration = (currentMillis - dmrActivity[i].startTime) / 1000;
+        String location = "";
+        if (dmrActivity[i].srcCity.length() > 0 || dmrActivity[i].srcCountry.length() > 0) {
+          if (dmrActivity[i].srcCity.length() > 0) location += dmrActivity[i].srcCity;
+          if (dmrActivity[i].srcCity.length() > 0 && dmrActivity[i].srcCountry.length() > 0) location += ", ";
+          if (dmrActivity[i].srcCountry.length() > 0) location += dmrActivity[i].srcCountry;
+        }
+        addDMRHistory(dmrActivity[i].srcId, dmrActivity[i].srcCallsign, dmrActivity[i].srcName, location,
+                     dmrActivity[i].dstId, dmrActivity[i].isGroup, duration, 0, 0, dmrActivity[i].slotNo);
+      }
       dmrActivity[i].active = false;
     }
     
@@ -852,6 +873,9 @@ void handleNetwork() {
             dataTypeStr = "VOICE_BURST";
           }
           
+          // Check if this is a TERM_LC (transmission end marker)
+          bool isTermLC = (dataType == 0x02); // TERM_LC
+          
           // Build readable log message with consolidated transmission tracking
           int txIndex = slotNo - 1;
           DMRTransmission &tx = currentTx[txIndex];
@@ -900,6 +924,21 @@ void handleNetwork() {
           
           // Update DMR activity tracking
           int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
+          
+          // Check if we need to add previous transmission to history (DMR ID changed)
+          if (dmrActivity[activityIndex].active && dmrActivity[activityIndex].srcId > 0 && dmrActivity[activityIndex].srcId != srcId) {
+            // Previous transmission ended, add it to history
+            uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
+            String location = "";
+            if (dmrActivity[activityIndex].srcCity.length() > 0 || dmrActivity[activityIndex].srcCountry.length() > 0) {
+              if (dmrActivity[activityIndex].srcCity.length() > 0) location += dmrActivity[activityIndex].srcCity;
+              if (dmrActivity[activityIndex].srcCity.length() > 0 && dmrActivity[activityIndex].srcCountry.length() > 0) location += ", ";
+              if (dmrActivity[activityIndex].srcCountry.length() > 0) location += dmrActivity[activityIndex].srcCountry;
+            }
+            addDMRHistory(dmrActivity[activityIndex].srcId, dmrActivity[activityIndex].srcCallsign, 
+                         dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId, 
+                         dmrActivity[activityIndex].isGroup, duration, 0, 0, dmrActivity[activityIndex].slotNo);
+          }
           
           // Only set start time and lookup user info if this is a new transmission (not just another frame)
           if (!dmrActivity[activityIndex].active || 
@@ -961,6 +1000,9 @@ void handleNetwork() {
           if (isGroup) {
             currentTalkgroup = dstId;
           }
+          
+          // Mark that we've seen TERM_LC for this transmission (but don't add to history yet)
+          // History will be added when the transmission times out and becomes inactive
 
           // Parse and forward to MMDVM
           if (mmdvmReady) {
@@ -1336,6 +1378,7 @@ void setupWebServer() {
   server.on("/logs", handleGetLogs);
   server.on("/wifiscan", handleWifiScan);
   server.on("/dmr-activity", handleDMRActivity);  // Live DMR activity for home page
+  server.on("/dmr-history", handleDMRHistory);    // Recent DMR activity history
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
@@ -1599,4 +1642,39 @@ String lookupCallsignAPI(uint32_t dmrId) {
     return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
   }
   return "";
+}
+
+// Add DMR transmission to history
+void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo) {
+  // Debug log
+  logSerial("Adding to history: " + srcCallsign + " (" + String(srcId) + ") -> " + (isGroup ? "TG" : "") + String(dstId) + " Duration: " + String(duration) + "s");
+  
+  // Get current time as HH:MM:SS
+  unsigned long totalSeconds = millis() / 1000;
+  int hours = (totalSeconds / 3600) % 24;
+  int minutes = (totalSeconds / 60) % 60;
+  int seconds = totalSeconds % 60;
+  
+  String timestamp = "";
+  if (hours < 10) timestamp += "0";
+  timestamp += String(hours) + ":";
+  if (minutes < 10) timestamp += "0";
+  timestamp += String(minutes) + ":";
+  if (seconds < 10) timestamp += "0";
+  timestamp += String(seconds);
+  
+  // Add to circular buffer
+  dmrHistory[dmrHistoryIndex].timestamp = timestamp;
+  dmrHistory[dmrHistoryIndex].srcId = srcId;
+  dmrHistory[dmrHistoryIndex].srcCallsign = srcCallsign;
+  dmrHistory[dmrHistoryIndex].srcName = srcName;
+  dmrHistory[dmrHistoryIndex].srcLocation = srcLocation;
+  dmrHistory[dmrHistoryIndex].dstId = dstId;
+  dmrHistory[dmrHistoryIndex].isGroup = isGroup;
+  dmrHistory[dmrHistoryIndex].duration = duration;
+  dmrHistory[dmrHistoryIndex].ber = ber;
+  dmrHistory[dmrHistoryIndex].rssi = rssi;
+  dmrHistory[dmrHistoryIndex].slotNo = slotNo;
+  
+  dmrHistoryIndex = (dmrHistoryIndex + 1) % DMR_HISTORY_SIZE;
 }
