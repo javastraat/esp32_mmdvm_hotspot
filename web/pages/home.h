@@ -33,10 +33,14 @@ struct DMRActivity {
   uint8_t slotNo;
   bool isGroup;
   String frameType;
+  String srcCallsign;
   unsigned long lastUpdate;
   bool active;
 };
 extern DMRActivity dmrActivity[2];
+
+// DMR Callsign lookup function
+extern String lookupCallsign(uint32_t dmrId);
 
 // Helper function to generate DMR activity HTML
 String getDMRActivityHTML() {
@@ -57,7 +61,13 @@ String getDMRActivityHTML() {
       anyActivity = true;
       html += "<div class='activity-row'>";
       html += "<span class='label'>Source:</span>";
-      html += "<span class='value'>" + String(activity.srcId) + "</span>";
+      html += "<span class='value'>";
+      if (activity.srcCallsign.length() > 0) {
+        html += activity.srcCallsign + " (" + String(activity.srcId) + ")";
+      } else {
+        html += String(activity.srcId);
+      }
+      html += "</span>";
       html += "</div>";
       
       html += "<div class='activity-row'>";

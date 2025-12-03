@@ -157,8 +157,8 @@ const unsigned long KEEPALIVE_INTERVAL = 5000;  // 5 seconds
 // DMR Activity Tracking (struct defined in home.h)
 // Track up to 2 simultaneous transmissions (one per slot)
 DMRActivity dmrActivity[2] = {
-  {0, 0, 1, true, "", 0, false},
-  {0, 0, 2, true, "", 0, false}
+  {0, 0, 1, true, "", "", 0, false},
+  {0, 0, 2, true, "", "", 0, false}
 };
 
 const unsigned long DMR_ACTIVITY_TIMEOUT = 3000;  // 3 seconds timeout
@@ -175,6 +175,16 @@ struct DMRTransmission {
   String frameType;
 };
 DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
+
+// DMR Callsign Lookup Cache
+struct CallsignCache {
+  uint32_t dmrId;
+  String callsign;
+  unsigned long timestamp;
+};
+const int CALLSIGN_CACHE_SIZE = 50;
+CallsignCache callsignCache[CALLSIGN_CACHE_SIZE];
+int callsignCacheIndex = 0;
 
 // Store alternate WiFi credentials
 // Alternate WiFi Networks (up to 5) - labels from config.h
@@ -230,6 +240,10 @@ void sendDMRAuth();
 void sendDMRConfig();
 void logSerial(String message);
 void logSerialVerbose(String message);
+String lookupCallsign(uint32_t dmrId);
+String lookupCallsignAPI(uint32_t dmrId);
+String getCachedCallsign(uint32_t dmrId);
+void cacheCallsign(uint32_t dmrId, String callsign);
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -872,11 +886,20 @@ void handleNetwork() {
           // Update DMR activity tracking
           int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
           
-          // Only set lastUpdate if this is a new transmission (not just another frame)
+          // Only set lastUpdate and lookup callsign if this is a new transmission (not just another frame)
           if (!dmrActivity[activityIndex].active || 
               dmrActivity[activityIndex].srcId != srcId || 
               dmrActivity[activityIndex].dstId != dstId) {
             dmrActivity[activityIndex].lastUpdate = millis();  // Start time
+            
+            // Lookup callsign (async, will use cache if available)
+            String callsign = lookupCallsign(srcId);
+            dmrActivity[activityIndex].srcCallsign = callsign;
+            
+            // Log with callsign if found
+            if (callsign.length() > 0 && isNewTransmission) {
+              logSerial("Callsign: " + callsign + " (" + String(srcId) + ")");
+            }
           }
           
           dmrActivity[activityIndex].srcId = srcId;
@@ -1337,4 +1360,81 @@ void updateStatusLED() {
       }
       break;
   }
+}
+
+// ===== DMR Callsign Lookup Functions =====
+
+// Main lookup function - checks cache first, then API
+String lookupCallsign(uint32_t dmrId) {
+  if (dmrId == 0) return "";
+  
+  // Check cache first
+  String cached = getCachedCallsign(dmrId);
+  if (cached.length() > 0) {
+    return cached;
+  }
+  
+  // Not in cache, try API lookup
+  String callsign = lookupCallsignAPI(dmrId);
+  
+  // Cache the result (even if empty to avoid repeated failed lookups)
+  if (callsign.length() > 0) {
+    cacheCallsign(dmrId, callsign);
+  }
+  
+  return callsign;
+}
+
+// Check if callsign is in cache
+String getCachedCallsign(uint32_t dmrId) {
+  for (int i = 0; i < CALLSIGN_CACHE_SIZE; i++) {
+    if (callsignCache[i].dmrId == dmrId && callsignCache[i].callsign.length() > 0) {
+      return callsignCache[i].callsign;
+    }
+  }
+  return "";
+}
+
+// Add callsign to cache (circular buffer)
+void cacheCallsign(uint32_t dmrId, String callsign) {
+  callsignCache[callsignCacheIndex].dmrId = dmrId;
+  callsignCache[callsignCacheIndex].callsign = callsign;
+  callsignCache[callsignCacheIndex].timestamp = millis();
+  callsignCacheIndex = (callsignCacheIndex + 1) % CALLSIGN_CACHE_SIZE;
+}
+
+// Lookup callsign via RadioID.net API
+String lookupCallsignAPI(uint32_t dmrId) {
+  if (!wifiConnected) {
+    return "";
+  }
+  
+  HTTPClient http;
+  String url = "https://radioid.net/api/dmr/user/?id=" + String(dmrId);
+  
+  http.begin(url);
+  http.setTimeout(2000);  // 2 second timeout
+  
+  int httpCode = http.GET();
+  String callsign = "";
+  
+  if (httpCode == 200) {
+    String payload = http.getString();
+    
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG",...}]}
+    // Simple parsing - look for "callsign":"XXXXX"
+    int csIndex = payload.indexOf("\"callsign\":\"");
+    if (csIndex > 0) {
+      csIndex += 12;  // Length of "callsign":"
+      int endIndex = payload.indexOf("\"", csIndex);
+      if (endIndex > csIndex) {
+        callsign = payload.substring(csIndex, endIndex);
+      }
+    }
+  } else if (httpCode > 0) {
+    logSerial("Callsign lookup failed: HTTP " + String(httpCode));
+  }
+  
+  http.end();
+  return callsign;
 }
