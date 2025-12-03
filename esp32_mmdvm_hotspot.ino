@@ -154,6 +154,28 @@ int serialLogIndex = 0;
 unsigned long lastKeepalive = 0;
 const unsigned long KEEPALIVE_INTERVAL = 5000;  // 5 seconds
 
+// DMR Activity Tracking (struct defined in home.h)
+// Track up to 2 simultaneous transmissions (one per slot)
+DMRActivity dmrActivity[2] = {
+  {0, 0, 1, true, "", 0, false},
+  {0, 0, 2, true, "", 0, false}
+};
+
+const unsigned long DMR_ACTIVITY_TIMEOUT = 3000;  // 3 seconds timeout
+
+// DMR Transmission Tracking (for consolidated log output)
+struct DMRTransmission {
+  uint32_t srcId;
+  uint32_t dstId;
+  uint8_t slotNo;
+  bool isGroup;
+  uint8_t startSeq;
+  uint8_t lastSeq;
+  bool active;
+  String frameType;
+};
+DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
+
 // Store alternate WiFi credentials
 // Alternate WiFi Networks (up to 5) - labels from config.h
 WiFiNetwork wifiNetworks[5] = {
@@ -358,6 +380,25 @@ void loop() {
 
   // Handle MMDVM serial communication
   handleMMDVMSerial();
+
+  // Check for DMR activity timeout
+  unsigned long currentMillis = millis();
+  for (int i = 0; i < 2; i++) {
+    if (dmrActivity[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
+      dmrActivity[i].active = false;
+    }
+    
+    // Also check transmission timeout and log the end
+    if (currentTx[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
+      if (currentTx[i].lastSeq > currentTx[i].startSeq) {
+        String txSummary = "DMR: Slot" + String(currentTx[i].slotNo) + " Seq=" + String(currentTx[i].startSeq) + "-" + String(currentTx[i].lastSeq) + 
+                          " " + String(currentTx[i].srcId) + "->" + (currentTx[i].isGroup ? "TG" : "") + String(currentTx[i].dstId) +
+                          " [END]";
+        logSerial(txSummary);
+      }
+      currentTx[i].active = false;
+    }
+  }
 
   // Handle network communication
   if (wifiConnected) {
@@ -659,20 +700,23 @@ void handleNetwork() {
     if (len > 0) {
       // Check if this is a keepalive packet first (for conditional logging)
       bool isKeepalive = (memcmp(packet, "MSTPONG", 7) == 0 && len >= 7);
+      bool isDMRData = (memcmp(packet, "DMRD", 4) == 0 && len >= 55);
 
-      // Debug: Log packet details
-      String hexDump = "RX [" + String(len) + "]: ";
-      for (int i = 0; i < min(len, 16); i++) {
-        if (packet[i] < 0x10) hexDump += "0";
-        hexDump += String(packet[i], HEX);
-        hexDump += " ";
-      }
+      // Only log hex dump for non-DMR data packets (DMR gets decoded below)
+      if (!isDMRData) {
+        String hexDump = "RX [" + String(len) + "]: ";
+        for (int i = 0; i < min(len, 16); i++) {
+          if (packet[i] < 0x10) hexDump += "0";
+          hexDump += String(packet[i], HEX);
+          hexDump += " ";
+        }
 
-      // Use verbose logging for keepalive packets (always USB, conditionally web)
-      if (isKeepalive) {
-        logSerialVerbose(hexDump);
-      } else {
-        logSerial(hexDump);
+        // Use verbose logging for keepalive packets (always USB, conditionally web)
+        if (isKeepalive) {
+          logSerialVerbose(hexDump);
+        } else {
+          logSerial(hexDump);
+        }
       }
 
       // Check for BrandMeister responses (binary comparison)
@@ -741,12 +785,115 @@ void handleNetwork() {
           logSerialVerbose("Keepalive ACK");
         }
         // DMR data packet
-        else if (memcmp(packet, "DMRD", 4) == 0 && len > 15) {
-          logSerial("DMR data packet received");
+        else if (memcmp(packet, "DMRD", 4) == 0 && len >= 55) {
+          // Parse DMR packet structure
+          uint8_t seqNo = packet[4];
+          uint32_t srcId = (packet[5] << 16) | (packet[6] << 8) | packet[7];
+          uint32_t dstId = (packet[8] << 16) | (packet[9] << 8) | packet[10];
+          uint32_t rptId = (packet[11] << 24) | (packet[12] << 16) | (packet[13] << 8) | packet[14];
+          
+          uint8_t controlByte = packet[15];
+          uint8_t slotNo = (controlByte & 0x80) ? 2 : 1;
+          bool isGroup = (controlByte & 0x40) == 0;  // 0=Group, 1=Private
+          bool dataSync = (controlByte & 0x20) != 0;
+          bool voiceSync = (controlByte & 0x10) != 0;
+          uint8_t dataType = controlByte & 0x0F;
+          
+          uint8_t ber = packet[53];
+          uint8_t rssi = packet[54];
+          
+          // Data type names
+          const char* dataTypeStr = "UNKNOWN";
+          switch (dataType) {
+            case 0x00: dataTypeStr = "PI_HEADER"; break;
+            case 0x01: dataTypeStr = "VOICE_LC_HDR"; break;
+            case 0x02: dataTypeStr = "TERM_LC"; break;
+            case 0x03: dataTypeStr = "CSBK"; break;
+            case 0x06: dataTypeStr = "DATA_HDR"; break;
+            case 0x07: dataTypeStr = "RATE_1/2_DATA"; break;
+            case 0x08: dataTypeStr = "RATE_3/4_DATA"; break;
+            case 0x09: dataTypeStr = "IDLE"; break;
+            case 0x0A: dataTypeStr = "RATE_1_DATA"; break;
+          }
+          
+          // If it's a voice frame (no specific data type flag), show as VOICE
+          if (!dataSync && voiceSync) {
+            dataTypeStr = "VOICE";
+          } else if (!dataSync && !voiceSync) {
+            dataTypeStr = "VOICE_BURST";
+          }
+          
+          // Build readable log message with consolidated transmission tracking
+          int txIndex = slotNo - 1;
+          DMRTransmission &tx = currentTx[txIndex];
+          
+          // Check if this is a new transmission (different source/dest or was inactive)
+          bool isNewTransmission = !tx.active || tx.srcId != srcId || tx.dstId != dstId;
+          
+          // TERM_LC within the same transmission is just a superframe marker, not the actual end
+          // Only end transmission if we haven't seen frames for a while or source/dest changed
+          if (isNewTransmission) {
+            // Log the previous transmission summary if it was active
+            if (tx.active && tx.lastSeq > tx.startSeq) {
+              String txSummary = "DMR: Slot" + String(tx.slotNo) + " Seq=" + String(tx.startSeq) + "-" + String(tx.lastSeq) + 
+                                " " + String(tx.srcId) + "->" + (tx.isGroup ? "TG" : "") + String(tx.dstId) +
+                                " [END]";
+              logSerial(txSummary);
+            }
+            
+            // Start new transmission tracking
+            tx.srcId = srcId;
+            tx.dstId = dstId;
+            tx.slotNo = slotNo;
+            tx.isGroup = isGroup;
+            tx.startSeq = seqNo;
+            tx.lastSeq = seqNo;
+            tx.active = true;
+            tx.frameType = String(dataTypeStr);
+            
+            // Log the start of transmission
+            String dmrInfo = "DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
+                            " " + String(srcId) + "->" + (isGroup ? "TG" : "") + String(dstId) +
+                            " [START] Type=" + String(dataTypeStr);
+            if (ber > 0 || rssi > 0) {
+              dmrInfo += " BER=" + String(ber) + " RSSI=" + String(rssi);
+            }
+            logSerial(dmrInfo);
+          } else {
+            // Continue existing transmission - just update sequence
+            tx.lastSeq = seqNo;
+            // Update frame type if it changed (VOICE -> VOICE_BURST -> TERM_LC are all part of same transmission)
+            if (tx.frameType != String(dataTypeStr)) {
+              tx.frameType = String(dataTypeStr);
+            }
+            // Don't log individual frames within a transmission
+          }
+          
+          // Update DMR activity tracking
+          int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
+          
+          // Only set lastUpdate if this is a new transmission (not just another frame)
+          if (!dmrActivity[activityIndex].active || 
+              dmrActivity[activityIndex].srcId != srcId || 
+              dmrActivity[activityIndex].dstId != dstId) {
+            dmrActivity[activityIndex].lastUpdate = millis();  // Start time
+          }
+          
+          dmrActivity[activityIndex].srcId = srcId;
+          dmrActivity[activityIndex].dstId = dstId;
+          dmrActivity[activityIndex].slotNo = slotNo;
+          dmrActivity[activityIndex].isGroup = isGroup;
+          dmrActivity[activityIndex].frameType = String(dataTypeStr);
+          dmrActivity[activityIndex].active = true;
+          
+          // Update current talkgroup for quick status
+          if (isGroup) {
+            currentTalkgroup = dstId;
+          }
 
           // Parse and forward to MMDVM
           if (mmdvmReady) {
-            uint8_t cmd = CMD_DMR_DATA1;  // or CMD_DMR_DATA2 based on slot
+            uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, packet, len);
           }
         }
@@ -1117,6 +1264,7 @@ void setupWebServer() {
   // Data endpoints
   server.on("/logs", handleGetLogs);
   server.on("/wifiscan", handleWifiScan);
+  server.on("/dmr-activity", handleDMRActivity);  // Live DMR activity for home page
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
