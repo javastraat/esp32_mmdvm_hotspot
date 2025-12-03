@@ -41,6 +41,18 @@
 #include <ETH.h>
 #endif
 static bool eth_connected = false;
+#include <SPI.h>
+#include <SD.h>
+
+// ESP32-S3 USB Serial configuration
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if ARDUINO_USB_MODE
+#warning "USB MODE is enabled - Serial will work via USB CDC"
+#endif
+#if ARDUINO_USB_CDC_ON_BOOT
+#warning "USB CDC ON BOOT is enabled"
+#endif
+#endif
 
 // ===== Configuration from config.h =====
 // WiFi Settings
@@ -178,6 +190,8 @@ bool mode_pocsag_enabled = DEFAULT_MODE_POCSAG;
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
+void setupEthernet();
+void WiFiEvent(arduino_event_id_t event);
 void setupWebServer();
 void setupMMDVM();
 void loadConfig();
@@ -197,8 +211,18 @@ void logSerialVerbose(String message);
 // Web handlers are defined in webpages.h
 
 void setup() {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // ESP32-S3 USB CDC (native USB support)
   Serial.begin(115200);
   delay(1000);
+  // Wait for USB Serial to be ready (ESP32-S3 native USB)
+  while (!Serial && millis() < 3000) {
+    delay(10);
+  }
+#else
+  Serial.begin(115200);
+  delay(1000);
+#endif
 
   logSerial("\n\n=== ESP32 MMDVM Hotspot ===");
   logSerial("Initializing...");
@@ -218,8 +242,12 @@ void setup() {
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
 
-  // Setup WiFi
+  // Setup Network (Ethernet or WiFi)
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  setupEthernet();
+#else
   setupWiFi();
+#endif
 
 // Setup Web Server
 //setupWebServer();
@@ -292,7 +320,13 @@ void setup() {
     logSerial("Access Point Mode - Connect to: " + String(ap_ssid));
     logSerial("Web Interface: http://192.168.4.1");
   } else if (wifiConnected) {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    if (eth_connected) {
+      logSerial("Web Interface: http://" + ETH.localIP().toString());
+    }
+#else
     logSerial("Web Interface: http://" + WiFi.localIP().toString());
+#endif
   }
 }
 
@@ -405,6 +439,75 @@ void setupAccessPoint() {
   logSerial("AP Password: " + String(ap_password));
 
   apMode = true;
+}
+
+void WiFiEvent(arduino_event_id_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      logSerial("ETH Started");
+      ETH.setHostname(device_hostname.c_str());
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      logSerial("ETH Connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      logSerial("ETH MAC: " + ETH.macAddress());
+      logSerial("ETH IPv4: " + ETH.localIP().toString());
+      if (ETH.fullDuplex()) {
+        logSerial("ETH Mode: FULL_DUPLEX");
+      }
+      logSerial("ETH Speed: " + String(ETH.linkSpeed()) + "Mbps");
+      logSerial("ETH Gateway: " + ETH.gatewayIP().toString());
+      eth_connected = true;
+      wifiConnected = true;
+      setLEDMode(LED_MODE::STEADY);
+
+      // Start UDP for DMR network
+      udp.begin(LOCAL_PORT);
+      logSerial("UDP started on port " + String(LOCAL_PORT));
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      logSerial("ETH Disconnected");
+      eth_connected = false;
+      wifiConnected = false;
+      break;
+    case ARDUINO_EVENT_ETH_STOP:
+      logSerial("ETH Stopped");
+      eth_connected = false;
+      wifiConnected = false;
+      break;
+    default:
+      break;
+  }
+}
+
+void setupEthernet() {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  logSerial("Initializing Ethernet (LILYGO T-ETH-ELITE)...");
+
+  WiFi.onEvent(WiFiEvent);
+
+  setLEDMode(LED_MODE::FAST_BLINK);
+
+#ifdef ETH_POWER_PIN
+  pinMode(ETH_POWER_PIN, OUTPUT);
+  digitalWrite(ETH_POWER_PIN, HIGH);
+#endif
+
+  // ESP32-S3 uses W5500 Ethernet chip
+  if (!ETH.begin(ETH_PHY_W5500, 1, ETH_CS_PIN, ETH_INT_PIN, ETH_RST_PIN,
+                 SPI3_HOST,
+                 ETH_SCLK_PIN, ETH_MISO_PIN, ETH_MOSI_PIN)) {
+    logSerial("ETH start Failed!");
+    logSerial("ERROR: Could not initialize Ethernet hardware!");
+    logSerial("Please check your wiring and board configuration.");
+  } else {
+    logSerial("ETH initialization started");
+    logSerial("Ethernet will connect in background...");
+    // Don't wait - let it connect in background via event handler
+    // UDP will be started when ETH_GOT_IP event fires
+  }
+#endif
 }
 
 void setupMMDVM() {

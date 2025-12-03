@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251130_ESP32"  // Update version as needed
-//#define FIRMWARE_VERSION "20251130_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251130_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251130_ESP32_BETA"  // Update version as needed
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -117,6 +117,15 @@
 #define ETH_INT_PIN 14
 #define ETH_RST_PIN -1
 #define ETH_ADDR 1
+// SPI Pins
+#define SPI_MISO_PIN 9
+#define SPI_MOSI_PIN 11
+#define SPI_SCLK_PIN 10
+// SD Card Pins
+#define SD_MISO_PIN SPI_MISO_PIN
+#define SD_MOSI_PIN SPI_MOSI_PIN
+#define SD_SCLK_PIN SPI_SCLK_PIN
+#define SD_CS_PIN 12
 
 #else
 // GPIO Pins

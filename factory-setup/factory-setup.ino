@@ -12,15 +12,82 @@
 #include <HTTPClient.h>
 #include <Update.h>
 #include <Preferences.h>
+#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
+#include <ETHClass2.h>       //Is to use the modified ETHClass
+#define ETH  ETH2
+#else
+#include <ETH.h>
+#endif
 #include "config.h"
 #include "webpages.h"
 
 WebServer server(80);
 Preferences preferences;
 bool apMode = false;
+bool eth_connected = false;
 String currentIP = "";
 String savedSSID = "";
 String savedPassword = "";
+
+// WiFi Event handler for Ethernet
+void WiFiEvent(arduino_event_id_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      Serial.println("ETH Started");
+      ETH.setHostname("esp32-factory-setup");
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      Serial.println("ETH Connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      Serial.println("ETH MAC: " + ETH.macAddress());
+      Serial.println("ETH IPv4: " + ETH.localIP().toString());
+      if (ETH.fullDuplex()) {
+        Serial.println("ETH Mode: FULL_DUPLEX");
+      }
+      Serial.println("ETH Speed: " + String(ETH.linkSpeed()) + "Mbps");
+      Serial.println("ETH Gateway: " + ETH.gatewayIP().toString());
+      eth_connected = true;
+      currentIP = ETH.localIP().toString();
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      Serial.println("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+}
+
+void setupEthernet() {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  Serial.println("Initializing Ethernet (LILYGO T-ETH-ELITE)...");
+
+  WiFi.onEvent(WiFiEvent);
+
+#ifdef ETH_POWER_PIN
+  pinMode(ETH_POWER_PIN, OUTPUT);
+  digitalWrite(ETH_POWER_PIN, HIGH);
+#endif
+
+  // ESP32-S3 uses W5500 Ethernet chip
+  if (!ETH.begin(ETH_PHY_W5500, 1, ETH_CS_PIN, ETH_INT_PIN, ETH_RST_PIN,
+                 SPI3_HOST,
+                 ETH_SCLK_PIN, ETH_MISO_PIN, ETH_MOSI_PIN)) {
+    Serial.println("ETH start Failed!");
+    Serial.println("ERROR: Could not initialize Ethernet hardware!");
+  } else {
+    Serial.println("ETH initialization started");
+    Serial.println("Ethernet will connect in background...");
+    // Wait a bit for connection
+    delay(2000);
+  }
+#endif
+}
 
 void setup() {
   Serial.begin(115200);
@@ -83,6 +150,35 @@ void setup() {
   Serial.println("Total stored preferences: " + String(totalPrefs));
   Serial.println("=== End preferences debug ===");
 
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // Use Ethernet for LILYGO board
+  setupEthernet();
+
+  // Wait a bit for Ethernet to connect
+  int eth_attempts = 0;
+  while (!eth_connected && eth_attempts < 10) {
+    delay(500);
+    Serial.print(".");
+    eth_attempts++;
+  }
+
+  if (eth_connected) {
+    Serial.println("\n\nEthernet connected!");
+    Serial.println("IP address: " + currentIP);
+    apMode = false;
+  } else {
+    Serial.println("\n\nEthernet connection failed. Starting Access Point mode...");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(AP_SSID, AP_PASSWORD);
+    currentIP = WiFi.softAPIP().toString();
+    Serial.println("Access Point started!");
+    Serial.println("SSID: " + String(AP_SSID));
+    Serial.println("Password: " + String(AP_PASSWORD));
+    Serial.println("IP address: " + currentIP);
+    apMode = true;
+  }
+#else
+  // Use WiFi for other boards
   String wifiSSID = WIFI_SSID;
   String wifiPassword = WIFI_PASSWORD;
 
@@ -126,6 +222,7 @@ void setup() {
     Serial.println("IP address: " + currentIP);
     apMode = true;
   }
+#endif
 
   // Setup web server routes
   server.on("/", handleRoot);
