@@ -1378,6 +1378,8 @@ void setupWebServer() {
   server.on("/logs", handleGetLogs);
   server.on("/wifiscan", handleWifiScan);
   server.on("/dmr-activity", handleDMRActivity);  // Live DMR activity for home page
+  server.on("/dmr-slot1", handleDMRSlot1);        // DMR Slot 1 activity
+  server.on("/dmr-slot2", handleDMRSlot2);        // DMR Slot 2 activity
   server.on("/dmr-history", handleDMRHistory);    // Recent DMR activity history
 
   // Admin actions
