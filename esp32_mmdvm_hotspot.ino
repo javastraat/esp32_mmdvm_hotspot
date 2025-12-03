@@ -242,9 +242,28 @@ void setup() {
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
 
-  // Setup Network (Ethernet or WiFi)
+  // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
   setupEthernet();
+  
+  // Wait up to 10 seconds for Ethernet to connect
+  logSerial("Waiting for Ethernet connection...");
+  int eth_attempts = 0;
+  while (!eth_connected && eth_attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    eth_attempts++;
+  }
+  
+  if (eth_connected) {
+    logSerial("\nEthernet connected successfully!");
+    logSerial("IP address: " + ETH.localIP().toString());
+  } else {
+    // Ethernet failed, try WiFi (Ethernet will keep trying in background)
+    logSerial("\nEthernet connection timeout. Falling back to WiFi...");
+    logSerial("Note: Ethernet will continue trying in background.");
+    setupWiFi();
+  }
 #else
   setupWiFi();
 #endif
@@ -504,8 +523,8 @@ void setupEthernet() {
   } else {
     logSerial("ETH initialization started");
     logSerial("Ethernet will connect in background...");
-    // Don't wait - let it connect in background via event handler
-    // UDP will be started when ETH_GOT_IP event fires
+    // Give it a moment to start connecting
+    delay(2000);
   }
 #endif
 }
