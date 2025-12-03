@@ -34,6 +34,14 @@
 #include "config.h"
 #include "webpages.h"
 
+#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
+#include <ETHClass2.h>       //Is to use the modified ETHClass
+#define ETH  ETH2
+#else
+#include <ETH.h>
+#endif
+static bool eth_connected = false;
+
 // ===== Configuration from config.h =====
 // WiFi Settings
 const char* ssid = WIFI_SSID;
@@ -147,8 +155,8 @@ WiFiNetwork wifiNetworks[5] = {
 // Firmware version from config.h
 String firmwareVersion = FIRMWARE_VERSION;
 
-// LED Status Control
-#define STATUS_LED_PIN 2  // GPIO2 - onboard LED
+// LED Status Control (STATUS_LED_PIN defined in config.h)
+
 enum class LED_MODE {
   OFF,
   STEADY,      // Connected to WiFi

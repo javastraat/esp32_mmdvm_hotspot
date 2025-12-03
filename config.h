@@ -93,21 +93,47 @@
 #define GPS_RX_PIN 39
 #define GPS_TX_PIN 42
 
-#define LED_PIN 38
+#define STATUS_LED_PIN 38
 
 #else
+//#define STATUS_LED_PIN 2     // Status LED (can be same as COS)
 
 #endif
 
-// Serial communication
-#define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
-#define MMDVM_RX_PIN 15           // MMDVM RX pin
-#define MMDVM_TX_PIN 14           // MMDVM TX pin
 
+
+#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+
+#if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
 // GPIO Pins
-#define MMDVM_PTT_PIN 4      // Push-to-talk control
+#define MMDVM_PTT_PIN 0      // Push-to-talk control
+#define MMDVM_COS_LED_PIN 38  // Carrier detect LED
+#define STATUS_LED_PIN 38
+// Network Pins
+#define ETH_MISO_PIN 47
+#define ETH_MOSI_PIN 21
+#define ETH_SCLK_PIN 48
+#define ETH_CS_PIN 45
+#define ETH_INT_PIN 14
+#define ETH_RST_PIN -1
+#define ETH_ADDR 1
+
+#else
+// GPIO Pins
+#define MMDVM_PTT_PIN 0      // Push-to-talk control
 #define MMDVM_COS_LED_PIN 2  // Carrier detect LED
 #define STATUS_LED_PIN 2     // Status LED (can be same as COS)
+
+#endif
+
+
+
+
+// Serial communication
+#define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
+#define MMDVM_RX_PIN 39           // MMDVM RX pin
+#define MMDVM_TX_PIN 42          // MMDVM TX pin
+
 
 // RF Configuration
 #define MMDVM_RX_INVERT false   // RX signal inversion
@@ -174,8 +200,8 @@
 // OLED Display Settings (not yet implemented)
 #define ENABLE_OLED false      // Enable OLED display support
 #define OLED_I2C_ADDRESS 0x3C  // I2C address for OLED display
-#define OLED_SDA_PIN 2         // SDA pin for OLED display
-#define OLED_SCL_PIN 3         // SCL pin for OLED display
+#define OLED_SDA_PIN 17         // SDA pin for OLED display
+#define OLED_SCL_PIN 18        // SCL pin for OLED display
 #define OLED_WIDTH 128         // OLED display width
 #define OLED_HEIGHT 64         // OLED display height
 
