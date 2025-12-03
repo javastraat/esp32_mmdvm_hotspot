@@ -157,8 +157,8 @@ const unsigned long KEEPALIVE_INTERVAL = 5000;  // 5 seconds
 // DMR Activity Tracking (struct defined in home.h)
 // Track up to 2 simultaneous transmissions (one per slot)
 DMRActivity dmrActivity[2] = {
-  {0, 0, 1, true, "", "", 0, false},
-  {0, 0, 2, true, "", "", 0, false}
+  {0, 0, 1, true, "", "", "", "", "", 0, 0, false},
+  {0, 0, 2, true, "", "", "", "", "", 0, 0, false}
 };
 
 const unsigned long DMR_ACTIVITY_TIMEOUT = 3000;  // 3 seconds timeout
@@ -176,7 +176,18 @@ struct DMRTransmission {
 };
 DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
 
-// DMR Callsign Lookup Cache
+// DMR User Information Lookup Cache
+struct UserInfoCache {
+  uint32_t dmrId;
+  String callsign;
+  String userInfo;  // Format: "callsign|name|city|country"
+  unsigned long timestamp;
+};
+const int USER_CACHE_SIZE = 50;
+UserInfoCache userCache[USER_CACHE_SIZE];
+int userCacheIndex = 0;
+
+// Legacy callsign cache for backward compatibility
 struct CallsignCache {
   uint32_t dmrId;
   String callsign;
@@ -242,8 +253,12 @@ void logSerial(String message);
 void logSerialVerbose(String message);
 String lookupCallsign(uint32_t dmrId);
 String lookupCallsignAPI(uint32_t dmrId);
+String lookupUserInfo(uint32_t dmrId);
+String lookupUserInfoAPI(uint32_t dmrId);
 String getCachedCallsign(uint32_t dmrId);
+String getCachedUserInfo(uint32_t dmrId);
 void cacheCallsign(uint32_t dmrId, String callsign);
+void cacheUserInfo(uint32_t dmrId, String userInfo);
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -886,20 +901,53 @@ void handleNetwork() {
           // Update DMR activity tracking
           int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
           
-          // Only set lastUpdate and lookup callsign if this is a new transmission (not just another frame)
+          // Only set start time and lookup user info if this is a new transmission (not just another frame)
           if (!dmrActivity[activityIndex].active || 
               dmrActivity[activityIndex].srcId != srcId || 
               dmrActivity[activityIndex].dstId != dstId) {
-            dmrActivity[activityIndex].lastUpdate = millis();  // Start time
+            dmrActivity[activityIndex].startTime = millis();   // Actual transmission start time
+            dmrActivity[activityIndex].lastUpdate = millis();  // Keep for timeout detection
             
-            // Lookup callsign (async, will use cache if available)
-            String callsign = lookupCallsign(srcId);
-            dmrActivity[activityIndex].srcCallsign = callsign;
-            
-            // Log with callsign if found
-            if (callsign.length() > 0 && isNewTransmission) {
-              logSerial("Callsign: " + callsign + " (" + String(srcId) + ")");
+            // Lookup detailed user information (async, will use cache if available)
+            String userInfo = lookupUserInfo(srcId);
+            // userInfo format: "callsign|name|city|country" or just "callsign" for basic lookup
+            int pipe1 = userInfo.indexOf('|');
+            if (pipe1 > 0) {
+              dmrActivity[activityIndex].srcCallsign = userInfo.substring(0, pipe1);
+              int pipe2 = userInfo.indexOf('|', pipe1 + 1);
+              if (pipe2 > pipe1) {
+                dmrActivity[activityIndex].srcName = userInfo.substring(pipe1 + 1, pipe2);
+                int pipe3 = userInfo.indexOf('|', pipe2 + 1);
+                if (pipe3 > pipe2) {
+                  dmrActivity[activityIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
+                  dmrActivity[activityIndex].srcCountry = userInfo.substring(pipe3 + 1);
+                } else {
+                  dmrActivity[activityIndex].srcCity = userInfo.substring(pipe2 + 1);
+                }
+              } else {
+                dmrActivity[activityIndex].srcName = userInfo.substring(pipe1 + 1);
+              }
+            } else {
+              dmrActivity[activityIndex].srcCallsign = userInfo;
             }
+            
+            // Log with enhanced info if found
+            if (dmrActivity[activityIndex].srcCallsign.length() > 0 && isNewTransmission) {
+              String logMsg = "Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
+              if (dmrActivity[activityIndex].srcName.length() > 0) {
+                logMsg += " - " + dmrActivity[activityIndex].srcName;
+              }
+              if (dmrActivity[activityIndex].srcCity.length() > 0) {
+                logMsg += " from " + dmrActivity[activityIndex].srcCity;
+                if (dmrActivity[activityIndex].srcCountry.length() > 0) {
+                  logMsg += ", " + dmrActivity[activityIndex].srcCountry;
+                }
+              }
+              logSerial(logMsg);
+            }
+          } else {
+            // Update lastUpdate for timeout detection but keep startTime unchanged
+            dmrActivity[activityIndex].lastUpdate = millis();
           }
           
           dmrActivity[activityIndex].srcId = srcId;
@@ -1362,13 +1410,41 @@ void updateStatusLED() {
   }
 }
 
-// ===== DMR Callsign Lookup Functions =====
+// ===== DMR User Information Lookup Functions =====
 
-// Main lookup function - checks cache first, then API
-String lookupCallsign(uint32_t dmrId) {
+// Enhanced user info lookup - checks cache first, then API
+String lookupUserInfo(uint32_t dmrId) {
   if (dmrId == 0) return "";
   
   // Check cache first
+  String cached = getCachedUserInfo(dmrId);
+  if (cached.length() > 0) {
+    return cached;
+  }
+  
+  // Not in cache, try API lookup
+  String userInfo = lookupUserInfoAPI(dmrId);
+  
+  // Cache the result (even if empty to avoid repeated failed lookups)
+  if (userInfo.length() > 0) {
+    cacheUserInfo(dmrId, userInfo);
+  }
+  
+  return userInfo;
+}
+
+// Legacy callsign lookup function - checks cache first, then API
+String lookupCallsign(uint32_t dmrId) {
+  if (dmrId == 0) return "";
+  
+  // Try enhanced lookup first
+  String userInfo = lookupUserInfo(dmrId);
+  if (userInfo.length() > 0) {
+    int pipeIndex = userInfo.indexOf('|');
+    return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
+  }
+  
+  // Fallback to legacy cache
   String cached = getCachedCallsign(dmrId);
   if (cached.length() > 0) {
     return cached;
@@ -1385,7 +1461,25 @@ String lookupCallsign(uint32_t dmrId) {
   return callsign;
 }
 
-// Check if callsign is in cache
+// Check if user info is in cache
+String getCachedUserInfo(uint32_t dmrId) {
+  for (int i = 0; i < USER_CACHE_SIZE; i++) {
+    if (userCache[i].dmrId == dmrId && userCache[i].userInfo.length() > 0) {
+      return userCache[i].userInfo;
+    }
+  }
+  return "";
+}
+
+// Add user info to cache (circular buffer)
+void cacheUserInfo(uint32_t dmrId, String userInfo) {
+  userCache[userCacheIndex].dmrId = dmrId;
+  userCache[userCacheIndex].userInfo = userInfo;
+  userCache[userCacheIndex].timestamp = millis();
+  userCacheIndex = (userCacheIndex + 1) % USER_CACHE_SIZE;
+}
+
+// Check if callsign is in legacy cache
 String getCachedCallsign(uint32_t dmrId) {
   for (int i = 0; i < CALLSIGN_CACHE_SIZE; i++) {
     if (callsignCache[i].dmrId == dmrId && callsignCache[i].callsign.length() > 0) {
@@ -1395,7 +1489,7 @@ String getCachedCallsign(uint32_t dmrId) {
   return "";
 }
 
-// Add callsign to cache (circular buffer)
+// Add callsign to legacy cache (circular buffer)
 void cacheCallsign(uint32_t dmrId, String callsign) {
   callsignCache[callsignCacheIndex].dmrId = dmrId;
   callsignCache[callsignCacheIndex].callsign = callsign;
@@ -1403,8 +1497,8 @@ void cacheCallsign(uint32_t dmrId, String callsign) {
   callsignCacheIndex = (callsignCacheIndex + 1) % CALLSIGN_CACHE_SIZE;
 }
 
-// Lookup callsign via RadioID.net API
-String lookupCallsignAPI(uint32_t dmrId) {
+// Enhanced user info lookup via RadioID.net API
+String lookupUserInfoAPI(uint32_t dmrId) {
   if (!wifiConnected) {
     return "";
   }
@@ -1413,16 +1507,22 @@ String lookupCallsignAPI(uint32_t dmrId) {
   String url = "https://radioid.net/api/dmr/user/?id=" + String(dmrId);
   
   http.begin(url);
-  http.setTimeout(2000);  // 2 second timeout
+  http.setTimeout(3000);  // 3 second timeout for more data
   
   int httpCode = http.GET();
-  String callsign = "";
+  String userInfo = "";
   
   if (httpCode == 200) {
     String payload = http.getString();
     
-    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG",...}]}
-    // Simple parsing - look for "callsign":"XXXXX"
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
+    // Parse multiple fields: callsign, name/fname, city, country
+    String callsign = "";
+    String name = "";
+    String city = "";
+    String country = "";
+    
+    // Extract callsign
     int csIndex = payload.indexOf("\"callsign\":\"");
     if (csIndex > 0) {
       csIndex += 12;  // Length of "callsign":"
@@ -1431,10 +1531,72 @@ String lookupCallsignAPI(uint32_t dmrId) {
         callsign = payload.substring(csIndex, endIndex);
       }
     }
+    
+    // Extract name (prefer 'name' over 'fname')
+    int nameIndex = payload.indexOf("\"name\":\"");
+    if (nameIndex > 0) {
+      nameIndex += 8;  // Length of "name":"
+      int endIndex = payload.indexOf("\"", nameIndex);
+      if (endIndex > nameIndex) {
+        name = payload.substring(nameIndex, endIndex);
+        if (name == "null" || name.length() == 0) {
+          // Try fname if name is null/empty
+          int fnameIndex = payload.indexOf("\"fname\":\"");
+          if (fnameIndex > 0) {
+            fnameIndex += 9;  // Length of "fname":"
+            int fendIndex = payload.indexOf("\"", fnameIndex);
+            if (fendIndex > fnameIndex) {
+              name = payload.substring(fnameIndex, fendIndex);
+            }
+          }
+        }
+      }
+    }
+    
+    // Extract city
+    int cityIndex = payload.indexOf("\"city\":\"");
+    if (cityIndex > 0) {
+      cityIndex += 8;  // Length of "city":"
+      int endIndex = payload.indexOf("\"", cityIndex);
+      if (endIndex > cityIndex) {
+        city = payload.substring(cityIndex, endIndex);
+        if (city == "null") city = "";
+      }
+    }
+    
+    // Extract country
+    int countryIndex = payload.indexOf("\"country\":\"");
+    if (countryIndex > 0) {
+      countryIndex += 11;  // Length of "country":"
+      int endIndex = payload.indexOf("\"", countryIndex);
+      if (endIndex > countryIndex) {
+        country = payload.substring(countryIndex, endIndex);
+        if (country == "null") country = "";
+      }
+    }
+    
+    // Build userInfo string: "callsign|name|city|country"
+    if (callsign.length() > 0) {
+      userInfo = callsign;
+      if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
+        userInfo += "|" + name + "|" + city + "|" + country;
+      }
+    }
   } else if (httpCode > 0) {
-    logSerial("Callsign lookup failed: HTTP " + String(httpCode));
+    logSerial("User info lookup failed: HTTP " + String(httpCode));
   }
   
   http.end();
-  return callsign;
+  return userInfo;
+}
+
+// Legacy callsign lookup via RadioID.net API
+String lookupCallsignAPI(uint32_t dmrId) {
+  // Use enhanced lookup and extract just the callsign
+  String userInfo = lookupUserInfoAPI(dmrId);
+  if (userInfo.length() > 0) {
+    int pipeIndex = userInfo.indexOf('|');
+    return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
+  }
+  return "";
 }

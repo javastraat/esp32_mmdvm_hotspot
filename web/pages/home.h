@@ -34,7 +34,11 @@ struct DMRActivity {
   bool isGroup;
   String frameType;
   String srcCallsign;
+  String srcName;
+  String srcCity;
+  String srcCountry;
   unsigned long lastUpdate;
+  unsigned long startTime;  // Actual transmission start time
   bool active;
 };
 extern DMRActivity dmrActivity[2];
@@ -60,10 +64,20 @@ String getDMRActivityHTML() {
     if (activity.active) {
       anyActivity = true;
       html += "<div class='activity-row'>";
-      html += "<span class='label'>Source:</span>";
+      html += "<span class='label'>Station:</span>";
       html += "<span class='value'>";
       if (activity.srcCallsign.length() > 0) {
         html += activity.srcCallsign + " (" + String(activity.srcId) + ")";
+        if (activity.srcName.length() > 0) {
+          html += "<br><small>" + activity.srcName + "</small>";
+        }
+        if (activity.srcCity.length() > 0 || activity.srcCountry.length() > 0) {
+          html += "<br><small>";
+          if (activity.srcCity.length() > 0) html += activity.srcCity;
+          if (activity.srcCity.length() > 0 && activity.srcCountry.length() > 0) html += ", ";
+          if (activity.srcCountry.length() > 0) html += activity.srcCountry;
+          html += "</small>";
+        }
       } else {
         html += String(activity.srcId);
       }
@@ -82,11 +96,11 @@ String getDMRActivityHTML() {
       html += "<span class='value'>" + activity.frameType + "</span>";
       html += "</div>";
       
-      // Calculate time since last update
-      unsigned long elapsed = (millis() - activity.lastUpdate) / 1000;
+      // Calculate transmission duration from start time
+      unsigned long duration = (millis() - activity.startTime) / 1000;
       html += "<div class='activity-row'>";
-      html += "<span class='label'>Active:</span>";
-      html += "<span class='value'>" + String(elapsed) + "s ago</span>";
+      html += "<span class='label'>Duration:</span>";
+      html += "<span class='value'>" + String(duration) + "s</span>";
       html += "</div>";
     } else {
       html += "<div class='no-activity'>No Active Transmission</div>";
@@ -167,19 +181,6 @@ void handleRoot() {
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
   html += "<div class='status " + mmdvmClass + ">" + mmdvmIcon + " MMDVM: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
   html += "</div>";
-  html += "</div>";
-
-  html += "<div class='card'>";
-  html += "<h3>Network & Activity</h3>";
-  html += "<div class='info'><strong>DMR Server:</strong> " + String(dmr_server) + "</div>";
-  if (currentTalkgroup > 0) {
-    html += "<div class='info'><strong>Current Talkgroup:</strong> TG " + String(currentTalkgroup) + "</div>";
-  } else {
-    html += "<div class='info'><strong>Current Talkgroup:</strong> None</div>";
-  }
-  html += "<div class='info'><strong>RX Freq:</strong> " + String(dmr_rx_freq/1000000.0, 3) + " MHz</div>";
-  html += "<div class='info'><strong>TX Freq:</strong> " + String(dmr_tx_freq/1000000.0, 3) + " MHz</div>";
-  html += "<div class='info'><strong>Color Code:</strong> " + String(dmr_color_code) + "</div>";
   html += "</div>";
 
   html += "<h2>About</h2>";
