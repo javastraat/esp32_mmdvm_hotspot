@@ -25,6 +25,7 @@ WebServer server(80);
 Preferences preferences;
 bool apMode = false;
 bool eth_connected = false;
+bool using_wifi_mode = false;  // Flag to track if we've fallen back to WiFi
 String currentIP = "";
 String savedSSID = "";
 String savedPassword = "";
@@ -40,6 +41,7 @@ void WiFiEvent(arduino_event_id_t event) {
       Serial.println("ETH Connected");
       break;
     case ARDUINO_EVENT_ETH_GOT_IP:
+      Serial.println("\n=== Ethernet Connected! ===");
       Serial.println("ETH MAC: " + ETH.macAddress());
       Serial.println("ETH IPv4: " + ETH.localIP().toString());
       if (ETH.fullDuplex()) {
@@ -47,8 +49,20 @@ void WiFiEvent(arduino_event_id_t event) {
       }
       Serial.println("ETH Speed: " + String(ETH.linkSpeed()) + "Mbps");
       Serial.println("ETH Gateway: " + ETH.gatewayIP().toString());
+
+      // If we're in WiFi mode, Ethernet connected late - both should work
+      if (using_wifi_mode) {
+        Serial.println("\nEthernet connected after WiFi fallback!");
+        Serial.println("Web Interface available on BOTH:");
+        Serial.println("  - WiFi: http://" + currentIP);
+        Serial.println("  - Ethernet: http://" + ETH.localIP().toString());
+        Serial.println("===========================\n");
+      } else {
+        Serial.println("\nWeb Interface: http://" + ETH.localIP().toString());
+        Serial.println("===========================\n");
+        currentIP = ETH.localIP().toString();
+      }
       eth_connected = true;
-      currentIP = ETH.localIP().toString();
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       Serial.println("ETH Disconnected");
@@ -154,28 +168,68 @@ void setup() {
   // Use Ethernet for LILYGO board
   setupEthernet();
 
-  // Wait a bit for Ethernet to connect
+  Serial.println("Waiting for Ethernet connection...");
+
+  // Wait up to 10 seconds for Ethernet to connect
   int eth_attempts = 0;
-  while (!eth_connected && eth_attempts < 10) {
+  while (!eth_connected && eth_attempts < 20) {
     delay(500);
     Serial.print(".");
     eth_attempts++;
   }
 
   if (eth_connected) {
-    Serial.println("\n\nEthernet connected!");
+    Serial.println("\nEthernet connected!");
     Serial.println("IP address: " + currentIP);
     apMode = false;
   } else {
-    Serial.println("\n\nEthernet connection failed. Starting Access Point mode...");
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(AP_SSID, AP_PASSWORD);
-    currentIP = WiFi.softAPIP().toString();
-    Serial.println("Access Point started!");
-    Serial.println("SSID: " + String(AP_SSID));
-    Serial.println("Password: " + String(AP_PASSWORD));
-    Serial.println("IP address: " + currentIP);
-    apMode = true;
+    // Ethernet failed, try WiFi (Ethernet will keep trying in background)
+    Serial.println("\nEthernet connection timeout. Trying WiFi...");
+    Serial.println("Note: Ethernet will continue trying in background.");
+
+    // Set flag to track that we're using WiFi
+    using_wifi_mode = true;
+
+    String wifiSSID = WIFI_SSID;
+    String wifiPassword = WIFI_PASSWORD;
+
+    // Use saved WiFi if available
+    if (savedSSID.length() > 0) {
+      wifiSSID = savedSSID;
+      wifiPassword = savedPassword;
+      Serial.println("Using saved WiFi: " + wifiSSID);
+    } else {
+      Serial.println("Using default WiFi: " + wifiSSID);
+    }
+
+    // Start WiFi in STA mode (this allows both ETH and WiFi to coexist)
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
+
+    int wifi_attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && wifi_attempts < WIFI_TIMEOUT_SECONDS) {
+      delay(1000);
+      Serial.print(".");
+      wifi_attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("\n\nWiFi connected!");
+      Serial.println("IP address: " + WiFi.localIP().toString());
+      currentIP = WiFi.localIP().toString();
+      apMode = false;
+    } else {
+      // Both Ethernet and WiFi failed, start AP
+      Serial.println("\n\nWiFi connection failed. Starting Access Point mode...");
+      WiFi.mode(WIFI_AP);
+      WiFi.softAP(AP_SSID, AP_PASSWORD);
+      currentIP = WiFi.softAPIP().toString();
+      Serial.println("Access Point started!");
+      Serial.println("SSID: " + String(AP_SSID));
+      Serial.println("Password: " + String(AP_PASSWORD));
+      Serial.println("IP address: " + currentIP);
+      apMode = true;
+    }
   }
 #else
   // Use WiFi for other boards
