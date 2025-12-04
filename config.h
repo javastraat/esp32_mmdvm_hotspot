@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251204_ESP32"  // Update version as needed
-//#define FIRMWARE_VERSION "20251204_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251204_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251204_ESP32_BETA"  // Update version as needed
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -190,10 +190,11 @@
 // ===== DMR Activity & History Settings =====
 #define DMR_HISTORY_SIZE 15               // Number of recent transmissions to display (shown on home page)
 #define DMR_ACTIVITY_TIMEOUT 3000         // Timeout for active transmission display in milliseconds
+#define QRZ_LOOKUP_URL "https://www.qrz.com/db/"  // QRZ.com callsign lookup URL
 
 #if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM) // More memory available
-#define DMR_USER_CACHE_SIZE 1000            // Number of DMR user info lookups to cache
-#define DMR_CALLSIGN_CACHE_SIZE 1000        // Number of callsign lookups to cache
+#define DMR_USER_CACHE_SIZE 500            // Number of DMR user info lookups to cache
+#define DMR_CALLSIGN_CACHE_SIZE 500        // Number of callsign lookups to cache
 #else
 #define DMR_USER_CACHE_SIZE 50            // Number of DMR user info lookups to cache
 #define DMR_CALLSIGN_CACHE_SIZE 50        // Number of callsign lookups to cache

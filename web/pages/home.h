@@ -84,7 +84,7 @@ String getDMRActivityHTML() {
       html += "<span class='label'>Station:</span>";
       html += "<span class='value'>";
       if (activity.srcCallsign.length() > 0) {
-        html += activity.srcCallsign + " (" + String(activity.srcId) + ")";
+        html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a> (" + String(activity.srcId) + ")";
         if (activity.srcName.length() > 0) {
           html += "<br><small>" + activity.srcName + "</small>";
         }
@@ -146,7 +146,7 @@ String getDMRSlotHTML(int slotIndex) {
     html += "<span class='label'>Station:</span>";
     html += "<span class='value'>";
     if (activity.srcCallsign.length() > 0) {
-      html += activity.srcCallsign + " (" + String(activity.srcId) + ")";
+      html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a> (" + String(activity.srcId) + ")";
       if (activity.srcName.length() > 0) {
         html += "<br><small>" + activity.srcName + "</small>";
       }
@@ -236,7 +236,7 @@ String getDMRHistoryHTML() {
         // Station info
         html += "<div class='col-station'>";
         if (dmrHistory[index].srcCallsign.length() > 0) {
-          html += "<div class='callsign'>" + dmrHistory[index].srcCallsign + "</div>";
+          html += "<div class='callsign'><a href='" + String(QRZ_LOOKUP_URL) + dmrHistory[index].srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + dmrHistory[index].srcCallsign + "</a></div>";
           if (dmrHistory[index].srcName.length() > 0) {
             html += "<div class='name'>" + dmrHistory[index].srcName + "</div>";
           }
@@ -293,6 +293,8 @@ void handleRoot() {
   html += ".activity-row:last-child { border-bottom: none; }";
   html += ".label { font-weight: bold; color: var(--text-color); opacity: 0.8; }";
   html += ".value { color: var(--text-color); font-family: monospace; }";
+  html += ".value a { color: var(--link-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }";
+  html += ".value a:hover { color: #64b5f6; text-decoration: underline; }";
   html += ".no-activity { text-align: center; padding: 30px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
   // History card styles (with dark/light mode support)
   html += ".history-card { margin-top: 20px; }";
@@ -309,6 +311,8 @@ void handleRoot() {
   html += ".history-row.filtered-out { display: none; }";
   html += ".col-time { font-family: monospace; font-size: 0.9em; color: var(--text-color); }";
   html += ".col-station .callsign { font-weight: bold; color: var(--link-color); }";
+  html += ".col-station .callsign a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
+  html += ".col-station .callsign a:hover { color: #64b5f6; text-decoration: underline; }";
   html += ".col-station .name { font-size: 0.85em; color: var(--text-color); opacity: 0.8; }";
   html += ".col-station .location { font-size: 0.8em; color: var(--text-color); opacity: 0.6; }";
   html += ".col-destination { font-family: monospace; font-weight: bold; color: var(--text-color); }";
