@@ -89,6 +89,10 @@ String dmr_url = DMR_URL;
 // Hostname setting
 String device_hostname = MDNS_HOSTNAME;
 
+// NTP Time settings
+long ntp_timezone_offset = NTP_TIMEZONE_OFFSET;    // Timezone offset in seconds
+long ntp_daylight_offset = NTP_DAYLIGHT_OFFSET;    // Daylight saving offset in seconds
+
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
 
@@ -349,8 +353,8 @@ void setup() {
   // Initialize NTP Time
   if (wifiConnected || eth_connected) {
     logSerial("Initializing NTP time client...");
-    // Configure time with NTP servers from config.h
-    configTime(NTP_TIMEZONE_OFFSET, NTP_DAYLIGHT_OFFSET, NTP_SERVER1, NTP_SERVER2);
+    // Configure time with NTP servers (using saved timezone settings or config.h defaults)
+    configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
 
     // Wait a bit for time sync
     int ntp_attempts = 0;
@@ -1306,6 +1310,11 @@ void loadConfig() {
   verbose_logging = preferences.getBool("verbose_log", false);
   logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
 
+  // Load NTP timezone settings
+  ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
+  ntp_daylight_offset = preferences.getLong("ntp_dst_offset", NTP_DAYLIGHT_OFFSET);
+  logSerial("NTP Timezone offset: " + String(ntp_timezone_offset) + "s, DST offset: " + String(ntp_daylight_offset) + "s");
+
   // Load web username
   web_username = preferences.getString("web_username", WEB_USERNAME);
   if (web_username.length() == 0) {
@@ -1414,6 +1423,7 @@ void setupWebServer() {
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
+  server.on("/save-timezone", HTTP_POST, handleSaveTimezone);
   server.on("/save-username", HTTP_POST, handleSaveUsername);
   server.on("/save-password", HTTP_POST, handleSavePassword);
   server.on("/reboot", HTTP_POST, handleReboot);

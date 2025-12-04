@@ -39,6 +39,8 @@ extern String dmr_url;
 extern WiFiNetwork wifiNetworks[5];
 extern String device_hostname;
 extern bool verbose_logging;
+extern long ntp_timezone_offset;
+extern long ntp_daylight_offset;
 extern String web_password;
 extern String serialLog[];
 extern int serialLogIndex;
@@ -326,6 +328,49 @@ void handleAdmin() {
   html += "</form>";
   html += "</div>";
 
+  // NTP Timezone Configuration Card
+  html += "<div class='card'>";
+  html += "<h3>NTP Timezone Configuration</h3>";
+  html += "<p>Configure timezone for timestamps</p>";
+  html += "<p>Current timezone offset: <strong>" + String(ntp_timezone_offset / 3600.0, 1) + " hours</strong></p>";
+  html += "<p>Current DST offset: <strong>" + String(ntp_daylight_offset / 3600.0, 1) + " hours</strong></p>";
+  html += "<form id='timezone-form' onsubmit='saveTimezone(event)'>";
+  html += "<label>Timezone Offset (hours from UTC):</label>";
+  html += "<select id='timezone-select' style='width:100%;padding:10px;margin:10px 0;border:1px solid var(--border-color);border-radius:4px;background:var(--container-bg);color:var(--text-color);'>";
+  html += "<option value='-43200' " + String(ntp_timezone_offset == -43200 ? "selected" : "") + ">UTC-12</option>";
+  html += "<option value='-39600' " + String(ntp_timezone_offset == -39600 ? "selected" : "") + ">UTC-11</option>";
+  html += "<option value='-36000' " + String(ntp_timezone_offset == -36000 ? "selected" : "") + ">UTC-10 (Hawaii)</option>";
+  html += "<option value='-32400' " + String(ntp_timezone_offset == -32400 ? "selected" : "") + ">UTC-9 (Alaska)</option>";
+  html += "<option value='-28800' " + String(ntp_timezone_offset == -28800 ? "selected" : "") + ">UTC-8 (PST)</option>";
+  html += "<option value='-25200' " + String(ntp_timezone_offset == -25200 ? "selected" : "") + ">UTC-7 (MST)</option>";
+  html += "<option value='-21600' " + String(ntp_timezone_offset == -21600 ? "selected" : "") + ">UTC-6 (CST)</option>";
+  html += "<option value='-18000' " + String(ntp_timezone_offset == -18000 ? "selected" : "") + ">UTC-5 (EST)</option>";
+  html += "<option value='-14400' " + String(ntp_timezone_offset == -14400 ? "selected" : "") + ">UTC-4 (AST)</option>";
+  html += "<option value='-10800' " + String(ntp_timezone_offset == -10800 ? "selected" : "") + ">UTC-3</option>";
+  html += "<option value='-7200' " + String(ntp_timezone_offset == -7200 ? "selected" : "") + ">UTC-2</option>";
+  html += "<option value='-3600' " + String(ntp_timezone_offset == -3600 ? "selected" : "") + ">UTC-1</option>";
+  html += "<option value='0' " + String(ntp_timezone_offset == 0 ? "selected" : "") + ">UTC+0 (GMT)</option>";
+  html += "<option value='3600' " + String(ntp_timezone_offset == 3600 ? "selected" : "") + ">UTC+1 (CET)</option>";
+  html += "<option value='7200' " + String(ntp_timezone_offset == 7200 ? "selected" : "") + ">UTC+2 (EET)</option>";
+  html += "<option value='10800' " + String(ntp_timezone_offset == 10800 ? "selected" : "") + ">UTC+3</option>";
+  html += "<option value='14400' " + String(ntp_timezone_offset == 14400 ? "selected" : "") + ">UTC+4</option>";
+  html += "<option value='18000' " + String(ntp_timezone_offset == 18000 ? "selected" : "") + ">UTC+5</option>";
+  html += "<option value='21600' " + String(ntp_timezone_offset == 21600 ? "selected" : "") + ">UTC+6</option>";
+  html += "<option value='25200' " + String(ntp_timezone_offset == 25200 ? "selected" : "") + ">UTC+7</option>";
+  html += "<option value='28800' " + String(ntp_timezone_offset == 28800 ? "selected" : "") + ">UTC+8</option>";
+  html += "<option value='32400' " + String(ntp_timezone_offset == 32400 ? "selected" : "") + ">UTC+9</option>";
+  html += "<option value='36000' " + String(ntp_timezone_offset == 36000 ? "selected" : "") + ">UTC+10 (AEST)</option>";
+  html += "<option value='39600' " + String(ntp_timezone_offset == 39600 ? "selected" : "") + ">UTC+11</option>";
+  html += "<option value='43200' " + String(ntp_timezone_offset == 43200 ? "selected" : "") + ">UTC+12</option>";
+  html += "</select>";
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;margin:15px 0;'>";
+  html += "<input type='checkbox' id='dst-checkbox' " + String(ntp_daylight_offset == 3600 ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span>Enable Daylight Saving Time (+1 hour)</span>";
+  html += "</label>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;'>Save Timezone</button>";
+  html += "</form>";
+  html += "</div>";
+
   // Web Username Card
   html += "<div class='card'>";
   html += "<h3>Web Username</h3>";
@@ -478,8 +523,20 @@ void handleAdmin() {
   html += "    }";
   html += "  });";
   html += "}";
-  html += "function toggleCurrentPassword() {";
-  html += "  var masked = document.getElementById('current-password-display');";
+  html += "function saveTimezone(event) {";
+  html += "  event.preventDefault();";
+  html += "  var timezone = document.getElementById('timezone-select').value;";
+  html += "  var dst = document.getElementById('dst-checkbox').checked ? '3600' : '0';";
+  html += "  fetch('/save-timezone', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'timezone=' + timezone + '&dst=' + dst}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      alert('Timezone settings saved!\\n' + data.replace('SUCCESS: ', ''));";
+  html += "      location.reload();";
+  html += "    } else {";
+  html += "      alert('Error: ' + data);";
+  html += "    }";
+  html += "  });";
+  html += "}";
+  html += "function toggleCurrentPassword() {";  html += "  var masked = document.getElementById('current-password-display');";
   html += "  var real = document.getElementById('current-password-real');";
   html += "  if (masked.style.display === 'none') {";
   html += "    masked.style.display = 'inline';";
@@ -955,6 +1012,44 @@ void handleSaveVerbose() {
   }
 }
 
+void handleSaveTimezone() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("timezone") && server.hasArg("dst")) {
+    long newTimezone = server.arg("timezone").toInt();
+    long newDST = server.arg("dst").toInt();
+
+    // Validate timezone offset (-12 to +14 hours in seconds)
+    if (newTimezone < -43200 || newTimezone > 50400) {
+      server.send(400, "text/plain", "ERROR: Invalid timezone offset");
+      return;
+    }
+
+    // Validate DST offset (0 or 3600 seconds)
+    if (newDST != 0 && newDST != 3600) {
+      server.send(400, "text/plain", "ERROR: Invalid DST offset");
+      return;
+    }
+
+    ntp_timezone_offset = newTimezone;
+    ntp_daylight_offset = newDST;
+
+    // Save to preferences
+    preferences.begin("mmdvm", false);
+    preferences.putLong("ntp_tz_offset", ntp_timezone_offset);
+    preferences.putLong("ntp_dst_offset", ntp_daylight_offset);
+    preferences.end();
+
+    // Reconfigure NTP with new timezone
+    configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
+
+    server.send(200, "text/plain", "SUCCESS: Timezone settings saved. Restart recommended for full effect.");
+    logSerial("Timezone changed to: " + String(ntp_timezone_offset) + "s, DST: " + String(ntp_daylight_offset) + "s");
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing timezone or dst parameter");
+  }
+}
+
 void handleSaveUsername() {
   if (!checkAuthentication()) return;
 
@@ -1063,6 +1158,8 @@ void handleExportConfig() {
   config += "\n[SYSTEM_CONFIG]\n";
   config += "HOSTNAME=" + device_hostname + "\n";
   config += "VERBOSE_LOGGING=" + String(verbose_logging ? "1" : "0") + "\n";
+  config += "NTP_TIMEZONE_OFFSET=" + String(ntp_timezone_offset) + "\n";
+  config += "NTP_DAYLIGHT_OFFSET=" + String(ntp_daylight_offset) + "\n";
   config += "WEB_USERNAME=" + web_username + "\n";
   config += "WEB_PASSWORD=" + web_password + "\n";
 
@@ -1138,6 +1235,8 @@ void handleImportConfig() {
           else if (key == "ALT_PASSWORD") wifiNetworks[0].password = value;  // Legacy support
           else if (key == "HOSTNAME") device_hostname = value;
           else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
+          else if (key == "NTP_TIMEZONE_OFFSET") ntp_timezone_offset = value.toInt();
+          else if (key == "NTP_DAYLIGHT_OFFSET") ntp_daylight_offset = value.toInt();
           else if (key == "WEB_USERNAME") web_username = value;
           else if (key == "WEB_PASSWORD") web_password = value;
           else if (key == "MODE_DMR") mode_dmr_enabled = (value == "1");
@@ -1222,7 +1321,7 @@ void handleShowPreferences() {
       "wifi2_label", "wifi2_ssid", "wifi2_pass",
       "wifi3_label", "wifi3_ssid", "wifi3_pass",
       "wifi4_label", "wifi4_ssid", "wifi4_pass",
-      "hostname", "verbose_log",
+      "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset",
       "web_username", "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
     };
 
@@ -1271,6 +1370,20 @@ void handleShowPreferences() {
               value += " meters";
             }
             type = "Int32";
+            keySize = 4;
+          }
+        }
+        else if (keyName == "ntp_tz_offset" || keyName == "ntp_dst_offset") {
+          // Known Long keys for timezone
+          long longVal = preferences.getLong(keyName.c_str(), -999999);
+          if (longVal != -999999) {
+            value = String(longVal);
+            if (keyName == "ntp_tz_offset") {
+              value += " sec (" + String(longVal / 3600.0, 1) + " hours)";
+            } else {
+              value += " sec (" + String(longVal / 3600.0, 1) + " hours DST)";
+            }
+            type = "Long";
             keySize = 4;
           }
         }
