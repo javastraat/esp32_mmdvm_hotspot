@@ -44,7 +44,8 @@ String getCommonCSS() {
   css += ".footer2 a { color: var(--link-color); text-decoration: none; }";
   css += ".footer2 a:hover { color: var(--link-hover-color); text-decoration: underline; }";
   css += "p, div, span, strong, label { color: var(--text-color); }";
-  css += ".metric-label, .metric-value { color: var(--text-color) !important; }";
+  css += ".metric-label { color: var(--text-color) !important; padding-right: 8px; }";
+  css += ".metric-value { color: var(--text-color) !important; }";
   css += "input, select, textarea { background: var(--container-bg); color: var(--text-color); border: 1px solid var(--border-color); }";
   css += "input:focus, select:focus, textarea:focus { border-color: #007bff; }";
   css += "</style>";

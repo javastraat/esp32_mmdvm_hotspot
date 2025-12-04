@@ -80,44 +80,58 @@ String getDMRActivityHTML() {
     
     if (activity.active) {
       anyActivity = true;
-      html += "<div class='activity-row'>";
-      html += "<span class='label'>Station:</span>";
-      html += "<span class='value'>";
+      // Prominent callsign header
+      html += "<div class='callsign-header'>";
       if (activity.srcCallsign.length() > 0) {
-        html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a> (" + String(activity.srcId) + ")";
-        if (activity.srcName.length() > 0) {
-          html += "<br><small>" + activity.srcName + "</small>";
-        }
-        if (activity.srcCity.length() > 0 || activity.srcCountry.length() > 0) {
-          html += "<br><small>";
-          if (activity.srcCity.length() > 0) html += activity.srcCity;
-          if (activity.srcCity.length() > 0 && activity.srcCountry.length() > 0) html += ", ";
-          if (activity.srcCountry.length() > 0) html += activity.srcCountry;
-          html += "</small>";
-        }
+        html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a>";
       } else {
-        html += String(activity.srcId);
+        html += "Unknown";
       }
-      html += "</span>";
       html += "</div>";
-      
-      html += "<div class='activity-row'>";
-      html += "<span class='label'>Destination:</span>";
-      html += "<span class='value'>";
+
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>DMR ID:</span>";
+      html += "<span class='metric-value'>" + String(activity.srcId) + "</span>";
+      html += "</div>";
+
+      if (activity.srcName.length() > 0) {
+        html += "<div class='metric'>";
+        html += "<span class='metric-label'>Name:</span>";
+        html += "<span class='metric-value'>" + activity.srcName + "</span>";
+        html += "</div>";
+      }
+
+      if (activity.srcCity.length() > 0) {
+        html += "<div class='metric'>";
+        html += "<span class='metric-label'>City:</span>";
+        html += "<span class='metric-value'>" + activity.srcCity + "</span>";
+        html += "</div>";
+      }
+
+      if (activity.srcCountry.length() > 0) {
+        html += "<div class='metric'>";
+        html += "<span class='metric-label'>Country:</span>";
+        html += "<span class='metric-value'>" + activity.srcCountry + "</span>";
+        html += "</div>";
+      }
+
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Destination:</span>";
+      html += "<span class='metric-value'>";
       if (activity.isGroup) html += "TG ";
       html += String(activity.dstId) + "</span>";
       html += "</div>";
-      
-      html += "<div class='activity-row'>";
-      html += "<span class='label'>Type:</span>";
-      html += "<span class='value'>" + activity.frameType + "</span>";
+
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Type:</span>";
+      html += "<span class='metric-value'>" + activity.frameType + "</span>";
       html += "</div>";
-      
+
       // Calculate transmission duration from start time
       unsigned long duration = (millis() - activity.startTime) / 1000;
-      html += "<div class='activity-row'>";
-      html += "<span class='label'>Duration:</span>";
-      html += "<span class='value'>" + String(duration) + "s</span>";
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Duration:</span>";
+      html += "<span class='metric-value'>" + String(duration) + "s</span>";
       html += "</div>";
     } else {
       html += "<div class='no-activity'>No Active Transmission</div>";
@@ -142,44 +156,58 @@ String getDMRSlotHTML(int slotIndex) {
   html += "<div class='activity-details'>";
   
   if (activity.active) {
-    html += "<div class='activity-row'>";
-    html += "<span class='label'>Station:</span>";
-    html += "<span class='value'>";
+    // Prominent callsign header
+    html += "<div class='callsign-header'>";
     if (activity.srcCallsign.length() > 0) {
-      html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a> (" + String(activity.srcId) + ")";
-      if (activity.srcName.length() > 0) {
-        html += "<br><small>" + activity.srcName + "</small>";
-      }
-      if (activity.srcCity.length() > 0 || activity.srcCountry.length() > 0) {
-        html += "<br><small>";
-        if (activity.srcCity.length() > 0) html += activity.srcCity;
-        if (activity.srcCity.length() > 0 && activity.srcCountry.length() > 0) html += ", ";
-        if (activity.srcCountry.length() > 0) html += activity.srcCountry;
-        html += "</small>";
-      }
+      html += "<a href='" + String(QRZ_LOOKUP_URL) + activity.srcCallsign + "' target='_blank' rel='noopener noreferrer'>" + activity.srcCallsign + "</a>";
     } else {
-      html += String(activity.srcId);
+      html += "Unknown";
     }
-    html += "</span>";
     html += "</div>";
-    
-    html += "<div class='activity-row'>";
-    html += "<span class='label'>Destination:</span>";
-    html += "<span class='value'>";
+
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>DMR ID:</span>";
+    html += "<span class='metric-value'>" + String(activity.srcId) + "</span>";
+    html += "</div>";
+
+    if (activity.srcName.length() > 0) {
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Name:</span>";
+      html += "<span class='metric-value'>" + activity.srcName + "</span>";
+      html += "</div>";
+    }
+
+    if (activity.srcCity.length() > 0) {
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>City:</span>";
+      html += "<span class='metric-value'>" + activity.srcCity + "</span>";
+      html += "</div>";
+    }
+
+    if (activity.srcCountry.length() > 0) {
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Country:</span>";
+      html += "<span class='metric-value'>" + activity.srcCountry + "</span>";
+      html += "</div>";
+    }
+
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>Destination:</span>";
+    html += "<span class='metric-value'>";
     if (activity.isGroup) html += "TG ";
     html += String(activity.dstId) + "</span>";
     html += "</div>";
-    
-    html += "<div class='activity-row'>";
-    html += "<span class='label'>Type:</span>";
-    html += "<span class='value'>" + activity.frameType + "</span>";
+
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>Type:</span>";
+    html += "<span class='metric-value'>" + activity.frameType + "</span>";
     html += "</div>";
-    
+
     // Calculate transmission duration from start time
     unsigned long duration = (millis() - activity.startTime) / 1000;
-    html += "<div class='activity-row'>";
-    html += "<span class='label'>Duration:</span>";
-    html += "<span class='value'>" + String(duration) + "s</span>";
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>Duration:</span>";
+    html += "<span class='metric-value'>" + String(duration) + "s</span>";
     html += "</div>";
   } else {
     html += "<div class='no-activity'>No Active Transmission</div>";
@@ -289,12 +317,11 @@ void handleRoot() {
   html += ".activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }";
   html += ".slot-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 5px 5px 0 0; font-weight: bold; }";
   html += ".activity-details { padding: 15px; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 5px; }";
-  html += ".activity-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border-color); }";
-  html += ".activity-row:last-child { border-bottom: none; }";
-  html += ".label { font-weight: bold; color: var(--text-color); opacity: 0.8; }";
-  html += ".value { color: var(--text-color); font-family: monospace; }";
-  html += ".value a { color: var(--link-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }";
-  html += ".value a:hover { color: #64b5f6; text-decoration: underline; }";
+  html += ".callsign-header { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }";
+  html += ".callsign-header a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
+  html += ".callsign-header a:hover { color: #64b5f6; text-decoration: underline; }";
+  html += ".activity-details .metric-value a { color: var(--link-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }";
+  html += ".activity-details .metric-value a:hover { color: #64b5f6; text-decoration: underline; }";
   html += ".no-activity { text-align: center; padding: 30px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
   // History card styles (with dark/light mode support)
   html += ".history-card { margin-top: 20px; }";
