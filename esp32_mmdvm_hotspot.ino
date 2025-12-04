@@ -31,9 +31,11 @@
 #include "nvs_flash.h"
 #include <Update.h>
 #include <HTTPClient.h>
+#include <time.h>
 #include "config.h"
 #include "webpages.h"
 
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
 #include <ETHClass2.h>       //Is to use the modified ETHClass
 #define ETH  ETH2
@@ -43,6 +45,7 @@
 static bool eth_connected = false;
 #include <SPI.h>
 #include <SD.h>
+#endif
 
 // ESP32-S3 USB Serial configuration
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -342,6 +345,30 @@ void setup() {
     logSerial("mDNS started: http://" + device_hostname + ".local");
   }
 #endif
+
+  // Initialize NTP Time
+  if (wifiConnected || eth_connected) {
+    logSerial("Initializing NTP time client...");
+    // Configure time with NTP servers from config.h
+    configTime(NTP_TIMEZONE_OFFSET, NTP_DAYLIGHT_OFFSET, NTP_SERVER1, NTP_SERVER2);
+
+    // Wait a bit for time sync
+    int ntp_attempts = 0;
+    struct tm timeinfo;
+    while (!getLocalTime(&timeinfo) && ntp_attempts < 10) {
+      delay(500);
+      ntp_attempts++;
+    }
+
+    if (ntp_attempts < 10) {
+      logSerial("NTP time synchronized successfully");
+      char timeStr[64];
+      strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+      logSerial("Current time: " + String(timeStr));
+    } else {
+      logSerial("Warning: NTP time sync failed, timestamps will use system time");
+    }
+  }
 
   // Initialize MMDVM
   setupMMDVM();
@@ -1376,6 +1403,7 @@ void setupWebServer() {
 
   // Data endpoints
   server.on("/logs", handleGetLogs);
+  server.on("/statusdata", handleStatusData);     // Status page data
   server.on("/wifiscan", handleWifiScan);
   server.on("/dmr-activity", handleDMRActivity);  // Live DMR activity for home page
   server.on("/dmr-slot1", handleDMRSlot1);        // DMR Slot 1 activity
@@ -1646,25 +1674,40 @@ String lookupCallsignAPI(uint32_t dmrId) {
   return "";
 }
 
+// Helper function to get current timestamp in HH:MM:SS format
+String getCurrentTimestamp() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    // We have NTP time
+    char timeStr[9];
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+    return String(timeStr);
+  } else {
+    // Fallback to uptime if NTP not available
+    unsigned long totalSeconds = millis() / 1000;
+    int hours = (totalSeconds / 3600) % 24;
+    int minutes = (totalSeconds / 60) % 60;
+    int seconds = totalSeconds % 60;
+
+    String timestamp = "";
+    if (hours < 10) timestamp += "0";
+    timestamp += String(hours) + ":";
+    if (minutes < 10) timestamp += "0";
+    timestamp += String(minutes) + ":";
+    if (seconds < 10) timestamp += "0";
+    timestamp += String(seconds);
+    return timestamp;
+  }
+}
+
 // Add DMR transmission to history
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo) {
   // Debug log
   logSerial("Adding to history: " + srcCallsign + " (" + String(srcId) + ") -> " + (isGroup ? "TG" : "") + String(dstId) + " Duration: " + String(duration) + "s");
-  
-  // Get current time as HH:MM:SS
-  unsigned long totalSeconds = millis() / 1000;
-  int hours = (totalSeconds / 3600) % 24;
-  int minutes = (totalSeconds / 60) % 60;
-  int seconds = totalSeconds % 60;
-  
-  String timestamp = "";
-  if (hours < 10) timestamp += "0";
-  timestamp += String(hours) + ":";
-  if (minutes < 10) timestamp += "0";
-  timestamp += String(minutes) + ":";
-  if (seconds < 10) timestamp += "0";
-  timestamp += String(seconds);
-  
+
+  // Get current timestamp (NTP time or fallback to uptime)
+  String timestamp = getCurrentTimestamp();
+
   // Add to circular buffer
   dmrHistory[dmrHistoryIndex].timestamp = timestamp;
   dmrHistory[dmrHistoryIndex].srcId = srcId;

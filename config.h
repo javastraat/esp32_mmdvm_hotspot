@@ -172,6 +172,18 @@
 #define NETWORK_TIMEOUT 30000            // Network timeout in milliseconds
 #define NETWORK_RECONNECT_DELAY 5000     // Delay before reconnecting
 
+// ===== NTP Time Settings =====
+#define NTP_SERVER1 "pool.ntp.org"    // Primary NTP server
+#define NTP_SERVER2 "time.nist.gov"   // Secondary NTP server
+#define NTP_TIMEZONE_OFFSET 3600         // Timezone offset in seconds (0 = UTC/GMT)
+                                      // Examples:
+                                      //   UTC: 0
+                                      //   EST: -5 * 3600 = -18000
+                                      //   PST: -8 * 3600 = -28800
+                                      //   CET: 1 * 3600 = 3600
+                                      //   AEST: 10 * 3600 = 36000
+#define NTP_DAYLIGHT_OFFSET 0         // Daylight saving offset in seconds (0 = no DST, 3600 = 1 hour DST)
+
 // ===== Debug Settings =====
 #define DEBUG_SERIAL true     // Enable serial debug output
 #define DEBUG_MMDVM false     // Enable MMDVM protocol debug

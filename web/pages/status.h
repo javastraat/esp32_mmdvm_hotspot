@@ -31,12 +31,14 @@ extern uint8_t dmr_color_code;
 extern uint8_t dmr_power;
 extern String dmr_location;
 
+// Forward declaration
+String getStatusContent();
+
 void handleStatus() {
   if (!checkAuthentication()) return;
 
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<meta http-equiv='refresh' content='10'>";  // Auto-refresh every 10 seconds
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
@@ -46,15 +48,54 @@ void handleStatus() {
   html += ".metric-label { font-weight: bold; color: #555; }";
   html += ".metric-value { color: #333; }";
   html += ".uptime { color: #007bff; font-weight: bold; }";
-  html += "</style></head><body>";
+  html += ".refresh-info { color: var(--text-color); font-size: 0.9em; margin: 10px 0; padding: 8px; background: var(--info-bg); border-radius: 4px; text-align: center; }";
+  html += ".controls { margin: 15px 0; padding: 10px; background: var(--card-bg); border-radius: 4px; text-align: center; }";
+  html += ".btn { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }";
+  html += ".btn:hover { background: #0056b3; }";
+  html += "</style>";
+  html += "<script>";
+  html += "let autoRefresh = true;";
+  html += "function updateStatus() {";
+  html += "  if (!autoRefresh) return;";
+  html += "  fetch('/statusdata').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('status-content').innerHTML = data;";
+  html += "  }).catch(e => console.log('Failed to fetch status:', e));";
+  html += "}";
+  html += "function toggleAutoRefresh() {";
+  html += "  autoRefresh = !autoRefresh;";
+  html += "  document.getElementById('toggleBtn').textContent = autoRefresh ? 'Pause' : 'Resume';";
+  html += "  document.getElementById('refresh-status').textContent = autoRefresh ? 'Auto-refreshing every 5 seconds...' : 'Auto-refresh paused';";
+  html += "}";
+  html += "function toggleNav() {";
+  html += "  var x = document.getElementById('myTopnav');";
+  html += "  if (x.className === 'topnav') {";
+  html += "    x.className += ' responsive';";
+  html += "  } else {";
+  html += "    x.className = 'topnav';";
+  html += "  }";
+  html += "}";
+  html += "setInterval(updateStatus, 5000);";
+  html += "window.onload = updateStatus;";
+  html += "</script>";
+  html += "</head><body>";
   html += getNavigation("status");
   html += "<div class='container'>";
   html += "<h1>System Status</h1>";
-  html += "<div class='info' style='text-align: center; margin-bottom: 20px;'>";
-  html += "<strong>Last Updated:</strong> " + String(millis()/1000) + " seconds since boot | Auto-refresh in 10 seconds";
+  html += "<div class='refresh-info' id='refresh-status'>Auto-refreshing every 5 seconds...</div>";
+  html += "<div class='controls'>";
+  html += "<button class='btn' onclick='updateStatus()'>Refresh Now</button>";
+  html += "<button class='btn' id='toggleBtn' onclick='toggleAutoRefresh()'>Pause</button>";
   html += "</div>";
+  html += "<div id='status-content'>";
+  html += getStatusContent();
+  html += "</div>";
+  html += getFooter();
+  html += "</div></body></html>";
+  server.send(200, "text/html", html);
+}
 
-  html += "<div class='status-grid'>";
+String getStatusContent() {
+  String html = "<div class='status-grid'>";
 
   // WiFi Status Card
   html += "<div class='card'>";
@@ -113,10 +154,12 @@ void handleStatus() {
   html += "</div>";
 
   html += "</div>"; // Close status-grid
+  return html;
+}
 
-  html += getFooter();
-  html += "</div></body></html>";
-  server.send(200, "text/html", html);
+void handleStatusData() {
+  if (!checkAuthentication()) return;
+  server.send(200, "text/html", getStatusContent());
 }
 
 #endif // WEB_PAGES_STATUS_H
