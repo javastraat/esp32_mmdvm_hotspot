@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-//#define FIRMWARE_VERSION "20251130_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20251130_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20251204_ESP32"  // Update version as needed
+//#define FIRMWARE_VERSION "20251204_ESP32_BETA"  // Update version as needed
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -18,6 +18,9 @@
 // Fallback Access Point mode settings (when WiFi fails)
 #define AP_SSID "ESP32-MMDVM-Config"  // AP SSID
 #define AP_PASSWORD "mmdvm1234"       // AP Password
+
+// Define board type
+#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // Default labels for alternate WiFi network slots
 #define WIFI_SLOT1_LABEL "Home"     // WiFi Slot 1 Label
@@ -100,10 +103,6 @@
 
 #endif
 
-
-
-#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-
 #if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
 // GPIO Pins
 #define MMDVM_PTT_PIN 0      // Push-to-talk control
@@ -136,13 +135,10 @@
 #endif
 
 
-
-
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
 #define MMDVM_RX_PIN 39           // MMDVM RX pin
 #define MMDVM_TX_PIN 42          // MMDVM TX pin
-
 
 // RF Configuration
 #define MMDVM_RX_INVERT false   // RX signal inversion
@@ -183,6 +179,25 @@
                                       //   CET: 1 * 3600 = 3600
                                       //   AEST: 10 * 3600 = 36000
 #define NTP_DAYLIGHT_OFFSET 0         // Daylight saving offset in seconds (0 = no DST, 3600 = 1 hour DST)
+
+// ===== DMR User Database API Settings =====
+#define DMR_API_URL "https://radioid.net/api/dmr/user/?id="  // RadioID.net API endpoint
+// Alternative APIs:
+// #define DMR_API_URL "https://database.radioid.net/api/dmr/user/?id="  // Alternative RadioID mirror
+// #define DMR_API_URL "https://ham-digital.org/api/dmr/user/?id="       // Ham-Digital.org API
+#define DMR_API_TIMEOUT 3000              // API request timeout in milliseconds
+
+// ===== DMR Activity & History Settings =====
+#define DMR_HISTORY_SIZE 15               // Number of recent transmissions to display (shown on home page)
+#define DMR_ACTIVITY_TIMEOUT 3000         // Timeout for active transmission display in milliseconds
+
+#if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM) // More memory available
+#define DMR_USER_CACHE_SIZE 1000            // Number of DMR user info lookups to cache
+#define DMR_CALLSIGN_CACHE_SIZE 1000        // Number of callsign lookups to cache
+#else
+#define DMR_USER_CACHE_SIZE 50            // Number of DMR user info lookups to cache
+#define DMR_CALLSIGN_CACHE_SIZE 50        // Number of callsign lookups to cache
+#endif
 
 // ===== Debug Settings =====
 #define DEBUG_SERIAL true     // Enable serial debug output

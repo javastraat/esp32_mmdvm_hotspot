@@ -159,7 +159,6 @@ String serialLog[SERIAL_LOG_SIZE];
 int serialLogIndex = 0;
 
 unsigned long lastKeepalive = 0;
-const unsigned long KEEPALIVE_INTERVAL = 5000;  // 5 seconds
 
 // DMR Activity Tracking (struct defined in home.h)
 // Track up to 2 simultaneous transmissions (one per slot)
@@ -167,8 +166,6 @@ DMRActivity dmrActivity[2] = {
   {0, 0, 1, true, "", "", "", "", "", 0, 0, false},
   {0, 0, 2, true, "", "", "", "", "", 0, 0, false}
 };
-
-const unsigned long DMR_ACTIVITY_TIMEOUT = 3000;  // 3 seconds timeout
 
 // DMR Transmission Tracking (for consolidated log output)
 struct DMRTransmission {
@@ -185,7 +182,6 @@ DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true
 
 // DMR Transmission History (for Recent Activity display)
 // struct DMRHistory is defined in webpages.h/home.h
-const int DMR_HISTORY_SIZE = 15;
 DMRHistory dmrHistory[DMR_HISTORY_SIZE];
 int dmrHistoryIndex = 0;
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
@@ -197,8 +193,7 @@ struct UserInfoCache {
   String userInfo;  // Format: "callsign|name|city|country"
   unsigned long timestamp;
 };
-const int USER_CACHE_SIZE = 50;
-UserInfoCache userCache[USER_CACHE_SIZE];
+UserInfoCache userCache[DMR_USER_CACHE_SIZE];
 int userCacheIndex = 0;
 
 // Legacy callsign cache for backward compatibility
@@ -207,8 +202,7 @@ struct CallsignCache {
   String callsign;
   unsigned long timestamp;
 };
-const int CALLSIGN_CACHE_SIZE = 50;
-CallsignCache callsignCache[CALLSIGN_CACHE_SIZE];
+CallsignCache callsignCache[DMR_CALLSIGN_CACHE_SIZE];
 int callsignCacheIndex = 0;
 
 // Store alternate WiFi credentials
@@ -488,7 +482,7 @@ void loop() {
     // Send keepalive packets only if DMR mode is enabled and connected
     if (mode_dmr_enabled && dmrLoggedIn) {
       unsigned long currentMillis = millis();
-      if (currentMillis - lastKeepalive >= KEEPALIVE_INTERVAL) {
+      if (currentMillis - lastKeepalive >= NETWORK_KEEPALIVE_INTERVAL) {
         sendDMRKeepalive();
         lastKeepalive = currentMillis;
       }
@@ -1546,7 +1540,7 @@ String lookupCallsign(uint32_t dmrId) {
 
 // Check if user info is in cache
 String getCachedUserInfo(uint32_t dmrId) {
-  for (int i = 0; i < USER_CACHE_SIZE; i++) {
+  for (int i = 0; i < DMR_USER_CACHE_SIZE; i++) {
     if (userCache[i].dmrId == dmrId && userCache[i].userInfo.length() > 0) {
       return userCache[i].userInfo;
     }
@@ -1559,12 +1553,12 @@ void cacheUserInfo(uint32_t dmrId, String userInfo) {
   userCache[userCacheIndex].dmrId = dmrId;
   userCache[userCacheIndex].userInfo = userInfo;
   userCache[userCacheIndex].timestamp = millis();
-  userCacheIndex = (userCacheIndex + 1) % USER_CACHE_SIZE;
+  userCacheIndex = (userCacheIndex + 1) % DMR_USER_CACHE_SIZE;
 }
 
 // Check if callsign is in legacy cache
 String getCachedCallsign(uint32_t dmrId) {
-  for (int i = 0; i < CALLSIGN_CACHE_SIZE; i++) {
+  for (int i = 0; i < DMR_CALLSIGN_CACHE_SIZE; i++) {
     if (callsignCache[i].dmrId == dmrId && callsignCache[i].callsign.length() > 0) {
       return callsignCache[i].callsign;
     }
@@ -1577,7 +1571,7 @@ void cacheCallsign(uint32_t dmrId, String callsign) {
   callsignCache[callsignCacheIndex].dmrId = dmrId;
   callsignCache[callsignCacheIndex].callsign = callsign;
   callsignCache[callsignCacheIndex].timestamp = millis();
-  callsignCacheIndex = (callsignCacheIndex + 1) % CALLSIGN_CACHE_SIZE;
+  callsignCacheIndex = (callsignCacheIndex + 1) % DMR_CALLSIGN_CACHE_SIZE;
 }
 
 // Enhanced user info lookup via RadioID.net API
@@ -1587,10 +1581,10 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   }
   
   HTTPClient http;
-  String url = "https://radioid.net/api/dmr/user/?id=" + String(dmrId);
+  String url = String(DMR_API_URL) + String(dmrId);
   
   http.begin(url);
-  http.setTimeout(3000);  // 3 second timeout for more data
+  http.setTimeout(DMR_API_TIMEOUT);  // API timeout from config.h
   
   int httpCode = http.GET();
   String userInfo = "";
