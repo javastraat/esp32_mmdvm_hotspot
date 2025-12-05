@@ -166,11 +166,6 @@ String getDMRSlotHTML(int slotIndex) {
     }
     html += "</div>";
 
-    html += "<div class='metric'>";
-    html += "<span class='metric-label'>DMR ID:</span>";
-    html += "<span class='metric-value'>" + String(activity.srcId) + "</span>";
-    html += "</div>";
-
     if (activity.srcName.length() > 0) {
       html += "<div class='metric'>";
       html += "<span class='metric-label'>Name:</span>";
@@ -191,6 +186,11 @@ String getDMRSlotHTML(int slotIndex) {
       html += "<span class='metric-value'>" + activity.srcCountry + "</span>";
       html += "</div>";
     }
+
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>DMR ID:</span>";
+    html += "<span class='metric-value'>" + String(activity.srcId) + "</span>";
+    html += "</div>";
 
     html += "<div class='metric'>";
     html += "<span class='metric-label'>Destination:</span>";

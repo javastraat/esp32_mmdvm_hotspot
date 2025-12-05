@@ -81,13 +81,13 @@ void handleStatus() {
   html += getNavigation("status");
   html += "<div class='container'>";
   html += "<h1>System Status</h1>";
+  html += "<div id='status-content'>";
+  html += getStatusContent();
+  html += "</div>";
   html += "<div class='refresh-info' id='refresh-status'>Auto-refreshing every 5 seconds...</div>";
   html += "<div class='controls'>";
   html += "<button class='btn' onclick='updateStatus()'>Refresh Now</button>";
   html += "<button class='btn' id='toggleBtn' onclick='toggleAutoRefresh()'>Pause</button>";
-  html += "</div>";
-  html += "<div id='status-content'>";
-  html += getStatusContent();
   html += "</div>";
   html += getFooter();
   html += "</div></body></html>";
