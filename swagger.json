@@ -1,0 +1,894 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ESP32 MMDVM Hotspot API",
+    "description": "REST API for ESP32 MMDVM Hotspot web interface - Control and monitor your DMR hotspot via HTTP",
+    "version": "1.0.0",
+    "contact": {
+      "name": "ESP32 MMDVM Hotspot Project",
+      "url": "https://github.com/javastraat/esp32_mmdvm_hotspot"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://esp32-mmdvm.local",
+      "description": "Default mDNS hostname"
+    },
+    {
+      "url": "http://{device-ip}",
+      "description": "Direct IP access",
+      "variables": {
+        "device-ip": {
+          "default": "192.168.1.100",
+          "description": "ESP32 device IP address"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "basicAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Pages",
+      "description": "Web page endpoints (HTML responses)"
+    },
+    {
+      "name": "DMR Activity",
+      "description": "Live DMR transmission data"
+    },
+    {
+      "name": "System Status",
+      "description": "System status and monitoring"
+    },
+    {
+      "name": "Configuration",
+      "description": "Configuration management"
+    },
+    {
+      "name": "System Actions",
+      "description": "System control operations"
+    },
+    {
+      "name": "Firmware",
+      "description": "Firmware update operations"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Home page",
+        "description": "Main dashboard with live DMR activity and recent transmission history",
+        "responses": {
+          "200": {
+            "description": "HTML home page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Status page",
+        "description": "System status page with WiFi, DMR, and hardware information",
+        "responses": {
+          "200": {
+            "description": "HTML status page"
+          }
+        }
+      }
+    },
+    "/modeconfig": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Mode configuration page",
+        "description": "Configure DMR settings, modem type, and protocol modes",
+        "responses": {
+          "200": {
+            "description": "HTML configuration page"
+          }
+        }
+      }
+    },
+    "/dmr-activity": {
+      "get": {
+        "tags": ["DMR Activity"],
+        "summary": "Get combined DMR activity",
+        "description": "Retrieve live DMR activity for both slots",
+        "responses": {
+          "200": {
+            "description": "HTML fragment with both slot activities",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string",
+                  "example": "<div class='activity-card'>...</div>"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dmr-slot1": {
+      "get": {
+        "tags": ["DMR Activity"],
+        "summary": "Get Slot 1 activity",
+        "description": "Retrieve live DMR activity for Slot 1 (dual-slot modems only)",
+        "responses": {
+          "200": {
+            "description": "HTML fragment with Slot 1 activity"
+          }
+        }
+      }
+    },
+    "/dmr-slot2": {
+      "get": {
+        "tags": ["DMR Activity"],
+        "summary": "Get Slot 2 activity",
+        "description": "Retrieve live DMR activity for Slot 2",
+        "responses": {
+          "200": {
+            "description": "HTML fragment with Slot 2 activity"
+          }
+        }
+      }
+    },
+    "/dmr-history": {
+      "get": {
+        "tags": ["DMR Activity"],
+        "summary": "Get DMR transmission history",
+        "description": "Retrieve last 15 DMR transmissions with details",
+        "responses": {
+          "200": {
+            "description": "HTML table with transmission history"
+          }
+        }
+      }
+    },
+    "/statusdata": {
+      "get": {
+        "tags": ["System Status"],
+        "summary": "Get status data",
+        "description": "Retrieve current system status as HTML fragment",
+        "responses": {
+          "200": {
+            "description": "HTML content with status cards"
+          }
+        }
+      }
+    },
+    "/logs": {
+      "get": {
+        "tags": ["System Status"],
+        "summary": "Get serial logs",
+        "description": "Retrieve serial monitor log entries",
+        "responses": {
+          "200": {
+            "description": "Plain text log entries",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wifiscan": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Scan WiFi networks",
+        "description": "Scan for available WiFi networks",
+        "responses": {
+          "200": {
+            "description": "Array of WiFi networks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WiFiNetwork"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/export-config": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Export configuration",
+        "description": "Export complete configuration as text file in INI format",
+        "responses": {
+          "200": {
+            "description": "Configuration file",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "[DMR_CONFIG]\nDMR_CALLSIGN=N0CALL\n..."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/showprefs": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Show preferences",
+        "description": "Display all stored NVS preferences with values organized by category",
+        "responses": {
+          "200": {
+            "description": "HTML page with preferences table"
+          }
+        }
+      }
+    },
+    "/savedmrconfig": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Save DMR configuration",
+        "description": "Update DMR configuration settings including modem type",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/DMRConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration saved, device will restart"
+          },
+          "400": {
+            "description": "Invalid parameters"
+          }
+        }
+      }
+    },
+    "/saveconfig": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Save WiFi configuration",
+        "description": "Update WiFi network configurations (5 slots)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/WiFiConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WiFi configuration saved"
+          }
+        }
+      }
+    },
+    "/save-hostname": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Save hostname",
+        "description": "Update mDNS hostname (device will restart)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostname": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9-]+$",
+                    "example": "my-hotspot"
+                  }
+                },
+                "required": ["hostname"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hostname saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-verbose": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Toggle verbose logging",
+        "description": "Enable or disable verbose logging",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "verbose": {
+                    "type": "integer",
+                    "enum": [0, 1],
+                    "description": "1 to enable, omit parameter to disable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verbose logging setting updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-timezone": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Save timezone settings",
+        "description": "Update NTP timezone and daylight saving offsets",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timezone_offset": {
+                    "type": "integer",
+                    "description": "Timezone offset in seconds",
+                    "example": 3600
+                  },
+                  "daylight_offset": {
+                    "type": "integer",
+                    "description": "Daylight saving offset in seconds",
+                    "example": 0
+                  }
+                },
+                "required": ["timezone_offset", "daylight_offset"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Timezone settings saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-username": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Change web username",
+        "description": "Update web interface authentication username",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 3,
+                    "example": "admin"
+                  }
+                },
+                "required": ["username"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Username updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-password": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Change web password",
+        "description": "Update web interface authentication password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "newpassword"
+                  }
+                },
+                "required": ["password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/import-config": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Import configuration",
+        "description": "Import configuration from uploaded file (device will restart)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Configuration file in INI format"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration imported, device restarting"
+          }
+        }
+      }
+    },
+    "/reboot": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Reboot device",
+        "description": "Restart the ESP32 device",
+        "responses": {
+          "200": {
+            "description": "Device rebooting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Rebooting..."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/restart-services": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Restart services",
+        "description": "Restart DMR network services without rebooting device",
+        "responses": {
+          "200": {
+            "description": "Services restarting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Services restarting..."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clearlogs": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Clear logs",
+        "description": "Clear serial monitor logs",
+        "responses": {
+          "200": {
+            "description": "Logs cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/confirmreset": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Factory reset",
+        "description": "Wipe all NVS storage and reset to factory defaults (device will restart)",
+        "responses": {
+          "200": {
+            "description": "Storage wiped, device restarting"
+          }
+        }
+      }
+    },
+    "/test-mmdvm": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Test MMDVM modem",
+        "description": "Test MMDVM modem communication",
+        "responses": {
+          "200": {
+            "description": "Test results",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cleanup-prefs": {
+      "post": {
+        "tags": ["System Actions"],
+        "summary": "Cleanup preferences",
+        "description": "Clean up unused NVS preferences",
+        "responses": {
+          "200": {
+            "description": "Cleanup completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/download-update": {
+      "post": {
+        "tags": ["Firmware"],
+        "summary": "Download firmware update",
+        "description": "Download firmware from GitHub repository",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": ["stable", "beta"],
+                    "example": "stable"
+                  }
+                },
+                "required": ["channel"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Download status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/upload-firmware": {
+      "post": {
+        "tags": ["Firmware"],
+        "summary": "Upload firmware",
+        "description": "Upload firmware binary file via web interface",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Firmware .bin file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flash-firmware": {
+      "post": {
+        "tags": ["Firmware"],
+        "summary": "Flash firmware",
+        "description": "Flash uploaded firmware to device (device will restart)",
+        "responses": {
+          "200": {
+            "description": "Flash status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Web interface username and password (default: admin/pi-star)"
+      }
+    },
+    "schemas": {
+      "WiFiNetwork": {
+        "type": "object",
+        "properties": {
+          "ssid": {
+            "type": "string",
+            "example": "MyNetwork"
+          },
+          "rssi": {
+            "type": "integer",
+            "description": "Signal strength in dBm",
+            "example": -45
+          },
+          "encryption": {
+            "type": "integer",
+            "description": "Encryption type",
+            "example": 3
+          }
+        }
+      },
+      "DMRConfig": {
+        "type": "object",
+        "properties": {
+          "callsign": {
+            "type": "string",
+            "example": "N0CALL"
+          },
+          "dmr_id": {
+            "type": "integer",
+            "minimum": 1000000,
+            "maximum": 9999999,
+            "example": 1234567
+          },
+          "server": {
+            "type": "string",
+            "example": "2041.master.brandmeister.network"
+          },
+          "password": {
+            "type": "string",
+            "example": "mypassword"
+          },
+          "essid": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99,
+            "example": 0
+          },
+          "modem_type": {
+            "type": "string",
+            "enum": [
+              "mmdvmhshat",
+              "mmdvmhsdualhatgpio",
+              "mmdvmhshat12",
+              "mmdvmhsdualhat12",
+              "hs_hat_ambe",
+              "hs_dual_hat_ambe",
+              "nano_hotspot",
+              "nano_dv",
+              "d2rg_mmdvm_hs",
+              "mmdvm_hs_dual_hat_14_7",
+              "hs_hat_sky"
+            ],
+            "example": "mmdvmhshat"
+          },
+          "power": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99,
+            "example": 10
+          },
+          "color_code": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15,
+            "example": 1
+          },
+          "rx_freq": {
+            "type": "integer",
+            "description": "RX frequency in Hz",
+            "example": 434000000
+          },
+          "tx_freq": {
+            "type": "integer",
+            "description": "TX frequency in Hz",
+            "example": 434000000
+          },
+          "latitude": {
+            "type": "number",
+            "format": "float",
+            "example": 52.0
+          },
+          "longitude": {
+            "type": "number",
+            "format": "float",
+            "example": 4.0
+          },
+          "height": {
+            "type": "integer",
+            "description": "Antenna height in meters",
+            "example": 10
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 20,
+            "example": "Amsterdam,NL"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 19,
+            "example": "ESP32-MMDVM"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 124,
+            "example": "https://example.com"
+          },
+          "mode_dmr": {
+            "type": "integer",
+            "enum": [1],
+            "description": "Include with value 1 to enable DMR mode"
+          }
+        },
+        "required": ["callsign", "dmr_id", "server", "password", "essid"]
+      },
+      "WiFiConfig": {
+        "type": "object",
+        "properties": {
+          "wifi0_label": {
+            "type": "string",
+            "example": "Home"
+          },
+          "wifi0_ssid": {
+            "type": "string",
+            "example": "MyNetwork"
+          },
+          "wifi0_pass": {
+            "type": "string",
+            "example": "mypassword"
+          }
+        },
+        "description": "WiFi configuration for slots 0-4 (wifi0-wifi4)"
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      }
+    }
+  }
+}
