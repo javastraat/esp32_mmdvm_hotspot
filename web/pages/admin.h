@@ -1282,7 +1282,7 @@ void handleShowPreferences() {
   html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".pref-table { width: 100%; border-collapse: collapse; margin: 20px 0 10px 0; }";
+  html += ".pref-table { width: 100%; border-collapse: collapse; margin: 0; }";
   html += ".pref-table th, .pref-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }";
   html += ".pref-table tbody tr:last-child td { border-bottom: none; }";
   html += ".pref-table th { background-color: var(--hover-bg); font-weight: bold; color: var(--text-color); }";
@@ -1294,6 +1294,15 @@ void handleShowPreferences() {
   html += ".password-toggle { cursor: pointer; font-size: 16px; color: var(--primary-color); user-select: none; }";
   html += ".password-toggle:hover { color: var(--primary-hover); }";
   html += ".password-hidden { color: var(--text-muted); }";
+  html += ".pref-category { margin: 25px 0; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--card-bg); }";
+  html += ".pref-category-header { padding: 15px 20px; background: var(--primary-color); color: white; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.1em; }";
+  html += ".pref-category-header:hover { background: var(--primary-hover); }";
+  html += ".pref-category-content { display: block; }";
+  html += ".pref-category-content.collapsed { display: none; }";
+  html += ".pref-category-toggle { font-size: 1.2em; transition: transform 0.3s; }";
+  html += ".pref-category-toggle.collapsed { transform: rotate(-90deg); }";
+  html += ".pref-category .pref-table { margin: 0; }";
+  html += ".category-summary { padding: 10px 20px; background: var(--hover-bg); color: var(--text-muted); font-size: 0.9em; border-top: 1px solid var(--border-color); }";
   html += "</style></head><body>";
   html += getNavigation("admin");
   html += "<div class='container'>";
@@ -1302,37 +1311,67 @@ void handleShowPreferences() {
   // Open preferences in read-only mode
   preferences.begin("mmdvm", true);
 
-  html += "<table class='pref-table'>";
-  html += "<thead><tr><th>Key</th><th>Value</th><th>Type</th><th>Size (bytes)</th></tr></thead><tbody>";
+  // Define categories and their keys
+  struct Category {
+    const char* name;
+    const char** keys;
+    int keyCount;
+  };
 
-  // Get all keys in the namespace
-  size_t schLen = preferences.getBytesLength("schema");
-  if (schLen == 0) {
-    // No schema, try to enumerate by attempting to read common types
+  const char* dmrKeys[] = {
+    "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
+    "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
+    "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
+    "dmr_desc", "dmr_url"
+  };
 
-    // List of all actual keys used by this firmware (matching saveConfig() function)
-    const char* knownKeys[] = {
-      "dmr_callsign", "dmr_id", "dmr_server", "dmr_password", "dmr_essid",
-      "dmr_rx_freq", "dmr_tx_freq", "dmr_power", "dmr_cc",
-      "dmr_lat", "dmr_lon", "dmr_height", "dmr_location",
-      "dmr_desc", "dmr_url",
-      "wifi0_label", "wifi0_ssid", "wifi0_pass",
-      "wifi1_label", "wifi1_ssid", "wifi1_pass",
-      "wifi2_label", "wifi2_ssid", "wifi2_pass",
-      "wifi3_label", "wifi3_ssid", "wifi3_pass",
-      "wifi4_label", "wifi4_ssid", "wifi4_pass",
-      "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset",
-      "web_username", "web_password", "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
-    };
+  const char* wifiKeys[] = {
+    "wifi0_label", "wifi0_ssid", "wifi0_pass",
+    "wifi1_label", "wifi1_ssid", "wifi1_pass",
+    "wifi2_label", "wifi2_ssid", "wifi2_pass",
+    "wifi3_label", "wifi3_ssid", "wifi3_pass",
+    "wifi4_label", "wifi4_ssid", "wifi4_pass"
+  };
 
-    int keyCount = sizeof(knownKeys) / sizeof(knownKeys[0]);
-    int foundKeys = 0;
+  const char* systemKeys[] = {
+    "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset"
+  };
 
-    for (int i = 0; i < keyCount; i++) {
-      String keyName = String(knownKeys[i]);
+  const char* modeKeys[] = {
+    "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
+  };
+
+  const char* webKeys[] = {
+    "web_username", "web_password"
+  };
+
+  Category categories[] = {
+    {"DMR Configuration", dmrKeys, sizeof(dmrKeys) / sizeof(dmrKeys[0])},
+    {"WiFi Networks", wifiKeys, sizeof(wifiKeys) / sizeof(wifiKeys[0])},
+    {"System Settings", systemKeys, sizeof(systemKeys) / sizeof(systemKeys[0])},
+    {"Mode Configuration", modeKeys, sizeof(modeKeys) / sizeof(modeKeys[0])},
+    {"Web Interface", webKeys, sizeof(webKeys) / sizeof(webKeys[0])}
+  };
+
+  int categoryCount = sizeof(categories) / sizeof(categories[0]);
+  int totalFoundKeys = 0;
+
+  // Loop through each category
+  for (int catIdx = 0; catIdx < categoryCount; catIdx++) {
+    Category& category = categories[catIdx];
+    String categoryHtml = "";
+    int categoryFoundKeys = 0;
+
+    // Build table for this category
+    categoryHtml += "<table class='pref-table'>";
+    categoryHtml += "<thead><tr><th>Key</th><th>Value</th><th>Type</th><th>Size (bytes)</th></tr></thead><tbody>";
+
+    for (int i = 0; i < category.keyCount; i++) {
+      String keyName = String(category.keys[i]);
 
       if (preferences.isKey(keyName.c_str())) {
-        foundKeys++;
+        categoryFoundKeys++;
+        totalFoundKeys++;
 
         // Try to determine the type by attempting different reads
         String value = "";
@@ -1396,7 +1435,7 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
-        else if (keyName == "verbose_log") {
+        else if (keyName == "verbose_log" || keyName.startsWith("mode_")) {
           // Known Bool keys
           bool boolVal = preferences.getBool(keyName.c_str(), false);
           value = String(boolVal ? "true" : "false");
@@ -1477,27 +1516,38 @@ void handleShowPreferences() {
 
         // Show the preference if we found any value or type information
         if (value != "" || type != "") {
-          html += "<tr><td class='pref-key'>" + keyName + "</td><td class='pref-value'>" + (value != "" ? value : "[NOT STORED]") + "</td><td class='pref-type'>" + (type != "" ? type : "Unknown") + "</td><td class='pref-type'>" + String(keySize) + "</td></tr>";
+          categoryHtml += "<tr><td class='pref-key'>" + keyName + "</td><td class='pref-value'>" + (value != "" ? value : "[NOT STORED]") + "</td><td class='pref-type'>" + (type != "" ? type : "Unknown") + "</td><td class='pref-type'>" + String(keySize) + "</td></tr>";
         }
       }
     }
 
-    // Also try to find any unknown keys by checking for common patterns
-    // Note: ESP32 Preferences doesn't provide a direct way to enumerate all keys
-    // This is a limitation of the ESP32 Preferences library
+    categoryHtml += "</tbody></table>";
 
-    if (foundKeys == 0) {
-      html += "<tr><td colspan='4' style='text-align: center; color: #6c757d; font-style: italic;'>No preferences found in 'mmdvm' namespace</td></tr>";
-    } else {
-      html += "<tr><td colspan='4' style='text-align: center; color: var(--text-muted); font-style: italic; padding-top: 10px;'>";
-      html += "Found " + String(foundKeys) + " stored preferences.";
-      html += "</td></tr>";
+    // Only show category if it has keys
+    if (categoryFoundKeys > 0) {
+      html += "<div class='pref-category'>";
+      html += "<div class='pref-category-header' onclick='toggleCategory(\"cat" + String(catIdx) + "\")'>";
+      html += "<span>" + String(category.name) + "</span>";
+      html += "<span class='pref-category-toggle' id='cat" + String(catIdx) + "toggle'>&#9660;</span>";
+      html += "</div>";
+      html += "<div class='pref-category-content' id='cat" + String(catIdx) + "'>";
+      html += categoryHtml;
+      html += "<div class='category-summary'>" + String(categoryFoundKeys) + " preference" + (categoryFoundKeys != 1 ? "s" : "") + " found</div>";
+      html += "</div>";
+      html += "</div>";
     }
   }
 
+  if (totalFoundKeys == 0) {
+    html += "<p style='text-align: center; color: #6c757d; font-style: italic;'>No preferences found in 'mmdvm' namespace</p>";
+  } else {
+    html += "<p style='text-align: center; color: var(--text-muted); font-style: italic; margin-top: 20px;'>";
+    html += "Total: " + String(totalFoundKeys) + " stored preferences across " + String(categoryCount) + " categories";
+    html += "</p>";
+  }
+
   preferences.end();
-  html += "</tbody></table>";
-  // Add JavaScript for password toggle functionality
+  // Add JavaScript for password toggle and category collapse functionality
   html += "<script>";
   html += "function togglePassword(passwordId) {";
   html += "  var masked = document.getElementById(passwordId + 'masked');";
@@ -1513,6 +1563,19 @@ void handleShowPreferences() {
   html += "    real.style.display = 'inline';";
   html += "    toggle.innerHTML = '&#128064;';";
   html += "    toggle.title = 'Hide Password';";
+  html += "  }";
+  html += "}";
+  html += "function toggleCategory(categoryId) {";
+  html += "  var content = document.getElementById(categoryId);";
+  html += "  var toggle = document.getElementById(categoryId + 'toggle');";
+  html += "  if (content.classList.contains('collapsed')) {";
+  html += "    content.classList.remove('collapsed');";
+  html += "    toggle.classList.remove('collapsed');";
+  html += "    toggle.innerHTML = '&#9660;';";
+  html += "  } else {";
+  html += "    content.classList.add('collapsed');";
+  html += "    toggle.classList.add('collapsed');";
+  html += "    toggle.innerHTML = '&#9660;';";
   html += "  }";
   html += "}";
   html += "</script>";

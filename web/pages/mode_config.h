@@ -274,9 +274,9 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
-  // Card 3: Radio Settings (Power, Color Code)
+  // Card 3: Modem Config (Power, Color Code)
   html += "<div class='card'>";
-  html += "<h3>Radio Settings</h3>";
+  html += "<h3>Modem Config</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
   html += "<label>Power (0-99):</label>";
   html += "<input type='number' name='power' value='" + String(dmr_power) + "' min='0' max='99' required>";
@@ -298,7 +298,7 @@ void handleDMRConfig() {
   html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
   html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
   if (mode_dmr_enabled) html += "<input type='hidden' name='mode_dmr' value='1'>";
-  html += "<input type='submit' value='Save Radio Settings'>";
+  html += "<input type='submit' value='Save Modem Config'>";
   html += "</form>";
   html += "</div>";
 
