@@ -261,6 +261,10 @@
 #define DEFAULT_MODE_NXDN false    // NXDN mode (not yet implemented)
 #define DEFAULT_MODE_POCSAG false  // POCSAG paging mode (not yet implemented)
 
+// ===== Modem Hardware Type =====
+// Default modem type - can be changed via web interface
+#define DEFAULT_MODEM_TYPE "mmdvmhshat"  // Default: MMDVM_HS_Hat (DB9MAT & DF2ET)
+
 // ===== Validation =====
 #if !defined(DMR_CALLSIGN) || !defined(DMR_ID)
 #error "Please configure your DMR callsign and ID in config.h"

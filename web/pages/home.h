@@ -25,6 +25,7 @@ extern String dmr_server;
 extern uint32_t dmr_rx_freq;
 extern uint32_t dmr_tx_freq;
 extern uint8_t dmr_color_code;
+extern String modem_type;
 
 // DMR Activity structure
 struct DMRActivity {
@@ -403,23 +404,28 @@ void handleRoot() {
 
   // Live DMR Activity Section - Split into two cards for better mobile responsiveness
   html += "<div class='activity-cards-grid'>";
-  
-  // Slot 1 Card
-  html += "<div class='card activity-single-card'>";
-  html += "<h3>Live DMR Activity - Slot 1</h3>";
-  html += "<div id='dmr-activity-slot1'>";
-  html += getDMRSlotHTML(0); // Slot 1 = index 0
-  html += "</div>";
-  html += "</div>";
-  
-  // Slot 2 Card  
+
+  // Check if modem supports dual slots (Dual_Hat variants)
+  bool isDualSlotModem = (modem_type.indexOf("dual") >= 0 || modem_type.indexOf("Dual") >= 0);
+
+  // Slot 1 Card - Only show for dual-slot modems
+  if (isDualSlotModem) {
+    html += "<div class='card activity-single-card'>";
+    html += "<h3>Live DMR Activity - Slot 1</h3>";
+    html += "<div id='dmr-activity-slot1'>";
+    html += getDMRSlotHTML(0); // Slot 1 = index 0
+    html += "</div>";
+    html += "</div>";
+  }
+
+  // Slot 2 Card - Always show (all modems use Slot 2)
   html += "<div class='card activity-single-card'>";
   html += "<h3>Live DMR Activity - Slot 2</h3>";
   html += "<div id='dmr-activity-slot2'>";
   html += getDMRSlotHTML(1); // Slot 2 = index 1
   html += "</div>";
   html += "</div>";
-  
+
   html += "</div>";
 
   // Recent Activity History Card (full width)

@@ -238,6 +238,9 @@ bool mode_p25_enabled = DEFAULT_MODE_P25;
 bool mode_nxdn_enabled = DEFAULT_MODE_NXDN;
 bool mode_pocsag_enabled = DEFAULT_MODE_POCSAG;
 
+// Modem Type Selection
+String modem_type = DEFAULT_MODEM_TYPE;
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -1331,6 +1334,10 @@ void loadConfig() {
   mode_pocsag_enabled = preferences.getBool("mode_pocsag", DEFAULT_MODE_POCSAG);
   logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
 
+  // Load modem type
+  modem_type = preferences.getString("modem_type", DEFAULT_MODEM_TYPE);
+  logSerial("Modem type: " + modem_type);
+
   preferences.end();
 }
 
@@ -1382,6 +1389,9 @@ void saveConfig() {
   preferences.putBool("mode_p25", mode_p25_enabled);
   preferences.putBool("mode_nxdn", mode_nxdn_enabled);
   preferences.putBool("mode_pocsag", mode_pocsag_enabled);
+
+  // Save modem type
+  preferences.putString("modem_type", modem_type);
 
   preferences.end();
   logSerial("Configuration saved to storage");

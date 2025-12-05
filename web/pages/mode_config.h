@@ -37,6 +37,7 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
+extern String modem_type;
 extern void logSerial(String message);
 extern void saveConfig();
 
@@ -274,10 +275,27 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
-  // Card 3: Modem Config (Power, Color Code)
+  // Card 3: Modem Config (Power, Color Code, Modem Type)
   html += "<div class='card'>";
   html += "<h3>Modem Config</h3>";
   html += "<form action='/savedmrconfig' method='POST'>";
+
+  // Modem Type Selector
+  html += "<label>Modem Type:</label>";
+  html += "<select name='modem_type' style='width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px;'>";
+  html += "<option value='mmdvmhshat'" + String(modem_type == "mmdvmhshat" ? " selected" : "") + ">MMDVM_HS_Hat (DB9MAT &amp; DF2ET) for Pi (GPIO)</option>";
+  html += "<option value='mmdvmhsdualhatgpio'" + String(modem_type == "mmdvmhsdualhatgpio" ? " selected" : "") + ">MMDVM_HS_Dual_Hat (DB9MAT, DF2ET &amp; DO7EN) for Pi (GPIO)</option>";
+  html += "<option value='mmdvmhshat12'" + String(modem_type == "mmdvmhshat12" ? " selected" : "") + ">MMDVM_HS_Hat (DB9MAT &amp; DF2ET) for Pi (GPIO 1.2)</option>";
+  html += "<option value='mmdvmhsdualhat12'" + String(modem_type == "mmdvmhsdualhat12" ? " selected" : "") + ">MMDVM_HS_Dual_Hat (DB9MAT, DF2ET &amp; DO7EN) for Pi (GPIO 1.2)</option>";
+  html += "<option value='hs_hat_ambe'" + String(modem_type == "hs_hat_ambe" ? " selected" : "") + ">HS_HAT with AMBE chip</option>";
+  html += "<option value='hs_dual_hat_ambe'" + String(modem_type == "hs_dual_hat_ambe" ? " selected" : "") + ">HS_DUAL_HAT with AMBE chip</option>";
+  html += "<option value='nano_hotspot'" + String(modem_type == "nano_hotspot" ? " selected" : "") + ">Nano hotSPOT (BI7JTA)</option>";
+  html += "<option value='nano_dv'" + String(modem_type == "nano_dv" ? " selected" : "") + ">NanoDV (BI7JTA)</option>";
+  html += "<option value='d2rg_mmdvm_hs'" + String(modem_type == "d2rg_mmdvm_hs" ? " selected" : "") + ">D2RG MMDVM_HS RPi Hat</option>";
+  html += "<option value='mmdvm_hs_dual_hat_14_7'" + String(modem_type == "mmdvm_hs_dual_hat_14_7" ? " selected" : "") + ">MMDVM_HS_Dual_Hat (DB9MAT &amp; DO7EN) RPi Hat 14.7456 MHz (GPIO)</option>";
+  html += "<option value='hs_hat_sky'" + String(modem_type == "hs_hat_sky" ? " selected" : "") + ">HS_HAT with SkyBridge chip</option>";
+  html += "</select>";
+
   html += "<label>Power (0-99):</label>";
   html += "<input type='number' name='power' value='" + String(dmr_power) + "' min='0' max='99' required>";
   html += "<label>Color Code (0-15):</label>";
@@ -400,6 +418,7 @@ void handleSaveDMRConfig() {
     if (server.hasArg("location")) dmr_location = server.arg("location");
     if (server.hasArg("description")) dmr_description = server.arg("description");
     if (server.hasArg("url")) dmr_url = server.arg("url");
+    if (server.hasArg("modem_type")) modem_type = server.arg("modem_type");
 
     // Validate DMR ID
     if (dmr_id < 1000000 || dmr_id > 9999999) {

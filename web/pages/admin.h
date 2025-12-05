@@ -52,6 +52,7 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
+extern String modem_type;
 extern void logSerial(String message);
 extern void saveConfig();
 extern String getCommonCSS();
@@ -1162,6 +1163,7 @@ void handleExportConfig() {
   config += "NTP_DAYLIGHT_OFFSET=" + String(ntp_daylight_offset) + "\n";
   config += "WEB_USERNAME=" + web_username + "\n";
   config += "WEB_PASSWORD=" + web_password + "\n";
+  config += "MODEM_TYPE=" + modem_type + "\n";
 
   // Mode Configuration
   config += "\n[MODE_CONFIG]\n";
@@ -1239,6 +1241,7 @@ void handleImportConfig() {
           else if (key == "NTP_DAYLIGHT_OFFSET") ntp_daylight_offset = value.toInt();
           else if (key == "WEB_USERNAME") web_username = value;
           else if (key == "WEB_PASSWORD") web_password = value;
+          else if (key == "MODEM_TYPE") modem_type = value;
           else if (key == "MODE_DMR") mode_dmr_enabled = (value == "1");
           else if (key == "MODE_DSTAR") mode_dstar_enabled = (value == "1");
           else if (key == "MODE_YSF") mode_ysf_enabled = (value == "1");
@@ -1334,7 +1337,7 @@ void handleShowPreferences() {
   };
 
   const char* systemKeys[] = {
-    "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset"
+    "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
   };
 
   const char* modeKeys[] = {
