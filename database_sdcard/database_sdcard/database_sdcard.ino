@@ -5,9 +5,13 @@
 
 #define DL_LED_PIN 38  // GPIO 38 for download progress indication
 
+// Simple web server
+WiFiServer server(80);
+
 // FreeRTOS blink task globals
 TaskHandle_t blinkTaskHandle = NULL;
 volatile bool downloadActive = false;
+volatile bool downloadRequested = false;
 
 // SD card pins (adjust if your board uses different pins)
 #define SPI_MISO_PIN 9
@@ -241,95 +245,186 @@ void setup() {
     Serial.println("Error opening owner.txt for reading!");
   }
 
-  // --- Download file from internet and save to /database/database.csv ---
+  // --- Ensure /database directory exists (but don't auto-download) ---
   if (!SD.exists(databaseDir)) {
     if (SD.mkdir(databaseDir)) {
       Serial.println("Created /database directory.");
     } else {
       Serial.println("Failed to create /database directory!");
-      while (1);
     }
-  }
-  if(SD.exists(destFile)) {
-    deleteRecursive(destFile);
-    Serial.println("Deleted old /database/database.csv if existed.");
   }
 
   // --- List all files ---
   Serial.println("---- Files on SD Card ----");
   File root = SD.open("/");
   listFiles(root, 0);
+  root.close();
   Serial.println("--------------------------");
 
-  // --- Download from GitHub with blinking LED (FreeRTOS task) ---
-  Serial.print("Downloading file from: ");
-  Serial.println(fileURL);
+  // Start web server
+  server.begin();
+  Serial.println("Web server started on port 80");
+  Serial.print("Access at: http://");
+  Serial.println(WiFi.localIP());
+}
+
+void performDownload() {
+  Serial.println("=== Download requested ===");
 
   HTTPClient http;
   http.begin(fileURL);
   int httpCode = http.GET();
+
   if (httpCode == HTTP_CODE_OK) {
+    // Delete old file if exists
+    if (SD.exists(destFile)) {
+      SD.remove(destFile);
+      Serial.println("Removed old database file");
+    }
+
     File outFile = SD.open(destFile, FILE_WRITE);
     if (!outFile) {
-      Serial.println("Couldn't create file on SD.");
+      Serial.println("FAILED: Couldn't create file on SD!");
       http.end();
-      while(1);
+      return;
     }
-    Serial.println("Download started (LED will blink while downloading, progress only after finish).");
+    Serial.println("File opened successfully!");
 
-    // Start blinking LED in parallel
+    // Start blinking LED
     downloadActive = true;
-    xTaskCreatePinnedToCore(
-      blinkTask,        // Task function
-      "BlinkTask",      // Name
-      1024,             // Stack size
-      NULL,             // Params
-      1,                // Priority
-      &blinkTaskHandle, // Handle
-      1                 // Core
-    );
+    xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 1024, NULL, 1, &blinkTaskHandle, 1);
 
     unsigned long downloadStart = millis();
     int written = http.writeToStream(&outFile);
     unsigned long downloadDuration = millis() - downloadStart;
 
-    // End blinking LED
+    // Stop blinking LED
     downloadActive = false;
-    // Wait for blink task to exit (optional: for short downloads, usually exits immediately)
     while (blinkTaskHandle != NULL) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     outFile.close();
-    Serial.printf("Download complete! File size: %d bytes\n", written);
-    Serial.printf("Download took %lu ms\n", downloadDuration);
+    Serial.printf("SUCCESS! Downloaded %d bytes in %lu ms\n", written, downloadDuration);
   } else {
-    Serial.print("HTTP GET failed, error: ");
+    Serial.print("HTTP GET failed: ");
     Serial.println(http.errorToString(httpCode));
   }
   http.end();
-
-  // --- List all files ---
-  Serial.println("---- Files on SD Card ----");
-  File rootlist = SD.open("/");
-  listFiles(rootlist, 0);
-  rootlist.close();
-  Serial.println("--------------------------");
-
-  // --- Show first line containing "PD2EMC" before first 10 lines ---
-  showFirstLineWithString(destFile, "PD2EMC");
-  showFirstLineWithString(destFile, "PD8JO");
-  Serial.println("--------------------------");
-
-  // --- Show first 10 lines of /database/database.csv ---
-  showFirst10Lines(destFile);
-  Serial.println("--------------------------");
-
-  // --- Show last 10 lines of /database/database.csv ---
-  showLast10Lines(destFile);
-  Serial.println("--------------------------");
+  downloadRequested = false;
 }
 
 void loop() {
-  // Nothing in loop for this example
+  // Handle download requests from main loop
+  if (downloadRequested) {
+    performDownload();
+  }
+
+  // Handle web server requests
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("New client connected");
+    String request = "";
+
+    while (client.connected()) {
+      if (client.available()) {
+        String line = client.readStringUntil('\n');
+        request += line + "\n";
+
+        if (line == "\r") {  // End of HTTP header
+          // Check request type
+          if (request.indexOf("GET / ") >= 0) {
+            // Send HTML page
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: text/html");
+            client.println("Connection: close");
+            client.println();
+
+            client.println("<!DOCTYPE html><html><head>");
+            client.println("<title>SD Card Test</title>");
+            client.println("<style>body{font-family:Arial;margin:20px}");
+            client.println(".card{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:5px}");
+            client.println("button{padding:10px 20px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer}");
+            client.println("button:hover{background:#0056b3}</style></head><body>");
+
+            client.println("<h1>SD Card Test Interface</h1>");
+
+            // Card 1: SD Card Status
+            client.println("<div class='card'><h2>SD Card Status</h2>");
+            client.print("<p>Card Type: ");
+            uint8_t cardType = SD.cardType();
+            client.print(cardType == CARD_SDHC ? "SDHC" : cardType == CARD_SD ? "SD" : "Unknown");
+            client.println("</p>");
+            client.print("<p>Card Size: ");
+            client.print((uint32_t)(SD.cardSize() / (1024 * 1024)));
+            client.println(" MB</p></div>");
+
+            // Card 2: File List
+            client.println("<div class='card'><h2>Files on SD Card</h2><pre>");
+            File root = SD.open("/");
+            listFilesHTML(root, 0, client);
+            root.close();
+            client.println("</pre></div>");
+
+            // Card 3: Download Button
+            client.println("<div class='card'><h2>Database Download</h2>");
+            client.print("<p>Database file exists: ");
+            client.println(SD.exists(destFile) ? "YES" : "NO");
+            client.println("</p>");
+            if (SD.exists(destFile)) {
+              File dbFile = SD.open(destFile);
+              if (dbFile) {
+                client.print("<p>File size: ");
+                client.print(dbFile.size());
+                client.println(" bytes</p>");
+                dbFile.close();
+              }
+            }
+            client.println("<button onclick=\"location.href='/download'\">Download Database from GitHub</button>");
+            client.println("</div>");
+
+            client.println("</body></html>");
+          }
+          else if (request.indexOf("GET /download") >= 0) {
+            // Trigger download
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: text/html");
+            client.println("Connection: close");
+            client.println();
+            client.println("<html><body><h1>Download Started!</h1>");
+            client.println("<p>Check Serial Monitor for progress...</p>");
+            client.println("<p><a href='/'>Back to Status</a></p></body></html>");
+
+            downloadRequested = true;
+          }
+          break;
+        }
+      }
+    }
+
+    delay(1);
+    client.stop();
+    Serial.println("Client disconnected");
+  }
+}
+
+// Helper function to list files as HTML
+void listFilesHTML(File dir, int numTabs, WiFiClient &client) {
+  while (true) {
+    File entry = dir.openNextFile();
+    if (!entry) break;
+
+    for (int i = 0; i < numTabs; i++) client.print("  ");
+    client.print(entry.name());
+
+    if (entry.isDirectory()) {
+      client.println("/");
+      listFilesHTML(entry, numTabs + 1, client);
+    } else {
+      client.print(" (");
+      client.print(entry.size());
+      client.println(" bytes)");
+    }
+    entry.close();
+  }
 }
