@@ -42,9 +42,13 @@
 #else
 #include <ETH.h>
 #endif
-static bool eth_connected = false;
+bool eth_connected = false;
 #include <SPI.h>
 #include <SD.h>
+
+// SD Card pins are defined in config.h
+SPIClass sdSPI(HSPI);  // Use HSPI for SD card
+bool sdCardAvailable = false;
 #endif
 
 // ESP32-S3 USB Serial configuration
@@ -304,6 +308,56 @@ void setup() {
   // Setup MMDVM Serial
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // Initialize SD Card
+  logSerial("Initializing SD card...");
+  sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+
+  if (SD.begin(SD_CS_PIN, sdSPI)) {
+    sdCardAvailable = true;
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    logSerial("SD Card initialized successfully");
+    logSerial("SD Card Size: " + String((uint32_t)cardSize) + " MB");
+    logSerial("SD Card Type: " + String(SD.cardType() == CARD_SD ? "SD" : SD.cardType() == CARD_SDHC ? "SDHC" : "Unknown"));
+
+    // Create directories if they don't exist
+    if (!SD.exists("/logs")) {
+      SD.mkdir("/logs");
+      logSerial("Created /logs directory");
+    }
+    if (!SD.exists("/config")) {
+      SD.mkdir("/config");
+      logSerial("Created /config directory");
+    }
+    if (!SD.exists("/cache")) {
+      SD.mkdir("/cache");
+      logSerial("Created /cache directory");
+    }
+
+    // Test: Read test.txt if it exists
+    if (SD.exists("/test.txt")) {
+      logSerial("Found /test.txt on SD card, reading contents:");
+      File testFile = SD.open("/test.txt");
+      if (testFile) {
+        logSerial("--- Start of test.txt ---");
+        while (testFile.available()) {
+          Serial.write(testFile.read());
+        }
+        testFile.close();
+        logSerial("\n--- End of test.txt ---");
+      } else {
+        logSerial("Error: Could not open test.txt");
+      }
+    } else {
+      logSerial("No test.txt file found on SD card");
+    }
+  } else {
+    sdCardAvailable = false;
+    logSerial("SD Card initialization failed (card not present or error)");
+    logSerial("Continuing without SD card support...");
+  }
+#endif
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -1256,6 +1310,73 @@ void logSerialVerbose(String message) {
     serialLogIndex = (serialLogIndex + 1) % SERIAL_LOG_SIZE;
   }
 }
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+// ===== SD Card Helper Functions =====
+bool writeSDFile(const char* path, const char* data) {
+  if (!sdCardAvailable) return false;
+
+  File file = SD.open(path, FILE_WRITE);
+  if (!file) {
+    logSerial("Failed to open file for writing: " + String(path));
+    return false;
+  }
+
+  if (file.print(data)) {
+    file.close();
+    return true;
+  } else {
+    logSerial("Write failed");
+    file.close();
+    return false;
+  }
+}
+
+String readSDFile(const char* path) {
+  if (!sdCardAvailable) return "";
+
+  File file = SD.open(path);
+  if (!file) {
+    return "";
+  }
+
+  String content = "";
+  while (file.available()) {
+    content += (char)file.read();
+  }
+  file.close();
+  return content;
+}
+
+bool appendSDFile(const char* path, const char* data) {
+  if (!sdCardAvailable) return false;
+
+  File file = SD.open(path, FILE_APPEND);
+  if (!file) {
+    logSerial("Failed to open file for appending: " + String(path));
+    return false;
+  }
+
+  if (file.print(data)) {
+    file.close();
+    return true;
+  } else {
+    logSerial("Append failed");
+    file.close();
+    return false;
+  }
+}
+
+bool deleteSDFile(const char* path) {
+  if (!sdCardAvailable) return false;
+  return SD.remove(path);
+}
+
+bool sdFileExists(const char* path) {
+  if (!sdCardAvailable) return false;
+  return SD.exists(path);
+}
+#endif
 
 // ===== Configuration Load/Save =====
 void loadConfig() {

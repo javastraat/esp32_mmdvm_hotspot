@@ -22,6 +22,10 @@ extern bool dmrLoggedIn;
 extern uint32_t currentTalkgroup;
 extern String dmrLoginStatus;
 extern String dmr_callsign;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+extern bool eth_connected;
+extern bool sdCardAvailable;
+#endif
 extern String dmr_server;
 extern uint32_t dmr_id;
 extern uint8_t dmr_essid;
