@@ -49,6 +49,7 @@ bool eth_connected = false;
 // SD Card pins are defined in config.h
 SPIClass sdSPI(HSPI);  // Use HSPI for SD card
 bool sdCardAvailable = false;
+uint8_t sdCardType = 0;  // Cached SD card type
 #endif
 
 // ESP32-S3 USB Serial configuration
@@ -275,6 +276,19 @@ String getCachedUserInfo(uint32_t dmrId);
 void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+// Helper functions for status page
+String getEthIPAddress();
+String getEthMACAddress();
+int getEthLinkSpeed();
+bool getEthFullDuplex();
+String getEthGatewayIP();
+uint64_t getSDCardSize();
+uint64_t getSDUsedBytes();
+uint8_t getSDCardType();
+#endif
+
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -316,10 +330,11 @@ void setup() {
 
   if (SD.begin(SD_CS_PIN, sdSPI)) {
     sdCardAvailable = true;
+    sdCardType = SD.cardType();  // Cache the card type
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
     logSerial("SD Card initialized successfully");
     logSerial("SD Card Size: " + String((uint32_t)cardSize) + " MB");
-    logSerial("SD Card Type: " + String(SD.cardType() == CARD_SD ? "SD" : SD.cardType() == CARD_SDHC ? "SDHC" : "Unknown"));
+    logSerial("SD Card Type: " + String(sdCardType == CARD_MMC ? "MMC" : sdCardType == CARD_SD ? "SD" : sdCardType == CARD_SDHC ? "SDHC" : "Unknown"));
 
     // Create directories if they don't exist
     if (!SD.exists("/logs")) {
@@ -1858,3 +1873,38 @@ void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String sr
   
   dmrHistoryIndex = (dmrHistoryIndex + 1) % DMR_HISTORY_SIZE;
 }
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+// Helper functions for Ethernet/SD status display
+String getEthIPAddress() {
+  return eth_connected ? ETH.localIP().toString() : "0.0.0.0";
+}
+
+String getEthMACAddress() {
+  return eth_connected ? ETH.macAddress() : "00:00:00:00:00:00";
+}
+
+int getEthLinkSpeed() {
+  return eth_connected ? ETH.linkSpeed() : 0;
+}
+
+bool getEthFullDuplex() {
+  return eth_connected ? ETH.fullDuplex() : false;
+}
+
+String getEthGatewayIP() {
+  return eth_connected ? ETH.gatewayIP().toString() : "0.0.0.0";
+}
+
+uint64_t getSDCardSize() {
+  return sdCardAvailable ? SD.cardSize() : 0;
+}
+
+uint64_t getSDUsedBytes() {
+  return sdCardAvailable ? SD.usedBytes() : 0;
+}
+
+uint8_t getSDCardType() {
+  return sdCardAvailable ? sdCardType : 0;  // Return cached value
+}
+#endif

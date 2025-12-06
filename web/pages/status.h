@@ -25,6 +25,14 @@ extern String dmr_callsign;
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 extern bool eth_connected;
 extern bool sdCardAvailable;
+extern String getEthIPAddress();
+extern String getEthMACAddress();
+extern int getEthLinkSpeed();
+extern bool getEthFullDuplex();
+extern String getEthGatewayIP();
+extern uint64_t getSDCardSize();
+extern uint64_t getSDUsedBytes();
+extern uint8_t getSDCardType();
 #endif
 extern String dmr_server;
 extern uint32_t dmr_id;
@@ -118,6 +126,45 @@ String getStatusContent() {
     html += "<div class='status disconnected'>Status: Disconnected</div>";
   }
   html += "</div>";
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // Ethernet Status Card
+  html += "<div class='card'>";
+  html += "<h3>Ethernet Status</h3>";
+  if (eth_connected) {
+    html += "<div class='status connected'>Status: Connected</div>";
+    html += "<div class='metric'><span class='metric-label'>IP Address:</span><span class='metric-value'>" + getEthIPAddress() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + getEthMACAddress() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Link Speed:</span><span class='metric-value'>" + String(getEthLinkSpeed()) + " Mbps</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Mode:</span><span class='metric-value'>" + String(getEthFullDuplex() ? "Full Duplex" : "Half Duplex") + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Gateway:</span><span class='metric-value'>" + getEthGatewayIP() + "</span></div>";
+  } else {
+    html += "<div class='status disconnected'>Status: Not Connected</div>";
+    html += "<div class='metric'><span class='metric-label'>Info:</span><span class='metric-value'>Cable unplugged or disabled</span></div>";
+  }
+  html += "</div>";
+
+  // SD Card Status Card
+  html += "<div class='card'>";
+  html += "<h3>SD Card Status</h3>";
+  if (sdCardAvailable) {
+    html += "<div class='status connected'>Status: Available</div>";
+    uint64_t cardSize = getSDCardSize() / (1024 * 1024);
+    uint64_t usedSize = getSDUsedBytes() / (1024 * 1024);
+    uint8_t cardType = getSDCardType();
+    html += "<div class='metric'><span class='metric-label'>Type:</span><span class='metric-value'>";
+    // SD card type values from sd_defines.h: CARD_NONE=0, CARD_MMC=1, CARD_SD=2, CARD_SDHC=3, CARD_UNKNOWN=4
+    html += String(cardType == 1 ? "MMC" : cardType == 2 ? "SD" : cardType == 3 ? "SDHC" : "Unknown");
+    html += "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Total Size:</span><span class='metric-value'>" + String((uint32_t)cardSize) + " MB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Used:</span><span class='metric-value'>" + String((uint32_t)usedSize) + " MB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Free:</span><span class='metric-value'>" + String((uint32_t)(cardSize - usedSize)) + " MB</span></div>";
+  } else {
+    html += "<div class='status disconnected'>Status: Not Available</div>";
+    html += "<div class='metric'><span class='metric-label'>Info:</span><span class='metric-value'>No card inserted</span></div>";
+  }
+  html += "</div>";
+#endif
 
   // DMR Status Card
   html += "<div class='card'>";
