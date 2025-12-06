@@ -350,22 +350,22 @@ void setup() {
       logSerial("Created /cache directory");
     }
 
-    // Test: Read test.txt if it exists
-    if (SD.exists("/test.txt")) {
-      logSerial("Found /test.txt on SD card, reading contents:");
-      File testFile = SD.open("/test.txt");
+    // Test: Read owner.txt if it exists
+    if (SD.exists("/owner.txt")) {
+      logSerial("Found /owner.txt on SD card, reading contents:");
+      File testFile = SD.open("/owner.txt");
       if (testFile) {
-        logSerial("--- Start of test.txt ---");
+        logSerial("--- Start of owner.txt ---");
         while (testFile.available()) {
           Serial.write(testFile.read());
         }
         testFile.close();
-        logSerial("\n--- End of test.txt ---");
+        logSerial("\n--- End of owner.txt ---");
       } else {
-        logSerial("Error: Could not open test.txt");
+        logSerial("Error: Could not open owner.txt");
       }
     } else {
-      logSerial("No test.txt file found on SD card");
+      logSerial("No owner.txt file found on SD card");
     }
   } else {
     sdCardAvailable = false;
