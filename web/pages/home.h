@@ -351,12 +351,37 @@ void handleRoot() {
   html += "</style>";
   html += "<script>";
   html += "function refreshActivity() {";
+  html += "  let activeCallsigns = [];";
   html += "  fetch('/dmr-slot1').then(r => r.text()).then(data => {";
   html += "    document.getElementById('dmr-activity-slot1').innerHTML = data;";
+  html += "    const parser = new DOMParser();";
+  html += "    const doc = parser.parseFromString(data, 'text/html');";
+  html += "    const activeCard = doc.querySelector('.activity-card');";
+  html += "    if (activeCard) {";
+  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
+  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
+  html += "    }";
+  html += "    updateTitle(activeCallsigns);";
   html += "  });";
   html += "  fetch('/dmr-slot2').then(r => r.text()).then(data => {";
   html += "    document.getElementById('dmr-activity-slot2').innerHTML = data;";
+  html += "    const parser = new DOMParser();";
+  html += "    const doc = parser.parseFromString(data, 'text/html');";
+  html += "    const activeCard = doc.querySelector('.activity-card');";
+  html += "    if (activeCard) {";
+  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
+  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
+  html += "    }";
+  html += "    updateTitle(activeCallsigns);";
   html += "  });";
+  html += "}";
+  html += "function updateTitle(callsigns) {";
+  html += "  const baseTitle = '" + dmr_callsign + " - ESP32 MMDVM Hotspot';";
+  html += "  if (callsigns.length > 0) {";
+  html += "    document.title = '>>' + callsigns.join(', ') + '<< - Active';";
+  html += "  } else {";
+  html += "    document.title = baseTitle;";
+  html += "  }";
   html += "}";
   html += "function refreshHistory() {";
   html += "  fetch('/dmr-history').then(r => r.text()).then(data => {";
@@ -400,7 +425,7 @@ void handleRoot() {
   html += "</head><body>";
   html += getNavigation("main");
   html += "<div class='container'>";
-  html += "<h1><center>" + dmr_callsign + " - ESP32 MMDVM Hotspot</center></h1>";
+  html += "<h1><center>" + dmr_callsign + " - ESP32 Dashboard</center></h1>";
 
   // Live DMR Activity Section - Split into two cards for better mobile responsiveness
   html += "<div class='activity-cards-grid'>";
