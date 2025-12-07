@@ -8,8 +8,11 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-//#define FIRMWARE_VERSION "20251207_ESP32"  // Update version as needed
 #define FIRMWARE_VERSION "20251207_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251207_ESP32"  // Update version as needed
+
+// Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
+#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -18,9 +21,6 @@
 // Fallback Access Point mode settings (when WiFi fails)
 #define AP_SSID "ESP32-MMDVM-Config"  // AP SSID
 #define AP_PASSWORD "mmdvm1234"       // AP Password
-
-// Define board type
-#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // Default labels for alternate WiFi network slots
 #define WIFI_SLOT1_LABEL "Home"     // WiFi Slot 1 Label
@@ -125,7 +125,7 @@
 #define SD_MOSI_PIN SPI_MOSI_PIN
 #define SD_SCLK_PIN SPI_SCLK_PIN
 #define SD_CS_PIN 12
-//define I2C Pins
+// I2C Pins
 #define I2C_SDA_PIN 17
 #define I2C_SCL_PIN 18
 
@@ -137,16 +137,17 @@
 
 #endif
 
+// RGB LED Settings
+#define ENABLE_RGB_LED true          // Enable RGB LED status indicator
+#define RGB_LED_BRIGHTNESS 25        // LED brightness 0-255 (lower = dimmer, 25 = ~10% brightness)
+#define RGB_LED_IDLE_BRIGHTNESS 10   // Idle state brightness 0-255 (very dim when idle)
+#define RGB_LED_ACTIVE_BRIGHTNESS 5 // Active (TX/RX) state brightness 0-255
+
 // Ledborg RGB LED Pins (if used)
 #define LEDBORG_RED_PIN 41
 #define LEDBORG_GREEN_PIN 40
 #define LEDBORG_BLUE_PIN 42
 
-// RGB LED Settings
-#define ENABLE_RGB_LED true          // Enable RGB LED status indicator
-#define RGB_LED_BRIGHTNESS 25        // LED brightness 0-255 (lower = dimmer, 25 = ~10% brightness)
-#define RGB_LED_IDLE_BRIGHTNESS 10   // Idle state brightness 0-255 (very dim when idle)
-#define RGB_LED_ACTIVE_BRIGHTNESS 15 // Active (TX/RX) state brightness 0-255
 
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
