@@ -18,6 +18,7 @@ A comprehensive ESP32-based DMR hotspot with professional web interface, multi-n
 - **Verbose Logging Control** - Toggle detailed keepalive message logging
 - **Web Credentials Management** - Change web interface username/password
 - **Complete Factory Reset** - Erase entire ESP32 NVS partition for troubleshooting
+- **OLED Display Support** - SSD1306 128x64 display with boot logo and real-time status
 
 ## Hardware Requirements
 
@@ -25,6 +26,9 @@ A comprehensive ESP32-based DMR hotspot with professional web interface, multi-n
 1. **ESP32 Development Board** (ESP32-WROOM-32 recommended)
 2. **MMDVM Hat** (JumboSPOT, MMDVM_HS, or compatible)
 3. **Antenna** (UHF/VHF as appropriate for your frequency)
+
+### Optional Components
+4. **SSD1306 OLED Display** (128x64, I2C interface) - For real-time status display
 
 ### Supported MMDVM Hardware
 - JumboSPOT (recommended)
@@ -34,13 +38,24 @@ A comprehensive ESP32-based DMR hotspot with professional web interface, multi-n
 
 ## Pin Configuration
 
+### MMDVM Hat Connection
 ```
 ESP32 GPIO    MMDVM Hat     Function
 ----------    ---------     --------
 GPIO16 (RX2)  -> TX         MMDVM Serial TX
-GPIO17 (TX2)  -> RX         MMDVM Serial RX  
+GPIO17 (TX2)  -> RX         MMDVM Serial RX
 GPIO4         -> PTT        Push-to-Talk Control
 GPIO2         -> COS/LED    Carrier Detect LED
+3.3V          -> VCC        Power Supply
+GND           -> GND        Ground
+```
+
+### OLED Display Connection (Optional)
+```
+ESP32 GPIO    OLED Display  Function
+----------    ------------  --------
+GPIO17        -> SDA        I2C Data
+GPIO18        -> SCL        I2C Clock
 3.3V          -> VCC        Power Supply
 GND           -> GND        Ground
 ```
@@ -68,9 +83,10 @@ GND           -> GND        Ground
    - Search "ESP32" and install "ESP32 by Espressif Systems"
 
 #### Required Libraries
-All required libraries are built into ESP32 Arduino Core:
+
+**Built-in ESP32 Libraries** (no installation needed):
 - WiFi (WiFi network connectivity)
-- WebServer (Professional web interface)  
+- WebServer (Professional web interface)
 - ESPmDNS (Network discovery)
 - Preferences (Configuration storage with NVS)
 - HTTPClient (OTA firmware downloads from GitHub)
@@ -78,6 +94,15 @@ All required libraries are built into ESP32 Arduino Core:
 - WiFiClientSecure (Secure HTTPS connections)
 - mbedtls (SHA256 cryptographic authentication)
 - nvs_flash (NVS partition management for factory reset)
+
+**Additional Libraries** (install via Arduino Library Manager):
+- **Adafruit GFX Library** (for OLED display graphics)
+- **Adafruit SSD1306** (for OLED display driver)
+
+To install in Arduino IDE:
+1. Go to Sketch → Include Library → Manage Libraries
+2. Search for "Adafruit GFX" and click Install
+3. Search for "Adafruit SSD1306" and click Install
 
 ### 3. Configuration
 

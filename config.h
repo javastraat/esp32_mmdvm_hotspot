@@ -75,6 +75,7 @@
 #define SD_MOSI_PIN SPI_MOSI_PIN
 #define SD_SCLK_PIN SPI_SCLK_PIN
 #define SD_CS_PIN 12
+
 // I2C Pins
 #define I2C_SDA_PIN 17
 #define I2C_SCL_PIN 18
@@ -88,7 +89,7 @@
 #endif
 
 // RGB LED Settings
-#define ENABLE_RGB_LED true          // Enable RGB LED status indicator
+#define ENABLE_RGB_LED false          // Enable RGB LED status indicator
 #define RGB_LED_BRIGHTNESS 25        // LED brightness 0-255 (lower = dimmer, 25 = ~10% brightness)
 #define RGB_LED_IDLE_BRIGHTNESS 10   // Idle state brightness 0-255 (very dim when idle)
 #define RGB_LED_ACTIVE_BRIGHTNESS 5 // Active (TX/RX) state brightness 0-255
@@ -200,11 +201,9 @@
 #define OTA_VERSION_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version_beta.txt"
 #define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
-// OLED Display Settings (not yet implemented)
-#define ENABLE_OLED false      // Enable OLED display support
-#define OLED_I2C_ADDRESS 0x3C  // I2C address for OLED display
-#define OLED_SDA_PIN 17         // SDA pin for OLED display
-#define OLED_SCL_PIN 18        // SCL pin for OLED display
+// OLED Display Settings
+#define ENABLE_OLED true       // Enable OLED display support
+#define OLED_I2C_ADDRESS 0x3C  // I2C address for OLED display (0x3C or 0x3D)
 #define OLED_WIDTH 128         // OLED display width
 #define OLED_HEIGHT 64         // OLED display height
 

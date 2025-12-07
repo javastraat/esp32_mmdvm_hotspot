@@ -36,6 +36,13 @@
 #include "webpages.h"
 #include "RGBLedController.h"
 
+// OLED Display Support
+#if ENABLE_OLED
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#endif
+
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
 #include <ETHClass2.h>       //Is to use the modified ETHClass
@@ -166,6 +173,14 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
                         RGB_LED_IDLE_BRIGHTNESS, RGB_LED_ACTIVE_BRIGHTNESS);
 #endif
 
+// OLED Display
+#if ENABLE_OLED
+Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+unsigned long lastOLEDUpdate = 0;
+#define OLED_UPDATE_INTERVAL 5000  // Update OLED every 5 seconds
+bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
+#endif
+
 // Serial Monitor Buffer (SERIAL_LOG_SIZE defined in webpages.h)
 String serialLog[SERIAL_LOG_SIZE];
 int serialLogIndex = 0;
@@ -260,6 +275,9 @@ void setupEthernet();
 void WiFiEvent(arduino_event_id_t event);
 void setupWebServer();
 void setupMMDVM();
+void setupOLED();
+void displayBootLogo();
+void updateOLEDStatus();
 void loadConfig();
 void saveConfig();
 void handleMMDVMSerial();
@@ -314,6 +332,11 @@ void setup() {
 
   logSerial("\n\n=== ESP32 MMDVM Hotspot ===");
   logSerial("Initializing...");
+
+  // Initialize OLED Display early (before other components)
+#if ENABLE_OLED
+  setupOLED();
+#endif
 
   // Load saved configuration
   loadConfig();
@@ -517,6 +540,11 @@ void setup() {
     logSerial("Web Interface: http://" + WiFi.localIP().toString());
 #endif
   }
+
+  // Update OLED with network status after setup is complete
+#if ENABLE_OLED
+  updateOLEDStatus();
+#endif
 }
 
 void loop() {
@@ -534,8 +562,16 @@ void loop() {
   // Handle MMDVM serial communication
   handleMMDVMSerial();
 
-  // Check for DMR activity timeout
+  // Check for DMR activity timeout and update OLED display
   unsigned long currentMillis = millis();
+
+  // Update OLED display periodically
+#if ENABLE_OLED
+  if (currentMillis - lastOLEDUpdate >= OLED_UPDATE_INTERVAL) {
+    updateOLEDStatus();
+    lastOLEDUpdate = currentMillis;
+  }
+#endif
   for (int i = 0; i < 2; i++) {
     // Check if DMR activity has timed out and add to history before deactivating
     if (dmrActivity[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
@@ -1951,5 +1987,132 @@ uint64_t getSDUsedBytes() {
 
 uint8_t getSDCardType() {
   return sdCardAvailable ? sdCardType : 0;  // Return cached value
+}
+#endif
+
+// ===== OLED Display Functions =====
+#if ENABLE_OLED
+void setupOLED() {
+  // Initialize I2C
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+
+  // Initialize OLED display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
+    logSerial("OLED: SSD1306 allocation failed!");
+    return;
+  }
+
+  logSerial("OLED: Display initialized successfully");
+
+  // Display boot logo
+  displayBootLogo();
+}
+
+void displayBootLogo() {
+  display.clearDisplay();
+
+  // Set text properties
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Title with callsign - centered
+  String title = dmr_callsign + " - ESP32 HS";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 0);
+  display.println(title);
+
+  // Draw a line
+  display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
+
+  // Firmware version
+  display.setCursor(0, 14);
+  display.println("Version:");
+  display.setCursor(0, 24);
+  display.println(FIRMWARE_VERSION);
+
+  // Authors
+  display.setCursor(0, 34);
+  display.println("Made by:");
+  display.setCursor(0, 44);
+  display.println("PD2EMC & PD8JO");
+
+  // Status
+  display.setCursor(0, 55);
+  display.println("Booting...");
+
+  display.display();
+
+  logSerial("OLED: Boot logo displayed");
+}
+
+void updateOLEDStatus() {
+  // Clear entire display for clean look
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Title with callsign - centered
+  String title = dmr_callsign + " - ESP32 HS";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 0);
+  display.println(title);
+
+  // Draw a line
+  display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
+
+  // Draw a line above network status
+  display.drawLine(0, 50, OLED_WIDTH, 50, SSD1306_WHITE);
+
+  // Network Status - all on one line
+  display.setCursor(0, 54);
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // If both ETH and WiFi are connected, toggle between them
+  // Always show WiFi first (faster to connect), then alternate once ETH is up
+  if (eth_connected && wifiConnected) {
+    // Both connected - alternate display
+    if (oledShowEthernet) {
+      display.print("ETH: ");
+      display.print(ETH.localIP().toString());
+    } else {
+      display.print("WiFi: ");
+      display.print(WiFi.localIP().toString());
+    }
+    // Toggle for next update
+    oledShowEthernet = !oledShowEthernet;
+  } else if (wifiConnected) {
+    // WiFi only (show first, even if ETH will connect later)
+    display.print("WiFi: ");
+    display.print(WiFi.localIP().toString());
+  } else if (eth_connected) {
+    // ETH only
+    display.print("ETH: ");
+    display.print(ETH.localIP().toString());
+  } else if (apMode) {
+    display.print("AP: ");
+    display.print(WiFi.softAPIP().toString());
+  } else {
+    display.print("No Network");
+  }
+#else
+  if (wifiConnected) {
+    display.print("WiFi: ");
+    display.print(WiFi.localIP().toString());
+  } else if (apMode) {
+    display.print("AP: ");
+    display.print(WiFi.softAPIP().toString());
+  } else {
+    display.print("No Network");
+  }
+#endif
+
+  display.display();
 }
 #endif
