@@ -134,11 +134,18 @@
 
 #endif
 
+// Ledborg RGB LED Pins (if used)
+#define LEDBORG_RED_PIN 41
+#define LEDBORG_GREEN_PIN 40
+#define LEDBORG_BLUE_PIN 42
 
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
-#define MMDVM_RX_PIN 39           // MMDVM RX pin
-#define MMDVM_TX_PIN 42          // MMDVM TX pin
+#define MMDVM_RX_PIN 4           // MMDVM RX pin
+#define MMDVM_TX_PIN 6          // MMDVM TX pin
+//40 = green
+//41 = red
+//42 = blue
 
 // RF Configuration
 #define MMDVM_RX_INVERT false   // RX signal inversion
