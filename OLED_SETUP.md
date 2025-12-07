@@ -105,22 +105,57 @@ If your display uses **0x3D**, update `config.h`:
 
 ## Current Features
 
-### Boot Logo Display
+### 1. Boot Logo Display
 On startup, the OLED shows:
-- **ESP32 MMDVM Hotspot** title
+- **Centered callsign header** (e.g., "PD2EMC - ESP32 HS")
 - **Firmware version**
 - **Authors** (PD2EMC & PD8JO)
 - **Boot status** ("Booting...")
 
+### 2. Network Status Display
+After boot, the display shows:
+- **WiFi/Ethernet connection status** with IP address
+- **Automatic switching** between WiFi and Ethernet (when both connected)
+- **AP mode fallback** display
+- Updates every 5 seconds (when idle)
+
+### 3. Real-Time DMR Activity Display
+The OLED shows live DMR transmissions:
+
+**When idle (no transmission):**
+- "DMR: Listening"
+- Current talkgroup (TG) number
+
+**During active transmission:**
+- **Slot indicator** - [S1] or [S2]
+- **Callsign** - Source station callsign
+- **DMR ID → Talkgroup** - Complete routing info
+- **Duration** - Real-time transmission duration in seconds
+- **Fast refresh** - Updates every 1 second during active transmissions
+- **Smart slot switching** - When both slots active, alternates display every second
+
+### Display Layout
+
+```
+┌────────────────────────┐
+│  PD2EMC - ESP32 HS     │ ← Centered header
+├────────────────────────┤
+│ [S2] PA0ABC            │ ← Active transmission
+│ 2043999 -> TG 91       │ ← DMR ID → Talkgroup
+│ Duration: 5s           │ ← Real-time duration
+├────────────────────────┤
+│ WiFi: 192.168.1.50     │ ← Network status
+└────────────────────────┘
+```
+
 ## Future Enhancements (Planned)
 
-The display is ready for additional features:
-- **Network Status** - WiFi/Ethernet IP address and connection state
-- **DMR Status** - Login status, talkgroup, slot information
-- **Active Transmissions** - Callsign, DMR ID, signal quality (BER/RSSI)
-- **System Info** - Uptime, memory usage, temperature
+Additional features that can be added:
+- **Signal quality** - BER/RSSI display (requires MMDVM firmware support)
+- **System Info** - Uptime, memory usage, CPU temperature
 - **Multi-page Display** - Rotate through different info screens
 - **Auto-dimming** - Reduce brightness when idle
+- **User name display** - Show operator name from DMR database
 
 ## Troubleshooting
 

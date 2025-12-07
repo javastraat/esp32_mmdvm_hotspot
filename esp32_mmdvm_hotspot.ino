@@ -177,8 +177,10 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
 #if ENABLE_OLED
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 unsigned long lastOLEDUpdate = 0;
-#define OLED_UPDATE_INTERVAL 5000  // Update OLED every 5 seconds
+#define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
+#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 1 second when DMR active
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
+int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
 #endif
 
 // Serial Monitor Buffer (SERIAL_LOG_SIZE defined in webpages.h)
@@ -565,9 +567,13 @@ void loop() {
   // Check for DMR activity timeout and update OLED display
   unsigned long currentMillis = millis();
 
-  // Update OLED display periodically
+  // Update OLED display periodically (faster when DMR activity is active)
 #if ENABLE_OLED
-  if (currentMillis - lastOLEDUpdate >= OLED_UPDATE_INTERVAL) {
+  // Check if there's any active DMR transmission
+  bool anyDMRActive = dmrActivity[0].active || dmrActivity[1].active;
+  unsigned long oledInterval = anyDMRActive ? OLED_UPDATE_INTERVAL_ACTIVE : OLED_UPDATE_INTERVAL;
+
+  if (currentMillis - lastOLEDUpdate >= oledInterval) {
     updateOLEDStatus();
     lastOLEDUpdate = currentMillis;
   }
@@ -2066,6 +2072,73 @@ void updateOLEDStatus() {
 
   // Draw a line
   display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
+
+  // DMR Activity Section (between the two lines)
+  // Check for active DMR transmission
+  bool activityDisplayed = false;
+
+  // Check if both slots are active
+  bool bothSlotsActive = dmrActivity[0].active && dmrActivity[1].active;
+
+  // Determine which slot to display
+  int slotToDisplay = -1;
+  if (bothSlotsActive) {
+    // Both active - alternate between them
+    slotToDisplay = oledActiveSlot;
+    oledActiveSlot = (oledActiveSlot == 0) ? 1 : 0; // Toggle for next update
+  } else if (dmrActivity[1].active) {
+    // Only Slot 2 active (prioritize Slot 2)
+    slotToDisplay = 1;
+  } else if (dmrActivity[0].active) {
+    // Only Slot 1 active
+    slotToDisplay = 0;
+  }
+
+  // Display the selected slot
+  if (slotToDisplay >= 0) {
+    int i = slotToDisplay;
+
+    // Active transmission on this slot
+    display.setCursor(0, 14);
+
+    // Slot indicator and callsign (prominent)
+    display.print("[S");
+    display.print(dmrActivity[i].slotNo);
+    display.print("] ");
+    if (dmrActivity[i].srcCallsign.length() > 0) {
+      display.println(dmrActivity[i].srcCallsign);
+    } else {
+      display.println("Unknown");
+    }
+
+    // DMR ID -> Talkgroup
+    display.setCursor(0, 24);
+    display.print(dmrActivity[i].srcId);
+    display.print(" -> TG ");
+    display.println(dmrActivity[i].dstId);
+
+    // Duration
+    display.setCursor(0, 34);
+    unsigned long duration = (millis() - dmrActivity[i].startTime) / 1000;
+    display.print("Duration: ");
+    display.print(duration);
+    display.println("s");
+
+    activityDisplayed = true;
+  }
+
+  // If no active transmission, show idle state
+  if (!activityDisplayed) {
+    display.setCursor(0, 20);
+    display.println("DMR: Listening");
+
+    // Show current talkgroup if available
+    if (currentTalkgroup > 0) {
+      display.setCursor(0, 30);
+      display.print("TG: ");
+      display.println(currentTalkgroup);
+    }
+  }
 
   // Draw a line above network status
   display.drawLine(0, 50, OLED_WIDTH, 50, SSD1306_WHITE);
