@@ -148,7 +148,6 @@
 #define LEDBORG_GREEN_PIN 40
 #define LEDBORG_BLUE_PIN 42
 
-
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
 #define MMDVM_RX_PIN 44          // MMDVM RX pin
