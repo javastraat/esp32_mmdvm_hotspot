@@ -125,6 +125,9 @@
 #define SD_MOSI_PIN SPI_MOSI_PIN
 #define SD_SCLK_PIN SPI_SCLK_PIN
 #define SD_CS_PIN 12
+//define I2C Pins
+#define I2C_SDA_PIN 17
+#define I2C_SCL_PIN 18
 
 #else
 // GPIO Pins
@@ -139,10 +142,16 @@
 #define LEDBORG_GREEN_PIN 40
 #define LEDBORG_BLUE_PIN 42
 
+// RGB LED Settings
+#define ENABLE_RGB_LED true          // Enable RGB LED status indicator
+#define RGB_LED_BRIGHTNESS 25        // LED brightness 0-255 (lower = dimmer, 25 = ~10% brightness)
+#define RGB_LED_IDLE_BRIGHTNESS 10   // Idle state brightness 0-255 (very dim when idle)
+#define RGB_LED_ACTIVE_BRIGHTNESS 15 // Active (TX/RX) state brightness 0-255
+
 // Serial communication
 #define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
-#define MMDVM_RX_PIN 4           // MMDVM RX pin
-#define MMDVM_TX_PIN 6          // MMDVM TX pin
+#define MMDVM_RX_PIN 44          // MMDVM RX pin
+#define MMDVM_TX_PIN 43          // MMDVM TX pin
 //40 = green
 //41 = red
 //42 = blue

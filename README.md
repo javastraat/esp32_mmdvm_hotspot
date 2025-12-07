@@ -330,11 +330,59 @@ WiFiNetwork wifiNetworks[5];
 ```
 
 ### LED Status Indicators
+
+#### Standard Status LED (GPIO 2)
 - **OFF** - System starting up
 - **STEADY** - Connected to WiFi and DMR network
 - **FAST_BLINK** - Connecting to WiFi
 - **SLOW_BLINK** - Access Point mode active
 - **Automatic Control** - LED state managed by setLEDMode() and updateStatusLED() functions
+
+#### RGB LED Status Indicator (Optional)
+
+**Hardware Setup:**
+Connect RGB LEDs to the following pins:
+- Red LED: GPIO 41
+- Green LED: GPIO 40
+- Blue LED: GPIO 42
+
+**Configuration (config.h):**
+```cpp
+// RGB LED Settings
+#define ENABLE_RGB_LED true          // Enable/disable RGB LED
+#define RGB_LED_BRIGHTNESS 25        // Overall brightness (25 = ~10%)
+#define RGB_LED_IDLE_BRIGHTNESS 10   // Idle state brightness (dim)
+#define RGB_LED_ACTIVE_BRIGHTNESS 50 // TX/RX brightness (brighter but still dimmed)
+```
+
+**Status Colors:**
+
+| Status | Color | Brightness | When |
+|--------|-------|------------|------|
+| **Disconnected** | 🔴 Red | Dim (10) | No network connection |
+| **AP Mode** | 🟣 Purple | Dim (10) | Access Point mode active |
+| **Connecting** | 🔵 Blue blinking | Flashing | Connecting to network |
+| **Network Connected** | 🔵 Blue | Very dim (10) | Connected but idle |
+| **Transmitting** | 🟢 Green | Medium (50) | TX - Sending to network |
+| **Receiving** | 🔴 Red | Medium (50) | RX - Receiving from network |
+
+**Features:**
+- **Dimmed by default** - All colors use the brightness settings you can adjust in config.h
+- **PWM control** - Smooth brightness control using ESP32 hardware PWM
+- **Activity feedback** - Flashes green when transmitting, red when receiving
+- **Network status** - Shows connection state at a glance
+- **Non-blocking** - Uses PWM so it doesn't affect performance
+
+**Files:**
+- `RGBLedController.h` - RGB LED controller class
+- `config.h` - LED configuration settings
+- `esp32_mmdvm_hotspot.ino` - Integrated LED control
+
+**Brightness Adjustment:**
+Edit the values in config.h to adjust brightness:
+- Lower numbers = dimmer (recommended for bright LEDs)
+- Higher numbers = brighter
+- Range: 0-255 (0=off, 255=full brightness)
 
 ## Network Configuration
 

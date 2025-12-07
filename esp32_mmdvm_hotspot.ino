@@ -34,6 +34,7 @@
 #include <time.h>
 #include "config.h"
 #include "webpages.h"
+#include "RGBLedController.h"
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
@@ -158,6 +159,12 @@ enum class DMR_STATE {
 };
 DMR_STATE dmrState = DMR_STATE::DISCONNECTED;
 uint8_t dmrSalt[4];
+
+// RGB LED Status Indicator
+#if ENABLE_RGB_LED
+RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
+                        RGB_LED_IDLE_BRIGHTNESS, RGB_LED_ACTIVE_BRIGHTNESS);
+#endif
 
 // Serial Monitor Buffer (SERIAL_LOG_SIZE defined in webpages.h)
 String serialLog[SERIAL_LOG_SIZE];
@@ -318,6 +325,13 @@ void setup() {
   digitalWrite(PTT_PIN, LOW);
   digitalWrite(COS_LED_PIN, LOW);
   digitalWrite(STATUS_LED_PIN, LOW);
+
+  // Initialize RGB LED Status Indicator
+#if ENABLE_RGB_LED
+  rgbLed.begin();
+  rgbLed.setStatus(RGBLedStatus::DISCONNECTED);
+  logSerial("RGB LED initialized");
+#endif
 
   // Setup MMDVM Serial
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -509,6 +523,11 @@ void loop() {
   // Update status LED
   updateStatusLED();
 
+  // Update RGB LED (for blinking effects)
+#if ENABLE_RGB_LED
+  rgbLed.update();
+#endif
+
   // Handle web server
   server.handleClient();
 
@@ -593,6 +612,9 @@ void setupWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     wifiConnected = true;
     setLEDMode(LED_MODE::STEADY);  // Steady on when connected
+#if ENABLE_RGB_LED
+    rgbLed.setStatus(RGBLedStatus::NETWORK_CONNECTED);
+#endif
     logSerial("\nWiFi Connected!");
     logSerial("IP Address: " + WiFi.localIP().toString());
 
@@ -620,6 +642,9 @@ void setupWiFi() {
         if (WiFi.status() == WL_CONNECTED) {
           wifiConnected = true;
           setLEDMode(LED_MODE::STEADY);  // Steady on when connected
+#if ENABLE_RGB_LED
+          rgbLed.setStatus(RGBLedStatus::NETWORK_CONNECTED);
+#endif
           logSerial("\nWiFi Connected [" + wifiNetworks[i].label + "]!");
           logSerial("IP Address: " + WiFi.localIP().toString());
           udp.begin(LOCAL_PORT);
@@ -639,6 +664,9 @@ void setupAccessPoint() {
   WiFi.softAP(ap_ssid, ap_password);
 
   setLEDMode(LED_MODE::SLOW_BLINK);  // Slow blink in AP mode
+#if ENABLE_RGB_LED
+  rgbLed.setStatus(RGBLedStatus::AP_MODE);
+#endif
 
   IPAddress IP = WiFi.softAPIP();
   logSerial("AP IP address: " + IP.toString());
@@ -668,6 +696,9 @@ void WiFiEvent(arduino_event_id_t event) {
       eth_connected = true;
       wifiConnected = true;
       setLEDMode(LED_MODE::STEADY);
+#if ENABLE_RGB_LED
+      rgbLed.setStatus(RGBLedStatus::NETWORK_CONNECTED);
+#endif
 
       // Start UDP for DMR network
       udp.begin(LOCAL_PORT);
@@ -677,6 +708,9 @@ void WiFiEvent(arduino_event_id_t event) {
       logSerial("ETH Disconnected");
       eth_connected = false;
       wifiConnected = false;
+#if ENABLE_RGB_LED
+      rgbLed.setStatus(RGBLedStatus::DISCONNECTED);
+#endif
       break;
     case ARDUINO_EVENT_ETH_STOP:
       logSerial("ETH Stopped");
@@ -817,7 +851,7 @@ void processMMDVMFrame() {
 
     case CMD_DMR_DATA1:
     case CMD_DMR_DATA2:
-      // DMR data received from MMDVM - forward to network
+      // DMR data received from MMDVM - forward to network (TRANSMITTING)
       if (wifiConnected) {
         // Extract DMR frame and send to network
         uint16_t dataLen = rxBufferPtr - 3;
@@ -827,8 +861,14 @@ void processMMDVMFrame() {
 
         logSerial("DMR data forwarded to network");
         digitalWrite(COS_LED_PIN, HIGH);
+#if ENABLE_RGB_LED
+        rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
+#endif
         delay(50);
         digitalWrite(COS_LED_PIN, LOW);
+#if ENABLE_RGB_LED
+        rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
+#endif
       }
       break;
 
@@ -1101,10 +1141,15 @@ void handleNetwork() {
           // Mark that we've seen TERM_LC for this transmission (but don't add to history yet)
           // History will be added when the transmission times out and becomes inactive
 
-          // Parse and forward to MMDVM
+          // Parse and forward to MMDVM (RECEIVING from network)
           if (mmdvmReady) {
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, packet, len);
+#if ENABLE_RGB_LED
+            rgbLed.setStatus(RGBLedStatus::RECEIVING);
+            delay(50);
+            rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
+#endif
           }
         }
       }
