@@ -524,12 +524,13 @@ void setup() {
   logSerial("Initializing...");
 
   // Initialize OLED Display early (before other components)
+  // Load saved configuration
+
 #if ENABLE_OLED
   setupOLED();
+  updateBootStatus("Loading config...");
 #endif
 
-  // Load saved configuration
-  updateBootStatus("Loading config...");
   loadConfig();
 
   // Setup GPIO
@@ -548,13 +549,17 @@ void setup() {
 #endif
 
   // Setup MMDVM Serial
+#if ENABLE_OLED
   updateBootStatus("Init MMDVM...");
+#endif
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
   // Initialize SD Card
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if ENABLE_OLED
   updateBootStatus("Init SD Card...");
+#endif
   logSerial("Initializing SD card...");
   sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
@@ -606,8 +611,10 @@ void setup() {
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  updateBootStatus("Connecting ETH...");
-  setupEthernet();
+#if ENABLE_OLED
+    updateBootStatus("Init Ethernet...");
+#endif
+    setupEthernet();
 
   // Wait up to 10 seconds for Ethernet to connect
   logSerial("Waiting for Ethernet connection...");
@@ -625,18 +632,24 @@ void setup() {
     // Ethernet failed, try WiFi (Ethernet will keep trying in background)
     logSerial("\nEthernet connection timeout. Falling back to WiFi...");
     logSerial("Note: Ethernet will continue trying in background.");
+#if ENABLE_OLED
     updateBootStatus("Connecting WiFi...");
+#endif  
     setupWiFi();
   }
 #else
+  #if ENABLE_OLED 
   updateBootStatus("Connecting WiFi...");
+  #endif
   setupWiFi();
 #endif
 
 // Setup Web Server
 //setupWebServer();
 #if ENABLE_WEBSERVER
+#if ENABLE_OLED
   updateBootStatus("Starting web...");
+#endif
   setupWebServer();
 #endif
 
@@ -652,7 +665,9 @@ void setup() {
 
   // Initialize NTP Time
   if (wifiConnected || eth_connected) {
+#if ENABLE_OLED
     updateBootStatus("Syncing time...");
+#endif
     logSerial("Initializing NTP time client...");
     // Configure time with NTP servers (using saved timezone settings or config.h defaults)
     configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
@@ -682,7 +697,9 @@ void setup() {
   if (wifiConnected) {
     // DMR Network Connection
     if (mode_dmr_enabled) {
+      #if ENABLE_OLED
       updateBootStatus("Connecting DMR...");
+      #endif
       connectToDMRNetwork();
     } else {
       logSerial("DMR mode is disabled - skipping DMR network connection");
@@ -726,7 +743,9 @@ void setup() {
     logSerial("WiFi not connected - skipping all network connections");
   }
 
+#if ENABLE_OLED
   updateBootStatus("Ready!");
+#endif
   delay(1000);  // Show "Ready!" for 1 second
 
   logSerial("Setup complete!");
