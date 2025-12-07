@@ -2220,7 +2220,7 @@ void setupOLED() {
   logSerial("OLED: Display initialized successfully");
   // Display boot logos
   testdrawbitmap();
-  delay(2000);  // Show logo for 2 seconds
+  delay(5000);  // Show logo for 2 seconds
   // Display ESP32 logo first
   displayESP32Logo();
   logSerial("OLED: Showing ESP32 logo");
