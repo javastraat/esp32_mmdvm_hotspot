@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251207_ESP32_BETA"  // Update version as needed
 //#define FIRMWARE_VERSION "20251207_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251207_ESP32_BETA"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 #define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
