@@ -105,19 +105,36 @@ If your display uses **0x3D**, update `config.h`:
 
 ## Current Features
 
-### 1. Boot Logo Display
-On startup, the OLED shows:
+### 1. Startup Sequence
+On power-up, the OLED displays a professional boot sequence:
+
+**ESP32 Splash Screen (2 seconds):**
+- Large "ESP32" logo with decorative borders
+- "MMDVM Hotspot" subtitle
+- Logged to serial: "OLED: Showing ESP32 logo"
+
+**Boot Logo with Live Status Updates:**
 - **Centered callsign header** (e.g., "PD2EMC - ESP32 HS")
 - **Firmware version**
 - **Authors** (PD2EMC & PD8JO)
-- **Boot status** ("Booting...")
+- **Live boot progress** - Status line updates in real-time:
+  - "Booting..."
+  - "Loading config..."
+  - "Init MMDVM..."
+  - "Init SD Card..."
+  - "Connecting ETH..." or "Connecting WiFi..."
+  - "Starting web..."
+  - "Syncing time..."
+  - "Connecting DMR..."
+  - "Ready!"
+- All status updates logged to serial monitor
 
 ### 2. Network Status Display
 After boot, the display shows:
 - **WiFi/Ethernet connection status** with IP address
 - **Automatic switching** between WiFi and Ethernet (when both connected)
 - **AP mode fallback** display
-- Updates every 5 seconds (when idle)
+- **Independent 5-second timer** - Network display toggles smoothly every 5 seconds regardless of DMR activity
 
 ### 3. Real-Time DMR Activity Display
 The OLED shows live DMR transmissions:
@@ -140,9 +157,11 @@ The OLED shows live DMR transmissions:
 ┌────────────────────────┐
 │  PD2EMC - ESP32 HS     │ ← Centered header
 ├────────────────────────┤
-│ [S2] PA0ABC            │ ← Active transmission
-│ 2043999 -> TG 91       │ ← DMR ID → Talkgroup
-│ Duration: 5s           │ ← Real-time duration
+│                        │
+│      PA0ABC            │ ← LARGE callsign (2x, centered)
+│                        │
+│ Duration: 5s           │ ← Duration
+│ 2043999->TG 91 [S2]    │ ← DMR ID→TG + Slot
 ├────────────────────────┤
 │ WiFi: 192.168.1.50     │ ← Network status
 └────────────────────────┘

@@ -177,8 +177,10 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
 #if ENABLE_OLED
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 unsigned long lastOLEDUpdate = 0;
+unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
 #define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
 #define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 1 second when DMR active
+#define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
 int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
 #endif
@@ -278,7 +280,9 @@ void WiFiEvent(arduino_event_id_t event);
 void setupWebServer();
 void setupMMDVM();
 void setupOLED();
+void displayESP32Logo();
 void displayBootLogo();
+void updateBootStatus(String status);
 void updateOLEDStatus();
 void loadConfig();
 void saveConfig();
@@ -341,6 +345,7 @@ void setup() {
 #endif
 
   // Load saved configuration
+  updateBootStatus("Loading config...");
   loadConfig();
 
   // Setup GPIO
@@ -359,11 +364,13 @@ void setup() {
 #endif
 
   // Setup MMDVM Serial
+  updateBootStatus("Init MMDVM...");
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
   // Initialize SD Card
+  updateBootStatus("Init SD Card...");
   logSerial("Initializing SD card...");
   sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
@@ -415,8 +422,9 @@ void setup() {
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  updateBootStatus("Connecting ETH...");
   setupEthernet();
-  
+
   // Wait up to 10 seconds for Ethernet to connect
   logSerial("Waiting for Ethernet connection...");
   int eth_attempts = 0;
@@ -433,15 +441,18 @@ void setup() {
     // Ethernet failed, try WiFi (Ethernet will keep trying in background)
     logSerial("\nEthernet connection timeout. Falling back to WiFi...");
     logSerial("Note: Ethernet will continue trying in background.");
+    updateBootStatus("Connecting WiFi...");
     setupWiFi();
   }
 #else
+  updateBootStatus("Connecting WiFi...");
   setupWiFi();
 #endif
 
 // Setup Web Server
 //setupWebServer();
 #if ENABLE_WEBSERVER
+  updateBootStatus("Starting web...");
   setupWebServer();
 #endif
 
@@ -457,6 +468,7 @@ void setup() {
 
   // Initialize NTP Time
   if (wifiConnected || eth_connected) {
+    updateBootStatus("Syncing time...");
     logSerial("Initializing NTP time client...");
     // Configure time with NTP servers (using saved timezone settings or config.h defaults)
     configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
@@ -486,6 +498,7 @@ void setup() {
   if (wifiConnected) {
     // DMR Network Connection
     if (mode_dmr_enabled) {
+      updateBootStatus("Connecting DMR...");
       connectToDMRNetwork();
     } else {
       logSerial("DMR mode is disabled - skipping DMR network connection");
@@ -529,6 +542,9 @@ void setup() {
     logSerial("WiFi not connected - skipping all network connections");
   }
 
+  updateBootStatus("Ready!");
+  delay(1000);  // Show "Ready!" for 1 second
+
   logSerial("Setup complete!");
   if (apMode) {
     logSerial("Access Point Mode - Connect to: " + String(ap_ssid));
@@ -566,6 +582,15 @@ void loop() {
 
   // Check for DMR activity timeout and update OLED display
   unsigned long currentMillis = millis();
+
+  // Handle network toggle on separate timer (always 5 seconds)
+#if ENABLE_OLED
+  if (currentMillis - lastNetworkToggle >= NETWORK_TOGGLE_INTERVAL) {
+    // Toggle network display flag
+    oledShowEthernet = !oledShowEthernet;
+    lastNetworkToggle = currentMillis;
+  }
+#endif
 
   // Update OLED display periodically (faster when DMR activity is active)
 #if ENABLE_OLED
@@ -2010,8 +2035,53 @@ void setupOLED() {
 
   logSerial("OLED: Display initialized successfully");
 
-  // Display boot logo
+  // Display ESP32 logo first
+  displayESP32Logo();
+  logSerial("OLED: Showing ESP32 logo");
+  delay(2000);  // Show logo for 2 seconds
+
+  // Then display boot logo
   displayBootLogo();
+  logSerial("OLED: Showing boot screen");
+}
+
+void displayESP32Logo() {
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Draw decorative top border
+  for (int i = 0; i < OLED_WIDTH; i += 4) {
+    display.drawPixel(i, 0, SSD1306_WHITE);
+    display.drawPixel(i + 1, 1, SSD1306_WHITE);
+  }
+
+  // ESP32 text - large and centered
+  display.setTextSize(3);
+  String esp32Text = "ESP32";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(esp32Text, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 15);
+  display.println(esp32Text);
+
+  // MMDVM Hotspot text - smaller, centered
+  display.setTextSize(1);
+  String mmdvmText = "MMDVM Hotspot";
+  display.getTextBounds(mmdvmText, 0, 0, &x1, &y1, &w, &h);
+  x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 45);
+  display.println(mmdvmText);
+
+  // Draw decorative bottom border
+  for (int i = 0; i < OLED_WIDTH; i += 4) {
+    display.drawPixel(i, OLED_HEIGHT - 2, SSD1306_WHITE);
+    display.drawPixel(i + 1, OLED_HEIGHT - 1, SSD1306_WHITE);
+  }
+
+  display.display();
 }
 
 void displayBootLogo() {
@@ -2052,6 +2122,24 @@ void displayBootLogo() {
   display.display();
 
   logSerial("OLED: Boot logo displayed");
+}
+
+void updateBootStatus(String status) {
+#if ENABLE_OLED
+  // Update only the status line at the bottom of boot screen
+  // Clear the status area (bottom line)
+  display.fillRect(0, 55, OLED_WIDTH, 9, SSD1306_BLACK);
+
+  // Display new status
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 55);
+  display.println(status);
+
+  display.display();
+
+  logSerial("OLED: " + status);
+#endif
 }
 
 void updateOLEDStatus() {
@@ -2098,31 +2186,32 @@ void updateOLEDStatus() {
   if (slotToDisplay >= 0) {
     int i = slotToDisplay;
 
-    // Active transmission on this slot
-    display.setCursor(0, 14);
+    // Callsign - LARGE and prominent (2x size, centered)
+    display.setTextSize(2);
+    String callsign = (dmrActivity[i].srcCallsign.length() > 0) ? dmrActivity[i].srcCallsign : "Unknown";
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(callsign, 0, 0, &x1, &y1, &w, &h);
+    int16_t x = (OLED_WIDTH - w) / 2;
+    display.setCursor(x, 14);
+    display.println(callsign);
 
-    // Slot indicator and callsign (prominent)
-    display.print("[S");
-    display.print(dmrActivity[i].slotNo);
-    display.print("] ");
-    if (dmrActivity[i].srcCallsign.length() > 0) {
-      display.println(dmrActivity[i].srcCallsign);
-    } else {
-      display.println("Unknown");
-    }
-
-    // DMR ID -> Talkgroup
-    display.setCursor(0, 24);
-    display.print(dmrActivity[i].srcId);
-    display.print(" -> TG ");
-    display.println(dmrActivity[i].dstId);
-
-    // Duration
-    display.setCursor(0, 34);
+    // Duration (small text, below callsign)
+    display.setTextSize(1);
+    display.setCursor(0, 32);
     unsigned long duration = (millis() - dmrActivity[i].startTime) / 1000;
     display.print("Duration: ");
     display.print(duration);
     display.println("s");
+
+    // DMR ID -> Talkgroup with slot indicator at the end (small text)
+    display.setCursor(0, 42);
+    display.print(dmrActivity[i].srcId);
+    display.print(" -> TG ");
+    display.print(dmrActivity[i].dstId);
+    display.print(" [S");
+    display.print(dmrActivity[i].slotNo);
+    display.print("]");
 
     activityDisplayed = true;
   }
@@ -2147,10 +2236,10 @@ void updateOLEDStatus() {
   display.setCursor(0, 54);
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  // If both ETH and WiFi are connected, toggle between them
-  // Always show WiFi first (faster to connect), then alternate once ETH is up
+  // If both ETH and WiFi are connected, display based on toggle flag
+  // (Toggle happens on separate 5-second timer in main loop)
   if (eth_connected && wifiConnected) {
-    // Both connected - alternate display
+    // Both connected - show based on flag (no toggle here)
     if (oledShowEthernet) {
       display.print("ETH: ");
       display.print(ETH.localIP().toString());
@@ -2158,8 +2247,6 @@ void updateOLEDStatus() {
       display.print("WiFi: ");
       display.print(WiFi.localIP().toString());
     }
-    // Toggle for next update
-    oledShowEthernet = !oledShowEthernet;
   } else if (wifiConnected) {
     // WiFi only (show first, even if ETH will connect later)
     display.print("WiFi: ");
