@@ -960,15 +960,18 @@ void WiFiEvent(arduino_event_id_t event) {
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       logSerial("ETH Disconnected");
       eth_connected = false;
-      wifiConnected = false;
+      // Don't touch wifiConnected - WiFi may still be active
 #if ENABLE_RGB_LED
-      rgbLed.setStatus(RGBLedStatus::DISCONNECTED);
+      // Only set disconnected status if WiFi is also not connected
+      if (!wifiConnected) {
+        rgbLed.setStatus(RGBLedStatus::DISCONNECTED);
+      }
 #endif
       break;
     case ARDUINO_EVENT_ETH_STOP:
       logSerial("ETH Stopped");
       eth_connected = false;
-      wifiConnected = false;
+      // Don't touch wifiConnected - WiFi may still be active
       break;
     default:
       break;
@@ -2467,19 +2470,51 @@ void updateOLEDStatus() {
                           mode_p25_enabled || mode_nxdn_enabled || mode_pocsag_enabled;
 
     if (!anyModeEnabled) {
-      // No modes activated
-      display.println("No modes active");
-      display.setCursor(0, 30);
-      display.println("Enable mode in web");
+      // No modes activated - center the text
+      String line1 = "No mode activated";
+      String line2 = "Enable mode in web";
+
+      int16_t x1, y1;
+      uint16_t w, h;
+
+      // Center first line
+      display.getTextBounds(line1, 0, 0, &x1, &y1, &w, &h);
+      int16_t x = (OLED_WIDTH - w) / 2;
+      display.setCursor(x, 20);
+      display.println(line1);
+
+      // Center second line
+      display.getTextBounds(line2, 0, 0, &x1, &y1, &w, &h);
+      x = (OLED_WIDTH - w) / 2;
+      display.setCursor(x, 30);
+      display.println(line2);
     } else if (mode_dmr_enabled) {
       // DMR mode is enabled - show status
       if (dmrLoggedIn) {
         display.println("DMR: Listening");
+
         // Show current talkgroup if available
         if (currentTalkgroup > 0) {
           display.setCursor(0, 30);
           display.print("TG: ");
           display.println(currentTalkgroup);
+        }
+
+        // Show last caller callsign (check both slots for most recent)
+        String lastCaller = "";
+        unsigned long mostRecentTime = 0;
+
+        for (int i = 0; i < 2; i++) {
+          if (dmrActivity[i].srcCallsign.length() > 0 && dmrActivity[i].lastUpdate > mostRecentTime) {
+            lastCaller = dmrActivity[i].srcCallsign;
+            mostRecentTime = dmrActivity[i].lastUpdate;
+          }
+        }
+
+        if (lastCaller.length() > 0) {
+          display.setCursor(0, 40);
+          display.print("Last: ");
+          display.println(lastCaller);
         }
       } else {
         // DMR enabled but not connected

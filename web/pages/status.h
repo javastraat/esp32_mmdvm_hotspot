@@ -198,7 +198,11 @@ String getStatusContent() {
   // Station Information Card
   html += "<div class='card'>";
   html += "<h3>Station Information</h3>";
-  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + String(dmr_callsign) + "</span></div>";
+  // Show callsign status - green if configured, red if still default N0CALL
+  bool isDefaultCallsign = (dmr_callsign == "N0CALL");
+  String callsignStatusClass = isDefaultCallsign ? "disconnected" : "connected";
+  String callsignStatusText = isDefaultCallsign ? "Callsign: N0CALL (Not Configured)" : "Callsign: " + dmr_callsign;
+  html += "<div class='status " + callsignStatusClass + "'>" + callsignStatusText + "</div>";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? String("None") : String(dmr_essid)) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Location:</span><span class='metric-value'>" + dmr_location + "</span></div>";
