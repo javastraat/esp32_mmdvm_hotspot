@@ -11,6 +11,7 @@
 #include "../common/css.h"
 #include "../common/navigation.h"
 #include "../common/utils.h"
+#include "../common/server_utils.h"
 
 // External variables and functions
 extern WebServer server;
@@ -52,7 +53,7 @@ void handleDMRConfig() {
   html += "form { margin: 20px 0; }";
   html += "label { display: block; margin: 15px 0 5px; font-weight: bold; color: var(--text-color); }";
   html += "input[type='text'], input[type='password'], input[type='number'], select { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; font-size: 14px; background: var(--container-bg); color: var(--text-color); }";
-  html += "input[type='submit'] { background: #28a745; color: white; padding: 12px 30px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; font-size: 16px; }";
+  html += "input[type='submit'] { background: #28a745; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; font-size: 16px; width: 100%; box-sizing: border-box; }";
   html += "input[type='submit']:hover { background: #218838; }";
   html += ".password-container { position: relative; }";
   html += ".password-container input { padding-right: 40px; }";
@@ -116,7 +117,7 @@ void handleDMRConfig() {
   html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + dmr_server + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + getServerDisplayName(dmr_server) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? "None" : String(dmr_essid)) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 3) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 3) + " MHz</span></div>";

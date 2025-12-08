@@ -12,6 +12,7 @@
 #include "../common/css.h"
 #include "../common/navigation.h"
 #include "../common/utils.h"
+#include "../common/server_utils.h"
 
 // External variables
 extern WebServer server;
@@ -171,7 +172,7 @@ String getStatusContent() {
   html += "<h3>DMR Network Status</h3>";
   String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
   html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
-  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + dmr_server + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + getServerDisplayName(dmr_server) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
   if (dmr_essid > 0) {
