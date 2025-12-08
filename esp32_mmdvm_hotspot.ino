@@ -278,6 +278,58 @@ static const unsigned char PROGMEM logo_bmp[] =
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+// Icon bitmaps for OLED display (8x8 pixels)
+#define ICON_WIDTH 8
+#define ICON_HEIGHT 8
+
+// WiFi icon (8x8)
+static const unsigned char PROGMEM icon_wifi[] = {
+  0b00000000,
+  0b00111100,
+  0b01000010,
+  0b10011001,
+  0b00100100,
+  0b00011000,
+  0b00011000,
+  0b00000000
+};
+
+// Ethernet/Cable icon (8x8)
+static const unsigned char PROGMEM icon_ethernet[] = {
+  0b00000000,
+  0b01111110,
+  0b01000010,
+  0b01011010,
+  0b01011010,
+  0b01000010,
+  0b01111110,
+  0b00000000
+};
+
+// Antenna/RF icon (8x8) - looks like radio waves
+static const unsigned char PROGMEM icon_antenna[] = {
+  0b00011000,
+  0b00111100,
+  0b01011010,
+  0b10011001,
+  0b00011000,
+  0b00100100,
+  0b01000010,
+  0b10000001
+};
+
+// DMR icon (8x8)
+static const unsigned char PROGMEM icon_dmr[] = {
+  0b11111111,
+  0b11000011,
+  0b10100101,
+  0b10011001,
+  0b10011001,
+  0b10100101,
+  0b11000011,
+  0b11111111
+};
+
 #endif
 
 // Serial Monitor Buffer (SERIAL_LOG_SIZE defined in webpages.h)
@@ -2282,14 +2334,35 @@ void updateOLEDStatus() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  // Title with callsign - centered
-  String title = dmr_callsign + " - ESP32 HS";
+  // Title with callsign - left aligned
+  String title = dmr_callsign + " - Hotspot";
+  display.setCursor(0, 0);
+  display.println(title);
+
+  // Calculate icon positions on the right side (after text with 2px spacing)
   int16_t x1, y1;
   uint16_t w, h;
   display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
-  int16_t x = (OLED_WIDTH - w) / 2;
-  display.setCursor(x, 0);
-  display.println(title);
+  int iconStartX = w + 4; // Start icons 4 pixels after text
+
+  // Draw antenna icon (first icon on the right)
+  if (mode_dmr_enabled && dmrLoggedIn) {
+    display.drawBitmap(iconStartX, 0, icon_antenna, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconStartX += ICON_WIDTH + 2; // Move position for next icon
+  }
+
+  // Draw network icon (second icon on the right)
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  if (eth_connected) {
+    display.drawBitmap(iconStartX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  } else if (wifiConnected) {
+    display.drawBitmap(iconStartX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  }
+#else
+  if (wifiConnected) {
+    display.drawBitmap(iconStartX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  }
+#endif
 
   // Draw a line
   display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
