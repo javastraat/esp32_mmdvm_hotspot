@@ -137,6 +137,8 @@
 #define NETWORK_KEEPALIVE_INTERVAL 5000  // Keepalive interval in milliseconds
 #define NETWORK_TIMEOUT 30000            // Network timeout in milliseconds
 #define NETWORK_RECONNECT_DELAY 5000     // Delay before reconnecting
+#define DMR_LOGIN_TIMEOUT 10000          // DMR login timeout in milliseconds (10 seconds)
+#define DMR_LOGIN_MAX_RETRIES 3          // Maximum number of login retry attempts
 
 // ===== NTP Time Settings =====
 #define NTP_SERVER1 "pool.ntp.org"    // Primary NTP server

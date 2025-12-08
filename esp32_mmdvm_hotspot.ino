@@ -166,6 +166,8 @@ enum class DMR_STATE {
 };
 DMR_STATE dmrState = DMR_STATE::DISCONNECTED;
 uint8_t dmrSalt[4];
+unsigned long lastLoginAttempt = 0;
+int loginAttempts = 0;
 
 // RGB LED Status Indicator
 #if ENABLE_RGB_LED
@@ -835,9 +837,36 @@ void loop() {
   if (wifiConnected) {
     handleNetwork();
 
+    // Check for DMR login timeout and retry if needed
+    if (mode_dmr_enabled && !dmrLoggedIn && wifiConnected) {
+      if (dmrState == DMR_STATE::WAITING_LOGIN ||
+          dmrState == DMR_STATE::WAITING_AUTH ||
+          dmrState == DMR_STATE::WAITING_CONFIG) {
+
+        if (currentMillis - lastLoginAttempt >= DMR_LOGIN_TIMEOUT) {
+          if (loginAttempts < DMR_LOGIN_MAX_RETRIES) {
+            loginAttempts++;
+            logSerial("DMR login timeout - retrying (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")");
+            dmrLoginStatus = "Retrying... (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")";
+            connectToDMRNetwork();
+            lastLoginAttempt = currentMillis;
+#if ENABLE_OLED
+            updateOLEDStatus(); // Update display to show retry status
+#endif
+          } else {
+            logSerial("DMR login failed after " + String(DMR_LOGIN_MAX_RETRIES) + " attempts");
+            dmrLoginStatus = "Login Failed";
+            dmrState = DMR_STATE::DISCONNECTED;
+#if ENABLE_OLED
+            updateOLEDStatus(); // Update display to show failure
+#endif
+          }
+        }
+      }
+    }
+
     // Send keepalive packets only if DMR mode is enabled and connected
     if (mode_dmr_enabled && dmrLoggedIn) {
-      unsigned long currentMillis = millis();
       if (currentMillis - lastKeepalive >= NETWORK_KEEPALIVE_INTERVAL) {
         sendDMRKeepalive();
         lastKeepalive = currentMillis;
@@ -1226,7 +1255,14 @@ void handleNetwork() {
               dmrLoggedIn = true;
               dmrLoginStatus = "Connected";
               dmrState = DMR_STATE::CONNECTED;
+              loginAttempts = 0; // Reset retry counter on successful login
               logSerial("DMR Network fully connected and operational!");
+
+              // Force immediate OLED update to show connected status
+#if ENABLE_OLED
+              updateOLEDStatus();
+              lastOLEDUpdate = millis(); // Reset timer
+#endif
               break;
             case DMR_STATE::DISCONNECTED:
               // Don't retry after NAK to prevent bans
@@ -1431,6 +1467,7 @@ void connectToDMRNetwork() {
   dmrLoginStatus = "Connecting...";
   dmrLoggedIn = false;
   dmrState = DMR_STATE::WAITING_LOGIN;
+  lastLoginAttempt = millis(); // Start timeout timer
 
   logSerial("Connecting to DMR Network...");
   logSerial("Server: " + dmr_server + ":" + String(dmr_port));
