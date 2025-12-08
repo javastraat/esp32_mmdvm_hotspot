@@ -176,10 +176,11 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
 // OLED Display
 #if ENABLE_OLED
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from SPI conflicts
 unsigned long lastOLEDUpdate = 0;
 unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
 #define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
-#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 1 second when DMR active
+#define OLED_UPDATE_INTERVAL_ACTIVE 2000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
 #define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
 int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
@@ -2213,6 +2214,14 @@ uint8_t getSDCardType() {
 // ===== OLED Display Functions =====
 #if ENABLE_OLED
 void setupOLED() {
+  // Create mutex for display access protection
+  displayMutex = xSemaphoreCreateMutex();
+  if (displayMutex == NULL) {
+    logSerial("OLED: Failed to create display mutex!");
+  } else {
+    logSerial("OLED: Display mutex created");
+  }
+
   // Initialize I2C
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
@@ -2350,6 +2359,15 @@ void updateBootStatus(String status) {
 }
 
 void updateOLEDStatus() {
+  // Try to acquire mutex to prevent SPI conflicts with Ethernet
+  if (displayMutex != NULL) {
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+      // Could not acquire mutex in 50ms, skip this update to avoid blocking
+      logSerial("OLED: Skipped update - mutex busy");
+      return;
+    }
+  }
+
   // Clear entire display for clean look
   display.clearDisplay();
 
@@ -2611,5 +2629,10 @@ void updateOLEDStatus() {
   display.print(bottomLine);
 
   display.display();
+
+  // Release mutex after display update is complete
+  if (displayMutex != NULL) {
+    xSemaphoreGive(displayMutex);
+  }
 }
 #endif
