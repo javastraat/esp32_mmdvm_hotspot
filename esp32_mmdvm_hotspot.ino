@@ -183,6 +183,7 @@ unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
 #define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
 int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
+int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
 //
 // #define LOGO_HEIGHT   16
 // #define LOGO_WIDTH    16
@@ -753,7 +754,25 @@ void loop() {
   // Handle network toggle on separate timer (always 5 seconds)
 #if ENABLE_OLED
   if (currentMillis - lastNetworkToggle >= NETWORK_TOGGLE_INTERVAL) {
-    // Toggle network display flag
+    // Cycle through header display states
+    // Determine max cycle value based on connections
+    bool hasWifi = wifiConnected;
+    bool hasEth = false;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    hasEth = eth_connected;
+#endif
+
+    int maxCycle = 1; // Default: 2 states (network + callsign)
+    if (hasWifi && hasEth) {
+      maxCycle = 2; // 3 states (wifi, eth, callsign)
+    }
+
+    oledHeaderCycle++;
+    if (oledHeaderCycle > maxCycle) {
+      oledHeaderCycle = 0;
+    }
+
+    // Keep old toggle for backward compatibility if needed
     oledShowEthernet = !oledShowEthernet;
     lastNetworkToggle = currentMillis;
   }
@@ -2277,7 +2296,7 @@ void displayBootLogo() {
   display.setTextColor(SSD1306_WHITE);
 
   // Title with callsign - centered
-  String title = dmr_callsign + " - ESP32 HS";
+  String title = "ESP32 Hotspot";
   int16_t x1, y1;
   uint16_t w, h;
   display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
@@ -2334,37 +2353,54 @@ void updateOLEDStatus() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  // Title with callsign - left aligned
-  String title = dmr_callsign + " - Hotspot";
-  display.setCursor(0, 0);
-  display.println(title);
-
-  // Calculate icon positions on the right side (after text with 2px spacing)
-  int16_t x1, y1;
-  uint16_t w, h;
-  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
-  int iconStartX = w + 4; // Start icons 4 pixels after text
-
-  // Draw antenna icon (first icon on the right)
-  if (mode_dmr_enabled && dmrLoggedIn) {
-    display.drawBitmap(iconStartX, 0, icon_antenna, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
-    iconStartX += ICON_WIDTH + 2; // Move position for next icon
+  // ===== TOP LINE: Date/Time on left, Icons on right =====
+  // Get current time
+  struct tm timeinfo;
+  String timeStr = "";
+  if (getLocalTime(&timeinfo)) {
+    char timeBuf[16];
+    strftime(timeBuf, sizeof(timeBuf), "%d %b %H:%M", &timeinfo);
+    timeStr = String(timeBuf);
+  } else {
+    timeStr = "--:--";
   }
 
-  // Draw network icon (second icon on the right)
+  display.setCursor(0, 0);
+  display.print(timeStr);
+
+  // Draw icons on the right side of top line (right to left)
+  int iconX = OLED_WIDTH - ICON_WIDTH; // Start from right edge
+
+  // Draw network icons - show both if both connected
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  if (eth_connected) {
-    display.drawBitmap(iconStartX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  if (eth_connected && wifiConnected) {
+    // Both connected - show both icons
+    display.drawBitmap(iconX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+  } else if (eth_connected) {
+    // Ethernet only
+    display.drawBitmap(iconX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
   } else if (wifiConnected) {
-    display.drawBitmap(iconStartX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    // WiFi only
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
   }
 #else
   if (wifiConnected) {
-    display.drawBitmap(iconStartX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
   }
 #endif
 
-  // Draw a line
+  // Draw antenna/DMR icon (left of network icons)
+  if (mode_dmr_enabled && dmrLoggedIn) {
+    display.drawBitmap(iconX, 0, icon_antenna, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  }
+
+  // Draw a line below top row
   display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
 
   // DMR Activity Section (between the two lines)
@@ -2465,49 +2501,79 @@ void updateOLEDStatus() {
     }
   }
 
-  // Draw a line above network status
+  // ===== BOTTOM ROW: Cycling Network/Callsign info =====
+  // Draw a line above bottom status
   display.drawLine(0, 50, OLED_WIDTH, 50, SSD1306_WHITE);
 
-  // Network Status - all on one line
-  display.setCursor(0, 54);
+  display.setTextSize(1);
 
+  // Determine what to show based on connections and cycle state
+  bool hasWifi = wifiConnected;
+  bool hasEth = false;
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  // If both ETH and WiFi are connected, display based on toggle flag
-  // (Toggle happens on separate 5-second timer in main loop)
-  if (eth_connected && wifiConnected) {
-    // Both connected - show based on flag (no toggle here)
-    if (oledShowEthernet) {
-      display.print("ETH: ");
-      display.print(ETH.localIP().toString());
-    } else {
-      display.print("WiFi: ");
-      display.print(WiFi.localIP().toString());
-    }
-  } else if (wifiConnected) {
-    // WiFi only (show first, even if ETH will connect later)
-    display.print("WiFi: ");
-    display.print(WiFi.localIP().toString());
-  } else if (eth_connected) {
-    // ETH only
-    display.print("ETH: ");
-    display.print(ETH.localIP().toString());
-  } else if (apMode) {
-    display.print("AP: ");
-    display.print(WiFi.softAPIP().toString());
-  } else {
-    display.print("No Network");
-  }
-#else
-  if (wifiConnected) {
-    display.print("WiFi: ");
-    display.print(WiFi.localIP().toString());
-  } else if (apMode) {
-    display.print("AP: ");
-    display.print(WiFi.softAPIP().toString());
-  } else {
-    display.print("No Network");
-  }
+  hasEth = eth_connected;
 #endif
+
+  String bottomLine = "";
+  bool centerText = false; // Flag to center callsign text
+
+  if (hasWifi && hasEth) {
+    // Both connected - cycle through 3 screens
+    if (oledHeaderCycle == 0) {
+      bottomLine = "WiFi: " + WiFi.localIP().toString();
+    } else if (oledHeaderCycle == 1) {
+      bottomLine = "ETH: " + ETH.localIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (hasWifi) {
+    // WiFi only - alternate between 2 screens
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "WiFi: " + WiFi.localIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (hasEth) {
+    // ETH only - alternate between 2 screens
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "ETH: " + ETH.localIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (apMode) {
+    // AP mode
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "AP: " + WiFi.softAPIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else {
+    // No network - alternate between warning and callsign
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "No Network";
+      centerText = true;
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  }
+
+  // Center the text if it's the callsign, otherwise left-align
+  if (centerText) {
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(bottomLine, 0, 0, &x1, &y1, &w, &h);
+    int16_t x = (OLED_WIDTH - w) / 2;
+    display.setCursor(x, 54);
+  } else {
+    display.setCursor(0, 54);
+  }
+
+  display.print(bottomLine);
 
   display.display();
 }
