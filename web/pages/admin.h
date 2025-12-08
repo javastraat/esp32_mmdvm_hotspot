@@ -70,12 +70,13 @@ void handleResetConfig() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Complete Storage Reset - ESP32 MMDVM</title>";
+  html += getCommonCSS();
   html += "<style>";
-  html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
-  html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }";
-  html += "h1 { color: #dc3545; border-bottom: 2px solid #dc3545; padding-bottom: 10px; }";
-  html += ".warning { padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; margin: 20px 0; text-align: left; }";
-  html += ".danger { padding: 15px; background: #f8d7da; border-left: 4px solid #dc3545; margin: 20px 0; text-align: left; }";
+  html += ".container { max-width: 600px; margin: 40px auto; padding: 0; text-align: center; }";
+  html += ".card { text-align: center; }";
+  html += "h1 { color: #dc3545; border-bottom: 2px solid #dc3545; padding-bottom: 10px; margin-bottom: 20px; }";
+  html += ".warning { padding: 15px; background: rgba(255, 193, 7, 0.15); border-left: 4px solid #ffc107; margin: 20px 0; text-align: left; border-radius: 4px; }";
+  html += ".danger { padding: 15px; background: rgba(220, 53, 69, 0.15); border-left: 4px solid #dc3545; margin: 20px 0; text-align: left; border-radius: 4px; }";
   html += ".nav { margin: 20px 0; }";
   html += ".nav a { display: inline-block; padding: 10px 20px; margin: 5px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }";
   html += ".nav a:hover { background: #0056b3; }";
@@ -83,6 +84,7 @@ void handleResetConfig() {
   html += ".btn-danger:hover { background: #c82333; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
+  html += "<div class='card'>";
   html += "<h1>Complete Storage Reset</h1>";
   html += "<div class='danger'>";
   html += "<strong>EXTREME WARNING!</strong><br>";
@@ -111,6 +113,7 @@ void handleResetConfig() {
   html += "  return confirm('FINAL WARNING!\\n\\nYou are about to PERMANENTLY ERASE all settings and data.\\n\\nThis action CANNOT be undone!\\n\\nPress OK to proceed with complete storage reset, or Cancel to abort.');";
   html += "}";
   html += "</script>";
+  html += "</div>";
   html += getFooter();
   html += "</div></body></html>";
 
@@ -160,20 +163,22 @@ void handleConfirmReset() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Complete Storage Reset</title>";
+  html += getCommonCSS();
   html += "<style>";
-  html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
-  html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
-  html += "h1 { color: #28a745; }";
-  html += ".info { text-align: left; margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #007bff; }";
-  html += ".warning { text-align: left; margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; }";
+  html += ".container { max-width: 600px; margin: 40px auto; padding: 0; text-align: center; }";
+  html += ".card { text-align: center; }";
+  html += "h1 { color: #28a745; margin-bottom: 20px; }";
+  html += ".info { text-align: left; margin: 20px 0; padding: 15px; background: var(--info-bg); border-left: 4px solid #007bff; border-radius: 4px; }";
+  html += ".warning { text-align: left; margin: 20px 0; padding: 15px; background: rgba(255, 193, 7, 0.15); border-left: 4px solid #ffc107; border-radius: 4px; }";
   html += ".countdown { font-size: 24px; font-weight: bold; color: #007bff; margin: 20px 0; }";
-  html += ".spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }";
+  html += ".spinner { border: 4px solid var(--border-color); border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }";
   html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }";
   html += ".btn:hover { background: #0056b3; }";
   html += "#reconnectBtn { display: none; }";
   html += "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
   html += "</style></head><body>";
   html += "<div class='container'>";
+  html += "<div class='card'>";
   html += "<h1>Complete Storage Reset!</h1>";
   html += "<div class='info'>";
   html += "<strong>What was cleared:</strong><br>";
@@ -209,6 +214,7 @@ void handleConfirmReset() {
   html += "  }";
   html += "}, 1000);";
   html += "</script>";
+  html += "</div>";
   html += getFooter();
   html += "</div></body></html>";
 

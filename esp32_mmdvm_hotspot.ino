@@ -2352,13 +2352,43 @@ void updateOLEDStatus() {
   // If no active transmission, show idle state
   if (!activityDisplayed) {
     display.setCursor(0, 20);
-    display.println("DMR: Listening");
 
-    // Show current talkgroup if available
-    if (currentTalkgroup > 0) {
+    // Check if any mode is enabled
+    bool anyModeEnabled = mode_dmr_enabled || mode_dstar_enabled || mode_ysf_enabled ||
+                          mode_p25_enabled || mode_nxdn_enabled || mode_pocsag_enabled;
+
+    if (!anyModeEnabled) {
+      // No modes activated
+      display.println("No modes active");
       display.setCursor(0, 30);
-      display.print("TG: ");
-      display.println(currentTalkgroup);
+      display.println("Enable mode in web");
+    } else if (mode_dmr_enabled) {
+      // DMR mode is enabled - show status
+      if (dmrLoggedIn) {
+        display.println("DMR: Listening");
+        // Show current talkgroup if available
+        if (currentTalkgroup > 0) {
+          display.setCursor(0, 30);
+          display.print("TG: ");
+          display.println(currentTalkgroup);
+        }
+      } else {
+        // DMR enabled but not connected
+        display.println("DMR Mode Active");
+        display.setCursor(0, 30);
+        display.print("Status: ");
+        display.println(dmrLoginStatus);
+      }
+    } else {
+      // Other mode is enabled (D-Star, YSF, P25, NXDN, POCSAG)
+      // Show which mode(s) are enabled but not yet implemented
+      display.println("Mode enabled:");
+      display.setCursor(0, 30);
+      if (mode_dstar_enabled) display.println("D-Star (N/A)");
+      else if (mode_ysf_enabled) display.println("YSF (N/A)");
+      else if (mode_p25_enabled) display.println("P25 (N/A)");
+      else if (mode_nxdn_enabled) display.println("NXDN (N/A)");
+      else if (mode_pocsag_enabled) display.println("POCSAG (N/A)");
     }
   }
 

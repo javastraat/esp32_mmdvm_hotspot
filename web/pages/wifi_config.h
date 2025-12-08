@@ -249,11 +249,12 @@ void handleSaveConfig() {
   html += "<meta http-equiv='refresh' content='10;url=/wificonfig'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>Network Saved</title>";
+  html += getCommonCSS();
   html += "<style>";
-  html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
-  html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; text-align: center; }";
-  html += "h1 { color: #28a745; }";
-  html += ".network-info { text-align: left; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; }";
+  html += ".container { max-width: 600px; margin: 40px auto; padding: 0; text-align: center; }";
+  html += ".card { text-align: center; }";
+  html += "h1 { color: #28a745; margin-bottom: 20px; }";
+  html += ".network-info { text-align: left; margin: 20px 0; padding: 15px; background: var(--info-bg); border-radius: 4px; border: 1px solid var(--border-color); }";
   html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
   html += ".btn-primary { background: #007bff; color: white; }";
   html += ".btn-primary:hover { background: #0056b3; }";
@@ -261,6 +262,7 @@ void handleSaveConfig() {
   html += ".btn-warning:hover { background: #e0a800; }";
   html += "</style></head><body>";
   html += "<div class='container'>";
+  html += "<div class='card'>";
   html += "<h1>Network Saved!</h1>";
   html += "<div class='network-info'>";
   html += "<strong>Slot " + String(slot + 1) + ":</strong> " + wifiNetworks[slot].label + "<br>";
@@ -273,6 +275,8 @@ void handleSaveConfig() {
   html += "<button type='submit' class='btn btn-warning'>Reboot to Connect</button>";
   html += "</form>";
   html += "</div>";
+  html += "</div>";
+  html += getFooter();
   html += "</div></body></html>";
 
   server.send(200, "text/html", html);
