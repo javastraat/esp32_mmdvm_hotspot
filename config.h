@@ -8,11 +8,11 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-//#define FIRMWARE_VERSION "20251208_ESP32"  // Update version as needed
 #define FIRMWARE_VERSION "20251208_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251208_ESP32"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
-#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -83,8 +83,11 @@
 #else
 // GPIO Pins
 #define MMDVM_PTT_PIN 0      // Push-to-talk control
-#define MMDVM_COS_LED_PIN 2  // Carrier detect LED
-#define STATUS_LED_PIN 2     // Status LED (can be same as COS)
+#define MMDVM_COS_LED_PIN 38  // Carrier detect LED
+#define STATUS_LED_PIN 38     // Status LED (can be same as COS)
+// I2C Pins
+#define I2C_SDA_PIN 17
+#define I2C_SCL_PIN 18
 
 #endif
 

@@ -50,15 +50,15 @@
 #else
 #include <ETH.h>
 #endif
-bool eth_connected = false;
+static bool eth_connected = false;
 #include <SPI.h>
 #include <SD.h>
+#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // SD Card pins are defined in config.h
 SPIClass sdSPI(HSPI);  // Use HSPI for SD card
 bool sdCardAvailable = false;
 uint8_t sdCardType = 0;  // Cached SD card type
-#endif
 
 // ESP32-S3 USB Serial configuration
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -180,7 +180,7 @@ SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from 
 unsigned long lastOLEDUpdate = 0;
 unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
 #define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
-#define OLED_UPDATE_INTERVAL_ACTIVE 2000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
+#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
 #define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
 int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
@@ -630,7 +630,13 @@ void setup() {
 #endif
 
   // Initialize NTP Time
-  if (wifiConnected || eth_connected) {
+  // Check if we have any network connection
+  bool hasNetwork = wifiConnected;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  hasNetwork = hasNetwork || eth_connected;
+#endif
+
+  if (hasNetwork) {
 #if ENABLE_OLED
     updateBootStatus("Syncing time...");
 #endif
@@ -722,6 +728,8 @@ void setup() {
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
     if (eth_connected) {
       logSerial("Web Interface: http://" + ETH.localIP().toString());
+    } else {
+      logSerial("Web Interface: http://" + WiFi.localIP().toString());
     }
 #else
     logSerial("Web Interface: http://" + WiFi.localIP().toString());
@@ -760,7 +768,10 @@ void loop() {
     bool hasWifi = wifiConnected;
     bool hasEth = false;
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    bool hasEth = false;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
     hasEth = eth_connected;
+#endif
 #endif
 
     int maxCycle = 1; // Default: 2 states (network + callsign)
@@ -930,6 +941,7 @@ void setupAccessPoint() {
   apMode = true;
 }
 
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 void WiFiEvent(arduino_event_id_t event) {
   switch (event) {
     case ARDUINO_EVENT_ETH_START:
@@ -978,9 +990,10 @@ void WiFiEvent(arduino_event_id_t event) {
       break;
   }
 }
+#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
-void setupEthernet() {
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+void setupEthernet() {
   logSerial("Initializing Ethernet (LILYGO T-ETH-ELITE)...");
 
   WiFi.onEvent(WiFiEvent);
@@ -1005,8 +1018,8 @@ void setupEthernet() {
     // Give it a moment to start connecting
     delay(2000);
   }
-#endif
 }
+#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 void setupMMDVM() {
   logSerial("Initializing MMDVM...");
@@ -2374,19 +2387,33 @@ void updateOLEDStatus() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  // ===== TOP LINE: Date/Time on left, Icons on right =====
+  // ===== TOP LINE: Date on left, Time centered, Icons on right =====
   // Get current time
   struct tm timeinfo;
+  String dateStr = "";
   String timeStr = "";
   if (getLocalTime(&timeinfo)) {
-    char timeBuf[16];
-    strftime(timeBuf, sizeof(timeBuf), "%d %b %H:%M", &timeinfo);
+    char dateBuf[8];
+    char timeBuf[8];
+    strftime(dateBuf, sizeof(dateBuf), "%d/%m", &timeinfo);
+    strftime(timeBuf, sizeof(timeBuf), "%H:%M", &timeinfo);
+    dateStr = String(dateBuf);
     timeStr = String(timeBuf);
   } else {
+    dateStr = "--/--";
     timeStr = "--:--";
   }
 
+  // Display date on the left
   display.setCursor(0, 0);
+  display.print(dateStr);
+
+  // Display time centered
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
+  int16_t timeX = (OLED_WIDTH - w) / 2;
+  display.setCursor(timeX, 0);
   display.print(timeStr);
 
   // Draw icons on the right side of top line (right to left)
@@ -2575,7 +2602,9 @@ void updateOLEDStatus() {
     if (oledHeaderCycle == 0) {
       bottomLine = "WiFi: " + WiFi.localIP().toString();
     } else if (oledHeaderCycle == 1) {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
       bottomLine = "ETH: " + ETH.localIP().toString();
+#endif
     } else {
       bottomLine = dmr_callsign + " - ESP32 HS";
       centerText = true;
@@ -2591,7 +2620,9 @@ void updateOLEDStatus() {
   } else if (hasEth) {
     // ETH only - alternate between 2 screens
     if (oledHeaderCycle % 2 == 0) {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
       bottomLine = "ETH: " + ETH.localIP().toString();
+#endif
     } else {
       bottomLine = dmr_callsign + " - ESP32 HS";
       centerText = true;
