@@ -2147,23 +2147,27 @@ void setupOLED() {
     logSerial("OLED: SSD1306 allocation failed!");
     return;
   }
-
   logSerial("OLED: Display initialized successfully");
-  // Display boot logos
-  testdrawbitmap();
-  delay(5000);  // Show logo for 2 seconds
-  // Display ESP32 logo first
-  displayESP32Logo();
-  logSerial("OLED: Showing ESP32 logo");
-  delay(2000);  // Show logo for 2 seconds
 
-  // Then display boot logo
+  // Display boot logos
+  //
+  //Bitmap logo first
+  displayBitmap();
+  logSerial("OLED: Display logo bitmap");
+  delay(5000);  // Show logo for 2 seconds
+  //
+  // Then ESP32 logo
+  //displayESP32Logo();
+  //logSerial("OLED: Showing ESP32 logo");
+  //delay(2000);  // Show logo for 2 seconds
+  //
+  // boot logo last
   displayBootLogo();
   logSerial("OLED: Showing boot screen");
 }
 
 
-void testdrawbitmap(void) {
+void displayBitmap(void) {
   display.clearDisplay();
 
   display.drawBitmap(
