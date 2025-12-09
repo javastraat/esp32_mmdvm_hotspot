@@ -103,10 +103,11 @@
 #define LEDBORG_BLUE_PIN 42
 
 // Serial communication
-#define MMDVM_SERIAL_BAUD 460800 //115200  // MMDVM serial baud rate (try 230400 or 460800 if not working)
+#define MMDVM_SERIAL_BAUD 460800  // MMDVM serial baud rate (115200 confirmed working)
 // NOTE: ESP32 TX connects to MMDVM RX, ESP32 RX connects to MMDVM TX
 #define MMDVM_RX_PIN 44          // ESP32 RX pin (receives data FROM MMDVM modem TX)
 #define MMDVM_TX_PIN 43          // ESP32 TX pin (sends data TO MMDVM modem RX)
+#define MMDVM_WAKEUP_PIN 13      // GPIO to keep MMDVM active (needs continuous UART TX)
 //40 = green
 //41 = red
 //42 = blue

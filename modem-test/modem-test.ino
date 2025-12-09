@@ -16,6 +16,7 @@
 // ===== Configuration =====
 #define MMDVM_RX_PIN 44
 #define MMDVM_TX_PIN 43
+#define MMDVM_WAKEUP_PIN 13  // Wake up MMDVM modem
 
 // MMDVM Protocol Constants
 #define MMDVM_FRAME_START 0xE0
@@ -32,6 +33,8 @@ HardwareSerial MMDVMSerial(2);
 // ===== Global Variables =====
 bool testPassed = false;
 int detectedBaud = -1;
+HardwareSerial WakeupSerial(1);  // Declare globally so it stays active
+bool wakeupSerialActive = false;
 
 void setup() {
   // Initialize USB Serial for debugging
@@ -45,6 +48,37 @@ void setup() {
   Serial.println("Hardware: ESP32-S3 + MMDVM HS Hat");
   Serial.println("Pins: TX=43, RX=44");
   Serial.println("Voltage: 3.34V (GOOD - Compatible with ESP32)");
+  Serial.println();
+
+  // Wake up MMDVM by starting serial on GPIO 13 and KEEPING IT ACTIVE
+  // The pin scanner keeps TestSerial active throughout all tests - that's the key!
+  Serial.println("INIT: Starting MMDVM wakeup on GPIO 13...");
+  Serial.println("INIT: Will keep serial active during all tests");
+  
+  // Start serial and keep it running
+  WakeupSerial.begin(460800, SERIAL_8N1, 1, MMDVM_WAKEUP_PIN);  // RX=1, TX=13
+  wakeupSerialActive = true;
+  delay(100);
+  
+  // Flush any garbage
+  while (WakeupSerial.available()) {
+    WakeupSerial.read();
+  }
+  
+  // Send initial wakeup commands
+  Serial.println("  Sending initial wakeup burst on GPIO 13...");
+  uint8_t cmd[] = {MMDVM_FRAME_START, 0x03, CMD_GET_VERSION};
+  
+  for (int i = 0; i < 20; i++) {
+    WakeupSerial.write(cmd, 3);
+    WakeupSerial.flush();
+    delay(100);
+    if (i % 5 == 0) Serial.print(".");
+  }
+  Serial.println();
+  
+  Serial.println("  Serial on GPIO 13 is now ACTIVE and will stay active");
+  Serial.println("  Check if SVC LED starts blinking during tests...");
   Serial.println();
 
   // PRE-TEST: Passive listening at common baud rates
@@ -68,9 +102,31 @@ void setup() {
     Serial.println("See diagnostic output above for details");
   }
   Serial.println("========================================\n");
+  
+  // Clean up wakeup serial based on test results
+  if (wakeupSerialActive) {
+    if (testPassed) {
+      // Test passed - we found working communication on GPIO 43/44
+      // We can safely close GPIO 13 wakeup serial now
+      Serial.println("Closing GPIO 13 wakeup serial (no longer needed)...");
+      WakeupSerial.end();
+      wakeupSerialActive = false;
+    } else {
+      // Test failed - keep GPIO 13 active to keep modem awake for debugging
+      Serial.println("Keeping GPIO 13 active (modem needs it to stay awake)...");
+      Serial.println("SVC LED should be blinking if GPIO 13 is working...\n");
+    }
+  }
 }
 
 void loop() {
+  // Keep sending data on GPIO 13 if wakeup serial is active
+  if (wakeupSerialActive) {
+    uint8_t cmd[] = {MMDVM_FRAME_START, 0x03, CMD_GET_VERSION};
+    WakeupSerial.write(cmd, 3);
+    WakeupSerial.flush();
+  }
+  
   // After initial test, continuously monitor for any MMDVM output
   if (testPassed) {
     // Show any spontaneous data from modem

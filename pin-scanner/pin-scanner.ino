@@ -23,20 +23,20 @@ struct PinPair {
 };
 
 // Baud rates to test (most likely first)
-uint32_t baudRates[] = {460800, 115200, 230400, 57600, 38400, 19200, 9600};
+uint32_t baudRates[] = {460800};//, 115200, 230400, 57600, 38400, 19200, 9600};
 const int numBauds = sizeof(baudRates) / sizeof(uint32_t);
 
 // Known TX candidates (from your testing)
-int txPins[] = { 13, 43, 44};
+int txPins[] = { 13};
 const int numTxPins = sizeof(txPins) / sizeof(int);
 
 // All possible RX pins to test
 // Exclude: 0 (boot), 6-11 (flash), 18-19 (flash conflict)
 int rxPins[] = {
-  1, 2, 3, 4, 5,           // Low GPIOs
-  12, 13, 14, 15, 16, 17,  // Mid GPIOs
-  18,// 19,                  // USB GPIOs
-  33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48  // High GPIOs
+  1//, 2, 3, 4, 5,           // Low GPIOs
+  //12, 13, 14, 15, 16, 17,  // Mid GPIOs
+  //18,// 19,                  // USB GPIOs
+  //33, 34, 35, 36, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48  // High GPIOs
 };
 const int numRxPins = sizeof(rxPins) / sizeof(int);
 

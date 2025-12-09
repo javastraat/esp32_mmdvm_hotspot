@@ -121,6 +121,10 @@ String web_password = WEB_PASSWORD;
 #define RX_PIN MMDVM_RX_PIN
 #define TX_PIN MMDVM_TX_PIN
 
+// MMDVM Wakeup Serial (GPIO 13 keeps modem active)
+HardwareSerial MMDVMWakeup(1);
+bool mmdvmWakeupActive = false;
+
 // ===== Protocol Constants =====
 #define MMDVM_FRAME_START 0xE0
 
@@ -745,6 +749,9 @@ void setup() {
 }
 
 void loop() {
+  // MMDVM wakeup serial on GPIO 13 stays open (no need to send more data after initial wakeup)
+  // Just keeping the UART port active is enough to keep the modem awake
+  
   // Update status LED
   updateStatusLED();
 
@@ -1052,9 +1059,27 @@ void setupEthernet() {
 
 void setupMMDVM() {
   logSerial("Initializing MMDVM...");
-  delay(1000);
+  
+  // Wake up MMDVM by starting continuous serial on GPIO 13
+  // The modem needs ongoing UART activity on GPIO 13 to wake up and stay active
+  logSerial("Starting MMDVM wakeup serial on GPIO " + String(MMDVM_WAKEUP_PIN) + "...");
+  
+  MMDVMWakeup.begin(115200, SERIAL_8N1, 1, MMDVM_WAKEUP_PIN);  // RX=1, TX=13
+  mmdvmWakeupActive = true;
+  delay(100);
+  
+  // Send initial wakeup burst
+  uint8_t wakeCmd[] = {MMDVM_FRAME_START, 0x03, CMD_GET_VERSION};
+  for (int i = 0; i < 20; i++) {
+    MMDVMWakeup.write(wakeCmd, 3);
+    MMDVMWakeup.flush();
+    delay(50);
+  }
+  
+  logSerial("MMDVM wakeup active (SVC LED should be blinking)");
+  delay(500);
 
-  // Request version
+  // Request version on main UART
   uint8_t cmd = CMD_GET_VERSION;
   sendMMDVMCommand(CMD_GET_VERSION, NULL, 0);
   delay(100);
