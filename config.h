@@ -103,9 +103,10 @@
 #define LEDBORG_BLUE_PIN 42
 
 // Serial communication
-#define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate
-#define MMDVM_RX_PIN 44          // MMDVM RX pin
-#define MMDVM_TX_PIN 43          // MMDVM TX pin
+#define MMDVM_SERIAL_BAUD 460800 //115200  // MMDVM serial baud rate (try 230400 or 460800 if not working)
+// NOTE: ESP32 TX connects to MMDVM RX, ESP32 RX connects to MMDVM TX
+#define MMDVM_RX_PIN 44          // ESP32 RX pin (receives data FROM MMDVM modem TX)
+#define MMDVM_TX_PIN 43          // ESP32 TX pin (sends data TO MMDVM modem RX)
 //40 = green
 //41 = red
 //42 = blue
@@ -120,7 +121,7 @@
 #define MMDVM_RF_LEVEL 100      // RF output power percentage (0-100)
 
 // Frequency Settings (for software-defined MMDVM hats)
-#define MMDVM_FREQUENCY 434000000  // Frequency in Hz (e.g., 434 MHz)
+#define MMDVM_FREQUENCY 435000000  // Frequency in Hz (e.g., 434 MHz)
 #define MMDVM_TX_FREQ_OFFSET 0     // TX frequency offset in Hz
 #define MMDVM_RX_FREQ_OFFSET 0     // RX frequency offset in Hz
 
