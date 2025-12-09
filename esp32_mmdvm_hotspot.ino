@@ -141,6 +141,8 @@ bool mmdvmWakeupActive = false;
 #define CMD_DMR_SHORTLC 0x1B
 #define CMD_DMR_START 0x1C
 #define CMD_DMR_ABORT 0x1D
+#define CMD_ACK 0x70
+#define CMD_NAK 0x7F
 
 // DMR Protocol
 #define DMR_SLOT1 0x00
@@ -1068,21 +1070,113 @@ void setupMMDVM() {
   mmdvmWakeupActive = true;
   delay(100);
   
-  // Send initial wakeup burst
+  // Send initial wakeup burst and try to get version from wakeup responses
   uint8_t wakeCmd[] = {MMDVM_FRAME_START, 0x03, CMD_GET_VERSION};
-  for (int i = 0; i < 20; i++) {
+  bool versionFromWakeup = false;
+  uint8_t wakeRxBuffer[256];
+  int wakeRxPtr = 0;
+
+  for (int i = 0; i < 20 && !versionFromWakeup; i++) {
     MMDVMWakeup.write(wakeCmd, 3);
     MMDVMWakeup.flush();
-    delay(50);
-  }
-  
-  logSerial("MMDVM wakeup active (SVC LED should be blinking)");
-  delay(500);
+    delay(100); // Longer delay to allow response
 
-  // Request version on main UART
-  uint8_t cmd = CMD_GET_VERSION;
-  sendMMDVMCommand(CMD_GET_VERSION, NULL, 0);
-  delay(100);
+    // Check for response on wakeup serial
+    unsigned long wakeTimeout = millis() + 50;
+    while (millis() < wakeTimeout && MMDVMWakeup.available()) {
+      uint8_t byte = MMDVMWakeup.read();
+
+      if (wakeRxPtr == 0 && byte != MMDVM_FRAME_START) {
+        continue;
+      }
+
+      wakeRxBuffer[wakeRxPtr++] = byte;
+
+      if (wakeRxPtr >= 2) {
+        uint8_t frameLength = wakeRxBuffer[1];
+
+        if (wakeRxPtr >= frameLength) {
+          if (wakeRxPtr >= 3 && wakeRxBuffer[2] == CMD_GET_VERSION && wakeRxPtr > 4) {
+            String version = "Modem Firmware (from wakeup): ";
+            for (int j = 4; j < wakeRxPtr && wakeRxBuffer[j] != 0x00; j++) {
+              if (wakeRxBuffer[j] >= 32 && wakeRxBuffer[j] < 127) {
+                version += (char)wakeRxBuffer[j];
+              }
+            }
+            logSerial(version);
+            versionFromWakeup = true;
+          }
+          wakeRxPtr = 0;
+        }
+      }
+
+      if (wakeRxPtr >= sizeof(wakeRxBuffer)) {
+        wakeRxPtr = 0;
+      }
+    }
+  }
+
+  logSerial("MMDVM wakeup active (SVC LED should be blinking)");
+
+  // Clear any pending data from wakeup responses
+  while (MMDVM_SERIAL.available()) {
+    MMDVM_SERIAL.read();
+  }
+
+  delay(1000); // Give modem more time to stabilize
+
+  // If we didn't get version from wakeup, try main UART
+  if (!versionFromWakeup) {
+    logSerial("Requesting modem firmware version on main UART...");
+    sendMMDVMCommand(CMD_GET_VERSION, NULL, 0);
+    MMDVM_SERIAL.flush();
+
+    // Wait for version response
+    unsigned long versionTimeout = millis() + 3000; // 3 second timeout
+    bool versionReceived = false;
+    uint8_t tempRxBuffer[256];
+    int tempRxPtr = 0;
+
+    while (millis() < versionTimeout && !versionReceived) {
+      if (MMDVM_SERIAL.available()) {
+        uint8_t byte = MMDVM_SERIAL.read();
+
+        if (tempRxPtr == 0 && byte != MMDVM_FRAME_START) {
+          continue;
+        }
+
+        tempRxBuffer[tempRxPtr++] = byte;
+
+        if (tempRxPtr >= 2) {
+          uint8_t frameLength = tempRxBuffer[1];
+
+          if (tempRxPtr >= frameLength) {
+            // Check if this is a version response
+            if (tempRxPtr >= 3 && tempRxBuffer[2] == CMD_GET_VERSION) {
+              String version = "Modem Firmware: ";
+              for (int i = 4; i < tempRxPtr && tempRxBuffer[i] != 0x00; i++) {
+                if (tempRxBuffer[i] >= 32 && tempRxBuffer[i] < 127) {
+                  version += (char)tempRxBuffer[i];
+                }
+              }
+              logSerial(version);
+              versionReceived = true;
+            }
+            tempRxPtr = 0;
+          }
+        }
+
+        if (tempRxPtr >= sizeof(tempRxBuffer)) {
+          tempRxPtr = 0;
+        }
+      }
+      delay(10);
+    }
+
+    if (!versionReceived) {
+      logSerial("Warning: No version response from modem");
+    }
+  }
 
   // Set configuration
   uint8_t config[20];
@@ -1100,8 +1194,30 @@ void setupMMDVM() {
   sendMMDVMCommand(CMD_SET_CONFIG, config, 7);
   delay(100);
 
-  // Set mode to DMR
-  uint8_t mode = 0x02;  // DMR mode
+  // Set mode based on enabled modes (priority order)
+  uint8_t mode = 0x00;  // Default to IDLE mode
+  if (mode_dmr_enabled) {
+    mode = 0x02;  // DMR mode
+    logSerial("Setting modem to DMR mode");
+  } else if (mode_dstar_enabled) {
+    mode = 0x01;  // D-Star mode
+    logSerial("Setting modem to D-Star mode");
+  } else if (mode_ysf_enabled) {
+    mode = 0x03;  // YSF mode
+    logSerial("Setting modem to YSF mode");
+  } else if (mode_p25_enabled) {
+    mode = 0x04;  // P25 mode
+    logSerial("Setting modem to P25 mode");
+  } else if (mode_nxdn_enabled) {
+    mode = 0x05;  // NXDN mode
+    logSerial("Setting modem to NXDN mode");
+  } else if (mode_pocsag_enabled) {
+    mode = 0x06;  // POCSAG mode
+    logSerial("Setting modem to POCSAG mode");
+  } else {
+    logSerial("Setting modem to IDLE mode (no modes enabled)");
+  }
+
   sendMMDVMCommand(CMD_SET_MODE, &mode, 1);
   delay(100);
 
@@ -1170,6 +1286,30 @@ void processMMDVMFrame() {
       {
         String status = "MMDVM Status - Mode: " + String(rxBuffer[3]) + " TX: " + String(rxBuffer[4]) + " Overflow: " + String(rxBuffer[7]);
         logSerial(status);
+      }
+      break;
+
+    case CMD_ACK:
+      // Modem acknowledged a command
+      logSerialVerbose("MMDVM ACK received");
+      break;
+
+    case CMD_NAK:
+      // Modem rejected a command
+      if (rxBufferPtr >= 4) {
+        uint8_t reason = rxBuffer[3];
+        String reasonStr;
+        switch (reason) {
+          case 1: reasonStr = "Invalid Command"; break;
+          case 2: reasonStr = "Wrong Mode"; break;
+          case 3: reasonStr = "Command Too Long"; break;
+          case 4: reasonStr = "Data Incorrect"; break;
+          case 5: reasonStr = "Not Enough Buffer Space"; break;
+          default: reasonStr = "Unknown (" + String(reason) + ")"; break;
+        }
+        logSerial("MMDVM NAK - Reason: " + reasonStr);
+      } else {
+        logSerial("MMDVM NAK received");
       }
       break;
 

@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-//#define FIRMWARE_VERSION "20251209_ESP32"  // Update version as needed
 #define FIRMWARE_VERSION "20251209_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251209_ESP32"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -103,7 +103,7 @@
 #define LEDBORG_BLUE_PIN 42
 
 // Serial communication
-#define MMDVM_SERIAL_BAUD 460800  // MMDVM serial baud rate (115200 confirmed working)
+#define MMDVM_SERIAL_BAUD 115200  // MMDVM serial baud rate (115200 confirmed working)
 // NOTE: ESP32 TX connects to MMDVM RX, ESP32 RX connects to MMDVM TX
 #define MMDVM_RX_PIN 44          // ESP32 RX pin (receives data FROM MMDVM modem TX)
 #define MMDVM_TX_PIN 43          // ESP32 TX pin (sends data TO MMDVM modem RX)
