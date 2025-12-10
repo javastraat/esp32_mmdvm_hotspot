@@ -26,6 +26,15 @@ extern uint32_t dmr_rx_freq;
 extern uint32_t dmr_tx_freq;
 extern uint8_t dmr_color_code;
 extern String modem_type;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+extern bool eth_connected;
+#endif
+extern bool mode_dmr_enabled;
+extern bool mode_dstar_enabled;
+extern bool mode_ysf_enabled;
+extern bool mode_p25_enabled;
+extern bool mode_nxdn_enabled;
+extern bool mode_pocsag_enabled;
 
 // DMR Activity structure
 struct DMRActivity {
@@ -476,36 +485,161 @@ void handleRoot() {
 
   html += "<div class='grid'>";
   html += "<div class='card'>";
-  html += "<h3>Quick Status</h3>";
+  html += "<h3>System Status Overview</h3>";
 
+  // Add custom CSS for status badges
+  html += "<style>";
+  html += ".status-badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }";
+  html += ".status-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
+  html += "display: inline-flex; align-items: center; gap: 6px; border: 2px solid; }";
+  html += ".badge-active { background: #d4edda; color: #155724; border-color: #28a745; }";
+  html += ".badge-inactive { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
+  html += ".badge-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
+  html += ".badge-warning { background: #fff3cd; color: #856404; border-color: #ffc107; }";
+  html += ".status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }";
+  html += ".dot-green { background: #28a745; }";
+  html += ".dot-red { background: #dc3545; }";
+  html += ".dot-gray { background: #6c757d; }";
+  html += ".dot-yellow { background: #ffc107; }";
+  // Toggle switch style for mode badges
+  html += ".toggle-switch { position: relative; width: 36px; height: 20px; border-radius: 10px; display: inline-block; margin-right: 8px; }";
+  html += ".toggle-switch-on { background: #28a745; }";
+  html += ".toggle-switch-off { background: #dc3545; }";
+  html += ".toggle-switch-disabled { background: #6c757d; opacity: 0.5; }";
+  html += ".toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; ";
+  html += "transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }";
+  html += ".toggle-knob-on { transform: translateX(18px); }";
+  html += ".toggle-knob-off { transform: translateX(2px); }";
+  html += ".mode-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
+  html += "display: inline-flex; align-items: center; gap: 8px; border: 2px solid; }";
+  html += ".mode-on { background: #d4edda; color: #155724; border-color: #28a745; }";
+  html += ".mode-off { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
+  html += ".mode-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
+  html += ".status-section { margin: 10px 0; }";
+  html += ".status-section-title { font-weight: bold; margin: 10px 0 5px 0; color: #555; }";
+  html += "</style>";
+
+  // Network Connectivity Section
+  html += "<div class='status-section'>";
+  html += "<div class='status-section-title'>Network Connectivity</div>";
+  html += "<div class='status-badges'>";
+
+  // WiFi Status
   if (wifiConnected) {
-    html += "<div class='status connected'>WiFi Connected</div>";
-    html += "<div class='info'>IP: " + WiFi.localIP().toString() + "</div>";
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> WiFi Connected</span>";
   } else if (apMode) {
-    html += "<div class='status warning'>Access Point Mode</div>";
-    html += "<div class='info'>AP IP: " + WiFi.softAPIP().toString() + "</div>";
+    html += "<span class='status-badge badge-warning'><span class='status-dot dot-yellow'></span> WiFi (AP Mode)</span>";
   } else {
-    html += "<div class='status disconnected'>WiFi Disconnected</div>";
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> WiFi Disconnected</span>";
   }
 
-  String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
-  html += "<div class='status " + bmStatusClass + ">DMR: " + dmrLoginStatus + "</div>";
+  // Ethernet Status (only on supported hardware)
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  if (eth_connected) {
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> Ethernet</span>";
+  } else {
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> Ethernet</span>";
+  }
+#endif
 
-  String mmdvmIcon = mmdvmReady ? "[OK]" : "[ERR]";
-  String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
-  html += "<div class='status " + mmdvmClass + ">" + mmdvmIcon + " MMDVM: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
+  html += "</div></div>";
+
+  // System Status Section
+  html += "<div class='status-section'>";
+  html += "<div class='status-section-title'>System Status</div>";
+  html += "<div class='status-badges'>";
+
+  // MMDVM Hardware
+  if (mmdvmReady) {
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> MMDVM Ready</span>";
+  } else {
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MMDVM Not Ready</span>";
+  }
+
+  // DMR Network
+  if (dmrLoggedIn) {
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> DMR Network</span>";
+  } else {
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> DMR Network</span>";
+  }
+
+  html += "</div></div>";
+
+  // Modes Section
+  html += "<div class='status-section'>";
+  html += "<div class='status-section-title'>Digital Modes</div>";
+  html += "<div class='status-badges'>";
+
+  // DMR Mode - with toggle switch
+  if (mode_dmr_enabled) {
+    html += "<span class='mode-badge mode-on'>";
+    html += "<span class='toggle-switch toggle-switch-on'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "DMR ON</span>";
+  } else {
+    html += "<span class='mode-badge mode-off'>";
+    html += "<span class='toggle-switch toggle-switch-off'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "DMR OFF</span>";
+  }
+
+  // D-Star Mode (not implemented) - grayed out
+  if (mode_dstar_enabled) {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "D-Star (N/A)</span>";
+  } else {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "D-Star (N/A)</span>";
+  }
+
+  // YSF Mode (not implemented) - grayed out
+  if (mode_ysf_enabled) {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "YSF (N/A)</span>";
+  } else {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "YSF (N/A)</span>";
+  }
+
+  // P25 Mode (not implemented) - grayed out
+  if (mode_p25_enabled) {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "P25 (N/A)</span>";
+  } else {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "P25 (N/A)</span>";
+  }
+
+  // NXDN Mode (not implemented) - grayed out
+  if (mode_nxdn_enabled) {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "NXDN (N/A)</span>";
+  } else {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "NXDN (N/A)</span>";
+  }
+
+  // POCSAG Mode (not implemented) - grayed out
+  if (mode_pocsag_enabled) {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-on'></span></span>";
+    html += "POCSAG (N/A)</span>";
+  } else {
+    html += "<span class='mode-badge mode-disabled'>";
+    html += "<span class='toggle-switch toggle-switch-disabled'><span class='toggle-knob toggle-knob-off'></span></span>";
+    html += "POCSAG (N/A)</span>";
+  }
+
+  html += "</div></div>";
+
   html += "</div>";
   html += "</div>";
-
-  html += "<h2>About</h2>";
-  html += "<p>Welcome to the ESP32 MMDVM Hotspot web interface. Use the navigation menu above to access different sections:</p>";
-  html += "<ul>";
-  html += "<li><strong>Status:</strong> Detailed system status and logs</li>";
-  html += "<li><strong>Serial Monitor:</strong> Real-time MMDVM communication logs</li>";
-  html += "<li><strong>WiFi Config:</strong> Configure alternate WiFi networks</li>";
-  html += "<li><strong>Mode Config:</strong> Configure DMR and other mode settings</li>";
-  html += "<li><strong>Admin:</strong> System administration and maintenance</li>";
-  html += "</ul>";
 
   html += getFooter();
   html += "</div></body></html>";
