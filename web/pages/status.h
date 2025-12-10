@@ -43,6 +43,7 @@ extern uint32_t dmr_tx_freq;
 extern uint8_t dmr_color_code;
 extern uint8_t dmr_power;
 extern String dmr_location;
+extern String modemFirmwareVersion;
 
 // Forward declaration
 String getStatusContent();
@@ -185,15 +186,129 @@ String getStatusContent() {
   }
   html += "</div>";
 
-  // MMDVM Status Card
+  // MMDVM Hardware Status Card
   html += "<div class='card'>";
-  html += "<h3>MMDVM Hardware</h3>";
+  html += "<h3>MMDVM Hardware Status</h3>";
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
   html += "<div class='status " + mmdvmClass + "'>Status: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
   html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 3) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 3) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Power Level:</span><span class='metric-value'>" + String(dmr_power) + "</span></div>";
+  html += "</div>";
+
+  // Modem Information Card - Parse the firmware version string
+  html += "<div class='card'>";
+  html += "<h3>Modem Information</h3>";
+
+  // Parse modem firmware version string
+  // Example: "MMDVM_HS_Hat-v1.5.2 20201108 14.7456MHz ADF7021 FW by CA6JAU GitID #89daa20"
+  String hardware = "Unknown";
+  String version = "Unknown";
+  String buildDate = "Unknown";
+  String crystal = "Unknown";
+  String transceiver = "Unknown";
+  String author = "Unknown";
+  String gitId = "Unknown";
+
+  if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
+    String fwStr = modemFirmwareVersion;
+
+    // Extract hardware (before "-v" or first space)
+    int vPos = fwStr.indexOf("-v");
+    if (vPos > 0) {
+      hardware = fwStr.substring(0, vPos);
+      fwStr = fwStr.substring(vPos + 2); // Skip "-v"
+    } else {
+      int spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        hardware = fwStr.substring(0, spacePos);
+        fwStr = fwStr.substring(spacePos + 1);
+      }
+    }
+
+    // Extract version (digits and dots until space)
+    int spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      version = fwStr.substring(0, spacePos);
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract build date (8 digits, may have suffix like _WPSD)
+    spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      String dateStr = fwStr.substring(0, spacePos);
+
+      // Check if first 8 characters are digits (YYYYMMDD)
+      if (dateStr.length() >= 8) {
+        bool isValidDate = true;
+        for (int i = 0; i < 8; i++) {
+          if (!isdigit(dateStr.charAt(i))) {
+            isValidDate = false;
+            break;
+          }
+        }
+
+        if (isValidDate) {
+          // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+        }
+      }
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract crystal frequency (number followed by MHz)
+    int mhzPos = fwStr.indexOf("MHz");
+    if (mhzPos > 0) {
+      int startPos = 0;
+      for (int i = mhzPos - 1; i >= 0; i--) {
+        if (fwStr.charAt(i) == ' ') {
+          startPos = i + 1;
+          break;
+        }
+      }
+      crystal = fwStr.substring(startPos, mhzPos + 3);
+      fwStr = fwStr.substring(mhzPos + 3);
+    }
+
+    // Extract transceiver (word after MHz, before " FW")
+    fwStr.trim();
+    int fwPos = fwStr.indexOf(" FW");
+    if (fwPos > 0) {
+      // Get the first word (transceiver name)
+      spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        transceiver = fwStr.substring(0, spacePos);
+      } else {
+        // No space found, use everything before " FW"
+        transceiver = fwStr.substring(0, fwPos);
+      }
+      fwStr = fwStr.substring(fwPos + 3); // Skip " FW"
+    }
+
+    // Extract author (after "by " before " GitID")
+    int byPos = fwStr.indexOf("by ");
+    int gitPos = fwStr.indexOf(" GitID");
+    if (byPos >= 0 && gitPos > byPos) {
+      author = fwStr.substring(byPos + 3, gitPos);
+      author.trim();
+    }
+
+    // Extract Git ID (after "GitID ")
+    gitPos = fwStr.indexOf("GitID ");
+    if (gitPos >= 0) {
+      gitId = fwStr.substring(gitPos + 6);
+      gitId.trim();
+    }
+  }
+
+  html += "<div class='metric'><span class='metric-label'>Hardware:</span><span class='metric-value'>" + hardware + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Firmware Version:</span><span class='metric-value'>" + version + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Build Date:</span><span class='metric-value'>" + buildDate + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Crystal:</span><span class='metric-value'>" + crystal + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Transceiver:</span><span class='metric-value'>" + transceiver + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Author:</span><span class='metric-value'>" + author + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Git ID:</span><span class='metric-value'>" + gitId + "</span></div>";
   html += "</div>";
 
   // Station Information Card

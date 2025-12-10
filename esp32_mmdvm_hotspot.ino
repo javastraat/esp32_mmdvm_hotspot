@@ -405,6 +405,7 @@ WiFiNetwork wifiNetworks[5] = {
 
 // Firmware version from config.h
 String firmwareVersion = FIRMWARE_VERSION;
+String modemFirmwareVersion = "Unknown"; // MMDVM modem firmware version
 
 // LED Status Control (STATUS_LED_PIN defined in config.h)
 
@@ -1097,13 +1098,13 @@ void setupMMDVM() {
 
         if (wakeRxPtr >= frameLength) {
           if (wakeRxPtr >= 3 && wakeRxBuffer[2] == CMD_GET_VERSION && wakeRxPtr > 4) {
-            String version = "Modem Firmware (from wakeup): ";
+            modemFirmwareVersion = ""; // Clear existing version
             for (int j = 4; j < wakeRxPtr && wakeRxBuffer[j] != 0x00; j++) {
               if (wakeRxBuffer[j] >= 32 && wakeRxBuffer[j] < 127) {
-                version += (char)wakeRxBuffer[j];
+                modemFirmwareVersion += (char)wakeRxBuffer[j];
               }
             }
-            logSerial(version);
+            logSerial("Modem Firmware (from wakeup): " + modemFirmwareVersion);
             versionFromWakeup = true;
           }
           wakeRxPtr = 0;
@@ -1153,13 +1154,13 @@ void setupMMDVM() {
           if (tempRxPtr >= frameLength) {
             // Check if this is a version response
             if (tempRxPtr >= 3 && tempRxBuffer[2] == CMD_GET_VERSION) {
-              String version = "Modem Firmware: ";
+              modemFirmwareVersion = ""; // Clear existing version
               for (int i = 4; i < tempRxPtr && tempRxBuffer[i] != 0x00; i++) {
                 if (tempRxBuffer[i] >= 32 && tempRxBuffer[i] < 127) {
-                  version += (char)tempRxBuffer[i];
+                  modemFirmwareVersion += (char)tempRxBuffer[i];
                 }
               }
-              logSerial(version);
+              logSerial("Modem Firmware: " + modemFirmwareVersion);
               versionReceived = true;
             }
             tempRxPtr = 0;
