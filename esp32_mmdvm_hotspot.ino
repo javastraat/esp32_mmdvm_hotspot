@@ -1179,21 +1179,119 @@ void setupMMDVM() {
     }
   }
 
-  // Set configuration
-  uint8_t config[20];
+  // Set frequency configuration (RX/TX frequencies)
+  logSerial("Setting modem frequencies...");
+  char freqLog[100];
+  sprintf(freqLog, "  RX Freq: %u Hz, TX Freq: %u Hz", dmr_rx_freq, dmr_tx_freq);
+  logSerial(freqLog);
+
+  uint8_t freqConfig[17];
+  memset(freqConfig, 0, sizeof(freqConfig));
+
+  // Reserved byte
+  freqConfig[0] = 0x00;
+
+  // RX Frequency (4 bytes, little-endian)
+  freqConfig[1] = (dmr_rx_freq >> 0) & 0xFF;
+  freqConfig[2] = (dmr_rx_freq >> 8) & 0xFF;
+  freqConfig[3] = (dmr_rx_freq >> 16) & 0xFF;
+  freqConfig[4] = (dmr_rx_freq >> 24) & 0xFF;
+
+  // TX Frequency (4 bytes, little-endian)
+  freqConfig[5] = (dmr_tx_freq >> 0) & 0xFF;
+  freqConfig[6] = (dmr_tx_freq >> 8) & 0xFF;
+  freqConfig[7] = (dmr_tx_freq >> 16) & 0xFF;
+  freqConfig[8] = (dmr_tx_freq >> 24) & 0xFF;
+
+  // RF Level (1 byte) - Convert 0-100% to 0-255
+  freqConfig[9] = (uint8_t)(dmr_power * 2.55F);
+
+  // POCSAG Frequency (4 bytes, little-endian) - use same as TX for now
+  uint32_t pocsag_freq = dmr_tx_freq;
+  freqConfig[10] = (pocsag_freq >> 0) & 0xFF;
+  freqConfig[11] = (pocsag_freq >> 8) & 0xFF;
+  freqConfig[12] = (pocsag_freq >> 16) & 0xFF;
+  freqConfig[13] = (pocsag_freq >> 24) & 0xFF;
+
+  sendMMDVMCommand(CMD_SET_FREQ, freqConfig, 14);
+  delay(100);
+  logSerial("Frequency configuration sent");
+
+  // Set configuration with color code
+  logSerial("Setting modem configuration...");
+  sprintf(freqLog, "  Color Code: %u", dmr_color_code);
+  logSerial(freqLog);
+
+  uint8_t config[26];
   memset(config, 0, sizeof(config));
 
-  // Basic config - adjust based on your MMDVM hat
-  config[0] = (MMDVM_RX_INVERT ? 0x01 : 0x00);
-  config[1] = (MMDVM_TX_INVERT ? 0x01 : 0x00);
-  config[2] = (MMDVM_PTT_INVERT ? 0x01 : 0x00);
-  config[3] = MMDVM_TX_DELAY;
-  config[4] = 0x00;  // Mode Hang
-  config[5] = MMDVM_RX_LEVEL;
-  config[6] = MMDVM_TX_LEVEL;
+  // Byte 0: RX Invert, TX Invert, PTT Invert, YSF Lo Deviation, Debug, Use COS as Lockout, reserved, Duplex
+  config[0] = 0x00;
+  if (MMDVM_RX_INVERT) config[0] |= 0x01;
+  if (MMDVM_TX_INVERT) config[0] |= 0x02;
+  if (MMDVM_PTT_INVERT) config[0] |= 0x04;
+  // Simplex mode (not duplex)
+  config[0] |= 0x80;
 
-  sendMMDVMCommand(CMD_SET_CONFIG, config, 7);
+  // Byte 1: Mode enables (D-Star, DMR, YSF, P25, NXDN, POCSAG)
+  config[1] = 0x00;
+  if (mode_dstar_enabled) config[1] |= 0x01;
+  if (mode_dmr_enabled) config[1] |= 0x02;
+  if (mode_ysf_enabled) config[1] |= 0x04;
+  if (mode_p25_enabled) config[1] |= 0x08;
+  if (mode_nxdn_enabled) config[1] |= 0x10;
+  if (mode_pocsag_enabled) config[1] |= 0x20;
+
+  // Byte 2: TX Delay (in 10ms units)
+  config[2] = MMDVM_TX_DELAY / 10;
+
+  // Byte 3: Mode (will be set later with SET_MODE)
+  config[3] = 0x00;  // IDLE
+
+  // Byte 4: RX Level (0-255)
+  config[4] = (uint8_t)(MMDVM_RX_LEVEL * 2.55F);
+
+  // Byte 5: CW ID TX Level (0-255)
+  config[5] = (uint8_t)(50 * 2.55F);  // 50% for CW
+
+  // Byte 6: DMR Color Code (0-15)
+  config[6] = dmr_color_code;
+
+  // Byte 7: DMR Delay (frames)
+  config[7] = 0;
+
+  // Byte 8: Oscillator Offset (not used, set to 128)
+  config[8] = 128;
+
+  // Bytes 9-12: TX Levels for D-Star, DMR, YSF, P25 (0-255)
+  config[9] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);   // D-Star
+  config[10] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);  // DMR
+  config[11] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);  // YSF
+  config[12] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);  // P25
+
+  // Bytes 13-14: TX DC Offset, RX DC Offset (signed, +128)
+  config[13] = 128;  // TX DC Offset
+  config[14] = 128;  // RX DC Offset
+
+  // Byte 15: NXDN TX Level (0-255)
+  config[15] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);
+
+  // Bytes 16-18: YSF TX Hang, POCSAG TX Level, P25 TX Hang
+  config[16] = 4;  // YSF TX Hang
+  config[17] = (uint8_t)(MMDVM_TX_LEVEL * 2.55F);  // POCSAG
+  config[18] = 5;  // P25 TX Hang
+
+  // Byte 19: NXDN TX Hang
+  config[19] = 5;
+
+  // Bytes 20-22: Reserved
+  config[20] = 0x00;
+  config[21] = 0x00;
+  config[22] = 0x00;
+
+  sendMMDVMCommand(CMD_SET_CONFIG, config, 23);
   delay(100);
+  logSerial("Configuration sent");
 
   // Set mode based on enabled modes (priority order)
   uint8_t mode = 0x00;  // Default to IDLE mode
