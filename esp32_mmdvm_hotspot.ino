@@ -1222,8 +1222,14 @@ void setupMMDVM() {
   sendMMDVMCommand(CMD_SET_MODE, &mode, 1);
   delay(100);
 
-  logSerial("MMDVM Initialized");
-  mmdvmReady = true;
+  // Only mark modem as ready if we successfully received firmware version
+  if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
+    logSerial("MMDVM Initialized - Modem Ready");
+    mmdvmReady = true;
+  } else {
+    logSerial("MMDVM Initialized - WARNING: No modem firmware version detected!");
+    mmdvmReady = false;
+  }
 }
 
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length) {
