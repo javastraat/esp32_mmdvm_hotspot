@@ -310,214 +310,9 @@ void handleDMRHistory() {
   server.send(200, "text/html", getDMRHistoryHTML());
 }
 
-void handleRoot() {
-  if (!checkAuthentication()) return;
-
-  String html = "<!DOCTYPE html><html><head>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
-  html += getCommonCSS();
-  html += "<style>";
-  // Activity cards grid for side-by-side layout
-  html += ".activity-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }";
-  html += ".activity-single-card { margin: 0; }";
-  html += ".activity-card { border-left: 4px solid #4CAF50; animation: pulse 2s infinite; background: var(--card-bg); }";
-  html += ".activity-idle { border-left: 4px solid var(--border-color); opacity: 0.6; background: var(--card-bg); }";
-  html += "@keyframes pulse { 0%, 100% { border-color: #4CAF50; } 50% { border-color: #81C784; } }";
-  html += ".activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }";
-  html += ".slot-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 5px 5px 0 0; font-weight: bold; }";
-  html += ".activity-details { padding: 15px; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 5px; }";
-  html += ".callsign-header { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }";
-  html += ".callsign-header a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
-  html += ".callsign-header a:hover { color: #64b5f6; text-decoration: underline; }";
-  html += ".activity-details .metric-value a { color: var(--link-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }";
-  html += ".activity-details .metric-value a:hover { color: #64b5f6; text-decoration: underline; }";
-  html += ".no-activity { text-align: center; padding: 30px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
-  // History card styles (with dark/light mode support)
-  html += ".history-card { margin-top: 20px; }";
-  html += ".history-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }";
-  html += ".history-title-bar h3 { margin: 0; color: var(--text-color); }";
-  html += ".filter-controls { display: flex; align-items: center; gap: 8px; }";
-  html += ".filter-controls label { font-size: 0.9em; color: var(--text-color); white-space: nowrap; opacity: 0.8; }";
-  html += ".filter-controls select { padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9em; background: var(--container-bg); color: var(--text-color); }";
-  html += ".history-container { overflow-x: auto; }";
-  html += ".history-header { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 10px; background: var(--card-bg); border: 1px solid var(--border-color); font-weight: bold; border-radius: 5px; margin-bottom: 5px; color: var(--text-color); }";
-  html += ".history-row { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; }";
-  html += ".history-row:nth-child(even) { background: var(--card-bg); }";
-  html += ".history-row:hover { background: var(--info-bg); }";
-  html += ".history-row.filtered-out { display: none; }";
-  html += ".col-time { font-family: monospace; font-size: 0.9em; color: var(--text-color); }";
-  html += ".col-station .callsign { font-weight: bold; color: var(--link-color); }";
-  html += ".col-station .callsign a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
-  html += ".col-station .callsign a:hover { color: #64b5f6; text-decoration: underline; }";
-  html += ".col-station .name { font-size: 0.85em; color: var(--text-color); opacity: 0.8; }";
-  html += ".col-station .location { font-size: 0.8em; color: var(--text-color); opacity: 0.6; }";
-  html += ".col-destination { font-family: monospace; font-weight: bold; color: var(--text-color); }";
-  html += ".col-duration { text-align: center; font-family: monospace; color: var(--text-color); }";
-  html += ".col-slot { text-align: center; font-weight: bold; color: var(--text-color); }";
-  html += ".no-history { text-align: center; padding: 40px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
-  html += "@media (max-width: 768px) { .history-title-bar { flex-direction: column; align-items: flex-start; gap: 10px; } .filter-controls { align-self: flex-end; } .history-header, .history-row { grid-template-columns: 60px 1fr 80px 50px; } .col-slot { display: none; } }";
-  html += "</style>";
-  html += "<script>";
-  html += "function refreshActivity() {";
-  html += "  let activeCallsigns = [];";
-  html += "  fetch('/dmr-slot1').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-activity-slot1').innerHTML = data;";
-  html += "    const parser = new DOMParser();";
-  html += "    const doc = parser.parseFromString(data, 'text/html');";
-  html += "    const activeCard = doc.querySelector('.activity-card');";
-  html += "    if (activeCard) {";
-  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
-  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
-  html += "    }";
-  html += "    updateTitle(activeCallsigns);";
-  html += "  });";
-  html += "  fetch('/dmr-slot2').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-activity-slot2').innerHTML = data;";
-  html += "    const parser = new DOMParser();";
-  html += "    const doc = parser.parseFromString(data, 'text/html');";
-  html += "    const activeCard = doc.querySelector('.activity-card');";
-  html += "    if (activeCard) {";
-  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
-  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
-  html += "    }";
-  html += "    updateTitle(activeCallsigns);";
-  html += "  });";
-  html += "}";
-  html += "function updateTitle(callsigns) {";
-  html += "  const baseTitle = '" + dmr_callsign + " - ESP32 MMDVM Hotspot';";
-  html += "  if (callsigns.length > 0) {";
-  html += "    document.title = '>>' + callsigns.join(', ') + '<< - Active';";
-  html += "  } else {";
-  html += "    document.title = baseTitle;";
-  html += "  }";
-  html += "}";
-  html += "function refreshHistory() {";
-  html += "  fetch('/dmr-history').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-history-content').innerHTML = data;";
-  html += "    filterHistory();";
-  html += "  });";
-  html += "}";
-  html += "function filterHistory() {";
-  html += "  const filterValue = parseFloat(document.getElementById('duration-filter').value);";
-  html += "  const rows = document.querySelectorAll('.history-row');";
-  html += "  let visibleCount = 0;";
-  html += "  rows.forEach(row => {";
-  html += "    const durationCell = row.querySelector('.col-duration');";
-  html += "    if (durationCell) {";
-  html += "      const durationText = durationCell.textContent.trim();";
-  html += "      const duration = parseFloat(durationText.replace('s', ''));";
-  html += "      if (filterValue > 0 && duration < filterValue) {";
-  html += "        row.classList.add('filtered-out');";
-  html += "      } else {";
-  html += "        row.classList.remove('filtered-out');";
-  html += "        visibleCount++;";
-  html += "      }";
-  html += "    }";
-  html += "  });";
-  html += "  const container = document.querySelector('.history-container');";
-  html += "  let noResultsMsg = container.querySelector('.no-results-filtered');";
-  html += "  if (visibleCount === 0 && rows.length > 0) {";
-  html += "    if (!noResultsMsg) {";
-  html += "      noResultsMsg = document.createElement('div');";
-  html += "      noResultsMsg.className = 'no-results-filtered no-history';";
-  html += "      noResultsMsg.innerHTML = 'No transmissions match the current filter';";
-  html += "      container.appendChild(noResultsMsg);";
-  html += "    }";
-  html += "  } else if (noResultsMsg) {";
-  html += "    noResultsMsg.remove();";
-  html += "  }";
-  html += "}";
-  html += "setInterval(refreshActivity, 1000);";
-  html += "setInterval(refreshHistory, 2000);";
-  html += "</script>";
-  html += "</head><body>";
-  html += getNavigation("main");
-  html += "<div class='container'>";
-  html += "<h1><center>" + dmr_callsign + " - ESP32 Dashboard</center></h1>";
-
-  // Live DMR Activity Section - Split into two cards for better mobile responsiveness
-  html += "<div class='activity-cards-grid'>";
-
-  // Check if modem supports dual slots (Dual_Hat variants)
-  bool isDualSlotModem = (modem_type.indexOf("dual") >= 0 || modem_type.indexOf("Dual") >= 0);
-
-  // Slot 1 Card - Only show for dual-slot modems
-  if (isDualSlotModem) {
-    html += "<div class='card activity-single-card'>";
-    html += "<h3>Live DMR Activity - Slot 1</h3>";
-    html += "<div id='dmr-activity-slot1'>";
-    html += getDMRSlotHTML(0); // Slot 1 = index 0
-    html += "</div>";
-    html += "</div>";
-  }
-
-  // Slot 2 Card - Always show (all modems use Slot 2)
-  html += "<div class='card activity-single-card'>";
-  html += "<h3>Live DMR Activity - Slot 2</h3>";
-  html += "<div id='dmr-activity-slot2'>";
-  html += getDMRSlotHTML(1); // Slot 2 = index 1
-  html += "</div>";
-  html += "</div>";
-
-  html += "</div>";
-
-  // Recent Activity History Card (full width)
-  html += "<div class='card history-card'>";
-  html += "<div class='history-title-bar'>";
-  html += "<h3>Recent DMR Activity (Last 15 Transmissions)</h3>";
-  html += "<div class='filter-controls'>";
-  html += "<label for='duration-filter'>Hide transmissions under:</label>";
-  html += "<select id='duration-filter' onchange='filterHistory()'>";
-  html += "<option value='0'>Show all</option>";
-  html += "<option value='0.5'>0.5 seconds</option>";
-  html += "<option value='1'>1 second</option>";
-  html += "<option value='2'>2 seconds</option>";
-  html += "<option value='3'>3 seconds</option>";
-  html += "<option value='5'>5 seconds</option>";
-  html += "</select>";
-  html += "</div>";
-  html += "</div>";
-  html += "<div id='dmr-history-content'>";
-  html += getDMRHistoryHTML();
-  html += "</div>";
-  html += "</div>";
-
-  html += "<div class='grid'>";
-  html += "<div class='card'>";
-  html += "<h3>System Status Overview</h3>";
-
-  // Add custom CSS for status badges
-  html += "<style>";
-  html += ".status-badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }";
-  html += ".status-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
-  html += "display: inline-flex; align-items: center; gap: 6px; border: 2px solid; }";
-  html += ".badge-active { background: #d4edda; color: #155724; border-color: #28a745; }";
-  html += ".badge-inactive { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
-  html += ".badge-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
-  html += ".badge-warning { background: #fff3cd; color: #856404; border-color: #ffc107; }";
-  html += ".status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }";
-  html += ".dot-green { background: #28a745; }";
-  html += ".dot-red { background: #dc3545; }";
-  html += ".dot-gray { background: #6c757d; }";
-  html += ".dot-yellow { background: #ffc107; }";
-  // Toggle switch style for mode badges
-  html += ".toggle-switch { position: relative; width: 36px; height: 20px; border-radius: 10px; display: inline-block; margin-right: 8px; }";
-  html += ".toggle-switch-on { background: #28a745; }";
-  html += ".toggle-switch-off { background: #dc3545; }";
-  html += ".toggle-switch-disabled { background: #6c757d; opacity: 0.5; }";
-  html += ".toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; ";
-  html += "transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }";
-  html += ".toggle-knob-on { transform: translateX(18px); }";
-  html += ".toggle-knob-off { transform: translateX(2px); }";
-  html += ".mode-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
-  html += "display: inline-flex; align-items: center; gap: 8px; border: 2px solid; }";
-  html += ".mode-on { background: #d4edda; color: #155724; border-color: #28a745; }";
-  html += ".mode-off { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
-  html += ".mode-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
-  html += ".status-section { margin: 10px 0; }";
-  html += ".status-section-title { font-weight: bold; margin: 10px 0 5px 0; color: #555; }";
-  html += "</style>";
+// Helper function to generate System Status HTML
+String getSystemStatusHTML() {
+  String html = "";
 
   // Network Connectivity Section
   html += "<div class='status-section'>";
@@ -637,6 +432,233 @@ void handleRoot() {
   }
 
   html += "</div></div>";
+
+  return html;
+}
+
+void handleSystemStatus() {
+  server.send(200, "text/html", getSystemStatusHTML());
+}
+
+void handleRoot() {
+  if (!checkAuthentication()) return;
+
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>" + dmr_callsign + " - ESP32 MMDVM Hotspot</title>";
+  html += getCommonCSS();
+  html += "<style>";
+  // Activity cards grid for side-by-side layout
+  html += ".activity-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }";
+  html += ".activity-single-card { margin: 0; }";
+  html += ".activity-card { border-left: 4px solid #4CAF50; animation: pulse 2s infinite; background: var(--card-bg); }";
+  html += ".activity-idle { border-left: 4px solid var(--border-color); opacity: 0.6; background: var(--card-bg); }";
+  html += "@keyframes pulse { 0%, 100% { border-color: #4CAF50; } 50% { border-color: #81C784; } }";
+  html += ".activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }";
+  html += ".slot-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 5px 5px 0 0; font-weight: bold; }";
+  html += ".activity-details { padding: 15px; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 5px; }";
+  html += ".callsign-header { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }";
+  html += ".callsign-header a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
+  html += ".callsign-header a:hover { color: #64b5f6; text-decoration: underline; }";
+  html += ".activity-details .metric-value a { color: var(--link-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }";
+  html += ".activity-details .metric-value a:hover { color: #64b5f6; text-decoration: underline; }";
+  html += ".no-activity { text-align: center; padding: 30px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
+  // History card styles (with dark/light mode support)
+  html += ".history-card { margin-top: 20px; }";
+  html += ".history-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }";
+  html += ".history-title-bar h3 { margin: 0; color: var(--text-color); }";
+  html += ".filter-controls { display: flex; align-items: center; gap: 8px; }";
+  html += ".filter-controls label { font-size: 0.9em; color: var(--text-color); white-space: nowrap; opacity: 0.8; }";
+  html += ".filter-controls select { padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9em; background: var(--container-bg); color: var(--text-color); }";
+  html += ".history-container { overflow-x: auto; }";
+  html += ".history-header { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 10px; background: var(--card-bg); border: 1px solid var(--border-color); font-weight: bold; border-radius: 5px; margin-bottom: 5px; color: var(--text-color); }";
+  html += ".history-row { display: grid; grid-template-columns: 80px 1fr 120px 80px 50px; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; }";
+  html += ".history-row:nth-child(even) { background: var(--card-bg); }";
+  html += ".history-row:hover { background: var(--info-bg); }";
+  html += ".history-row.filtered-out { display: none; }";
+  html += ".col-time { font-family: monospace; font-size: 0.9em; color: var(--text-color); }";
+  html += ".col-station .callsign { font-weight: bold; color: var(--link-color); }";
+  html += ".col-station .callsign a { color: var(--link-color); text-decoration: none; transition: color 0.2s; }";
+  html += ".col-station .callsign a:hover { color: #64b5f6; text-decoration: underline; }";
+  html += ".col-station .name { font-size: 0.85em; color: var(--text-color); opacity: 0.8; }";
+  html += ".col-station .location { font-size: 0.8em; color: var(--text-color); opacity: 0.6; }";
+  html += ".col-destination { font-family: monospace; font-weight: bold; color: var(--text-color); }";
+  html += ".col-duration { text-align: center; font-family: monospace; color: var(--text-color); }";
+  html += ".col-slot { text-align: center; font-weight: bold; color: var(--text-color); }";
+  html += ".no-history { text-align: center; padding: 40px; color: var(--text-color); font-style: italic; opacity: 0.6; }";
+  html += "@media (max-width: 768px) { .history-title-bar { flex-direction: column; align-items: flex-start; gap: 10px; } .filter-controls { align-self: flex-end; } .history-header, .history-row { grid-template-columns: 60px 1fr 80px 50px; } .col-slot { display: none; } }";
+  html += "</style>";
+  html += "<script>";
+  html += "function refreshActivity() {";
+  html += "  let activeCallsigns = [];";
+  html += "  fetch('/dmr-slot1').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('dmr-activity-slot1').innerHTML = data;";
+  html += "    const parser = new DOMParser();";
+  html += "    const doc = parser.parseFromString(data, 'text/html');";
+  html += "    const activeCard = doc.querySelector('.activity-card');";
+  html += "    if (activeCard) {";
+  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
+  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
+  html += "    }";
+  html += "    updateTitle(activeCallsigns);";
+  html += "  });";
+  html += "  fetch('/dmr-slot2').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('dmr-activity-slot2').innerHTML = data;";
+  html += "    const parser = new DOMParser();";
+  html += "    const doc = parser.parseFromString(data, 'text/html');";
+  html += "    const activeCard = doc.querySelector('.activity-card');";
+  html += "    if (activeCard) {";
+  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
+  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
+  html += "    }";
+  html += "    updateTitle(activeCallsigns);";
+  html += "  });";
+  html += "}";
+  html += "function updateTitle(callsigns) {";
+  html += "  const baseTitle = '" + dmr_callsign + " - ESP32 MMDVM Hotspot';";
+  html += "  if (callsigns.length > 0) {";
+  html += "    document.title = '>>' + callsigns.join(', ') + '<< - Active';";
+  html += "  } else {";
+  html += "    document.title = baseTitle;";
+  html += "  }";
+  html += "}";
+  html += "function refreshHistory() {";
+  html += "  fetch('/dmr-history').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('dmr-history-content').innerHTML = data;";
+  html += "    filterHistory();";
+  html += "  });";
+  html += "}";
+  html += "function refreshSystemStatus() {";
+  html += "  fetch('/system-status').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('system-status-content').innerHTML = data;";
+  html += "  });";
+  html += "}";
+  html += "function filterHistory() {";
+  html += "  const filterValue = parseFloat(document.getElementById('duration-filter').value);";
+  html += "  const rows = document.querySelectorAll('.history-row');";
+  html += "  let visibleCount = 0;";
+  html += "  rows.forEach(row => {";
+  html += "    const durationCell = row.querySelector('.col-duration');";
+  html += "    if (durationCell) {";
+  html += "      const durationText = durationCell.textContent.trim();";
+  html += "      const duration = parseFloat(durationText.replace('s', ''));";
+  html += "      if (filterValue > 0 && duration < filterValue) {";
+  html += "        row.classList.add('filtered-out');";
+  html += "      } else {";
+  html += "        row.classList.remove('filtered-out');";
+  html += "        visibleCount++;";
+  html += "      }";
+  html += "    }";
+  html += "  });";
+  html += "  const container = document.querySelector('.history-container');";
+  html += "  let noResultsMsg = container.querySelector('.no-results-filtered');";
+  html += "  if (visibleCount === 0 && rows.length > 0) {";
+  html += "    if (!noResultsMsg) {";
+  html += "      noResultsMsg = document.createElement('div');";
+  html += "      noResultsMsg.className = 'no-results-filtered no-history';";
+  html += "      noResultsMsg.innerHTML = 'No transmissions match the current filter';";
+  html += "      container.appendChild(noResultsMsg);";
+  html += "    }";
+  html += "  } else if (noResultsMsg) {";
+  html += "    noResultsMsg.remove();";
+  html += "  }";
+  html += "}";
+  html += "setInterval(refreshActivity, 1000);";
+  html += "setInterval(refreshHistory, 2000);";
+  html += "setInterval(refreshSystemStatus, 3000);";
+  html += "</script>";
+  html += "</head><body>";
+  html += getNavigation("main");
+  html += "<div class='container'>";
+  html += "<h1><center>" + dmr_callsign + " - ESP32 Dashboard</center></h1>";
+
+  // Live DMR Activity Section - Split into two cards for better mobile responsiveness
+  html += "<div class='activity-cards-grid'>";
+
+  // Check if modem supports dual slots (Dual_Hat variants)
+  bool isDualSlotModem = (modem_type.indexOf("dual") >= 0 || modem_type.indexOf("Dual") >= 0);
+
+  // Slot 1 Card - Only show for dual-slot modems
+  if (isDualSlotModem) {
+    html += "<div class='card activity-single-card'>";
+    html += "<h3>Live DMR Activity - Slot 1</h3>";
+    html += "<div id='dmr-activity-slot1'>";
+    html += getDMRSlotHTML(0); // Slot 1 = index 0
+    html += "</div>";
+    html += "</div>";
+  }
+
+  // Slot 2 Card - Always show (all modems use Slot 2)
+  html += "<div class='card activity-single-card'>";
+  html += "<h3>Live DMR Activity - Slot 2</h3>";
+  html += "<div id='dmr-activity-slot2'>";
+  html += getDMRSlotHTML(1); // Slot 2 = index 1
+  html += "</div>";
+  html += "</div>";
+
+  html += "</div>";
+
+  // Recent Activity History Card (full width)
+  html += "<div class='card history-card'>";
+  html += "<div class='history-title-bar'>";
+  html += "<h3>Recent DMR Activity (Last 15 Transmissions)</h3>";
+  html += "<div class='filter-controls'>";
+  html += "<label for='duration-filter'>Hide transmissions under:</label>";
+  html += "<select id='duration-filter' onchange='filterHistory()'>";
+  html += "<option value='0'>Show all</option>";
+  html += "<option value='0.5'>0.5 seconds</option>";
+  html += "<option value='1'>1 second</option>";
+  html += "<option value='2'>2 seconds</option>";
+  html += "<option value='3'>3 seconds</option>";
+  html += "<option value='5'>5 seconds</option>";
+  html += "</select>";
+  html += "</div>";
+  html += "</div>";
+  html += "<div id='dmr-history-content'>";
+  html += getDMRHistoryHTML();
+  html += "</div>";
+  html += "</div>";
+
+  html += "<div class='grid'>";
+  html += "<div class='card'>";
+  html += "<h3>System Status Overview</h3>";
+
+  // Add custom CSS for status badges
+  html += "<style>";
+  html += ".status-badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }";
+  html += ".status-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
+  html += "display: inline-flex; align-items: center; gap: 6px; border: 2px solid; }";
+  html += ".badge-active { background: #d4edda; color: #155724; border-color: #28a745; }";
+  html += ".badge-inactive { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
+  html += ".badge-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
+  html += ".badge-warning { background: #fff3cd; color: #856404; border-color: #ffc107; }";
+  html += ".status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }";
+  html += ".dot-green { background: #28a745; }";
+  html += ".dot-red { background: #dc3545; }";
+  html += ".dot-gray { background: #6c757d; }";
+  html += ".dot-yellow { background: #ffc107; }";
+  // Toggle switch style for mode badges
+  html += ".toggle-switch { position: relative; width: 36px; height: 20px; border-radius: 10px; display: inline-block; margin-right: 8px; }";
+  html += ".toggle-switch-on { background: #28a745; }";
+  html += ".toggle-switch-off { background: #dc3545; }";
+  html += ".toggle-switch-disabled { background: #6c757d; opacity: 0.5; }";
+  html += ".toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; ";
+  html += "transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }";
+  html += ".toggle-knob-on { transform: translateX(18px); }";
+  html += ".toggle-knob-off { transform: translateX(2px); }";
+  html += ".mode-badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; ";
+  html += "display: inline-flex; align-items: center; gap: 8px; border: 2px solid; }";
+  html += ".mode-on { background: #d4edda; color: #155724; border-color: #28a745; }";
+  html += ".mode-off { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
+  html += ".mode-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
+  html += ".status-section { margin: 10px 0; }";
+  html += ".status-section-title { font-weight: bold; margin: 10px 0 5px 0; color: #555; }";
+  html += "</style>";
+
+  // System Status Content - will be auto-refreshed
+  html += "<div id='system-status-content'>";
+  html += getSystemStatusHTML();
+  html += "</div>";
 
   html += "</div>";
   html += "</div>";

@@ -2082,6 +2082,7 @@ void setupWebServer() {
   server.on("/dmr-slot1", handleDMRSlot1);        // DMR Slot 1 activity
   server.on("/dmr-slot2", handleDMRSlot2);        // DMR Slot 2 activity
   server.on("/dmr-history", handleDMRHistory);    // Recent DMR activity history
+  server.on("/system-status", handleSystemStatus); // System status for auto-refresh
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
