@@ -2,7 +2,40 @@
 
 A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration. **Network → RF transmission confirmed working!**
 
-## 🎯 Project Status
+## Table of Contents
+
+**Getting Started**
+- [Project Status](#project-status)
+- [Hardware Requirements](#hardware-requirements)
+- [Pin Configuration](#pin-configuration)
+- [Quick Start](#quick-start)
+  - [Hardware Setup](#1-hardware-setup)
+  - [Software Installation](#2-software-installation)
+  - [Configuration](#3-configuration)
+  - [Upload Firmware](#4-upload-firmware)
+  - [First Time Setup](#5-first-time-setup)
+
+**Using the Hotspot**
+- [How It Works](#how-it-works)
+- [Web Interface Features](#web-interface-features)
+- [DMR Network Support](#dmr-network-support)
+- [BrandMeister Server List](#brandmeister-server-list)
+
+**Advanced Topics**
+- [Advanced Features](#advanced-features)
+- [Hardware Configuration](#hardware-configuration)
+- [Network Configuration](#network-configuration)
+- [Troubleshooting](#troubleshooting)
+- [Development Information](#development-information)
+
+**Legal & Community**
+- [License](#license)
+- [Legal and Safety Information](#legal-and-safety-information)
+- [Contributing](#contributing)
+- [Support and Community](#support-and-community)
+- [Resources and Documentation](#resources-and-documentation)
+
+## Project Status
 
 **Current Release:** Beta - December 12, 2025  
 **Firmware Version:** 20251212_ESP32_BETA
