@@ -146,32 +146,28 @@ To install in Arduino IDE:
 
 ### 3. Configuration
 
-Edit `config.h` with your settings:
+**No configuration required!** The firmware includes default WiFi credentials, but if you're compiling from source, you can optionally edit `config.h`:
 
 ```cpp
-// Firmware Version
-#define FIRMWARE_VERSION "20251212_ESP32_BETA"
-
-// WiFi Configuration
+// WiFi Configuration (OPTIONAL - defaults will work)
 #define WIFI_SSID "YourWiFiNetwork"
 #define WIFI_PASSWORD "YourWiFiPassword"
 
-// DMR Credentials (get from BrandMeister)
-#define DMR_CALLSIGN "N0CALL"        // Your callsign
-#define DMR_ID 1234567               // Your 7-digit DMR ID
-#define DMR_PASSWORD "passw0rd"      // Your hotspot password
-#define DMR_SERVER "44.131.4.1"      // BrandMeister US server
-#define DMR_COLORCODE 1              // Usually 1 for BrandMeister
+// Fallback Access Point (if WiFi fails)
+#define AP_SSID "ESP32-MMDVM-Config"
+#define AP_PASSWORD "mmdvm1234"
+```
 
-// Hardware Pins (LILYGO T-ETH-Elite ESP32-S3)
+**If you're flashing a pre-compiled .bin file:** Skip this step! The ESP32 will automatically start in Access Point mode on first boot, allowing you to configure up to 5 WiFi networks through the web interface.
+
+**Optional config.h settings** (defaults work for most users):
+
+```cpp
+// Hardware Pins (pre-configured for LILYGO T-ETH-Elite ESP32-S3)
 #define MMDVM_RX_PIN 44              // ESP32 RX from MMDVM TX
 #define MMDVM_TX_PIN 43              // ESP32 TX to MMDVM RX
 #define MMDVM_WAKEUP_PIN 13          // Keeps MMDVM active
 #define MMDVM_SERIAL_BAUD 115200     // MMDVM baud rate
-
-// RF Settings
-#define MMDVM_FREQUENCY 434000000    // 434 MHz (adjust for your region)
-#define MMDVM_RF_LEVEL 100           // RF power 0-100%
 
 // Display (optional)
 #define ENABLE_OLED true             // Enable OLED display
@@ -180,11 +176,17 @@ Edit `config.h` with your settings:
 // Debug Options (set false for clean logs)
 #define DEBUG_MMDVM false            // MMDVM TX frame debug
 #define DEBUG_NETWORK false          // Network keepalive debug
-#define DEBUG_DMR false              // DMR protocol debug
-
-// Mode Defaults (must enable via web interface)
-#define DEFAULT_MODE_DMR false       // DMR OFF by default
 ```
+
+**All DMR settings are configured via web interface:**
+- Callsign, DMR ID, Password
+- BrandMeister server selection
+- RX/TX frequencies and power
+- Color code
+- Location and description
+- Mode enable/disable (DMR, D-Star, etc.)
+
+Settings are automatically saved to ESP32 NVS storage and persist across reboots.
 
 ### 4. Upload Firmware
 1. Select: Tools → Board → "ESP32 Dev Module"
@@ -193,14 +195,39 @@ Edit `config.h` with your settings:
 4. Monitor serial output at 115200 baud
 
 ### 5. First Time Setup
-After upload, the ESP32 will:
-1. Try to connect to your configured WiFi
-2. If WiFi fails, create access point: **ESP32-MMDVM-Config**
-3. Connect to AP with password: **mmdvm1234**
+
+**Step 1: Connect to WiFi**
+On first boot, the ESP32 will:
+1. Try to connect to WiFi (if configured in `config.h` during compilation)
+2. If no WiFi is configured or connection fails, automatically create access point: **ESP32-MMDVM-Config**
+3. Connect your phone/laptop to the AP with password: **mmdvm1234**
 4. Open browser to: **http://192.168.4.1**
-5. Configure WiFi and DMR settings via web interface
-6. **Enable DMR mode** in Mode Configuration (OFF by default)
-7. Monitor Serial Monitor for "DMR TX START" to confirm RF transmission
+5. Go to **WiFi Configuration** page and configure up to 5 WiFi networks:
+   - Primary network (Home)
+   - Backup slots: Mobile, Work, Friends, Other
+   - Use built-in WiFi scanner to discover nearby networks
+6. ESP32 will automatically connect to the first available network and remember all 5
+
+**Step 2: Configure DMR Settings (Web Interface)**
+Once connected to WiFi, access the web interface:
+1. Navigate to **Mode Configuration** page
+2. Enter your DMR credentials:
+   - Callsign (from your amateur radio license)
+   - DMR ID (7-digit number from RadioID.net)
+   - Password (from BrandMeister self-care)
+3. Select BrandMeister server (closest to your location)
+4. Set RX/TX frequency (e.g., 434 MHz for 70cm)
+5. Set color code (usually 1 for BrandMeister)
+6. **Enable DMR mode** (OFF by default to prevent spam)
+7. Click **Save DMR Configuration**
+
+**Step 3: Verify Operation**
+- Settings are automatically saved to ESP32 NVS storage
+- ESP32 will reboot and connect to BrandMeister
+- Monitor Serial Monitor for "DMR TX START" to confirm RF transmission
+- Check web dashboard for "DMR Network: Connected"
+
+**Note:** All settings persist across reboots. You only need to configure them once unless you want to change something.
 
 ## How It Works
 
@@ -231,6 +258,18 @@ Adding to history: KN4MZQ (3120545) -> TG91 Duration: 1s
 - **Buffer Prevention:** 55ms delay after each frame prevents modem buffer overflow
 - **TX Timeout:** 500ms without frames triggers automatic TX stop
 - **Single START:** Only one DMR_START per transmission (not per frame)
+
+### Configuration Storage
+All settings configured via web interface are stored in **ESP32 NVS (Non-Volatile Storage)**:
+- **WiFi Networks:** Primary + 5 backup networks
+- **DMR Credentials:** Callsign, ID, password, server
+- **RF Settings:** Frequencies, power, color code
+- **Location Data:** Coordinates, description
+- **Mode Settings:** Enable/disable DMR, D-Star, etc.
+- **Web Credentials:** Username/password
+- **System Settings:** Hostname, verbose logging, timezone
+
+Settings are loaded automatically on boot and persist across power cycles. Use **Export Config** to backup settings or **Factory Reset** to erase all stored data.
 
 ## Web Interface Features
 
