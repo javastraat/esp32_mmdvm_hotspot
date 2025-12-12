@@ -449,6 +449,7 @@ void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
+void writeDMRStart(bool tx);
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
 void processMMDVMFrame();
 void updateStatusLED();
@@ -1282,33 +1283,33 @@ void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length) {
 }
 
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower) {
-  // CMD_SET_FREQ format (14 bytes for full version):
-  // [0-3]: RX frequency in Hz (little-endian)
-  // [4-7]: TX frequency in Hz (little-endian)
-  // [8]:   RF power level (0-255)
-  // [9]:   Reserved byte
-  // [10-13]: POCSAG frequency in Hz (little-endian)
+  // CMD_SET_FREQ payload format per MMDVM_HS firmware (SerialPort.cpp line 548):
+  // data[0]:    Mode/flags byte (unused in simplex mode, set to 0)
+  // data[1-4]:  RX frequency in Hz (little-endian)
+  // data[5-8]:  TX frequency in Hz (little-endian)
+  // data[9]:    RF power level (0-255)
+  // data[10-13]: POCSAG TX frequency in Hz (little-endian)
   uint8_t freqData[14];
 
-  // RX Frequency (little-endian)
-  freqData[0] = (rxFreq >> 0) & 0xFF;
-  freqData[1] = (rxFreq >> 8) & 0xFF;
-  freqData[2] = (rxFreq >> 16) & 0xFF;
-  freqData[3] = (rxFreq >> 24) & 0xFF;
+  // Byte 0: Mode/flags (unused, set to 0)
+  freqData[0] = 0x00;
 
-  // TX Frequency (little-endian)
-  freqData[4] = (txFreq >> 0) & 0xFF;
-  freqData[5] = (txFreq >> 8) & 0xFF;
-  freqData[6] = (txFreq >> 16) & 0xFF;
-  freqData[7] = (txFreq >> 24) & 0xFF;
+  // RX Frequency (little-endian) - starts at byte 1!
+  freqData[1] = (rxFreq >> 0) & 0xFF;
+  freqData[2] = (rxFreq >> 8) & 0xFF;
+  freqData[3] = (rxFreq >> 16) & 0xFF;
+  freqData[4] = (rxFreq >> 24) & 0xFF;
 
-  // RF Power level
-  freqData[8] = rfPower;
+  // TX Frequency (little-endian) - starts at byte 5
+  freqData[5] = (txFreq >> 0) & 0xFF;
+  freqData[6] = (txFreq >> 8) & 0xFF;
+  freqData[7] = (txFreq >> 16) & 0xFF;
+  freqData[8] = (txFreq >> 24) & 0xFF;
 
-  // Reserved byte
-  freqData[9] = 0x00;
+  // RF Power level - byte 9
+  freqData[9] = rfPower;
 
-  // POCSAG frequency (4 bytes, little-endian) - use TX freq for POCSAG
+  // POCSAG TX frequency (little-endian) - bytes 10-13, use same as TX freq
   freqData[10] = (txFreq >> 0) & 0xFF;
   freqData[11] = (txFreq >> 8) & 0xFF;
   freqData[12] = (txFreq >> 16) & 0xFF;
@@ -1317,6 +1318,21 @@ void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower) {
   sendMMDVMCommand(CMD_SET_FREQ, freqData, 14);
 
   logSerial("Frequency set - RX: " + String(rxFreq) + " Hz, TX: " + String(txFreq) + " Hz, Power: " + String(rfPower));
+}
+
+void writeDMRStart(bool tx) {
+  // Send DMR START command to tell modem to enter/exit TX mode
+  // This is critical - without it, the modem won't transmit!
+  uint8_t buffer[4];
+  buffer[0] = MMDVM_FRAME_START;
+  buffer[1] = 4;  // Length
+  buffer[2] = CMD_DMR_START;
+  buffer[3] = tx ? 0x01 : 0x00;  // 0x01 = start TX, 0x00 = stop TX
+  
+  MMDVM_SERIAL.write(buffer, 4);
+  MMDVM_SERIAL.flush();
+  
+  logSerial(tx ? "DMR TX START" : "DMR TX STOP");
 }
 
 void handleMMDVMSerial() {
@@ -1753,6 +1769,9 @@ void handleNetwork() {
                              String(dmrModemData[4], HEX);
             logSerial(debugMsg);
 
+            // Send DMR START command (tells modem to enter TX mode)
+            writeDMRStart(true);
+            
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, dmrModemData, 34);
 #if ENABLE_RGB_LED
