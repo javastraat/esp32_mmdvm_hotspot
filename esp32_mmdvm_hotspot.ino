@@ -451,7 +451,7 @@ void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
-void writeDMRStart(bool tx);
+void writeDMRStart(bool tx, String callsign = "");
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
 void processMMDVMFrame();
 void updateStatusLED();
@@ -820,9 +820,8 @@ void loop() {
 #endif
   // Reset DMR TX mode if no frames received for 200ms
   if (dmrTxActive && (currentMillis - lastDMRFrameTime > 200)) {
-    writeDMRStart(false);  // Exit TX mode
+    writeDMRStart(false, "");  // Exit TX mode
     dmrTxActive = false;
-    logSerial("DMR TX END");
   }
 
   for (int i = 0; i < 2; i++) {
@@ -1329,7 +1328,7 @@ void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower) {
   logSerial("Frequency set - RX: " + String(rxFreq) + " Hz, TX: " + String(txFreq) + " Hz, Power: " + String(rfPower));
 }
 
-void writeDMRStart(bool tx) {
+void writeDMRStart(bool tx, String callsign) {
   // Send DMR START command to tell modem to enter/exit TX mode
   // This is critical - without it, the modem won't transmit!
   uint8_t buffer[4];
@@ -1341,7 +1340,11 @@ void writeDMRStart(bool tx) {
   MMDVM_SERIAL.write(buffer, 4);
   MMDVM_SERIAL.flush();
   
-  logSerial(tx ? "DMR TX START" : "DMR TX STOP");
+  String logMsg = tx ? "[MMDVM] DMR TX START" : "[MMDVM] DMR TX STOP";
+  if (callsign.length() > 0) {
+    logMsg += " - " + callsign;
+  }
+  logSerial(logMsg);
 }
 
 void handleMMDVMSerial() {
@@ -1769,6 +1772,7 @@ void handleNetwork() {
             dmrModemData[0] = 0x00;  // Control byte
             memcpy(&dmrModemData[1], &packet[20], 33);  // Copy 33-byte DMR frame
 
+#if DEBUG_MMDVM
             // Debug logging
             String debugMsg = "TX->Modem: Slot" + String(slotNo) + " Len=" + String(34) +
                              " Ctrl=" + String(dmrModemData[0], HEX) +
@@ -1777,10 +1781,11 @@ void handleNetwork() {
                              String(dmrModemData[3], HEX) + " " +
                              String(dmrModemData[4], HEX);
             logSerial(debugMsg);
+#endif
 
             // Only send DMR START once at beginning of transmission
             if (!dmrTxActive) {
-              writeDMRStart(true);
+              writeDMRStart(true, dmrActivity[activityIndex].srcCallsign);
               dmrTxActive = true;
             }
             lastDMRFrameTime = millis();
@@ -2008,14 +2013,16 @@ void logSerial(String message) {
 
 // Log with verbose flag - always to USB serial, conditionally to web buffer
 void logSerialVerbose(String message) {
-  // Always log to USB serial for debugging
+  // Only log network debug messages if DEBUG_NETWORK is enabled
+#if DEBUG_NETWORK
   Serial.println(message);
-
-  // Only store in web buffer if verbose logging is enabled
+  
+  // Also store in web buffer if verbose logging is enabled
   if (verbose_logging) {
     serialLog[serialLogIndex] = message;
     serialLogIndex = (serialLogIndex + 1) % SERIAL_LOG_SIZE;
   }
+#endif
 }
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
