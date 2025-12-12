@@ -428,22 +428,6 @@ The main landing page provides comprehensive status overview:
 - Custom server support with manual configuration
 - Automatic reconnection on network failures
 
-## BrandMeister Server List
-
-The web interface includes 40+ servers worldwide:
-
-**Europe:** Netherlands (2041), Germany (2621/2622), UK (2341), France (2081/2082), Italy (2222), Spain (2141), Belgium (2061), Austria (2322), Switzerland (2282), Denmark (2382), Sweden (2402), Norway (2421), Finland (2441), Czech Republic (2302), Hungary (2162), Romania (2262), Poland (2602), Portugal (2682), Ireland (2721), Bulgaria (2841), Slovenia (2931), Russia (2502/2503), Ukraine (2551), Greece (2022)
-
-**North America:** USA (3102/3103/3104), Canada (3021), Mexico (3341)
-
-**Asia-Pacific:** Australia (5051), South Korea (4501), China (4602), Malaysia (5021), Philippines (5151)
-
-**Middle East/Africa:** Israel (4251), South Africa (6551)
-
-**South America:** Brazil (7242), Chile (7301)
-
-All servers use standard BrandMeister port 62031.
-
 ## Advanced Features
 
 ### Multi-Network WiFi Management
@@ -776,6 +760,124 @@ Settings stored in ESP32 flash memory (Preferences namespace: "mmdvm"):
 - RF parameters (frequencies, power, color code) and location data
 - All settings viewable via "Show Preferences" admin function
 
+## Advanced Features
+
+### Protocol Support
+Currently implemented:
+- **DMR (Digital Mobile Radio)** - Full BrandMeister network support
+
+Future protocols (configurable in config.h but not yet implemented):
+- D-STAR, YSF (System Fusion), P25, NXDN, POCSAG
+
+### Network Protocols
+- **BrandMeister:** Full authentication with SHA256 hashing (RPTL/RPTK/RPTC sequence)
+- **Custom DMR Servers:** Manual server configuration via web interface
+
+*Note: Currently optimized for BrandMeister. Other DMR networks may work but are not tested.*
+
+### RF Configuration (Web Interface)
+- **Frequency Settings:** RX/TX frequencies in Hz
+- **Power Control:** 0-99% output power
+- **Color Code:** 0-15 (typically 1 for BrandMeister)
+- **ESSID:** Radio ID suffix (01-99)
+- **Location:** GPS coordinates and site description
+
+## Development and Customization
+
+### Code Structure
+```
+esp32_mmdvm_hotspot/
+├── esp32_mmdvm_hotspot.ino    # Main firmware with DMR BrandMeister protocol
+├── config.h                   # Hardware and network configuration  
+├── webpages.h                 # Complete web interface implementation
+└── README.md                  # This comprehensive documentation
+```
+
+### Key Functions
+- `setupWiFi()` - Dual WiFi connection with automatic failover
+- `connectToDMRNetwork()` - BrandMeister authentication sequence  
+- `handleMMDVMSerial()` - MMDVM communication protocol
+- `handleNetwork()` - DMR packet processing and routing
+- Web handlers in webpages.h for configuration interface
+
+## License
+
+This project is open source. Please respect amateur radio regulations and licensing requirements in your jurisdiction.
+
+## Contributing
+
+Contributions welcome! Please maintain professional code standards and update documentation for any new features.
+
+## Support
+
+For support:
+1. Check serial monitor output for detailed error messages
+2. Use Show Preferences tool for system state debugging
+3. Try factory reset for persistent configuration issues
+4. Verify hardware connections and power supply
+5. Check BrandMeister account status and credentials
+
+---
+
+**Current Version:** 20251128_ESP32  
+**Compatible:** ESP32 Arduino Core 2.0.11+  
+**License:** Open Source Amateur Radio Project
+
+## BrandMeister Server List
+
+The web interface includes 40+ servers worldwide:
+
+**Europe:** Netherlands (2041), Germany (2621/2622), UK (2341), France (2081/2082), Italy (2222), Spain (2141), Belgium (2061), Austria (2322), Switzerland (2282), Denmark (2382), Sweden (2402), Norway (2421), Finland (2441), Czech Republic (2302), Hungary (2162), Romania (2262), Poland (2602), Portugal (2682), Ireland (2721), Bulgaria (2841), Slovenia (2931), Russia (2502/2503), Ukraine (2551), Greece (2022)
+
+**North America:** USA (3102/3103/3104), Canada (3021), Mexico (3341)
+
+**Asia-Pacific:** Australia (5051), South Korea (4501), China (4602), Malaysia (5021), Philippines (5151)
+
+**Middle East/Africa:** Israel (4251), South Africa (6551)
+
+**South America:** Brazil (7242), Chile (7301)
+
+All servers use standard BrandMeister port 62031.
+
+## Resources and Documentation
+
+### Official Resources
+- **MMDVM Project:** https://github.com/g4klx/MMDVM
+- **MMDVMHost:** https://github.com/g4klx/MMDVMHost  
+- **BrandMeister Network:** https://brandmeister.network/
+- **Pi-Star:** https://www.pistar.uk/
+- **ESP32 Arduino:** https://github.com/espressif/arduino-esp32
+
+### Hardware Vendors
+- **JumboSPOT:** https://www.amateurwireless.com/
+- **MMDVM_HS:** https://github.com/juribeparada/MMDVM_HS
+- **ZUMspot:** https://www.zumspot.com/
+
+### DMR Resources  
+- **DMR-MARC Database:** https://www.dmr-marc.net/
+- **RadioLabs ID Database:** https://radiolabs.com/
+- **BrandMeister Dashboard:** https://brandmeister.network/
+
+## Legal and Safety Information
+
+### Amateur Radio License Required
+- **Legal Operation:** Valid amateur radio license required in your country
+- **Frequency Compliance:** Operate only within authorized amateur bands
+- **Power Limits:** Respect maximum RF power regulations
+- **Identification:** Proper station identification per local regulations
+
+### Network Ethics  
+- **Server Resources:** Don't abuse network servers with excessive connections
+- **Authentication:** Keep your hotspot password secure and unique
+- **Updates:** Keep firmware updated for security and compatibility
+- **Community:** Follow BrandMeister and network-specific guidelines
+
+### RF Safety
+- **Antenna Safety:** Use proper antenna with appropriate SWR
+- **RF Exposure:** Follow SAR and MPE guidelines for your power level  
+- **Grounding:** Ensure proper RF and electrical grounding
+- **Environment:** Consider RF exposure to others in your area
+
 ## License
 
 **Amateur Radio Non-Commercial License**
@@ -806,26 +908,6 @@ This project is open source for amateur radio use only.
 - Proper station identification required per your jurisdiction
 
 For commercial licensing inquiries, contact the authors.
-
-## Legal and Safety Information
-
-### Amateur Radio License Required
-- **Legal Operation:** Valid amateur radio license required in your country
-- **Frequency Compliance:** Operate only within authorized amateur bands
-- **Power Limits:** Respect maximum RF power regulations
-- **Identification:** Proper station identification per local regulations
-
-### Network Ethics  
-- **Server Resources:** Don't abuse network servers with excessive connections
-- **Authentication:** Keep your hotspot password secure and unique
-- **Updates:** Keep firmware updated for security and compatibility
-- **Community:** Follow BrandMeister and network-specific guidelines
-
-### RF Safety
-- **Antenna Safety:** Use proper antenna with appropriate SWR
-- **RF Exposure:** Follow SAR and MPE guidelines for your power level  
-- **Grounding:** Ensure proper RF and electrical grounding
-- **Environment:** Consider RF exposure to others in your area
 
 ## Contributing
 
@@ -868,24 +950,6 @@ This project welcomes contributions from licensed amateur radio operators! Areas
 - **RGB LED Support:** Visual TX/RX indicators with PWM brightness control
 - **Debug Controls:** Toggle MMDVM and network verbose logging via config.h
 - **Clean Logging:** Keepalive messages hidden by default for production use
-
-## Resources and Documentation
-
-### Official Resources
-- **MMDVM Project:** https://github.com/g4klx/MMDVM
-- **MMDVMHost:** https://github.com/g4klx/MMDVMHost  
-- **BrandMeister Network:** https://brandmeister.network/
-- **Pi-Star:** https://www.pistar.uk/
-- **ESP32 Arduino:** https://github.com/espressif/arduino-esp32
-
-### Hardware Vendors
-- **JumboSPOT:** https://www.amateurwireless.com/
-- **MMDVM_HS:** https://github.com/juribeparada/MMDVM_HS
-- **ZUMspot:** https://www.zumspot.com/
-
-### DMR Resources  
-- **RadioID.net Database:** https://radioid.net/
-- **BrandMeister Dashboard:** https://brandmeister.network/
 
 ---
 
