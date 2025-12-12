@@ -278,12 +278,12 @@ When someone transmits on BrandMeister network:
 
 **Example Log:**
 ```
-DMR: Slot2 Seq=0 3120545->TG91 [START] Type=VOICE_LC_HDR
-Station: KN4MZQ (3120545) - Jeffrey A from Walkertown, United States
-[MMDVM] DMR TX START - KN4MZQ
+SERVER] DMR: Slot2 Seq=1 4040888->TG91 [START] Type=VOICE_LC_HDR
+[INFO] Station: VU3LQE (4040888) - Subhosmito from Kolkata, India
+[MMDVM] DMR TX START - VU3LQE
 [MMDVM] DMR TX STOP
-DMR: Slot2 Seq=0-6 3120545->TG91 [END]
-Adding to history: KN4MZQ (3120545) -> TG91 Duration: 1s
+[HISTORY] Adding to history: VU3LQE (4040888) -> TG91 Duration: 10s
+[SERVER] DMR: Slot2 Seq=1-129 4040888->TG91 [END]
 ```
 
 ### Critical Timing
