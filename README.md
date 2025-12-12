@@ -350,19 +350,13 @@ The main landing page provides comprehensive status overview:
 ![DMR Configuration](screenshots/modeconfig.png)
 
 **BrandMeister Integration:**
-- **Global Server List** - Built-in list with 40+ servers worldwide
+- **Global Server List** - Built-in list with 40+ servers worldwide, or enter custom server URL/IP
 - **Credential Management** - Callsign, DMR ID, and password configuration
 - **Frequency Settings** - RX/TX frequency, power, and color code
 - **Location Setup** - GPS coordinates and site information
 - **Protocol Mode Selection** - Enable/disable digital modes (DMR functional, others planned)
 - **DMR Mode Control** - Toggle DMR network connection (default: OFF for fresh installs)
 - **Future Protocol Support** - D-Star, YSF, P25, NXDN, POCSAG (configuration ready, protocols not implemented)
-
-**Supported Regions:**
-- Europe: Netherlands, Germany, UK, France, Italy, Spain
-- North America: USA, Canada  
-- Asia-Pacific: Australia, Japan, Thailand
-- Others: South Africa, Brazil, New Zealand
 
 ### Serial Monitor (`/serialmonitor`)
 
@@ -407,7 +401,7 @@ The main landing page provides comprehensive status overview:
 - **Safety Features** - Pre-flash validation and error handling
 
 **Advanced Features:**
-- **Show Preferences** - Complete ESP32 NVS storage viewer with 17+ settings
+- **Show Preferences** - Complete ESP32 NVS storage viewer with all settings
 - **Password Security** - All password fields automatically masked with toggle
 - **Storage Analytics** - Data type identification and size reporting
 - **System Diagnostics** - Real-time heap memory and storage utilization
@@ -514,11 +508,21 @@ WiFiNetwork wifiNetworks[5];
 
 ### GPIO Pin Assignments
 ```cpp
-#define MMDVM_RX_PIN 16        // Serial RX from MMDVM
-#define MMDVM_TX_PIN 17        // Serial TX to MMDVM
-#define MMDVM_PTT_PIN 4        // Push-to-Talk control
-#define MMDVM_COS_LED_PIN 2    // Carrier detect LED
-#define STATUS_LED_PIN 2       // System status LED (shared)
+// MMDVM Serial Communication (LILYGO T-ETH-Elite ESP32-S3)
+#define MMDVM_RX_PIN 44        // ESP32 RX from MMDVM TX
+#define MMDVM_TX_PIN 43        // ESP32 TX to MMDVM RX
+#define MMDVM_WAKEUP_PIN 13    // Keeps MMDVM active
+#define MMDVM_PTT_PIN 0        // Push-to-Talk control
+#define MMDVM_COS_LED_PIN 38   // Carrier detect LED
+
+// OLED Display (I2C)
+#define OLED_SDA_PIN 17        // I2C Data
+#define OLED_SCL_PIN 18        // I2C Clock
+
+// RGB LED Indicators
+#define RGB_RED_PIN 41         // Red LED
+#define RGB_GREEN_PIN 40       // Green LED (TX)
+#define RGB_BLUE_PIN 42        // Blue LED (RX)
 ```
 
 ### Serial Configuration
@@ -747,10 +751,16 @@ Main configuration file with hardware and network settings:
 #define DMR_ID 1234567
 #define DMR_SERVER "44.131.4.1"
 
-// Hardware Pins
-#define MMDVM_RX_PIN 16
-#define MMDVM_TX_PIN 17
-#define MMDVM_PTT_PIN 4
+// Hardware Pins (LILYGO T-ETH-Elite ESP32-S3)
+#define MMDVM_RX_PIN 44        // ESP32 RX from MMDVM TX
+#define MMDVM_TX_PIN 43        // ESP32 TX to MMDVM RX
+#define MMDVM_WAKEUP_PIN 13    // Keeps MMDVM active
+#define MMDVM_PTT_PIN 0        // Push-to-Talk control
+#define OLED_SDA_PIN 17        // OLED I2C Data
+#define OLED_SCL_PIN 18        // OLED I2C Clock
+#define RGB_RED_PIN 41         // RGB Red LED
+#define RGB_GREEN_PIN 40       // RGB Green LED (TX)
+#define RGB_BLUE_PIN 42        // RGB Blue LED (RX)
 
 // Protocol Defaults (all OFF by default)
 #define DEFAULT_MODE_DMR false      // Must be enabled via web interface
@@ -880,9 +890,6 @@ This project welcomes contributions from licensed amateur radio operators! Areas
 ### Recent Updates (20251212_ESP32_BETA)
 - **Network → RF Transmission Working!** User-confirmed DMR audio reception on radio
 - **MMDVM Protocol Complete:** Full communication with MMDVM HS Hat at 115200 baud
-- **DMR TX Path:** CMD_DMR_START implementation with proper timing (55ms frame delay)
-- **User Lookup:** RadioID.net API integration with callsign/name/location caching
-- **RGB LED Support:** Visual TX/RX indicators with PWM brightness control
 - **Debug Controls:** Toggle MMDVM and network verbose logging via config.h
 - **Clean Logging:** Keepalive messages hidden by default for production use
 
