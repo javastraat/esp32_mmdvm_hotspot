@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251210_ESP32_BETA"  // Update version as needed
-//#define FIRMWARE_VERSION "20251210_ESP32"  // Update version as needed
+//#define FIRMWARE_VERSION "20251212_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251212_ESP32_BETA"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -170,8 +170,8 @@
 #define DMR_USER_CACHE_SIZE 500            // Number of DMR user info lookups to cache
 #define DMR_CALLSIGN_CACHE_SIZE 500        // Number of callsign lookups to cache
 #else
-#define DMR_USER_CACHE_SIZE 50            // Number of DMR user info lookups to cache
-#define DMR_CALLSIGN_CACHE_SIZE 50        // Number of callsign lookups to cache
+#define DMR_USER_CACHE_SIZE 500            // Number of DMR user info lookups to cache
+#define DMR_CALLSIGN_CACHE_SIZE 500        // Number of callsign lookups to cache
 #endif
 
 // ===== Debug Settings =====
