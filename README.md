@@ -845,9 +845,40 @@ All servers use standard BrandMeister port 62031.
 - **Grounding:** Ensure proper RF and electrical grounding
 - **Environment:** Consider RF exposure to others in your area
 
+## License
+
+**Amateur Radio Non-Commercial License**
+
+This project is open source for amateur radio use only. 
+
+**You are free to:**
+- Use the software for amateur radio operations
+- Study, modify, and improve the code
+- Share and distribute modifications
+- Contribute improvements back to the project
+
+**Under the following conditions:**
+- **Non-Commercial:** You may NOT use this software for commercial purposes
+- **Amateur Radio Only:** This software is intended exclusively for licensed amateur radio operators
+- **Attribution:** You must give appropriate credit to the original authors (PD2EMC & PD8JO)
+- **Share Alike:** If you modify and distribute this software, you must use the same license
+
+**Specifically prohibited:**
+- Commercial sale of this software or derivatives
+- Commercial hardware products using this software without explicit permission
+- Use by unlicensed individuals for radio transmission
+- Any commercial exploitation of the codebase
+
+**Legal Requirements:**
+- Valid amateur radio license required for operation
+- Compliance with local radio regulations mandatory
+- Proper station identification required per your jurisdiction
+
+For commercial licensing inquiries, contact the authors.
+
 ## Contributing
 
-This project welcomes contributions! Areas for improvement:
+This project welcomes contributions from licensed amateur radio operators! Areas for improvement:
 
 1. **Protocol Extensions:** Additional DMR features, other digital modes
 2. **Hardware Support:** New MMDVM variants, display modules  
@@ -861,6 +892,7 @@ This project welcomes contributions! Areas for improvement:
 3. Test thoroughly with your hardware
 4. Submit a pull request with clear description
 5. Include any new dependencies or configuration requirements
+6. By contributing, you agree to license your contributions under the same terms
 
 ## Support and Community
 
@@ -871,19 +903,25 @@ This project welcomes contributions! Areas for improvement:
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20251128_ESP32 (latest with enhanced status page)
-- **License:** Open source for educational and amateur radio use
-- **Author:** Community-driven development
-- **Latest Updates:** Check GitHub repository for current version
+- **Version:** 20251212_ESP32_BETA
+- **License:** Amateur Radio Non-Commercial License (see License section)
+- **Authors:** PD2EMC & PD8JO
+- **Repository:** https://github.com/javastraat/esp32_mmdvm_hotspot
+- **Amateur Radio Only:** Valid license required for operation
 
-### Recent Updates (20251128_ESP32)
-- **Enhanced Status Page:** Comprehensive ESP32 hardware metrics including chip revision, CPU cores, heap statistics, flash speed, SDK version, and formatted uptime display
-- **Debug Controls:** Added DEBUG_PASSWORD flag in config.h to control password debug output visibility
-- **DMR Mode Default:** Changed default DMR mode to OFF to prevent spam to BrandMeister servers with unconfigured credentials
-- **Factory Fresh:** Fresh installations now require explicit DMR mode enable and credential configuration via web interface
+### Recent Updates (20251212_ESP32_BETA)
+- **Network → RF Transmission Working!** User-confirmed DMR audio reception on radio
+- **MMDVM Protocol Complete:** Full communication with MMDVM HS Hat at 115200 baud
+- **DMR TX Path:** CMD_DMR_START implementation with proper timing (55ms frame delay)
+- **User Lookup:** RadioID.net API integration with callsign/name/location caching
+- **RGB LED Support:** Visual TX/RX indicators with PWM brightness control
+- **Debug Controls:** Toggle MMDVM and network verbose logging via config.h
+- **Clean Logging:** Keepalive messages hidden by default for production use
 
 ---
 
 **73 and enjoy your ESP32 MMDVM Hotspot!**
 
-*"Bringing modern digital amateur radio to the maker community."*
+*This project is for licensed amateur radio operators only. Not for commercial use.*
+
+**Developed by PD2EMC & PD8JO**
