@@ -845,7 +845,7 @@ void loop() {
     // Also check transmission timeout and log the end
     if (currentTx[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
       if (currentTx[i].lastSeq > currentTx[i].startSeq) {
-        String txSummary = "DMR: Slot" + String(currentTx[i].slotNo) + " Seq=" + String(currentTx[i].startSeq) + "-" + String(currentTx[i].lastSeq) + 
+        String txSummary = "[SERVER] DMR: Slot" + String(currentTx[i].slotNo) + " Seq=" + String(currentTx[i].startSeq) + "-" + String(currentTx[i].lastSeq) + 
                           " " + String(currentTx[i].srcId) + "->" + (currentTx[i].isGroup ? "TG" : "") + String(currentTx[i].dstId) +
                           " [END]";
         logSerial(txSummary);
@@ -1630,7 +1630,7 @@ void handleNetwork() {
           if (isNewTransmission) {
             // Log the previous transmission summary if it was active
             if (tx.active && tx.lastSeq > tx.startSeq) {
-              String txSummary = "DMR: Slot" + String(tx.slotNo) + " Seq=" + String(tx.startSeq) + "-" + String(tx.lastSeq) + 
+              String txSummary = "[SERVER] DMR: Slot" + String(tx.slotNo) + " Seq=" + String(tx.startSeq) + "-" + String(tx.lastSeq) + 
                                 " " + String(tx.srcId) + "->" + (tx.isGroup ? "TG" : "") + String(tx.dstId) +
                                 " [END]";
               logSerial(txSummary);
@@ -1647,7 +1647,7 @@ void handleNetwork() {
             tx.frameType = String(dataTypeStr);
             
             // Log the start of transmission
-            String dmrInfo = "DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
+            String dmrInfo = "[SERVER] DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
                             " " + String(srcId) + "->" + (isGroup ? "TG" : "") + String(dstId) +
                             " [START] Type=" + String(dataTypeStr);
             if (ber > 0 || rssi > 0) {
@@ -1714,7 +1714,7 @@ void handleNetwork() {
             
             // Log with enhanced info if found
             if (dmrActivity[activityIndex].srcCallsign.length() > 0 && isNewTransmission) {
-              String logMsg = "Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
+              String logMsg = "[INFO] Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
               if (dmrActivity[activityIndex].srcName.length() > 0) {
                 logMsg += " - " + dmrActivity[activityIndex].srcName;
               }
@@ -2553,7 +2553,7 @@ String getCurrentTimestamp() {
 // Add DMR transmission to history
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo) {
   // Debug log
-  logSerial("Adding to history: " + srcCallsign + " (" + String(srcId) + ") -> " + (isGroup ? "TG" : "") + String(dstId) + " Duration: " + String(duration) + "s");
+  logSerial("[HISTORY] Adding to history: " + srcCallsign + " (" + String(srcId) + ") -> " + (isGroup ? "TG" : "") + String(dstId) + " Duration: " + String(duration) + "s");
 
   // Get current timestamp (NTP time or fallback to uptime)
   String timestamp = getCurrentTimestamp();
