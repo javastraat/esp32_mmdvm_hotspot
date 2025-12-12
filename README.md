@@ -278,7 +278,7 @@ When someone transmits on BrandMeister network:
 
 **Example Log:**
 ```
-SERVER] DMR: Slot2 Seq=1 4040888->TG91 [START] Type=VOICE_LC_HDR
+[SERVER] DMR: Slot2 Seq=1 4040888->TG91 [START] Type=VOICE_LC_HDR
 [INFO] Station: VU3LQE (4040888) - Subhosmito from Kolkata, India
 [MMDVM] DMR TX START - VU3LQE
 [MMDVM] DMR TX STOP
