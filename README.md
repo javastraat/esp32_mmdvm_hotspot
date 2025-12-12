@@ -311,6 +311,8 @@ Once connected, access the web interface at the ESP32's IP address. Default logi
 ### Home Dashboard (`/`)
 The main landing page provides comprehensive status overview:
 
+![Home Dashboard](screenshots/main.png)
+
 **Quick Status Card:**
 - WiFi connection status (Connected/AP Mode/Disconnected) with IP address
 - DMR network login status with authentication state
@@ -328,6 +330,9 @@ The main landing page provides comprehensive status overview:
 - Overview of available features
 
 ### WiFi Configuration (`/wificonfig`)
+
+![WiFi Configuration](screenshots/wificonfig.png)
+
 **Multi-Network Support:**
 - **Primary Network** - Main WiFi configured in config.h file
 - **5 Backup Networks** - Additional WiFi slots (Home, Mobile, Work, Friends, Other)
@@ -341,6 +346,9 @@ The main landing page provides comprehensive status overview:
 - Complete backup and restore functionality
 
 ### DMR Configuration (`/modeconfig`)  
+
+![DMR Configuration](screenshots/modeconfig.png)
+
 **BrandMeister Integration:**
 - **Global Server List** - Built-in list with 40+ servers worldwide
 - **Credential Management** - Callsign, DMR ID, and password configuration
@@ -357,6 +365,9 @@ The main landing page provides comprehensive status overview:
 - Others: South Africa, Brazil, New Zealand
 
 ### Serial Monitor (`/serialmonitor`)
+
+![Serial Monitor](screenshots/serialmonitor.png)
+
 **Real-time Logging:**
 - Live MMDVM communication display with auto-refresh
 - Circular buffer storing 50 most recent log messages
@@ -366,6 +377,9 @@ The main landing page provides comprehensive status overview:
 - Clear logs and configurable refresh rates
 
 ### Status Page (`/status`)
+
+![Status Page](screenshots/status.png)
+
 **System Metrics:**
 - DMR network connection status
 - WiFi signal strength and network details
@@ -373,6 +387,9 @@ The main landing page provides comprehensive status overview:
 - Hardware status indicators
 
 ### Admin Panel (`/admin`)
+
+![Admin Panel](screenshots/admin.png)
+
 **System Management:**
 - Restart system services or complete reboot
 - Complete factory reset (erases all NVS data)

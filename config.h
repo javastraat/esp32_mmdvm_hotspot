@@ -176,7 +176,7 @@
 
 // ===== Debug Settings =====
 #define DEBUG_SERIAL true     // Enable serial debug output
-#define DEBUG_MMDVM false     // Enable MMDVM protocol debug
+#define DEBUG_MMDVM true     // Enable MMDVM protocol debug
 #define DEBUG_NETWORK false   // Enable network debug
 #define DEBUG_DMR false       // Enable DMR protocol debug
 #define DEBUG_PASSWORD false  // Enable password debug output (shows password length/last2 chars)
