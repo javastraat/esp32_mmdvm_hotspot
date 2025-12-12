@@ -124,6 +124,8 @@ String web_password = WEB_PASSWORD;
 // MMDVM Wakeup Serial (GPIO 13 keeps modem active)
 HardwareSerial MMDVMWakeup(1);
 bool mmdvmWakeupActive = false;
+bool dmrTxActive = false;  // Track if modem is in DMR TX mode
+unsigned long lastDMRFrameTime = 0;
 
 // ===== Protocol Constants =====
 #define MMDVM_FRAME_START 0xE0
@@ -816,6 +818,13 @@ void loop() {
     lastOLEDUpdate = currentMillis;
   }
 #endif
+  // Reset DMR TX mode if no frames received for 200ms
+  if (dmrTxActive && (currentMillis - lastDMRFrameTime > 200)) {
+    writeDMRStart(false);  // Exit TX mode
+    dmrTxActive = false;
+    logSerial("DMR TX END");
+  }
+
   for (int i = 0; i < 2; i++) {
     // Check if DMR activity has timed out and add to history before deactivating
     if (dmrActivity[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
@@ -1769,8 +1778,12 @@ void handleNetwork() {
                              String(dmrModemData[4], HEX);
             logSerial(debugMsg);
 
-            // Send DMR START command (tells modem to enter TX mode)
-            writeDMRStart(true);
+            // Only send DMR START once at beginning of transmission
+            if (!dmrTxActive) {
+              writeDMRStart(true);
+              dmrTxActive = true;
+            }
+            lastDMRFrameTime = millis();
             
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, dmrModemData, 34);
