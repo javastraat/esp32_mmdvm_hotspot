@@ -309,105 +309,317 @@ Settings are loaded automatically on boot and persist across power cycles. Use *
 Once connected, access the web interface at the ESP32's IP address. Default login: **admin / pi-star**
 
 ### Home Dashboard (`/`)
-The main landing page provides comprehensive status overview:
+The main landing page provides comprehensive real-time monitoring:
 
 ![Home Dashboard](screenshots/main.png)
 
-**Quick Status Card:**
-- WiFi connection status (Connected/AP Mode/Disconnected) with IP address
-- DMR network login status with authentication state
-- MMDVM hardware ready status ([OK] or [ERR])
+**Live DMR Activity Cards:**
+- **Dual-slot display** for real-time transmissions (Slot 1 & Slot 2)
+- **Active transmission details:**
+  - Callsign with QRZ.com lookup link
+  - DMR ID
+  - Name, City, Country (from RadioID.net)
+  - Destination (Talkgroup/Private Call)
+  - Frame type (Voice/Data)
+  - Live duration counter
+- **Idle state** when no transmission active
 
-**Network & Activity Card:**
-- DMR server address and connection details
-- Current talkgroup (if active, otherwise shows "None")
-- RX/TX frequencies (displayed in MHz)
-- Color code and power settings
+**Recent DMR Activity (Last 15 Transmissions):**
+- **Filterable history table** with duration filter (0.5s to 5s)
+- Timestamp, Station (Callsign/Name/Location), Destination, Duration, Slot
+- QRZ.com links for all callsigns
+- Sorted newest-first with detailed station information
 
-**System Information:**
-- ESP32 firmware version
-- Navigation guide to other web pages
-- Overview of available features
+**System Status Overview:**
+- **Network Connectivity:** WiFi status (Connected/AP Mode/Disconnected), Ethernet (T-ETH-Elite only)
+- **System Status:** MMDVM hardware ready, DMR network connection
+- **Digital Modes:** Visual toggle switches showing DMR (functional), D-Star/YSF/P25/NXDN/POCSAG (not implemented)
+- **Auto-refresh:** Activity (1s), History (2s), Status (3s)
+- **Dynamic title:** Shows active callsigns in browser tab when transmitting
 
 ### WiFi Configuration (`/wificonfig`)
 
 ![WiFi Configuration](screenshots/wificonfig.png)
 
-**Multi-Network Support:**
-- **Primary Network** - Main WiFi configured in config.h file
-- **5 Backup Networks** - Additional WiFi slots (Home, Mobile, Work, Friends, Other)
-- **Automatic Failover** - Tries backup networks if primary fails
-- **Network Scanner** - Discover and select nearby WiFi networks
-- **Access Point Mode** - Creates hotspot if all WiFi networks fail
+**Current WiFi Status:**
+- **Connection Details** - SSID, IP address, Gateway, Subnet Mask, DNS Server
+- **Signal Quality** - RSSI in dBm with assessment (Excellent/Good/Fair/Weak)
+- **Network Info** - WiFi channel, MAC address
+- **AP Mode Status** - When in Access Point mode, shows AP SSID, IP, and connected client count
 
-**Configuration Import/Export:**
-- Export current settings to downloadable JSON file
-- Import previously saved configuration files
-- Complete backup and restore functionality
+**Multi-Network Management:**
+- **5 Alternate Network Slots** - Configure up to 5 WiFi networks with custom labels
+- **Slot Editor** - Switch between slots to configure each network independently
+- **Network Labels** - Customize slot names (e.g., Home, Mobile, Work, Friends, Other)
+- **Password Visibility Toggle** - Show/hide password when configuring networks
+- **Automatic Failover** - ESP32 tries networks in order (Slot 1 → Slot 5) if primary from config.h fails
+- **Reset Slot Function** - Clear individual slots back to default labels and empty credentials
+
+**Network Scanner:**
+- **WiFi Discovery** - Scan and display nearby networks with signal strength
+- **Quick Selection** - Click any network to auto-fill SSID in slot editor
+- **Security Status** - Shows Open vs Secured networks
+- **Signal Strength** - RSSI values for each discovered network
 
 ### DMR Configuration (`/modeconfig`)  
 
 ![DMR Configuration](screenshots/modeconfig.png)
 
-**BrandMeister Integration:**
-- **Global Server List** - Built-in list with 40+ servers worldwide, or enter custom server URL/IP
-- **Credential Management** - Callsign, DMR ID, and password configuration
-- **Frequency Settings** - RX/TX frequency, power, and color code
-- **Location Setup** - GPS coordinates and site information
-- **Protocol Mode Selection** - Enable/disable digital modes (DMR functional, others planned)
-- **DMR Mode Control** - Toggle DMR network connection (default: OFF for fresh installs)
-- **Future Protocol Support** - D-Star, YSF, P25, NXDN, POCSAG (configuration ready, protocols not implemented)
+**Active Modes Status Card:**
+- **DMR Mode** - Real-time status badge (Enabled/Disabled with green/red indicator)
+- **Future Modes** - D-Star, YSF, P25, NXDN, POCSAG displayed as "Coming Soon" (read-only, dimmed)
+- **Toggle Control** - DMR enable/disable checkbox in BrandMeister Settings card
+- **Restart Required** - Changes activate after device reboot
+
+**Current DMR Settings Overview:**
+- **Network Status** - BrandMeister connection status (Connected/Disconnected badge)
+- **Station Identity** - Callsign and DMR ID display
+- **Server Information** - Current BrandMeister server with friendly name
+- **ESSID Display** - Radio ID suffix (None or 1-99)
+- **RF Parameters** - RX/TX frequencies in MHz, Color Code
+- **Quick Reference** - All current settings at a glance before making changes
+
+**General Settings Card:**
+- **Callsign Configuration** - Amateur radio callsign (e.g., N0CALL)
+- **DMR ID** - 7-digit ID with validation (1000000-9999999)
+- **RX Frequency** - Receive frequency in Hz (400-480 MHz range)
+- **TX Frequency** - Transmit frequency in Hz (400-480 MHz range)
+- **Save General** - Independent save button preserves other settings
+
+**BrandMeister Settings Card:**
+- **DMR Mode Toggle** - Large checkbox to enable/disable DMR connection
+- **Server Selector** - Dropdown with 40+ worldwide servers plus "Custom Server" option
+  - Europe: Netherlands, Germany, UK, France, Italy, Spain, Belgium, Austria, Switzerland, Denmark, Sweden, Norway, Finland, Czech Republic, Hungary, Romania, Poland, Portugal, Ireland, Bulgaria, Slovenia, Russia, Ukraine, Greece
+  - North America: USA (3 servers), Canada, Mexico
+  - Asia-Pacific: Australia, South Korea, China, Malaysia, Philippines
+  - Middle East/Africa: Israel, South Africa
+  - South America: Brazil, Chile
+- **Custom Server Entry** - Manual IP or FQDN input when "Custom Server" selected
+- **Server Auto-fill** - Selecting predefined server auto-populates server field
+- **DMR Password** - BrandMeister hotspot password with visibility toggle (show/hide)
+- **ESSID Configuration** - Radio ID suffix dropdown (0=None, 1-99)
+- **Save BrandMeister** - Independent save button preserves other settings
+
+**Modem Config Card:**
+- **Modem Type Selector** - Dropdown with 11 hardware variants:
+  - MMDVM_HS_Hat (GPIO / GPIO 1.2)
+  - MMDVM_HS_Dual_Hat (GPIO / GPIO 1.2 / 14.7456 MHz)
+  - HS_HAT with AMBE/SkyBridge chip
+  - HS_DUAL_HAT with AMBE chip
+  - Nano hotSPOT / NanoDV (BI7JTA)
+  - D2RG MMDVM_HS RPi Hat
+- **Power Control** - RF power level (0-99) with validation
+- **Color Code** - DMR color code (0-15) with validation
+- **Save Modem Config** - Independent save button preserves other settings
+
+**Location & Description Card:**
+- **GPS Coordinates** - Latitude/Longitude with 6 decimal places precision
+- **Height** - Elevation in meters (0-999)
+- **Location Text** - City, Country display (max 20 characters)
+- **Description** - Station description (max 19 characters)
+- **URL** - Station website or info page (max 124 characters)
+- **Save Location** - Independent save button preserves other settings
+
+**User Experience Features:**
+- **Server Dropdown Logic** - Auto-updates text field when server selected from list
+- **Password Toggle** - Eye icon to show/hide password in BrandMeister Settings
+- **Independent Forms** - Each card saves separately without affecting other settings
+- **Hidden Field Preservation** - Each form includes hidden fields to preserve other cards' values
+- **Server Tips** - Inline help: choose closest server, port 62031 default, get password from brandmeister.network
+- **Validation** - Client-side and server-side validation for DMR ID (7 digits), ESSID (0-99), frequencies (400-480 MHz)
+- **Save Confirmation** - Success page shows new settings and auto-redirects after 5 seconds
+- **Automatic Restart** - Device restarts after save to apply new DMR configuration
 
 ### Serial Monitor (`/serialmonitor`)
 
 ![Serial Monitor](screenshots/serialmonitor.png)
 
-**Real-time Logging:**
-- Live MMDVM communication display with auto-refresh
-- Circular buffer storing 50 most recent log messages
-- Network packet monitoring and authentication status
-- Debug information for troubleshooting
-- Pause/resume monitoring functionality
-- Clear logs and configurable refresh rates
+**Real-time Log Display:**
+- **Live Log Feed** - Auto-refreshing display updates every 2 seconds
+- **Circular Buffer** - Stores 50 most recent log messages (oldest first display order)
+- **Terminal-Style UI** - Dark background (#0e0e0e) with monospace Courier New font
+- **Auto-Scroll** - Automatically scrolls to newest log entries on refresh
+- **Log Content** - MMDVM communication, network packets, authentication status, debug info
+
+**Interactive Controls:**
+- **Refresh Now Button** - Manual immediate log update
+- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
+- **Clear Logs Button** - Erase all stored logs with confirmation dialog
+- **Status Indicator** - Shows current state ("Auto-refreshing every 2 seconds..." or "Auto-refresh paused")
+
+**Technical Features:**
+- **JavaScript Auto-Refresh** - setInterval updates logs without page reload
+- **Fetch API** - Asynchronous log retrieval from `/logs` endpoint
+- **Error Handling** - Console logging for failed fetch requests
+- **Responsive Design** - Scrollable container (400px min, 600px max height)
+- **Color Coding** - Log lines displayed in #cccccc on dark terminal background
 
 ### Status Page (`/status`)
 
 ![Status Page](screenshots/status.png)
 
-**System Metrics:**
-- DMR network connection status
-- WiFi signal strength and network details
-- Memory usage and system uptime
-- Hardware status indicators
+**WiFi Status Card:**
+- **Connection Status** - Visual badge (Connected/AP Mode/Disconnected)
+- **Connected Mode** - SSID, IP address, Signal strength (RSSI in dBm), MAC address
+- **AP Mode** - Access Point IP address, connected client count
+- **Real-time Updates** - Status refreshes every 5 seconds
+
+**Ethernet Status Card** (LILYGO T-ETH-Elite only):
+- **Connection Status** - Visual badge (Connected/Not Connected)
+- **Network Details** - IP address, MAC address, Gateway IP
+- **Link Information** - Link speed in Mbps, Duplex mode (Full/Half)
+- **Connection Info** - Cable status and connection state
+
+**SD Card Status Card** (LILYGO T-ETH-Elite only):
+- **Availability Status** - Visual badge (Available/Not Available)
+- **Card Type** - MMC, SD, SDHC, or Unknown
+- **Storage Metrics** - Total size, Used space, Free space (all in MB)
+- **Insertion Detection** - Shows "No card inserted" when unavailable
+
+**DMR Network Status Card:**
+- **BrandMeister Connection** - Visual badge (Connected/Disconnected) with login status
+- **Server Information** - Current BrandMeister server with friendly name
+- **Station Identity** - Callsign and DMR ID
+- **ESSID Display** - Radio ID suffix if configured
+- **Current Talkgroup** - Active TG or "None" when idle
+
+**MMDVM Hardware Status Card:**
+- **Hardware Ready State** - Visual badge (Ready/Not Ready)
+- **RF Configuration** - RX/TX frequencies in MHz (3 decimal precision)
+- **DMR Settings** - Color code and power level
+- **Real-time Status** - Hardware state updates automatically
+
+**Station Information Card:**
+- **Callsign Configuration Status** - Green badge if configured, red if still default "N0CALL"
+- **DMR Credentials** - DMR ID and ESSID display
+- **Location** - Station location text
+- **Configuration Warning** - Visual indicator for unconfigured callsign
+
+**Interactive Controls:**
+- **Auto-Refresh** - Updates all cards every 5 seconds
+- **Refresh Now Button** - Manual immediate status update
+- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
+- **Status Indicator** - Shows "Auto-refreshing every 5 seconds..." or "Auto-refresh paused"
+
+**Technical Features:**
+- **Grid Layout** - Responsive auto-fit cards (minimum 250px width)
+- **Fetch API** - Asynchronous updates from `/statusdata` endpoint
+- **Conditional Display** - Ethernet and SD card sections only show on T-ETH-Elite hardware
+- **Status Badges** - Color-coded visual indicators (green=connected, yellow=warning, red=disconnected)
+- **JavaScript Auto-Refresh** - setInterval updates without page reload
+- **Error Handling** - Console logging for failed fetch requests
 
 ### Admin Panel (`/admin`)
 
 ![Admin Panel](screenshots/admin.png)
 
-**System Management:**
-- Restart system services or complete reboot
-- Complete factory reset (erases all NVS data)
-- Configuration export/import with JSON format
-- Show stored preferences with password masking for security
-- Hostname configuration (mDNS: esp32-mmdvm.local)
-- Verbose logging toggle (enable/disable keepalive messages)
-- Web interface credentials management (username/password)
+**System Information Card:**
+- **System Uptime** - Days, hours, minutes, seconds display with blue highlighting
+- **ESP32 Details** - Chip model, revision, CPU cores, CPU frequency
+- **Memory Metrics** - Free heap, minimum free heap, heap size, free PSRAM (if available)
+- **Flash Information** - Flash size, flash speed, sketch size, free sketch space
+- **SDK & Firmware** - SDK version, firmware version, build date/time
+- **Real-time Updates** - All metrics refresh dynamically
 
-**OTA Firmware Updates:**
-- **GitHub Download** - Automatic firmware updates from configured URL
-- **File Upload** - Manual firmware file upload via web browser
-- **Three-Step Process** - Download → Upload → Flash with confirmation
-- **Secure Updates** - HTTPS downloads with progress indication
-- **Safety Features** - Pre-flash validation and error handling
+**Modem Information Card:**
+- **Hardware Identification** - Modem hardware type (e.g., MMDVM_HS_Hat)
+- **Firmware Details** - Parsed modem firmware version
+- **Build Information** - Formatted build date (YYYY-MM-DD)
+- **Crystal Frequency** - Crystal specification (e.g., 14.7456MHz)
+- **Transceiver Chip** - RF chip type (e.g., ADF7021)
+- **Author** - Firmware author information
+- **Git Commit ID** - Exact firmware build identifier
 
-**Advanced Features:**
-- **Show Preferences** - Complete ESP32 NVS storage viewer with all settings
-- **Password Security** - All password fields automatically masked with toggle
-- **Storage Analytics** - Data type identification and size reporting
-- **System Diagnostics** - Real-time heap memory and storage utilization
-- **Hostname Management** - Configurable mDNS hostname (esp32-mmdvm.local)
-- **Verbose Logging** - Toggle keepalive message visibility in logs
-- **Credential Management** - Change web interface username/password
+**System Control Card:**
+- **Reboot System** - Full ESP32 restart with confirmation dialog
+- **Restart Services** - Restart DMR/network services without full reboot
+- **Vertical Button Layout** - Easy access to system actions
+
+**Hostname Configuration Card:**
+- **Current Hostname Display** - Shows active mDNS hostname
+- **Access URL** - Shows http://[hostname].local for easy reference
+- **Hostname Editor** - Input field with validation (letters, numbers, hyphens, 1-32 chars)
+- **Auto-Redirect** - Redirects to new URL after save and reboot
+- **Save Button** - Applies hostname change with automatic reboot
+
+**Verbose Logging Card:**
+- **Current Status Display** - Shows Enabled/Disabled state
+- **Purpose Explanation** - Controls RPTPING/MSTPONG keepalive message visibility
+- **Checkbox Toggle** - Simple enable/disable interface
+- **Serial Monitor Integration** - Affects what appears in /serialmonitor logs
+
+**NTP Timezone Configuration Card:**
+- **Current Offset Display** - Shows timezone offset in hours from UTC
+- **DST Offset Display** - Shows daylight saving time offset in hours
+- **Timezone Selector** - Dropdown with 25 timezone options (UTC-12 to UTC+12)
+- **Named Timezones** - Includes common names (PST, EST, CET, AEST, etc.)
+- **DST Checkbox** - Enable/disable Daylight Saving Time (+1 hour)
+- **Save Button** - Applies timezone changes with reload
+
+**Web Username Card:**
+- **Current Username Display** - Shows active web interface username in info box
+- **Username Editor** - Text input with validation (minimum 3 characters)
+- **Change Confirmation** - Warns user they'll need to re-login
+- **Auto-Logout** - Redirects to login after successful change
+
+**Web Password Card:**
+- **Current Password Display** - Masked (********) with toggle to show/hide
+- **Password Visibility Toggle** - Eye icon to reveal actual password
+- **New Password Field** - Password input with show/hide toggle
+- **Confirm Password Field** - Validation input with show/hide toggle
+- **Minimum Length** - 4 characters required with validation
+- **Password Matching** - Client-side validation before submission
+- **Change Confirmation** - Warns user they'll need to re-login with new password
+
+**Configuration Management Card:**
+- **Reset All Settings** - Complete factory reset button (links to /resetconfig with extreme warnings)
+- **Export Config** - Download current settings as mmdvm-config.txt file
+- **Import Config** - Upload configuration file to restore settings
+- **Show Preferences** - View all NVS storage (links to /showprefs)
+- **Import Area Toggle** - Expandable file upload interface with warning
+- **Vertical Button Layout** - Organized action buttons
+
+**Maintenance Card:**
+- **Clear Logs** - Erase all serial monitor logs with confirmation
+- **Test MMDVM** - Run MMDVM hardware test (check Serial Monitor for results)
+- **Fix Corrupted Prefs** - Clean up and reload preferences from config.h defaults
+- **Service Actions** - System maintenance without full restart
+
+**OTA Firmware Updates Card:**
+- **Version Display** - Current firmware version and build date/time
+- **Online Version Check** - Shows latest Stable and Beta versions available
+- **Version Selector** - Dropdown to choose Stable or Beta (auto-selects Beta if current is Beta)
+- **Online Update** - Download firmware from GitHub with progress bar
+- **File Upload** - Manual .bin file upload interface
+- **Progress Tracking** - Visual progress bar with percentage and elapsed time
+- **Three-Step Process** - Download → Upload → Flash workflow
+- **Update Status Display** - Real-time feedback area for all operations
+- **Version Detection** - Auto-selects appropriate branch based on current version
+
+**Complete Storage Reset System:**
+- **Dedicated Reset Page** - `/resetconfig` with extreme warnings
+- **Multi-Level Warnings** - Danger and warning boxes explaining consequences
+- **Erase Details** - Lists everything that will be deleted (DMR config, WiFi, location, NVS partition)
+- **Final Confirmation** - JavaScript confirm dialog before proceeding
+- **Complete Erasure** - Clears all known namespaces, erases NVS partition, wipes WiFi credentials
+- **Auto-Reboot** - 5-second countdown with spinner animation
+- **Reinstallation** - Returns to factory config.h defaults
+
+**JavaScript Functionality:**
+- **Form Submission Handlers** - All forms use Fetch API for asynchronous submissions
+- **Password Toggles** - Show/hide functionality for all password fields
+- **Validation** - Client-side checks before server submission
+- **Confirmation Dialogs** - Prevent accidental destructive actions
+- **Auto-Reload/Redirect** - Automatic page updates after settings changes
+- **Progress Animations** - Visual feedback for long-running operations
+- **Error Handling** - Alert dialogs for failures with descriptive messages
+
+**Security Features:**
+- **HTTP Basic Authentication** - Required on all admin pages
+- **Password Masking** - All password displays masked by default with toggle
+- **Confirmation Prompts** - Double-check for destructive actions
+- **Re-login Required** - Forces re-authentication after credential changes
+- **Safe Defaults** - Prevents accidental system-breaking changes
 
 ### Dark/Light Theme System
 **Professional UI Theming:**
