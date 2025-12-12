@@ -1,66 +1,106 @@
 # ESP32 MMDVM Hotspot
 
-A comprehensive ESP32-based DMR hotspot with professional web interface, multi-network WiFi management, and BrandMeister network integration.
+A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration. **Network → RF transmission confirmed working!**
 
-## Features
+## 🎯 Project Status
 
-- **Full DMR Protocol Support** - Complete BrandMeister network integration with SHA256 authentication
-- **Professional Web Interface** - Responsive design with dark/light theme toggle
-- **Multi-Network WiFi** - Primary network + 5 backup WiFi slots with automatic failover
-- **Real-time Serial Monitor** - Live MMDVM communication logs via web interface
-- **Dual OTA Update System** - GitHub download + file upload firmware updates
-- **Configuration Management** - Import/export settings with full backup/restore
-- **Theme Switching** - Dark/light mode toggle with persistent storage
-- **Network Scanner** - WiFi network discovery and configuration
-- **DMR Status Monitoring** - Real-time connection status and network information
-- **Show Preferences** - Advanced debugging with password masking for security
-- **Hostname Configuration** - Customizable mDNS hostname (esp32-mmdvm.local)
-- **Verbose Logging Control** - Toggle detailed keepalive message logging
-- **Web Credentials Management** - Change web interface username/password
-- **Complete Factory Reset** - Erase entire ESP32 NVS partition for troubleshooting
-- **OLED Display Support** - SSD1306 128x64 display with boot logo and real-time status
+**Current Release:** Beta - December 12, 2025  
+**Firmware Version:** 20251212_ESP32_BETA
+
+### Confirmed Working
+- **Network → RF Transmission** - Receive DMR from BrandMeister and transmit over RF (user verified!)
+- **Full DMR Protocol** - BrandMeister network integration with SHA256 authentication
+- **MMDVM Communication** - Complete protocol implementation (115200 baud, GPIO 43/44/13)
+- **Real-time User Lookup** - RadioID.net API integration with callsign/name/location
+- **DMR Activity Display** - Live transmission monitoring with dual-slot support
+- **Transmission History** - Last 15 DMR transmissions with duration tracking
+- **Professional Web Interface** - Responsive design with dark/light themes
+- **Multi-Network WiFi** - Primary + 5 backup networks with auto-failover
+- **OLED Display** - Real-time status on 128x64 SSD1306 (optional)
+- **RGB LED Indicators** - Visual TX/RX status feedback (GPIO 40/41/42)
+- **Configuration Management** - Import/export, backup/restore
+- **OTA Updates** - GitHub download + file upload
+- **Debug Controls** - Toggle verbose logging (DEBUG_MMDVM, DEBUG_NETWORK)
+
+### In Development
+- **RF → Network Path** - Receive DMR from radio and forward to network (RX path)
+- **RSSI Monitoring** - Signal strength reporting from modem
+
+### Planned Features
+- **D-Star** - D-Star network and protocol support
+- **YSF/Fusion** - System Fusion protocol
+- **P25** - Project 25 digital voice
+- **NXDN** - NXDN protocol
+- **POCSAG** - Paging support
 
 ## Hardware Requirements
 
-### Essential Components
-1. **ESP32 Development Board** (ESP32-WROOM-32 recommended)
-2. **MMDVM Hat** (JumboSPOT, MMDVM_HS, or compatible)
-3. **Antenna** (UHF/VHF as appropriate for your frequency)
+### Tested & Confirmed Working
+- **Board:** LILYGO T-ETH-Elite ESP32-S3 with MMDVM HS Hat
+- **MMDVM Firmware:** MMDVM_HS_Hat-v1.6.1 20231115_WPSD (14.7456MHz ADF7021)
+  - Firmware by: CA6JAU, G4KLX, W0CHP
+  - GitID: #7e16099
+- **Baud Rate:** 115200 (confirmed working)
+- **Antenna:** UHF/VHF (e.g., 70cm for 434MHz)
+
+### Compatible Hardware
+**ESP32 Boards:**
+- ESP32-S3 (LILYGO T-ETH-Elite - recommended)
+- ESP32-WROOM-32
+- ESP32-WROVER
+- Any ESP32 with available UART pins
+
+**MMDVM Modems:**
+- MMDVM HS Hat (tested - fully working ✅)
+- JumboSPOT
+- ZUMspot  
+- MMDVM_HS (Hotspot)
+- Any MMDVM with 14.7456MHz or 12.288MHz crystal
 
 ### Optional Components
-4. **SSD1306 OLED Display** (128x64, I2C interface) - For real-time status display
-
-### Supported MMDVM Hardware
-- JumboSPOT (recommended)
-- MMDVM_HS (Hotspot)
-- ZUMspot
-- OpenSPOT compatible devices
+- **OLED Display:** SSD1306 128x64 I2C (real-time status)
+- **RGB LED:** Visual TX/RX indicators (GPIO 40/41/42)
 
 ## Pin Configuration
 
-### MMDVM Hat Connection
+### MMDVM Connection (LILYGO T-ETH-Elite ESP32-S3) Fits modem on RPI Headers
 ```
 ESP32 GPIO    MMDVM Hat     Function
 ----------    ---------     --------
-GPIO16 (RX2)  -> TX         MMDVM Serial TX
-GPIO17 (TX2)  -> RX         MMDVM Serial RX
-GPIO4         -> PTT        Push-to-Talk Control
-GPIO2         -> COS/LED    Carrier Detect LED
-3.3V          -> VCC        Power Supply
-GND           -> GND        Ground
+GPIO 43       → RX          ESP32 TX to MMDVM RX (sends commands/data)
+GPIO 44       ← TX          ESP32 RX from MMDVM TX (receives responses)
+GPIO 13       → (Wakeup)    Keeps MMDVM active (requires UART activity)
+GPIO 12       ← (LED)       Status LED monitoring (read-only)
+GPIO 0        → PTT         Push-to-Talk Control
+GPIO 38       → COS/LED     Carrier Detect LED
+3.3V          → VCC         Power Supply (3.3V only!)
+GND           → GND         Ground
 ```
 
-### OLED Display Connection (Optional)
+**Critical Notes:**
+- **GPIO 13 Wakeup:** MMDVM requires continuous UART activity on this pin to stay active
+- **Baud Rate:** 115200 confirmed working (SERIAL_8N1)
+- **Timing:** UART .flush() after writes is critical for reliability
+- **Voltage:** 3.3V only - DO NOT use 5V
+
+### OLED Display (Optional)
 ```
 ESP32 GPIO    OLED Display  Function
 ----------    ------------  --------
-GPIO17        -> SDA        I2C Data
-GPIO18        -> SCL        I2C Clock
-3.3V          -> VCC        Power Supply
-GND           -> GND        Ground
+GPIO 17       → SDA         I2C Data
+GPIO 18       → SCL         I2C Clock
+3.3V          → VCC         Power Supply
+GND           → GND         Ground
 ```
 
-**Note:** Most modern MMDVM hats (JumboSPOT, MMDVM_HS) are 3.3V compatible and work directly with ESP32.
+### RGB LED (Optional)
+```
+ESP32 GPIO    LED Color     Function
+----------    ---------     --------
+GPIO 41       → Red         Status indicator
+GPIO 40       → Green       TX indicator
+GPIO 42       → Blue        RX indicator
+```
 
 ## Quick Start
 
@@ -106,47 +146,44 @@ To install in Arduino IDE:
 
 ### 3. Configuration
 
-#### Edit config.h
-Update the configuration file with your settings:
+Edit `config.h` with your settings:
 
 ```cpp
 // Firmware Version
-#define FIRMWARE_VERSION "20251128_ESP32"
+#define FIRMWARE_VERSION "20251212_ESP32_BETA"
 
-// WiFi Configuration (Primary Network)
+// WiFi Configuration
 #define WIFI_SSID "YourWiFiNetwork"
 #define WIFI_PASSWORD "YourWiFiPassword"
 
-// Fallback Access Point mode settings
-#define AP_SSID "ESP32-MMDVM-Config"
-#define AP_PASSWORD "mmdvm1234"
-
-// DMR Credentials  
-#define DMR_CALLSIGN "N0CALL"        // Your amateur radio callsign
+// DMR Credentials (get from BrandMeister)
+#define DMR_CALLSIGN "N0CALL"        // Your callsign
 #define DMR_ID 1234567               // Your 7-digit DMR ID
-#define DMR_PASSWORD "passw0rd"      // Hotspot password from BrandMeister
-#define DMR_SERVER "44.131.4.1"     // BrandMeister server address
+#define DMR_PASSWORD "passw0rd"      // Your hotspot password
+#define DMR_SERVER "44.131.4.1"      // BrandMeister US server
+#define DMR_COLORCODE 1              // Usually 1 for BrandMeister
 
-// Hardware Configuration (adjust if needed)
-#define MMDVM_RX_PIN 16             // ESP32 RX pin
-#define MMDVM_TX_PIN 17             // ESP32 TX pin  
-#define MMDVM_PTT_PIN 4             // PTT control pin
-#define MMDVM_COS_LED_PIN 2         // Status LED pin
+// Hardware Pins (LILYGO T-ETH-Elite ESP32-S3)
+#define MMDVM_RX_PIN 44              // ESP32 RX from MMDVM TX
+#define MMDVM_TX_PIN 43              // ESP32 TX to MMDVM RX
+#define MMDVM_WAKEUP_PIN 13          // Keeps MMDVM active
+#define MMDVM_SERIAL_BAUD 115200     // MMDVM baud rate
 
-// OTA Update Configuration (optional)
-#define OTA_UPDATE_URL "https://github.com/yourusername/yourrepo/raw/main/update.bin"
-#define OTA_VERSION_URL "https://github.com/yourusername/yourrepo/raw/main/version.txt"
-#define OTA_TIMEOUT 30000           // Download timeout in milliseconds
+// RF Settings
+#define MMDVM_FREQUENCY 434000000    // 434 MHz (adjust for your region)
+#define MMDVM_RF_LEVEL 100           // RF power 0-100%
 
-// Web Interface Credentials
-#define WEB_USERNAME "admin"
-#define WEB_PASSWORD "pi-star"
+// Display (optional)
+#define ENABLE_OLED true             // Enable OLED display
+#define OLED_I2C_ADDRESS 0x3C        // Usually 0x3C or 0x3D
 
-// Network Discovery
-#define MDNS_HOSTNAME "esp32-mmdvm"  // Accessible at esp32-mmdvm.local
+// Debug Options (set false for clean logs)
+#define DEBUG_MMDVM false            // MMDVM TX frame debug
+#define DEBUG_NETWORK false          // Network keepalive debug
+#define DEBUG_DMR false              // DMR protocol debug
 
-// Web Interface Footer
-#define COPYRIGHT_TEXT "&copy; 2025 einstein.amsterdam"
+// Mode Defaults (must enable via web interface)
+#define DEFAULT_MODE_DMR false       // DMR OFF by default
 ```
 
 ### 4. Upload Firmware
@@ -162,6 +199,38 @@ After upload, the ESP32 will:
 3. Connect to AP with password: **mmdvm1234**
 4. Open browser to: **http://192.168.4.1**
 5. Configure WiFi and DMR settings via web interface
+6. **Enable DMR mode** in Mode Configuration (OFF by default)
+7. Monitor Serial Monitor for "DMR TX START" to confirm RF transmission
+
+## How It Works
+
+### Network → RF Transmission Path (Working!)
+When someone transmits on BrandMeister network:
+
+1. **Network Packet** - ESP32 receives DMRD packet from Brand Meister (UDP port 62031)
+2. **User Lookup** - RadioID.net API fetches callsign/name/location (cached for performance)
+3. **Activity Display** - Web interface and OLED show live transmission
+4. **DMR START Command** - ESP32 sends `CMD_DMR_START (0x1D)` to put modem in TX mode
+5. **Frame Transmission** - DMR frames sent to modem via `CMD_DMR_DATA2 (0x1A)` with 55ms delay
+6. **RF Output** - MMDVM modem transmits on configured frequency
+7. **TX END** - After 500ms timeout, sends `CMD_DMR_START (0x00)` to exit TX mode
+8. **History Logging** - Transmission added to history with duration
+
+**Example Log:**
+```
+DMR: Slot2 Seq=0 3120545->TG91 [START] Type=VOICE_LC_HDR
+Station: KN4MZQ (3120545) - Jeffrey A from Walkertown, United States
+[MMDVM] DMR TX START - KN4MZQ
+[MMDVM] DMR TX STOP
+DMR: Slot2 Seq=0-6 3120545->TG91 [END]
+Adding to history: KN4MZQ (3120545) -> TG91 Duration: 1s
+```
+
+### Critical Timing
+- **DMR Frame Timing:** 60ms between frames
+- **Buffer Prevention:** 55ms delay after each frame prevents modem buffer overflow
+- **TX Timeout:** 500ms without frames triggers automatic TX stop
+- **Single START:** Only one DMR_START per transmission (not per frame)
 
 ## Web Interface Features
 
@@ -384,12 +453,12 @@ Connect RGB LEDs to the following pins:
 
 | Status | Color | Brightness | When |
 |--------|-------|------------|------|
-| **Disconnected** | 🔴 Red | Dim (10) | No network connection |
-| **AP Mode** | 🟣 Purple | Dim (10) | Access Point mode active |
-| **Connecting** | 🔵 Blue blinking | Flashing | Connecting to network |
-| **Network Connected** | 🔵 Blue | Very dim (10) | Connected but idle |
-| **Transmitting** | 🟢 Green | Medium (50) | TX - Sending to network |
-| **Receiving** | 🔴 Red | Medium (50) | RX - Receiving from network |
+| **Disconnected** | Red | Dim (10) | No network connection |
+| **AP Mode** | Purple | Dim (10) | Access Point mode active |
+| **Connecting** | Blue blinking | Flashing | Connecting to network |
+| **Network Connected** | Blue | Very dim (10) | Connected but idle |
+| **Transmitting** | Green | Medium (50) | TX - Sending to network |
+| **Receiving** | Red | Medium (50) | RX - Receiving from network |
 
 **Features:**
 - **Dimmed by default** - All colors use the brightness settings you can adjust in config.h
