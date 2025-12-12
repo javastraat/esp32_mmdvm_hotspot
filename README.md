@@ -337,6 +337,85 @@ The main landing page provides comprehensive real-time monitoring:
 - **Auto-refresh:** Activity (1s), History (2s), Status (3s)
 - **Dynamic title:** Shows active callsigns in browser tab when transmitting
 
+### Status Page (`/status`)
+
+![Status Page](screenshots/status.png)
+
+**WiFi Status Card:**
+- **Connection Status** - Visual badge (Connected/AP Mode/Disconnected)
+- **Connected Mode** - SSID, IP address, Signal strength (RSSI in dBm), MAC address
+- **AP Mode** - Access Point IP address, connected client count
+- **Real-time Updates** - Status refreshes every 5 seconds
+
+**Ethernet Status Card** (LILYGO T-ETH-Elite only):
+- **Connection Status** - Visual badge (Connected/Not Connected)
+- **Network Details** - IP address, MAC address, Gateway IP
+- **Link Information** - Link speed in Mbps, Duplex mode (Full/Half)
+- **Connection Info** - Cable status and connection state
+
+**SD Card Status Card** (LILYGO T-ETH-Elite only):
+- **Availability Status** - Visual badge (Available/Not Available)
+- **Card Type** - MMC, SD, SDHC, or Unknown
+- **Storage Metrics** - Total size, Used space, Free space (all in MB)
+- **Insertion Detection** - Shows "No card inserted" when unavailable
+
+**DMR Network Status Card:**
+- **BrandMeister Connection** - Visual badge (Connected/Disconnected) with login status
+- **Server Information** - Current BrandMeister server with friendly name
+- **Station Identity** - Callsign and DMR ID
+- **ESSID Display** - Radio ID suffix if configured
+- **Current Talkgroup** - Active TG or "None" when idle
+
+**MMDVM Hardware Status Card:**
+- **Hardware Ready State** - Visual badge (Ready/Not Ready)
+- **RF Configuration** - RX/TX frequencies in MHz (3 decimal precision)
+- **DMR Settings** - Color code and power level
+- **Real-time Status** - Hardware state updates automatically
+
+**Station Information Card:**
+- **Callsign Configuration Status** - Green badge if configured, red if still default "N0CALL"
+- **DMR Credentials** - DMR ID and ESSID display
+- **Location** - Station location text
+- **Configuration Warning** - Visual indicator for unconfigured callsign
+
+**Interactive Controls:**
+- **Auto-Refresh** - Updates all cards every 5 seconds
+- **Refresh Now Button** - Manual immediate status update
+- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
+- **Status Indicator** - Shows "Auto-refreshing every 5 seconds..." or "Auto-refresh paused"
+
+**Technical Features:**
+- **Grid Layout** - Responsive auto-fit cards (minimum 250px width)
+- **Fetch API** - Asynchronous updates from `/statusdata` endpoint
+- **Conditional Display** - Ethernet and SD card sections only show on T-ETH-Elite hardware
+- **Status Badges** - Color-coded visual indicators (green=connected, yellow=warning, red=disconnected)
+- **JavaScript Auto-Refresh** - setInterval updates without page reload
+- **Error Handling** - Console logging for failed fetch requests
+
+### Serial Monitor (`/serialmonitor`)
+
+![Serial Monitor](screenshots/serialmonitor.png)
+
+**Real-time Log Display:**
+- **Live Log Feed** - Auto-refreshing display updates every 2 seconds
+- **Circular Buffer** - Stores 50 most recent log messages (oldest first display order)
+- **Terminal-Style UI** - Dark background (#0e0e0e) with monospace Courier New font
+- **Auto-Scroll** - Automatically scrolls to newest log entries on refresh
+- **Log Content** - MMDVM communication, network packets, authentication status, debug info
+
+**Interactive Controls:**
+- **Refresh Now Button** - Manual immediate log update
+- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
+- **Clear Logs Button** - Erase all stored logs with confirmation dialog
+- **Status Indicator** - Shows current state ("Auto-refreshing every 2 seconds..." or "Auto-refresh paused")
+
+**Technical Features:**
+- **JavaScript Auto-Refresh** - setInterval updates logs without page reload
+- **Fetch API** - Asynchronous log retrieval from `/logs` endpoint
+- **Error Handling** - Console logging for failed fetch requests
+- **Responsive Design** - Scrollable container (400px min, 600px max height)
+- **Color Coding** - Log lines displayed in #cccccc on dark terminal background
+
 ### WiFi Configuration (`/wificonfig`)
 
 ![WiFi Configuration](screenshots/wificonfig.png)
@@ -429,85 +508,6 @@ The main landing page provides comprehensive real-time monitoring:
 - **Validation** - Client-side and server-side validation for DMR ID (7 digits), ESSID (0-99), frequencies (400-480 MHz)
 - **Save Confirmation** - Success page shows new settings and auto-redirects after 5 seconds
 - **Automatic Restart** - Device restarts after save to apply new DMR configuration
-
-### Serial Monitor (`/serialmonitor`)
-
-![Serial Monitor](screenshots/serialmonitor.png)
-
-**Real-time Log Display:**
-- **Live Log Feed** - Auto-refreshing display updates every 2 seconds
-- **Circular Buffer** - Stores 50 most recent log messages (oldest first display order)
-- **Terminal-Style UI** - Dark background (#0e0e0e) with monospace Courier New font
-- **Auto-Scroll** - Automatically scrolls to newest log entries on refresh
-- **Log Content** - MMDVM communication, network packets, authentication status, debug info
-
-**Interactive Controls:**
-- **Refresh Now Button** - Manual immediate log update
-- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
-- **Clear Logs Button** - Erase all stored logs with confirmation dialog
-- **Status Indicator** - Shows current state ("Auto-refreshing every 2 seconds..." or "Auto-refresh paused")
-
-**Technical Features:**
-- **JavaScript Auto-Refresh** - setInterval updates logs without page reload
-- **Fetch API** - Asynchronous log retrieval from `/logs` endpoint
-- **Error Handling** - Console logging for failed fetch requests
-- **Responsive Design** - Scrollable container (400px min, 600px max height)
-- **Color Coding** - Log lines displayed in #cccccc on dark terminal background
-
-### Status Page (`/status`)
-
-![Status Page](screenshots/status.png)
-
-**WiFi Status Card:**
-- **Connection Status** - Visual badge (Connected/AP Mode/Disconnected)
-- **Connected Mode** - SSID, IP address, Signal strength (RSSI in dBm), MAC address
-- **AP Mode** - Access Point IP address, connected client count
-- **Real-time Updates** - Status refreshes every 5 seconds
-
-**Ethernet Status Card** (LILYGO T-ETH-Elite only):
-- **Connection Status** - Visual badge (Connected/Not Connected)
-- **Network Details** - IP address, MAC address, Gateway IP
-- **Link Information** - Link speed in Mbps, Duplex mode (Full/Half)
-- **Connection Info** - Cable status and connection state
-
-**SD Card Status Card** (LILYGO T-ETH-Elite only):
-- **Availability Status** - Visual badge (Available/Not Available)
-- **Card Type** - MMC, SD, SDHC, or Unknown
-- **Storage Metrics** - Total size, Used space, Free space (all in MB)
-- **Insertion Detection** - Shows "No card inserted" when unavailable
-
-**DMR Network Status Card:**
-- **BrandMeister Connection** - Visual badge (Connected/Disconnected) with login status
-- **Server Information** - Current BrandMeister server with friendly name
-- **Station Identity** - Callsign and DMR ID
-- **ESSID Display** - Radio ID suffix if configured
-- **Current Talkgroup** - Active TG or "None" when idle
-
-**MMDVM Hardware Status Card:**
-- **Hardware Ready State** - Visual badge (Ready/Not Ready)
-- **RF Configuration** - RX/TX frequencies in MHz (3 decimal precision)
-- **DMR Settings** - Color code and power level
-- **Real-time Status** - Hardware state updates automatically
-
-**Station Information Card:**
-- **Callsign Configuration Status** - Green badge if configured, red if still default "N0CALL"
-- **DMR Credentials** - DMR ID and ESSID display
-- **Location** - Station location text
-- **Configuration Warning** - Visual indicator for unconfigured callsign
-
-**Interactive Controls:**
-- **Auto-Refresh** - Updates all cards every 5 seconds
-- **Refresh Now Button** - Manual immediate status update
-- **Pause/Resume Toggle** - Stop/start auto-refresh (button text changes dynamically)
-- **Status Indicator** - Shows "Auto-refreshing every 5 seconds..." or "Auto-refresh paused"
-
-**Technical Features:**
-- **Grid Layout** - Responsive auto-fit cards (minimum 250px width)
-- **Fetch API** - Asynchronous updates from `/statusdata` endpoint
-- **Conditional Display** - Ethernet and SD card sections only show on T-ETH-Elite hardware
-- **Status Badges** - Color-coded visual indicators (green=connected, yellow=warning, red=disconnected)
-- **JavaScript Auto-Refresh** - setInterval updates without page reload
-- **Error Handling** - Console logging for failed fetch requests
 
 ### Admin Panel (`/admin`)
 
