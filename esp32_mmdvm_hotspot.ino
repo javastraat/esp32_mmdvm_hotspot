@@ -136,11 +136,12 @@ bool mmdvmWakeupActive = false;
 #define CMD_SET_FREQ 0x04
 #define CMD_CAL_DATA 0x08
 #define CMD_DMR_DATA1 0x18
-#define CMD_DMR_DATA2 0x19
-#define CMD_DMR_LOST 0x1A
-#define CMD_DMR_SHORTLC 0x1B
-#define CMD_DMR_START 0x1C
-#define CMD_DMR_ABORT 0x1D
+#define CMD_DMR_LOST1 0x19
+#define CMD_DMR_DATA2 0x1A
+#define CMD_DMR_LOST2 0x1B
+#define CMD_DMR_SHORTLC 0x1C
+#define CMD_DMR_START 0x1D
+#define CMD_DMR_ABORT 0x1E
 #define CMD_ACK 0x70
 #define CMD_NAK 0x7F
 
@@ -448,6 +449,7 @@ void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
+void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
 void processMMDVMFrame();
 void updateStatusLED();
 void setLEDMode(LED_MODE mode);
@@ -1179,48 +1181,82 @@ void setupMMDVM() {
     }
   }
 
-  // Set configuration
-  uint8_t config[20];
+  // IMPORTANT: Set frequency BEFORE config (per MMDVMHost sequence)
+  // This ensures the radio is tuned before mode-specific settings are applied
+  uint8_t rfPower = 100;  // RF power level (0-255, typically 100)
+  logSerial("Setting modem frequency...");
+  sendFrequency(dmr_rx_freq, dmr_tx_freq, rfPower);
+  delay(100);
+
+  // Set configuration (must be at least 23 bytes per firmware)
+  uint8_t config[23];
   memset(config, 0, sizeof(config));
 
-  // Basic config - adjust based on your MMDVM hat
-  config[0] = (MMDVM_RX_INVERT ? 0x01 : 0x00);
-  config[1] = (MMDVM_TX_INVERT ? 0x01 : 0x00);
-  config[2] = (MMDVM_PTT_INVERT ? 0x01 : 0x00);
-  config[3] = MMDVM_TX_DELAY;
-  config[4] = 0x00;  // Mode Hang
-  config[5] = MMDVM_RX_LEVEL;
-  config[6] = MMDVM_TX_LEVEL;
+  // Byte 0: Flags (bit 7=simplex, bit 4=debug, bit 3=YSF low dev)
+  config[0] = 0x80;  // Simplex mode
 
-  sendMMDVMCommand(CMD_SET_CONFIG, config, 7);
-  delay(100);
+  // Byte 1: Mode enables (bitfield)
+  uint8_t modeEnables = 0x00;
+  if (mode_dstar_enabled) modeEnables |= 0x01;
+  if (mode_dmr_enabled) modeEnables |= 0x02;
+  if (mode_ysf_enabled) modeEnables |= 0x04;
+  if (mode_p25_enabled) modeEnables |= 0x08;
+  if (mode_nxdn_enabled) modeEnables |= 0x10;
+  if (mode_pocsag_enabled) modeEnables |= 0x20;
+  config[1] = modeEnables;
 
-  // Set mode based on enabled modes (priority order)
-  uint8_t mode = 0x00;  // Default to IDLE mode
-  if (mode_dmr_enabled) {
-    mode = 0x02;  // DMR mode
-    logSerial("Setting modem to DMR mode");
-  } else if (mode_dstar_enabled) {
-    mode = 0x01;  // D-Star mode
-    logSerial("Setting modem to D-Star mode");
-  } else if (mode_ysf_enabled) {
-    mode = 0x03;  // YSF mode
-    logSerial("Setting modem to YSF mode");
-  } else if (mode_p25_enabled) {
-    mode = 0x04;  // P25 mode
-    logSerial("Setting modem to P25 mode");
-  } else if (mode_nxdn_enabled) {
-    mode = 0x05;  // NXDN mode
-    logSerial("Setting modem to NXDN mode");
-  } else if (mode_pocsag_enabled) {
-    mode = 0x06;  // POCSAG mode
-    logSerial("Setting modem to POCSAG mode");
-  } else {
-    logSerial("Setting modem to IDLE mode (no modes enabled)");
-  }
+  // Byte 2: TX delay (0-50)
+  config[2] = MMDVM_TX_DELAY;
 
-  sendMMDVMCommand(CMD_SET_MODE, &mode, 1);
-  delay(100);
+  // Byte 3: Modem state (0x00=IDLE, 0x01=DSTAR, 0x02=DMR, etc.)
+  uint8_t modemState = 0x00;  // Start in IDLE, will set mode separately
+  if (mode_dmr_enabled) modemState = 0x02;  // DMR
+  else if (mode_dstar_enabled) modemState = 0x01;  // D-Star
+  else if (mode_ysf_enabled) modemState = 0x03;  // YSF
+  else if (mode_p25_enabled) modemState = 0x04;  // P25
+  else if (mode_nxdn_enabled) modemState = 0x05;  // NXDN
+  else if (mode_pocsag_enabled) modemState = 0x07;  // POCSAG
+  config[3] = modemState;
+
+  // Byte 4: RX level
+  config[4] = MMDVM_RX_LEVEL;
+
+  // Byte 5: CW ID TX level (shifted by 2)
+  config[5] = MMDVM_TX_LEVEL;
+
+  // Byte 6: DMR Color Code (0-15) - CRITICAL for DMR operation
+  config[6] = dmr_color_code;
+
+  // Byte 7: DMR delay (duplex only, 0 for simplex)
+  config[7] = 0x00;
+
+  // Bytes 9-21: TX levels for each mode
+  config[9] = MMDVM_TX_LEVEL;   // D-Star TX level
+  config[10] = MMDVM_TX_LEVEL;  // DMR TX level
+  config[11] = MMDVM_TX_LEVEL;  // YSF TX level
+  config[12] = MMDVM_TX_LEVEL;  // P25 TX level
+  config[15] = MMDVM_TX_LEVEL;  // NXDN TX level
+  config[17] = MMDVM_TX_LEVEL;  // POCSAG TX level
+  config[21] = MMDVM_TX_LEVEL;  // M17 TX level
+
+  String modeStr = "IDLE";
+  if (modemState == 0x02) modeStr = "DMR";
+  else if (modemState == 0x01) modeStr = "D-Star";
+  else if (modemState == 0x03) modeStr = "YSF";
+  else if (modemState == 0x04) modeStr = "P25";
+  else if (modemState == 0x05) modeStr = "NXDN";
+  else if (modemState == 0x07) modeStr = "POCSAG";
+
+  logSerial("Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") +
+            " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF"));
+  logSerial("Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) +
+            " byte[3] (state): 0x" + String(modemState, HEX));
+  logSerial("Setting modem configuration (Mode: " + modeStr + ", Color Code: " + String(dmr_color_code) + ")...");
+  sendMMDVMCommand(CMD_SET_CONFIG, config, 23);
+  delay(200);  // Give modem time to configure and set mode
+
+  // Note: Mode is set within CMD_SET_CONFIG (byte 3), no need for separate CMD_SET_MODE
+  // The firmware will automatically configure the radio and set the DMR LED
 
   // Only mark modem as ready if we successfully received firmware version
   if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
@@ -1243,6 +1279,44 @@ void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length) {
   }
 
   MMDVM_SERIAL.write(buffer, length + 3);
+}
+
+void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower) {
+  // CMD_SET_FREQ format (14 bytes for full version):
+  // [0-3]: RX frequency in Hz (little-endian)
+  // [4-7]: TX frequency in Hz (little-endian)
+  // [8]:   RF power level (0-255)
+  // [9]:   Reserved byte
+  // [10-13]: POCSAG frequency in Hz (little-endian)
+  uint8_t freqData[14];
+
+  // RX Frequency (little-endian)
+  freqData[0] = (rxFreq >> 0) & 0xFF;
+  freqData[1] = (rxFreq >> 8) & 0xFF;
+  freqData[2] = (rxFreq >> 16) & 0xFF;
+  freqData[3] = (rxFreq >> 24) & 0xFF;
+
+  // TX Frequency (little-endian)
+  freqData[4] = (txFreq >> 0) & 0xFF;
+  freqData[5] = (txFreq >> 8) & 0xFF;
+  freqData[6] = (txFreq >> 16) & 0xFF;
+  freqData[7] = (txFreq >> 24) & 0xFF;
+
+  // RF Power level
+  freqData[8] = rfPower;
+
+  // Reserved byte
+  freqData[9] = 0x00;
+
+  // POCSAG frequency (4 bytes, little-endian) - use TX freq for POCSAG
+  freqData[10] = (txFreq >> 0) & 0xFF;
+  freqData[11] = (txFreq >> 8) & 0xFF;
+  freqData[12] = (txFreq >> 16) & 0xFF;
+  freqData[13] = (txFreq >> 24) & 0xFF;
+
+  sendMMDVMCommand(CMD_SET_FREQ, freqData, 14);
+
+  logSerial("Frequency set - RX: " + String(rxFreq) + " Hz, TX: " + String(txFreq) + " Hz, Power: " + String(rfPower));
 }
 
 void handleMMDVMSerial() {
@@ -1303,7 +1377,32 @@ void processMMDVMFrame() {
 
     case CMD_NAK:
       // Modem rejected a command
-      if (rxBufferPtr >= 4) {
+      // NAK format: [START] [LEN] [NAK=0x7F] [CMD_REJECTED] [ERROR_CODE]
+      if (rxBufferPtr >= 5) {
+        uint8_t rejectedCmd = rxBuffer[3];
+        uint8_t reason = rxBuffer[4];
+        String cmdStr;
+        switch (rejectedCmd) {
+          case CMD_GET_VERSION: cmdStr = "GET_VERSION"; break;
+          case CMD_GET_STATUS: cmdStr = "GET_STATUS"; break;
+          case CMD_SET_CONFIG: cmdStr = "SET_CONFIG"; break;
+          case CMD_SET_MODE: cmdStr = "SET_MODE"; break;
+          case CMD_SET_FREQ: cmdStr = "SET_FREQ"; break;
+          case CMD_DMR_DATA1: cmdStr = "DMR_DATA1"; break;
+          case CMD_DMR_DATA2: cmdStr = "DMR_DATA2"; break;
+          default: cmdStr = "0x" + String(rejectedCmd, HEX); break;
+        }
+        String reasonStr;
+        switch (reason) {
+          case 1: reasonStr = "Invalid Command"; break;
+          case 2: reasonStr = "Wrong Mode"; break;
+          case 3: reasonStr = "Command Too Long"; break;
+          case 4: reasonStr = "Data Incorrect"; break;
+          case 5: reasonStr = "Not Enough Buffer Space"; break;
+          default: reasonStr = "Unknown (" + String(reason) + ")"; break;
+        }
+        logSerial("MMDVM NAK - Command: " + cmdStr + ", Reason: " + reasonStr);
+      } else if (rxBufferPtr >= 4) {
         uint8_t reason = rxBuffer[3];
         String reasonStr;
         switch (reason) {
@@ -1621,8 +1720,41 @@ void handleNetwork() {
 
           // Parse and forward to MMDVM (RECEIVING from network)
           if (mmdvmReady) {
+            // Extract DMR frame from network packet
+            // BrandMeister DMRD packet structure (55 bytes):
+            //   Bytes 0-3: "DMRD" magic
+            //   Byte 4: Sequence number
+            //   Bytes 5-7: Source ID
+            //   Bytes 8-10: Destination ID
+            //   Bytes 11-14: Repeater ID
+            //   Byte 15: Control flags (slot, group/private, sync flags, data type)
+            //   Bytes 16-19: Stream ID
+            //   Bytes 20-52: DMR frame data (33 bytes) <-- THIS IS WHAT WE NEED
+            //   Byte 53: BER
+            //   Byte 54: RSSI
+
+            // MMDVM modem expects (34 bytes):
+            //   Byte 0: Control byte (usually 0x00)
+            //   Bytes 1-33: DMR frame data (33 bytes from network packet bytes 20-52)
+            //
+            // Note: MMDVMHost uses TAG_DATA/TAG_EOT internally but does NOT send it to the modem
+            // The TAG is stripped before transmission (see Modem.cpp line 1253)
+
+            uint8_t dmrModemData[34];
+            dmrModemData[0] = 0x00;  // Control byte
+            memcpy(&dmrModemData[1], &packet[20], 33);  // Copy 33-byte DMR frame
+
+            // Debug logging
+            String debugMsg = "TX->Modem: Slot" + String(slotNo) + " Len=" + String(34) +
+                             " Ctrl=" + String(dmrModemData[0], HEX) +
+                             " Frame[0-3]=" + String(dmrModemData[1], HEX) + " " +
+                             String(dmrModemData[2], HEX) + " " +
+                             String(dmrModemData[3], HEX) + " " +
+                             String(dmrModemData[4], HEX);
+            logSerial(debugMsg);
+
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
-            sendMMDVMCommand(cmd, packet, len);
+            sendMMDVMCommand(cmd, dmrModemData, 34);
 #if ENABLE_RGB_LED
             rgbLed.setStatus(RGBLedStatus::RECEIVING);
             delay(50);
