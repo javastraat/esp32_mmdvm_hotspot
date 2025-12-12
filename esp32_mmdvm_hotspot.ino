@@ -1787,9 +1787,13 @@ void handleNetwork() {
             
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, dmrModemData, 34);
+            
+            // DMR frames are transmitted every 60ms - add delay to prevent buffer overflow
+            delay(55);
+            
 #if ENABLE_RGB_LED
             rgbLed.setStatus(RGBLedStatus::RECEIVING);
-            delay(50);
+            delay(5);
             rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
 #endif
           }
