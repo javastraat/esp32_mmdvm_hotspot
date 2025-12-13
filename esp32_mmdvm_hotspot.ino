@@ -513,14 +513,18 @@ void setup() {
   logSerial("\n\n=== ESP32 MMDVM Hotspot ===");
   logSerial("Initializing...");
 
-  // Initialize OLED Display early (before other components)
-  // Load saved configuration
+  // Load OLED preference early (before setupOLED)
+  preferences.begin("mmdvm", false);
+  enable_oled = preferences.getBool("enable_oled", ENABLE_OLED);
+  preferences.end();
 
+  // Initialize OLED Display early (before other components)
   if (enable_oled) {
     setupOLED();
     updateBootStatus("Loading config...");
   }
 
+  // Load full configuration
   loadConfig();
 
   // Setup GPIO

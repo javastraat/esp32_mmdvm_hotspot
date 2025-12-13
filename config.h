@@ -209,7 +209,7 @@
 #define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
 // OLED Display Settings
-#define ENABLE_OLED false       // Enable OLED display support
+#define ENABLE_OLED true        // Enable OLED display support (compile-time). Use admin panel to enable/disable at runtime.
 #define OLED_I2C_ADDRESS 0x3C  // I2C address for OLED display (0x3C or 0x3D)
 #define OLED_WIDTH 128         // OLED display width
 #define OLED_HEIGHT 64         // OLED display height
