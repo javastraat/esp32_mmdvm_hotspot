@@ -124,7 +124,6 @@ String web_password = WEB_PASSWORD;
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
 #define MMDVM_SERIAL Serial2
-#define PTT_PIN MMDVM_PTT_PIN
 #define COS_LED_PIN MMDVM_COS_LED_PIN
 #define RX_PIN MMDVM_RX_PIN
 #define TX_PIN MMDVM_TX_PIN
@@ -442,6 +441,7 @@ unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
 bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
 int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
 int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
+bool oledDisplayOn = true;     // Track OLED display power state (for physical on/off control)
 
 // ===== Function Prototypes =====
 void setupWiFi();
@@ -456,6 +456,8 @@ void testdrawbitmap();
 void displayBootLogo();
 void updateBootStatus(String status);
 void updateOLEDStatus();
+void setOLEDPower(bool on);
+void toggleOLEDPower();
 void loadConfig();
 void saveConfig();
 void handleMMDVMSerial();
@@ -528,10 +530,9 @@ void setup() {
   loadConfig();
 
   // Setup GPIO
-  pinMode(PTT_PIN, OUTPUT);
+  pinMode(OLED_BUTTON_PIN, INPUT_PULLUP);  // Button to toggle OLED display on/off
   pinMode(COS_LED_PIN, OUTPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);  // Setup status LED
-  digitalWrite(PTT_PIN, LOW);
   digitalWrite(COS_LED_PIN, LOW);
   digitalWrite(STATUS_LED_PIN, LOW);
 
@@ -773,6 +774,18 @@ void setup() {
 void loop() {
   // MMDVM wakeup serial on GPIO 13 stays open (no need to send more data after initial wakeup)
   // Just keeping the UART port active is enough to keep the modem awake
+  
+  // Check for OLED power button press (GPIO 0)
+  static unsigned long lastButtonPress = 0;
+  static bool lastButtonState = HIGH;
+  bool buttonState = digitalRead(OLED_BUTTON_PIN);
+  
+  if (buttonState == LOW && lastButtonState == HIGH && (millis() - lastButtonPress > 200)) {
+    // Button pressed (with debounce)
+    toggleOLEDPower();
+    lastButtonPress = millis();
+  }
+  lastButtonState = buttonState;
   
   // Update status LED
   updateStatusLED();
@@ -3095,6 +3108,27 @@ void updateOLEDStatus() {
     xSemaphoreGive(displayMutex);
   }
 }
+
+// Control OLED display power (software on/off)
+void setOLEDPower(bool on) {
+  if (!enable_oled) return;
+  
+  if (on) {
+    display.ssd1306_command(SSD1306_DISPLAYON);
+    oledDisplayOn = true;
+    logSerial("OLED: Display turned ON");
+  } else {
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
+    oledDisplayOn = false;
+    logSerial("OLED: Display turned OFF");
+  }
+}
+
+// Toggle OLED display power
+void toggleOLEDPower() {
+  setOLEDPower(!oledDisplayOn);
+}
+
 #else
 // Stub functions when OLED is disabled at compile time
 void setupOLED() {
@@ -3106,6 +3140,14 @@ void updateBootStatus(String status) {
 }
 
 void updateOLEDStatus() {
+  // No-op when OLED is disabled
+}
+
+void setOLEDPower(bool on) {
+  // No-op when OLED is disabled
+}
+
+void toggleOLEDPower() {
   // No-op when OLED is disabled
 }
 #endif
