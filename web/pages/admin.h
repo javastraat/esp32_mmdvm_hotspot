@@ -44,6 +44,7 @@ extern bool debug_mmdvm;
 extern bool debug_network;
 extern bool debug_dmr;
 extern bool debug_password;
+extern bool enable_oled;
 extern long ntp_timezone_offset;
 extern long ntp_daylight_offset;
 extern String web_password;
@@ -489,6 +490,21 @@ void handleAdmin() {
   html += "</form>";
   html += "</div>";
 
+  // OLED Display Settings Card
+  html += "<div class='card'>";
+  html += "<h3>OLED Display Settings</h3>";
+  html += "<p>Enable or disable OLED display (SSD1306)</p>";
+  html += "<p>Current status: <strong>" + String(enable_oled ? "Enabled" : "Disabled") + "</strong></p>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);'>Toggle OLED display without recompiling. Changes take effect after reboot.</p>";
+  html += "<form id='oled-form' onsubmit='saveOLEDSettings(event)'>";
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='enable-oled' " + String(enable_oled ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Enable OLED Display</strong> - Show status on 128x64 OLED screen</span>";
+  html += "</label>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save OLED Setting</button>";
+  html += "</form>";
+  html += "</div>";
+
   // NTP Timezone Configuration Card
   html += "<div class='card'>";
   html += "<h3>NTP Timezone Configuration</h3>";
@@ -697,6 +713,24 @@ void handleAdmin() {
   html += "    if (data.includes('SUCCESS')) {";
   html += "      alert('Debug settings saved!');";
   html += "      location.reload();";
+  html += "    } else {";
+  html += "      alert('Error: ' + data);";
+  html += "    }";
+  html += "  });";
+  html += "}";
+  html += "function saveOLEDSettings(event) {";
+  html += "  event.preventDefault();";
+  html += "  var oled = document.getElementById('enable-oled').checked ? '1' : '0';";
+  html += "  fetch('/save-oled', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'oled=' + oled}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      if (confirm('OLED display setting saved! Reboot required for changes to take effect.\\n\\nReboot now?')) {";
+  html += "        fetch('/reboot', {method: 'POST'}).then(() => {";
+  html += "          alert('Rebooting... Please wait 30 seconds and refresh the page.');";
+  html += "          setTimeout(() => location.reload(), 30000);";
+  html += "        });";
+  html += "      } else {";
+  html += "        location.reload();";
+  html += "      }";
   html += "    } else {";
   html += "      alert('Error: ' + data);";
   html += "    }";
@@ -1039,6 +1073,7 @@ void handleCleanupPreferences() {
   debug_network = DEBUG_NETWORK;
   debug_dmr = DEBUG_DMR;
   debug_password = DEBUG_PASSWORD;
+  enable_oled = ENABLE_OLED;
 
   // Save clean configuration
   saveConfig();
@@ -1223,6 +1258,21 @@ void handleSaveDebug() {
   }
 }
 
+void handleSaveOLED() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("oled")) {
+    enable_oled = (server.arg("oled") == "1");
+    saveConfig();
+
+    String status = "SUCCESS: OLED display " + String(enable_oled ? "enabled" : "disabled") + " - Reboot required";
+    server.send(200, "text/plain", status);
+    logSerial(status);
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing OLED parameter");
+  }
+}
+
 void handleSaveTimezone() {
   if (!checkAuthentication()) return;
 
@@ -1374,6 +1424,7 @@ void handleExportConfig() {
   config += "DEBUG_NETWORK=" + String(debug_network ? "1" : "0") + "\n";
   config += "DEBUG_DMR=" + String(debug_dmr ? "1" : "0") + "\n";
   config += "DEBUG_PASSWORD=" + String(debug_password ? "1" : "0") + "\n";
+  config += "ENABLE_OLED=" + String(enable_oled ? "1" : "0") + "\n";
   config += "NTP_TIMEZONE_OFFSET=" + String(ntp_timezone_offset) + "\n";
   config += "NTP_DAYLIGHT_OFFSET=" + String(ntp_daylight_offset) + "\n";
   config += "WEB_USERNAME=" + web_username + "\n";
@@ -1457,6 +1508,7 @@ void handleImportConfig() {
           else if (key == "DEBUG_NETWORK") debug_network = (value == "1");
           else if (key == "DEBUG_DMR") debug_dmr = (value == "1");
           else if (key == "DEBUG_PASSWORD") debug_password = (value == "1");
+          else if (key == "ENABLE_OLED") enable_oled = (value == "1");
           else if (key == "NTP_TIMEZONE_OFFSET") ntp_timezone_offset = value.toInt();
           else if (key == "NTP_DAYLIGHT_OFFSET") ntp_daylight_offset = value.toInt();
           else if (key == "WEB_USERNAME") web_username = value;
@@ -1558,7 +1610,7 @@ void handleShowPreferences() {
 
   const char* systemKeys[] = {
     "hostname", "verbose_log", "debug_serial", "debug_mmdvm", "debug_network", 
-    "debug_dmr", "debug_password", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
+    "debug_dmr", "debug_password", "enable_oled", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
   };
 
   const char* modeKeys[] = {
@@ -1659,9 +1711,9 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
-        else if (keyName == "verbose_log" || keyName.startsWith("mode_") || 
-                 keyName.startsWith("debug_")) {
-          // Known Bool keys (verbose_log, mode_*, debug_*)
+        else if (keyName == "verbose_log" || keyName == "enable_oled" || 
+                 keyName.startsWith("mode_") || keyName.startsWith("debug_")) {
+          // Known Bool keys (verbose_log, enable_oled, mode_*, debug_*)
           bool boolVal = preferences.getBool(keyName.c_str(), false);
           value = String(boolVal ? "true" : "false");
           type = "Bool";

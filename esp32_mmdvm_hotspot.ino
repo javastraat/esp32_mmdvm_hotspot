@@ -36,12 +36,10 @@
 #include "webpages.h"
 #include "RGBLedController.h"
 
-// OLED Display Support
-#if ENABLE_OLED
+// OLED Display Support (runtime enable/disable)
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#endif
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
@@ -115,6 +113,9 @@ bool debug_mmdvm = DEBUG_MMDVM;
 bool debug_network = DEBUG_NETWORK;
 bool debug_dmr = DEBUG_DMR;
 bool debug_password = DEBUG_PASSWORD;
+
+// OLED display setting (from config.h or preferences)
+bool enable_oled = ENABLE_OLED;
 
 // Web interface credentials (from config.h)
 String web_username = WEB_USERNAME;
@@ -191,18 +192,10 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
                         RGB_LED_IDLE_BRIGHTNESS, RGB_LED_ACTIVE_BRIGHTNESS);
 #endif
 
-// OLED Display
+// OLED Display hardware objects (only compiled if ENABLE_OLED is true)
 #if ENABLE_OLED
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from SPI conflicts
-unsigned long lastOLEDUpdate = 0;
-unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
-#define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
-#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
-#define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
-bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
-int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
-int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
 //
 // #define LOGO_HEIGHT   16
 // #define LOGO_WIDTH    16
@@ -440,6 +433,16 @@ bool mode_pocsag_enabled = DEFAULT_MODE_POCSAG;
 // Modem Type Selection
 String modem_type = DEFAULT_MODEM_TYPE;
 
+// OLED timing and state variables (always available for runtime checks)
+unsigned long lastOLEDUpdate = 0;
+unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
+#define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
+#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
+#define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
+bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
+int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
+int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -513,10 +516,10 @@ void setup() {
   // Initialize OLED Display early (before other components)
   // Load saved configuration
 
-#if ENABLE_OLED
-  setupOLED();
-  updateBootStatus("Loading config...");
-#endif
+  if (enable_oled) {
+    setupOLED();
+    updateBootStatus("Loading config...");
+  }
 
   loadConfig();
 
@@ -536,17 +539,17 @@ void setup() {
 #endif
 
   // Setup MMDVM Serial
-#if ENABLE_OLED
-  updateBootStatus("Init MMDVM...");
-#endif
+  if (enable_oled) {
+    updateBootStatus("Init MMDVM...");
+  }
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
   logSerial("MMDVM Serial initialized");
 
   // Initialize SD Card
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-#if ENABLE_OLED
-  updateBootStatus("Init SD Card...");
-#endif
+  if (enable_oled) {
+    updateBootStatus("Init SD Card...");
+  }
   logSerial("Initializing SD card...");
   sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
@@ -598,9 +601,9 @@ void setup() {
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-#if ENABLE_OLED
-    updateBootStatus("Init Ethernet...");
-#endif
+    if (enable_oled) {
+      updateBootStatus("Init Ethernet...");
+    }
     setupEthernet();
 
   // Wait up to 10 seconds for Ethernet to connect
@@ -619,24 +622,24 @@ void setup() {
     // Ethernet failed, try WiFi (Ethernet will keep trying in background)
     logSerial("\nEthernet connection timeout. Falling back to WiFi...");
     logSerial("Note: Ethernet will continue trying in background.");
-#if ENABLE_OLED
-    updateBootStatus("Connecting WiFi...");
-#endif  
+    if (enable_oled) {
+      updateBootStatus("Connecting WiFi...");
+    }
     setupWiFi();
   }
 #else
-  #if ENABLE_OLED 
-  updateBootStatus("Connecting WiFi...");
-  #endif
+  if (enable_oled) {
+    updateBootStatus("Connecting WiFi...");
+  }
   setupWiFi();
 #endif
 
 // Setup Web Server
 //setupWebServer();
 #if ENABLE_WEBSERVER
-#if ENABLE_OLED
-  updateBootStatus("Starting web...");
-#endif
+  if (enable_oled) {
+    updateBootStatus("Starting web...");
+  }
   setupWebServer();
 #endif
 
@@ -658,9 +661,9 @@ void setup() {
 #endif
 
   if (hasNetwork) {
-#if ENABLE_OLED
-    updateBootStatus("Syncing time...");
-#endif
+    if (enable_oled) {
+      updateBootStatus("Syncing time...");
+    }
     logSerial("Initializing NTP time client...");
     // Configure time with NTP servers (using saved timezone settings or config.h defaults)
     configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
@@ -695,50 +698,50 @@ void setup() {
       #endif
       connectToDMRNetwork();
     } else {
-      logSerial("DMR mode is disabled - skipping DMR network connection");
+      logSerial("[MODE] DMR mode is disabled - skipping DMR network connection");
     }
 
     // D-Star Network Connection (not implemented yet)
     if (mode_dstar_enabled) {
-      logSerial("D-Star mode is enabled but network connection not implemented yet");
+      logSerial("[MODE] D-Star mode is enabled but network connection not implemented yet");
     } else {
-      logSerial("D-Star mode is disabled by default (not implemented yet)");
+      logSerial("[MODE] D-Star mode is disabled by default (not implemented yet)");
     }
 
     // YSF Network Connection (not implemented yet)
     if (mode_ysf_enabled) {
-      logSerial("YSF mode is enabled but network connection not implemented yet");
+      logSerial("[MODE] YSF mode is enabled but network connection not implemented yet");
     } else {
-      logSerial("YSF mode is disabled by default (not implemented yet)");
+      logSerial("[MODE] YSF mode is disabled by default (not implemented yet)");
     }
 
     // P25 Network Connection (not implemented yet)
     if (mode_p25_enabled) {
-      logSerial("P25 mode is enabled but network connection not implemented yet");
+      logSerial("[MODE] P25 mode is enabled but network connection not implemented yet");
     } else {
-      logSerial("P25 mode is disabled by default (not implemented yet)");
+      logSerial("[MODE] P25 mode is disabled by default (not implemented yet)");
     }
 
     // NXDN Network Connection (not implemented yet)
     if (mode_nxdn_enabled) {
-      logSerial("NXDN mode is enabled but network connection not implemented yet");
+      logSerial("[MODE] NXDN mode is enabled but network connection not implemented yet");
     } else {
-      logSerial("NXDN mode is disabled by default (not implemented yet)");
+      logSerial("[MODE] NXDN mode is disabled by default (not implemented yet)");
     }
 
     // POCSAG Network Connection (not implemented yet)
     if (mode_pocsag_enabled) {
-      logSerial("POCSAG mode is enabled but network connection not implemented yet");
+      logSerial("[MODE] POCSAG mode is enabled but network connection not implemented yet");
     } else {
-      logSerial("POCSAG mode is disabled by default (not implemented yet)");
+      logSerial("[MODE] POCSAG mode is disabled by default (not implemented yet)");
     }
   } else {
-    logSerial("WiFi not connected - skipping all network connections");
+    logSerial("[SYSTEM]WiFi not connected - skipping all network connections");
   }
 
-#if ENABLE_OLED
-  updateBootStatus("Ready!");
-#endif
+  if (enable_oled) {
+    updateBootStatus("Ready!");
+  }
   delay(1000);  // Show "Ready!" for 1 second
 
   logSerial("Setup complete!");
@@ -758,9 +761,9 @@ void setup() {
   }
 
   // Update OLED with network status after setup is complete
-#if ENABLE_OLED
-  updateOLEDStatus();
-#endif
+  if (enable_oled) {
+    updateOLEDStatus();
+  }
 }
 
 void loop() {
@@ -785,8 +788,7 @@ void loop() {
   unsigned long currentMillis = millis();
 
   // Handle network toggle on separate timer (always 5 seconds)
-#if ENABLE_OLED
-  if (currentMillis - lastNetworkToggle >= NETWORK_TOGGLE_INTERVAL) {
+  if (enable_oled && currentMillis - lastNetworkToggle >= NETWORK_TOGGLE_INTERVAL) {
     // Cycle through header display states
     // Determine max cycle value based on connections
     bool hasWifi = wifiConnected;
@@ -812,19 +814,18 @@ void loop() {
     oledShowEthernet = !oledShowEthernet;
     lastNetworkToggle = currentMillis;
   }
-#endif
 
   // Update OLED display periodically (faster when DMR activity is active)
-#if ENABLE_OLED
-  // Check if there's any active DMR transmission
-  bool anyDMRActive = dmrActivity[0].active || dmrActivity[1].active;
-  unsigned long oledInterval = anyDMRActive ? OLED_UPDATE_INTERVAL_ACTIVE : OLED_UPDATE_INTERVAL;
+  if (enable_oled) {
+    // Check if there's any active DMR transmission
+    bool anyDMRActive = dmrActivity[0].active || dmrActivity[1].active;
+    unsigned long oledInterval = anyDMRActive ? OLED_UPDATE_INTERVAL_ACTIVE : OLED_UPDATE_INTERVAL;
 
-  if (currentMillis - lastOLEDUpdate >= oledInterval) {
-    updateOLEDStatus();
-    lastOLEDUpdate = currentMillis;
+    if (currentMillis - lastOLEDUpdate >= oledInterval) {
+      updateOLEDStatus();
+      lastOLEDUpdate = currentMillis;
+    }
   }
-#endif
   // Reset DMR TX mode if no frames received for 200ms
   if (dmrTxActive && (currentMillis - lastDMRFrameTime > 200)) {
     writeDMRStart(false, "");  // Exit TX mode
@@ -878,16 +879,16 @@ void loop() {
             dmrLoginStatus = "Retrying... (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")";
             connectToDMRNetwork();
             lastLoginAttempt = currentMillis;
-#if ENABLE_OLED
-            updateOLEDStatus(); // Update display to show retry status
-#endif
+            if (enable_oled) {
+              updateOLEDStatus(); // Update display to show retry status
+            }
           } else {
             logSerial("DMR login failed after " + String(DMR_LOGIN_MAX_RETRIES) + " attempts");
             dmrLoginStatus = "Login Failed";
             dmrState = DMR_STATE::DISCONNECTED;
-#if ENABLE_OLED
-            updateOLEDStatus(); // Update display to show failure
-#endif
+            if (enable_oled) {
+              updateOLEDStatus(); // Update display to show failure
+            }
           }
         }
       }
@@ -1565,10 +1566,10 @@ void handleNetwork() {
               logSerial("DMR Network fully connected and operational!");
 
               // Force immediate OLED update to show connected status
-#if ENABLE_OLED
-              updateOLEDStatus();
-              lastOLEDUpdate = millis(); // Reset timer
-#endif
+              if (enable_oled) {
+                updateOLEDStatus();
+                lastOLEDUpdate = millis(); // Reset timer
+              }
               break;
             case DMR_STATE::DISCONNECTED:
               // Don't retry after NAK to prevent bans
@@ -2161,6 +2162,10 @@ void loadConfig() {
             " | DMR: " + String(debug_dmr ? "ON" : "OFF") + 
             " | Password: " + String(debug_password ? "ON" : "OFF"));
 
+  // Load OLED display setting
+  enable_oled = preferences.getBool("enable_oled", ENABLE_OLED);
+  logSerial("OLED display: " + String(enable_oled ? "enabled" : "disabled"));
+
   // Load NTP timezone settings
   ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
   ntp_daylight_offset = preferences.getLong("ntp_dst_offset", NTP_DAYLIGHT_OFFSET);
@@ -2239,6 +2244,9 @@ void saveConfig() {
   preferences.putBool("debug_dmr", debug_dmr);
   preferences.putBool("debug_password", debug_password);
 
+  // Save OLED display setting
+  preferences.putBool("enable_oled", enable_oled);
+
   // Save web credentials
   preferences.putString("web_username", web_username);
   preferences.putString("web_password", web_password);
@@ -2290,6 +2298,7 @@ void setupWebServer() {
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
   server.on("/save-debug", HTTP_POST, handleSaveDebug);
+  server.on("/save-oled", HTTP_POST, handleSaveOLED);
   server.on("/save-timezone", HTTP_POST, handleSaveTimezone);
   server.on("/save-username", HTTP_POST, handleSaveUsername);
   server.on("/save-password", HTTP_POST, handleSavePassword);
@@ -2639,6 +2648,8 @@ uint8_t getSDCardType() {
 // ===== OLED Display Functions =====
 #if ENABLE_OLED
 void setupOLED() {
+  if (!enable_oled) return;
+  
   // Create mutex for display access protection
   displayMutex = xSemaphoreCreateMutex();
   if (displayMutex == NULL) {
@@ -2766,7 +2777,8 @@ void displayBootLogo() {
 }
 
 void updateBootStatus(String status) {
-#if ENABLE_OLED
+  if (!enable_oled) return;
+  
   // Update only the status line at the bottom of boot screen
   // Clear the status area (bottom line)
   display.fillRect(0, 55, OLED_WIDTH, 9, SSD1306_BLACK);
@@ -2780,10 +2792,11 @@ void updateBootStatus(String status) {
   display.display();
 
   logSerial("OLED: " + status);
-#endif
 }
 
 void updateOLEDStatus() {
+  if (!enable_oled) return;
+  
   // Try to acquire mutex to prevent SPI conflicts with Ethernet
   if (displayMutex != NULL) {
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
@@ -3077,5 +3090,18 @@ void updateOLEDStatus() {
   if (displayMutex != NULL) {
     xSemaphoreGive(displayMutex);
   }
+}
+#else
+// Stub functions when OLED is disabled at compile time
+void setupOLED() {
+  // No-op when OLED is disabled
+}
+
+void updateBootStatus(String status) {
+  // No-op when OLED is disabled
+}
+
+void updateOLEDStatus() {
+  // No-op when OLED is disabled
 }
 #endif
