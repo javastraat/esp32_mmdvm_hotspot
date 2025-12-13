@@ -105,76 +105,173 @@ If your display uses **0x3D**, update `config.h`:
 
 ## Current Features
 
-### 1. Startup Sequence
-On power-up, the OLED displays a professional boot sequence:
-
-**ESP32 Splash Screen (2 seconds):**
-- Large "ESP32" logo with decorative borders
-- "MMDVM Hotspot" subtitle
-- Logged to serial: "OLED: Showing ESP32 logo"
-
-**Boot Logo with Live Status Updates:**
-- **Centered callsign header** (e.g., "PD2EMC - ESP32 HS")
-- **Firmware version**
-- **Authors** (PD2EMC & PD8JO)
-- **Live boot progress** - Status line updates in real-time:
-  - "Booting..."
-  - "Loading config..."
-  - "Init MMDVM..."
-  - "Init SD Card..."
-  - "Connecting ETH..." or "Connecting WiFi..."
-  - "Starting web..."
-  - "Syncing time..."
-  - "Connecting DMR..."
-  - "Ready!"
-- All status updates logged to serial monitor
-
-### 2. Network Status Display
-After boot, the display shows:
-- **WiFi/Ethernet connection status** with IP address
-- **Automatic switching** between WiFi and Ethernet (when both connected)
-- **AP mode fallback** display
-- **Independent 5-second timer** - Network display toggles smoothly every 5 seconds regardless of DMR activity
-
-### 3. Real-Time DMR Activity Display
-The OLED shows live DMR transmissions:
-
-**When idle (no transmission):**
-- "DMR: Listening"
-- Current talkgroup (TG) number
-
-**During active transmission:**
-- **Slot indicator** - [S1] or [S2]
-- **Callsign** - Source station callsign
-- **DMR ID → Talkgroup** - Complete routing info
-- **Duration** - Real-time transmission duration in seconds
-- **Fast refresh** - Updates every 1 second during active transmissions
-- **Smart slot switching** - When both slots active, alternates display every second
-
 ### Display Layout
 
+The OLED display uses a modern three-section layout:
+
 ```
-┌────────────────────────┐
-│  PD2EMC - ESP32 HS     │ ← Centered header
-├────────────────────────┤
-│                        │
-│      PA0ABC            │ ← LARGE callsign (2x, centered)
-│                        │
-│ Duration: 5s           │ ← Duration
-│ 2043999->TG 91 [S2]    │ ← DMR ID→TG + Slot
-├────────────────────────┤
-│ WiFi: 192.168.1.50     │ ← Network status
-└────────────────────────┘
+┌─────────────────────────────────────┐
+│ 13/12  14:23      [WiFi][ETH][ANT] │ ← Date/Time + Status Icons
+├─────────────────────────────────────┤
+│                                     │
+│           PA0ABC                    │ ← LARGE callsign (2x)
+│                                     │
+│ Duration: 5s                        │ ← Duration
+│ 2043999 -> TG 91 [S2]               │ ← DMR ID→TG + Slot
+├─────────────────────────────────────┤
+│ PD2EMC - ESP32 HS                   │ ← Bottom cycling info
+└─────────────────────────────────────┘
+```
+
+### 1. Top Status Bar (Line 1)
+
+**Left Side - Date:**
+- Current date in DD/MM format (e.g., "13/12")
+- Synced from NTP server
+
+**Center - Time:**
+- Current time in HH:MM format (e.g., "14:23")
+- 24-hour format
+- Shows "--:--" if time not synced
+
+**Right Side - Status Icons (8x8 pixel icons):**
+- **WiFi Icon** - Shows when WiFi connected
+- **Ethernet Icon** - Shows when Ethernet connected (T-ETH-Elite only)
+- **Antenna/RF Icon** - Shows when DMR mode enabled and logged in
+- Icons displayed right-to-left with 2-pixel spacing
+- Both WiFi and Ethernet icons shown simultaneously when both connected
+
+### 2. Middle Activity Section (Lines 2-5)
+
+**No Mode Activated:**
+- Displays centered messages:
+  - "No mode activated"
+  - "Enable mode in web"
+
+**DMR Listening (No Active Transmission):**
+- "DMR: Listening"
+- Current talkgroup: "TG: 91" (if available)
+- Last caller: "Last: PA0ABC" (most recent from either slot)
+
+**DMR Not Connected:**
+- "DMR Mode Active"
+- "Status: Connecting..." (shows current login status)
+
+**Active DMR Transmission:**
+- **Large Callsign** - 2x size text, centered (e.g., "PA0ABC")
+- **Duration** - Live counter in seconds (e.g., "Duration: 5s")
+- **Routing Info** - DMR ID → TG with slot (e.g., "2043999 -> TG 91 [S2]")
+- **Fast Refresh** - Updates every 1 second during activity
+- **Dual-Slot Support:**
+  - Prioritizes Slot 2 when only one active
+  - Alternates between slots every second when both active
+  - Smooth slot switching with `oledActiveSlot` toggle
+
+**Other Modes (D-Star, YSF, P25, NXDN, POCSAG):**
+- Shows "Mode enabled:"
+- Displays mode name with "(N/A)" indicator
+
+### 3. Bottom Information Bar (Line 6)
+
+**Cycling Display** (cycles every 5 seconds based on `oledHeaderCycle`):
+
+**When WiFi + Ethernet Both Connected (3 screens):**
+1. "WiFi: 192.168.1.50" (left-aligned)
+2. "ETH: 192.168.1.100" (left-aligned)
+3. "PD2EMC - ESP32 HS" (centered)
+
+**When WiFi Only (2 screens):**
+1. "WiFi: 192.168.1.50" (left-aligned)
+2. "PD2EMC - ESP32 HS" (centered)
+
+**When Ethernet Only (2 screens):**
+1. "ETH: 192.168.1.100" (left-aligned)
+2. "PD2EMC - ESP32 HS" (centered)
+
+**When AP Mode (2 screens):**
+1. "AP: 192.168.4.1" (left-aligned)
+2. "PD2EMC - ESP32 HS" (centered)
+
+**No Network (2 screens):**
+1. "No Network" (centered)
+2. "PD2EMC - ESP32 HS" (centered)
+
+### 4. Update Intervals
+
+- **Active DMR Transmission:** 1 second refresh (`OLED_UPDATE_INTERVAL_ACTIVE`)
+- **Idle/Listening:** 5 second refresh (`OLED_UPDATE_INTERVAL`)
+- **Bottom Bar Cycling:** 5 seconds (`NETWORK_TOGGLE_INTERVAL`)
+- **Independent Timers:** Network cycling is independent from DMR activity updates
+
+### 5. Thread Safety Features
+
+**Mutex Protection:**
+- Display updates protected by `displayMutex` semaphore
+- Prevents SPI conflicts with Ethernet hardware
+- 50ms timeout - skips update if mutex unavailable
+- Logged message when update skipped: "OLED: Skipped update - mutex busy"
+
+**Clean Updates:**
+- Full `clearDisplay()` before each update
+- Complete redraw ensures no artifacts
+- All text properly bounded and centered
+
+## Technical Implementation Details
+
+### Icon Definitions
+The firmware includes three 8x8 pixel bitmap icons defined in `esp32_mmdvm_hotspot.ino`:
+
+```cpp
+#define ICON_WIDTH 8
+#define ICON_HEIGHT 8
+
+// WiFi icon - wireless signal waves
+static const unsigned char PROGMEM icon_wifi[] = { ... };
+
+// Ethernet icon - cable/port symbol
+static const unsigned char PROGMEM icon_ethernet[] = { ... };
+
+// Antenna/RF icon - radio wave pattern
+static const unsigned char PROGMEM icon_antenna[] = { ... };
+```
+
+### Display Function
+The main update function is `updateOLEDStatus()` which:
+1. Acquires display mutex (50ms timeout)
+2. Clears entire display
+3. Draws top status bar (date/time/icons)
+4. Draws horizontal line separator
+5. Updates middle activity section based on mode/state
+6. Draws bottom horizontal line separator
+7. Updates bottom cycling information bar
+8. Calls `display.display()` to render
+9. Releases display mutex
+
+### Configuration Constants
+```cpp
+#define OLED_UPDATE_INTERVAL 5000        // Idle refresh: 5 seconds
+#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Active refresh: 1 second
+#define NETWORK_TOGGLE_INTERVAL 5000     // Bottom bar cycle: 5 seconds
+```
+
+### Global Variables
+```cpp
+SemaphoreHandle_t displayMutex          // Thread safety mutex
+unsigned long lastOLEDUpdate            // Last update timestamp
+bool oledShowEthernet                   // ETH/WiFi toggle state
+int oledActiveSlot                      // Active slot (0 or 1)
+int oledHeaderCycle                     // Bottom bar cycle counter
 ```
 
 ## Future Enhancements (Planned)
 
 Additional features that can be added:
 - **Signal quality** - BER/RSSI display (requires MMDVM firmware support)
-- **System Info** - Uptime, memory usage, CPU temperature
-- **Multi-page Display** - Rotate through different info screens
-- **Auto-dimming** - Reduce brightness when idle
-- **User name display** - Show operator name from DMR database
+- **System Info Page** - Uptime, memory usage, CPU temperature
+- **Brightness Control** - Auto-dimming when idle
+- **User name display** - Show operator name from RadioID.net database
+- **Battery Voltage** - For portable operation monitoring
+- **Custom Layouts** - User-configurable display preferences
 
 ## Troubleshooting
 
@@ -225,17 +322,27 @@ To disable the OLED display, edit `config.h`:
 
 The code will compile without the Adafruit libraries when disabled.
 
-## Technical Details
+## Performance & Resources
 
 ### I2C Bus Sharing
 The I2C pins (GPIO 17/18) can be shared with other I2C devices. Each device needs a unique I2C address.
 
 ### Display Refresh Rate
-The boot logo is displayed once during startup. Future updates will add periodic screen updates for real-time information.
+- **Idle State:** 5 seconds between updates
+- **Active DMR:** 1 second refresh for live duration counter
+- **Bottom Bar:** Independent 5-second cycling regardless of DMR activity
+- **Mutex-Protected:** Skip update if SPI bus busy (Ethernet conflicts)
 
 ### Memory Usage
-- Display buffer: ~1KB RAM (128x64 bits)
-- Minimal impact on ESP32's 520KB RAM
+- **Display Buffer:** ~1KB RAM (128x64 bits monochrome)
+- **Icon Bitmaps:** 24 bytes (3 icons × 8 bytes each)
+- **Minimal Impact:** <0.2% of ESP32's 520KB RAM
+
+### Thread Safety
+- Uses FreeRTOS semaphore (`displayMutex`) to prevent conflicts
+- 50ms timeout prevents blocking main loop
+- Safe concurrent access with Ethernet SPI operations
+- Logs "OLED: Skipped update - mutex busy" if timeout occurs
 
 ## Support
 

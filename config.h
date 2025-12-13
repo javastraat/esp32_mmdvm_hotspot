@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251212_ESP32_BETA"  // Update version as needed
-//#define FIRMWARE_VERSION "20251212_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251213_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251213_ESP32"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -176,7 +176,7 @@
 
 // ===== Debug Settings =====
 #define DEBUG_SERIAL true     // Enable serial debug output
-#define DEBUG_MMDVM true     // Enable MMDVM protocol debug
+#define DEBUG_MMDVM false     // Enable MMDVM protocol debug
 #define DEBUG_NETWORK false   // Enable network debug
 #define DEBUG_DMR false       // Enable DMR protocol debug
 #define DEBUG_PASSWORD false  // Enable password debug output (shows password length/last2 chars)
