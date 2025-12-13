@@ -109,6 +109,13 @@ long ntp_daylight_offset = NTP_DAYLIGHT_OFFSET;    // Daylight saving offset in 
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
 
+// Debug settings (from config.h or preferences)
+bool debug_serial = DEBUG_SERIAL;
+bool debug_mmdvm = DEBUG_MMDVM;
+bool debug_network = DEBUG_NETWORK;
+bool debug_dmr = DEBUG_DMR;
+bool debug_password = DEBUG_PASSWORD;
+
 // Web interface credentials (from config.h)
 String web_username = WEB_USERNAME;
 String web_password = WEB_PASSWORD;
@@ -1772,7 +1779,7 @@ void handleNetwork() {
             dmrModemData[0] = 0x00;  // Control byte
             memcpy(&dmrModemData[1], &packet[20], 33);  // Copy 33-byte DMR frame
 
-#if DEBUG_MMDVM
+if (debug_mmdvm) {
             // Debug logging
             String debugMsg = "TX->Modem: Slot" + String(slotNo) + " Len=" + String(34) +
                              " Ctrl=" + String(dmrModemData[0], HEX) +
@@ -1781,7 +1788,7 @@ void handleNetwork() {
                              String(dmrModemData[3], HEX) + " " +
                              String(dmrModemData[4], HEX);
             logSerial(debugMsg);
-#endif
+}
 
             // Only send DMR START once at beginning of transmission
             if (!dmrTxActive) {
@@ -1851,7 +1858,7 @@ void sendDMRAuth() {
 // SHA256 input: salt (4 binary bytes) + password (ASCII string)
 
 // Debug: Show password being used (with more detail)
-#if DEBUG_PASSWORD
+if (debug_password) {
   String passDebug = "Using password: length=" + String(dmr_password.length());
   if (dmr_password.length() > 0) {
     passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length() - 4));
@@ -1859,7 +1866,7 @@ void sendDMRAuth() {
     passDebug += " [EMPTY!]";
   }
   logSerial(passDebug);
-#endif
+}
 
   // Calculate SHA256 hash of (salt + password)
   size_t passLen = dmr_password.length();
@@ -2013,16 +2020,16 @@ void logSerial(String message) {
 
 // Log with verbose flag - always to USB serial, conditionally to web buffer
 void logSerialVerbose(String message) {
-  // Only log network debug messages if DEBUG_NETWORK is enabled
-#if DEBUG_NETWORK
-  Serial.println(message);
+  // Only log network debug messages if debug_network is enabled
+  if (debug_network) {
+    Serial.println(message);
+  }
   
   // Also store in web buffer if verbose logging is enabled
   if (verbose_logging) {
     serialLog[serialLogIndex] = message;
     serialLogIndex = (serialLogIndex + 1) % SERIAL_LOG_SIZE;
   }
-#endif
 }
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -2142,6 +2149,18 @@ void loadConfig() {
   verbose_logging = preferences.getBool("verbose_log", false);
   logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
 
+  // Load debug settings (from preferences or config.h defaults)
+  debug_serial = preferences.getBool("debug_serial", DEBUG_SERIAL);
+  debug_mmdvm = preferences.getBool("debug_mmdvm", DEBUG_MMDVM);
+  debug_network = preferences.getBool("debug_network", DEBUG_NETWORK);
+  debug_dmr = preferences.getBool("debug_dmr", DEBUG_DMR);
+  debug_password = preferences.getBool("debug_password", DEBUG_PASSWORD);
+  logSerial("Debug settings - Serial: " + String(debug_serial ? "ON" : "OFF") + 
+            " | MMDVM: " + String(debug_mmdvm ? "ON" : "OFF") + 
+            " | Network: " + String(debug_network ? "ON" : "OFF") + 
+            " | DMR: " + String(debug_dmr ? "ON" : "OFF") + 
+            " | Password: " + String(debug_password ? "ON" : "OFF"));
+
   // Load NTP timezone settings
   ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
   ntp_daylight_offset = preferences.getLong("ntp_dst_offset", NTP_DAYLIGHT_OFFSET);
@@ -2213,6 +2232,13 @@ void saveConfig() {
   // Save verbose logging
   preferences.putBool("verbose_log", verbose_logging);
 
+  // Save debug settings
+  preferences.putBool("debug_serial", debug_serial);
+  preferences.putBool("debug_mmdvm", debug_mmdvm);
+  preferences.putBool("debug_network", debug_network);
+  preferences.putBool("debug_dmr", debug_dmr);
+  preferences.putBool("debug_password", debug_password);
+
   // Save web credentials
   preferences.putString("web_username", web_username);
   preferences.putString("web_password", web_password);
@@ -2263,6 +2289,7 @@ void setupWebServer() {
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
   server.on("/save-hostname", HTTP_POST, handleSaveHostname);
   server.on("/save-verbose", HTTP_POST, handleSaveVerbose);
+  server.on("/save-debug", HTTP_POST, handleSaveDebug);
   server.on("/save-timezone", HTTP_POST, handleSaveTimezone);
   server.on("/save-username", HTTP_POST, handleSaveUsername);
   server.on("/save-password", HTTP_POST, handleSavePassword);

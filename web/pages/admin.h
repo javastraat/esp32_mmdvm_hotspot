@@ -39,6 +39,11 @@ extern String dmr_url;
 extern WiFiNetwork wifiNetworks[5];
 extern String device_hostname;
 extern bool verbose_logging;
+extern bool debug_serial;
+extern bool debug_mmdvm;
+extern bool debug_network;
+extern bool debug_dmr;
+extern bool debug_password;
 extern long ntp_timezone_offset;
 extern long ntp_daylight_offset;
 extern String web_password;
@@ -435,18 +440,52 @@ void handleAdmin() {
   html += "</form>";
   html += "</div>";
 
-  // Verbose Logging Card
+  // Debug Settings Card (includes verbose logging)
   html += "<div class='card'>";
-  html += "<h3>Verbose Logging</h3>";
-  html += "<p>Control keepalive message visibility in Serial Monitor</p>";
-  html += "<p>Current status: <strong>" + String(verbose_logging ? "Enabled" : "Disabled") + "</strong></p>";
-  html += "<p style='font-size:0.9em;color:var(--text-color);'>When enabled, keepalive messages (RPTPING/MSTPONG) will be shown in the serial monitor.</p>";
-  html += "<form id='verbose-form' onsubmit='saveVerboseLogging(event)'>";
+  html += "<h3>Debug Settings</h3>";
+  html += "<p>Control debug output visibility</p>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);'>Enable specific debug categories to troubleshoot issues.</p>";
+  html += "<form id='debug-form' onsubmit='saveDebugSettings(event)'>";
+  html += "<div style='display:flex;flex-direction:column;gap:8px;margin:10px 0;'>";
+
+  // DEBUG_SERIAL
   html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
-  html += "<input type='checkbox' id='verbose-checkbox' " + String(verbose_logging ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
-  html += "<span>Enable verbose logging (show keepalive messages)</span>";
+  html += "<input type='checkbox' id='debug-serial' " + String(debug_serial ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Serial Output</strong> - General serial debug messages</span>";
   html += "</label>";
-  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save Setting</button>";
+ 
+  // Verbose Logging (show keepalive in web interface)
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='verbose-logging' " + String(verbose_logging ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Verbose Logging</strong> - Show keepalive in Serial Monitor web page</span>";
+  html += "</label>";
+ 
+  // DEBUG_MMDVM
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='debug-mmdvm' " + String(debug_mmdvm ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>MMDVM Protocol</strong> - TX frame debug (verbose)</span>";
+  html += "</label>";
+  
+  // DEBUG_NETWORK
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='debug-network' " + String(debug_network ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Network Debug</strong> - Keepalive messages (verbose)</span>";
+  html += "</label>";
+  
+  // DEBUG_DMR
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='debug-dmr' " + String(debug_dmr ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>DMR Protocol</strong> - DMR packet details (reserved)</span>";
+  html += "</label>";
+  
+  // DEBUG_PASSWORD
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
+  html += "<input type='checkbox' id='debug-password' " + String(debug_password ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Password Debug</strong> - Show password length/last4 chars</span>";
+  html += "</label>";
+  
+  html += "</div>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save Debug Settings</button>";
   html += "</form>";
   html += "</div>";
 
@@ -639,6 +678,24 @@ void handleAdmin() {
   html += "  fetch('/save-verbose', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'verbose=' + verbose}).then(response => response.text()).then(data => {";
   html += "    if (data.includes('SUCCESS')) {";
   html += "      alert('Verbose logging setting saved!');";
+  html += "      location.reload();";
+  html += "    } else {";
+  html += "      alert('Error: ' + data);";
+  html += "    }";
+  html += "  });";
+  html += "}";
+  html += "function saveDebugSettings(event) {";
+  html += "  event.preventDefault();";
+  html += "  var verbose = document.getElementById('verbose-logging').checked ? '1' : '0';";
+  html += "  var serial = document.getElementById('debug-serial').checked ? '1' : '0';";
+  html += "  var mmdvm = document.getElementById('debug-mmdvm').checked ? '1' : '0';";
+  html += "  var network = document.getElementById('debug-network').checked ? '1' : '0';";
+  html += "  var dmr = document.getElementById('debug-dmr').checked ? '1' : '0';";
+  html += "  var password = document.getElementById('debug-password').checked ? '1' : '0';";
+  html += "  var body = 'verbose=' + verbose + '&serial=' + serial + '&mmdvm=' + mmdvm + '&network=' + network + '&dmr=' + dmr + '&password=' + password;";
+  html += "  fetch('/save-debug', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      alert('Debug settings saved!');";
   html += "      location.reload();";
   html += "    } else {";
   html += "      alert('Error: ' + data);";
@@ -977,6 +1034,11 @@ void handleCleanupPreferences() {
   }
   device_hostname = MDNS_HOSTNAME;
   verbose_logging = false;
+  debug_serial = DEBUG_SERIAL;
+  debug_mmdvm = DEBUG_MMDVM;
+  debug_network = DEBUG_NETWORK;
+  debug_dmr = DEBUG_DMR;
+  debug_password = DEBUG_PASSWORD;
 
   // Save clean configuration
   saveConfig();
@@ -1134,6 +1196,33 @@ void handleSaveVerbose() {
   }
 }
 
+void handleSaveDebug() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("verbose") && server.hasArg("serial") && server.hasArg("mmdvm") && 
+      server.hasArg("network") && server.hasArg("dmr") && server.hasArg("password")) {
+    verbose_logging = (server.arg("verbose") == "1");
+    debug_serial = (server.arg("serial") == "1");
+    debug_mmdvm = (server.arg("mmdvm") == "1");
+    debug_network = (server.arg("network") == "1");
+    debug_dmr = (server.arg("dmr") == "1");
+    debug_password = (server.arg("password") == "1");
+    
+    saveConfig();
+
+    String status = "SUCCESS: Debug settings saved - Verbose:" + String(verbose_logging ? "ON" : "OFF") + 
+                   " Serial:" + String(debug_serial ? "ON" : "OFF") + 
+                   " MMDVM:" + String(debug_mmdvm ? "ON" : "OFF") + 
+                   " Network:" + String(debug_network ? "ON" : "OFF") + 
+                   " DMR:" + String(debug_dmr ? "ON" : "OFF") + 
+                   " Password:" + String(debug_password ? "ON" : "OFF");
+    server.send(200, "text/plain", status);
+    logSerial(status);
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing debug parameters");
+  }
+}
+
 void handleSaveTimezone() {
   if (!checkAuthentication()) return;
 
@@ -1280,6 +1369,11 @@ void handleExportConfig() {
   config += "\n[SYSTEM_CONFIG]\n";
   config += "HOSTNAME=" + device_hostname + "\n";
   config += "VERBOSE_LOGGING=" + String(verbose_logging ? "1" : "0") + "\n";
+  config += "DEBUG_SERIAL=" + String(debug_serial ? "1" : "0") + "\n";
+  config += "DEBUG_MMDVM=" + String(debug_mmdvm ? "1" : "0") + "\n";
+  config += "DEBUG_NETWORK=" + String(debug_network ? "1" : "0") + "\n";
+  config += "DEBUG_DMR=" + String(debug_dmr ? "1" : "0") + "\n";
+  config += "DEBUG_PASSWORD=" + String(debug_password ? "1" : "0") + "\n";
   config += "NTP_TIMEZONE_OFFSET=" + String(ntp_timezone_offset) + "\n";
   config += "NTP_DAYLIGHT_OFFSET=" + String(ntp_daylight_offset) + "\n";
   config += "WEB_USERNAME=" + web_username + "\n";
@@ -1358,6 +1452,11 @@ void handleImportConfig() {
           else if (key == "ALT_PASSWORD") wifiNetworks[0].password = value;  // Legacy support
           else if (key == "HOSTNAME") device_hostname = value;
           else if (key == "VERBOSE_LOGGING") verbose_logging = (value == "1");
+          else if (key == "DEBUG_SERIAL") debug_serial = (value == "1");
+          else if (key == "DEBUG_MMDVM") debug_mmdvm = (value == "1");
+          else if (key == "DEBUG_NETWORK") debug_network = (value == "1");
+          else if (key == "DEBUG_DMR") debug_dmr = (value == "1");
+          else if (key == "DEBUG_PASSWORD") debug_password = (value == "1");
           else if (key == "NTP_TIMEZONE_OFFSET") ntp_timezone_offset = value.toInt();
           else if (key == "NTP_DAYLIGHT_OFFSET") ntp_daylight_offset = value.toInt();
           else if (key == "WEB_USERNAME") web_username = value;
@@ -1458,7 +1557,8 @@ void handleShowPreferences() {
   };
 
   const char* systemKeys[] = {
-    "hostname", "verbose_log", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
+    "hostname", "verbose_log", "debug_serial", "debug_mmdvm", "debug_network", 
+    "debug_dmr", "debug_password", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
   };
 
   const char* modeKeys[] = {
@@ -1559,8 +1659,9 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
-        else if (keyName == "verbose_log" || keyName.startsWith("mode_")) {
-          // Known Bool keys
+        else if (keyName == "verbose_log" || keyName.startsWith("mode_") || 
+                 keyName.startsWith("debug_")) {
+          // Known Bool keys (verbose_log, mode_*, debug_*)
           bool boolVal = preferences.getBool(keyName.c_str(), false);
           value = String(boolVal ? "true" : "false");
           type = "Bool";
