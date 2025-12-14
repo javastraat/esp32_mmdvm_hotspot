@@ -214,6 +214,16 @@
 #define OLED_WIDTH 128         // OLED display width
 #define OLED_HEIGHT 64         // OLED display height
 
+// OLED Auto-Blanking Settings
+#define OLED_AUTO_BLANK_ENABLE true   // Enable automatic screen blanking after inactivity
+#define OLED_BLANK_TIMEOUT 60000      // Blank screen after this many milliseconds of inactivity (60000 = 60 seconds)
+                                      // Examples:
+                                      //   30000 = 30 seconds
+                                      //   60000 = 60 seconds (1 minute)
+                                      //  120000 = 120 seconds (2 minutes)
+                                      //  300000 = 300 seconds (5 minutes)
+                                      //       0 = Never auto-blank
+
 // ===== Advanced Settings =====
 // Buffer sizes
 #define SERIAL_RX_BUFFER_SIZE 512  // MMDVM serial RX buffer size

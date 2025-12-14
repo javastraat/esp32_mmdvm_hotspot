@@ -443,6 +443,12 @@ int oledActiveSlot = 1;        // Track which slot to display when both active (
 int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
 bool oledDisplayOn = true;     // Track OLED display power state (for physical on/off control)
 
+// OLED Auto-Blanking variables
+bool oledAutoBlankEnabled = OLED_AUTO_BLANK_ENABLE;  // Enable/disable auto-blanking (can be changed at runtime)
+unsigned long oledBlankTimeout = OLED_BLANK_TIMEOUT;  // Timeout duration in milliseconds (can be changed at runtime)
+unsigned long lastActivityTime = 0;                   // Timestamp of last activity (DMR, button press, etc.)
+bool oledBlankingActive = false;                      // Track if screen was auto-blanked (vs manually turned off)
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -769,6 +775,9 @@ void setup() {
   if (enable_oled) {
     updateOLEDStatus();
   }
+
+  // Initialize auto-blanking timer
+  lastActivityTime = millis();
 }
 
 void loop() {
@@ -779,10 +788,23 @@ void loop() {
   static unsigned long lastButtonPress = 0;
   static bool lastButtonState = HIGH;
   bool buttonState = digitalRead(OLED_BUTTON_PIN);
-  
+
   if (buttonState == LOW && lastButtonState == HIGH && (millis() - lastButtonPress > 200)) {
     // Button pressed (with debounce)
-    toggleOLEDPower();
+
+    // If screen was auto-blanked, just turn it on and reset blanking state
+    if (oledBlankingActive && !oledDisplayOn) {
+      setOLEDPower(true);
+      oledBlankingActive = false;
+      lastActivityTime = millis();  // Reset activity timer
+      logSerial("[OLED] Screen turned on by button press");
+    } else {
+      // Normal toggle behavior (manual on/off)
+      toggleOLEDPower();
+      oledBlankingActive = false;  // Clear auto-blanking flag when manually controlled
+      lastActivityTime = millis();  // Reset activity timer
+    }
+
     lastButtonPress = millis();
   }
   lastButtonState = buttonState;
@@ -841,6 +863,31 @@ void loop() {
     if (currentMillis - lastOLEDUpdate >= oledInterval) {
       updateOLEDStatus();
       lastOLEDUpdate = currentMillis;
+    }
+  }
+
+  // Handle OLED auto-blanking
+  if (enable_oled && oledAutoBlankEnabled && oledBlankTimeout > 0) {
+    // Check if there's any DMR activity
+    bool anyDMRActive = dmrActivity[0].active || dmrActivity[1].active;
+
+    // Update last activity time if there's DMR activity
+    if (anyDMRActive) {
+      lastActivityTime = currentMillis;
+
+      // If screen was auto-blanked and there's activity, turn it back on
+      if (oledBlankingActive && !oledDisplayOn) {
+        setOLEDPower(true);
+        oledBlankingActive = false;
+        logSerial("[OLED] Screen turned on due to activity");
+      }
+    }
+
+    // Check if we should blank the screen due to inactivity
+    if (oledDisplayOn && !oledBlankingActive && (currentMillis - lastActivityTime > oledBlankTimeout)) {
+      setOLEDPower(false);
+      oledBlankingActive = true;
+      logSerial("[OLED] Screen blanked due to inactivity");
     }
   }
   // Reset DMR TX mode if no frames received for 200ms
@@ -2186,6 +2233,36 @@ void loadConfig() {
   enable_oled = preferences.getBool("enable_oled", ENABLE_OLED);
   logSerial("[OLED] OLED display: " + String(enable_oled ? "enabled" : "disabled"));
 
+  // Load OLED auto-blanking settings (using shortened key names due to 15-char NVS limit)
+  bool firstBootAutoBlank = !preferences.isKey("oled_autoblank");
+  bool firstBootTimeout = !preferences.isKey("oled_blank_to");
+
+  if (debug_serial) {
+    logSerial("[DEBUG] Auto-blank key exists: " + String(!firstBootAutoBlank));
+    logSerial("[DEBUG] Timeout key exists: " + String(!firstBootTimeout));
+  }
+
+  oledAutoBlankEnabled = preferences.getBool("oled_autoblank", OLED_AUTO_BLANK_ENABLE);
+  oledBlankTimeout = preferences.getULong("oled_blank_to", OLED_BLANK_TIMEOUT);
+
+  if (debug_serial) {
+    logSerial("[DEBUG] Loaded auto-blank: " + String(oledAutoBlankEnabled));
+    logSerial("[DEBUG] Loaded timeout: " + String(oledBlankTimeout) + "ms");
+  }
+
+  // Save defaults on first boot so they appear in showPrefs
+  if (firstBootAutoBlank) {
+    preferences.putBool("oled_autoblank", oledAutoBlankEnabled);
+    logSerial("[OLED] Auto-blank setting initialized to default: " + String(oledAutoBlankEnabled ? "enabled" : "disabled"));
+  }
+  if (firstBootTimeout) {
+    preferences.putULong("oled_blank_to", oledBlankTimeout);
+    logSerial("[OLED] Blank timeout initialized to default: " + String(oledBlankTimeout / 1000) + "s");
+  }
+
+  logSerial("[OLED] Auto-blank: " + String(oledAutoBlankEnabled ? "enabled" : "disabled") +
+            ", Timeout: " + String(oledBlankTimeout / 1000) + "s");
+
   // Load NTP timezone settings
   ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
   ntp_daylight_offset = preferences.getLong("ntp_dst_offset", NTP_DAYLIGHT_OFFSET);
@@ -2266,6 +2343,14 @@ void saveConfig() {
 
   // Save OLED display setting
   preferences.putBool("enable_oled", enable_oled);
+
+  // Save OLED auto-blanking settings
+  size_t autoBlankResult = preferences.putBool("oled_autoblank", oledAutoBlankEnabled);
+  size_t timeoutResult = preferences.putULong("oled_blank_to", oledBlankTimeout);
+  if (debug_serial) {
+    logSerial("[DEBUG] Saved auto-blank: " + String(oledAutoBlankEnabled) + " (bytes: " + String(autoBlankResult) + ")");
+    logSerial("[DEBUG] Saved timeout: " + String(oledBlankTimeout) + "ms (bytes: " + String(timeoutResult) + ")");
+  }
 
   // Save web credentials
   preferences.putString("web_username", web_username);

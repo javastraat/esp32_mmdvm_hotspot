@@ -45,6 +45,8 @@ extern bool debug_network;
 extern bool debug_dmr;
 extern bool debug_password;
 extern bool enable_oled;
+extern bool oledAutoBlankEnabled;
+extern unsigned long oledBlankTimeout;
 extern long ntp_timezone_offset;
 extern long ntp_daylight_offset;
 extern String web_password;
@@ -501,7 +503,32 @@ void handleAdmin() {
   html += "<input type='checkbox' id='enable-oled' " + String(enable_oled ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
   html += "<span><strong>Enable OLED Display</strong> - Show status on 128x64 OLED screen</span>";
   html += "</label>";
-  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save OLED Setting</button>";
+
+  // Auto-blanking settings
+  html += "<div style='margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);'>";
+  html += "<h4 style='margin:0 0 10px 0;'>Auto-Blanking Settings</h4>";
+  html += "<p style='font-size:0.9em;color:var(--text-color);margin-bottom:15px;'>Automatically turn off display after inactivity to prevent burn-in</p>";
+
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:15px;'>";
+  html += "<input type='checkbox' id='auto-blank-enable' " + String(oledAutoBlankEnabled ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Enable Auto-Blanking</strong> - Screen turns off after inactivity</span>";
+  html += "</label>";
+
+  html += "<div>";
+  html += "<label style='display:block;margin-bottom:5px;'><strong>Blank Timeout:</strong></label>";
+  html += "<select id='blank-timeout' style='width:100%;padding:10px;border:1px solid var(--border-color);border-radius:4px;background:var(--container-bg);color:var(--text-color);'>";
+  html += "<option value='0' " + String(oledBlankTimeout == 0 ? "selected" : "") + ">Never (disabled)</option>";
+  html += "<option value='30000' " + String(oledBlankTimeout == 30000 ? "selected" : "") + ">30 seconds</option>";
+  html += "<option value='60000' " + String(oledBlankTimeout == 60000 ? "selected" : "") + ">1 minute</option>";
+  html += "<option value='120000' " + String(oledBlankTimeout == 120000 ? "selected" : "") + ">2 minutes</option>";
+  html += "<option value='300000' " + String(oledBlankTimeout == 300000 ? "selected" : "") + ">5 minutes</option>";
+  html += "<option value='600000' " + String(oledBlankTimeout == 600000 ? "selected" : "") + ">10 minutes</option>";
+  html += "</select>";
+  html += "<p style='font-size:0.85em;color:var(--text-color);margin-top:5px;'>Screen will wake up automatically when DMR activity is detected</p>";
+  html += "</div>";
+  html += "</div>";
+
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:15px;'>Save OLED Settings</button>";
   html += "</form>";
   html += "</div>";
 
@@ -721,7 +748,9 @@ void handleAdmin() {
   html += "function saveOLEDSettings(event) {";
   html += "  event.preventDefault();";
   html += "  var oled = document.getElementById('enable-oled').checked ? '1' : '0';";
-  html += "  fetch('/save-oled', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'oled=' + oled}).then(response => response.text()).then(data => {";
+  html += "  var autoBlank = document.getElementById('auto-blank-enable').checked ? '1' : '0';";
+  html += "  var blankTimeout = document.getElementById('blank-timeout').value;";
+  html += "  fetch('/save-oled', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'oled=' + oled + '&autoBlank=' + autoBlank + '&blankTimeout=' + blankTimeout}).then(response => response.text()).then(data => {";
   html += "    if (data.includes('SUCCESS')) {";
   html += "      if (confirm('OLED display setting saved! Reboot required for changes to take effect.\\n\\nReboot now?')) {";
   html += "        fetch('/reboot', {method: 'POST'}).then(() => {";
@@ -1263,11 +1292,29 @@ void handleSaveOLED() {
 
   if (server.hasArg("oled")) {
     enable_oled = (server.arg("oled") == "1");
+
+    // Handle auto-blanking settings
+    if (server.hasArg("autoBlank")) {
+      oledAutoBlankEnabled = (server.arg("autoBlank") == "1");
+      logSerial("[DEBUG] Received autoBlank: " + server.arg("autoBlank") + " -> " + String(oledAutoBlankEnabled));
+    }
+    if (server.hasArg("blankTimeout")) {
+      oledBlankTimeout = server.arg("blankTimeout").toInt();
+      logSerial("[DEBUG] Received blankTimeout: " + server.arg("blankTimeout") + " -> " + String(oledBlankTimeout) + "ms");
+    }
+
+    logSerial("[DEBUG] About to save - autoBlank=" + String(oledAutoBlankEnabled) + ", timeout=" + String(oledBlankTimeout));
     saveConfig();
 
-    String status = "SUCCESS: OLED display " + String(enable_oled ? "enabled" : "disabled") + " - Reboot required";
+    String status = "SUCCESS: OLED display " + String(enable_oled ? "enabled" : "disabled");
+    status += ", Auto-blank " + String(oledAutoBlankEnabled ? "enabled" : "disabled");
+    if (oledAutoBlankEnabled && oledBlankTimeout > 0) {
+      status += " (" + String(oledBlankTimeout / 1000) + "s timeout)";
+    }
+    status += " - Reboot required";
+
     server.send(200, "text/plain", status);
-    logSerial(status);
+    logSerial("[OLED] " + status);
   } else {
     server.send(400, "text/plain", "ERROR: Missing OLED parameter");
   }
@@ -1425,6 +1472,8 @@ void handleExportConfig() {
   config += "DEBUG_DMR=" + String(debug_dmr ? "1" : "0") + "\n";
   config += "DEBUG_PASSWORD=" + String(debug_password ? "1" : "0") + "\n";
   config += "ENABLE_OLED=" + String(enable_oled ? "1" : "0") + "\n";
+  config += "OLED_AUTO_BLANK=" + String(oledAutoBlankEnabled ? "1" : "0") + "\n";
+  config += "OLED_BLANK_TIMEOUT=" + String(oledBlankTimeout) + "\n";
   config += "NTP_TIMEZONE_OFFSET=" + String(ntp_timezone_offset) + "\n";
   config += "NTP_DAYLIGHT_OFFSET=" + String(ntp_daylight_offset) + "\n";
   config += "WEB_USERNAME=" + web_username + "\n";
@@ -1509,6 +1558,8 @@ void handleImportConfig() {
           else if (key == "DEBUG_DMR") debug_dmr = (value == "1");
           else if (key == "DEBUG_PASSWORD") debug_password = (value == "1");
           else if (key == "ENABLE_OLED") enable_oled = (value == "1");
+          else if (key == "OLED_AUTO_BLANK") oledAutoBlankEnabled = (value == "1");
+          else if (key == "OLED_BLANK_TIMEOUT") oledBlankTimeout = value.toInt();
           else if (key == "NTP_TIMEZONE_OFFSET") ntp_timezone_offset = value.toInt();
           else if (key == "NTP_DAYLIGHT_OFFSET") ntp_daylight_offset = value.toInt();
           else if (key == "WEB_USERNAME") web_username = value;
@@ -1609,8 +1660,9 @@ void handleShowPreferences() {
   };
 
   const char* systemKeys[] = {
-    "hostname", "verbose_log", "debug_serial", "debug_mmdvm", "debug_network", 
-    "debug_dmr", "debug_password", "enable_oled", "ntp_tz_offset", "ntp_dst_offset", "modem_type"
+    "hostname", "verbose_log", "debug_serial", "debug_mmdvm", "debug_network",
+    "debug_dmr", "debug_password", "enable_oled", "oled_autoblank", "oled_blank_to",
+    "ntp_tz_offset", "ntp_dst_offset", "modem_type"
   };
 
   const char* modeKeys[] = {
@@ -1702,6 +1754,16 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
+        else if (keyName == "oled_blank_to") {
+          // OLED blank timeout (ULong, stored in milliseconds)
+          unsigned long ulongVal = preferences.getULong(keyName.c_str(), 0);
+          if (ulongVal > 0 || preferences.isKey(keyName.c_str())) {
+            value = String(ulongVal);
+            value += " ms (" + String(ulongVal / 1000) + " sec)";
+            type = "ULong";
+            keySize = 4;
+          }
+        }
         else if (keyName == "dmr_lat" || keyName == "dmr_lon") {
           // Known Float keys
           float floatVal = preferences.getFloat(keyName.c_str(), -999.999);
@@ -1711,9 +1773,9 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
-        else if (keyName == "verbose_log" || keyName == "enable_oled" || 
+        else if (keyName == "verbose_log" || keyName == "enable_oled" || keyName == "oled_autoblank" ||
                  keyName.startsWith("mode_") || keyName.startsWith("debug_")) {
-          // Known Bool keys (verbose_log, enable_oled, mode_*, debug_*)
+          // Known Bool keys (verbose_log, enable_oled, oled_autoblank, mode_*, debug_*)
           bool boolVal = preferences.getBool(keyName.c_str(), false);
           value = String(boolVal ? "true" : "false");
           type = "Bool";
