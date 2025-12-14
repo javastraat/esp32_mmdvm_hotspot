@@ -1891,7 +1891,7 @@ if (debug_mmdvm) {
                              String(dmrModemData[2], HEX) + " " +
                              String(dmrModemData[3], HEX) + " " +
                              String(dmrModemData[4], HEX);
-            logSerial("[DMR] " + debugMsg);
+            //logSerial("[DMR] " + debugMsg);
 }
 
             // Only send DMR START once at beginning of transmission
