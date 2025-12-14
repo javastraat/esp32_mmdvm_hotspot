@@ -70,6 +70,19 @@ struct DMRHistory {
 extern DMRHistory dmrHistory[15];
 extern int dmrHistoryIndex;
 
+// RF Activity History structure (matches esp32_mmdvm_hotspot.ino)
+struct RFActivityHistory {
+  uint32_t srcId;
+  String srcCallsign;
+  uint32_t dstId;
+  bool isGroup;
+  uint32_t duration;
+  uint8_t slotNo;
+  unsigned long timestamp;
+};
+extern RFActivityHistory rfHistory[15];
+extern int rfHistoryIndex;
+
 // DMR Callsign lookup function
 extern String lookupCallsign(uint32_t dmrId);
 
@@ -310,6 +323,83 @@ void handleDMRHistory() {
   server.send(200, "text/html", getDMRHistoryHTML());
 }
 
+// Helper function to generate Local RF Activity HTML
+String getRFHistoryHTML() {
+  String html = "<div class='history-container'>";
+
+  // Count actual history entries
+  int entryCount = 0;
+  for (int i = 0; i < 15; i++) {
+    if (rfHistory[i].srcId > 0) entryCount++;
+  }
+
+  if (entryCount == 0) {
+    html += "<div class='no-history'>No local RF transmissions yet</div>";
+  } else {
+    html += "<div class='history-header'>";
+    html += "<div class='col-time'>Time</div>";
+    html += "<div class='col-station'>Station</div>";
+    html += "<div class='col-destination'>Destination</div>";
+    html += "<div class='col-duration'>Duration</div>";
+    html += "<div class='col-slot'>Slot</div>";
+    html += "</div>";
+
+    // Show entries in reverse chronological order (newest first)
+    for (int i = 0; i < 15; i++) {
+      int index = (rfHistoryIndex - 1 - i + 15) % 15;
+      if (rfHistory[index].srcId > 0) {
+        // Calculate time ago
+        unsigned long secondsAgo = (millis() - rfHistory[index].timestamp) / 1000;
+        String timeAgo;
+        if (secondsAgo < 60) {
+          timeAgo = String(secondsAgo) + "s ago";
+        } else if (secondsAgo < 3600) {
+          timeAgo = String(secondsAgo / 60) + "m ago";
+        } else {
+          timeAgo = String(secondsAgo / 3600) + "h ago";
+        }
+
+        html += "<div class='history-row rf-history-row' data-duration='" + String(rfHistory[index].duration) + "'>";
+
+        // Time
+        html += "<div class='col-time'>" + timeAgo + "</div>";
+
+        // Station info (local station)
+        html += "<div class='col-station'>";
+        if (rfHistory[index].srcCallsign.length() > 0) {
+          html += "<div class='callsign'>";
+          html += "<a href='https://www.qrz.com/db/" + rfHistory[index].srcCallsign + "' target='_blank'>" + rfHistory[index].srcCallsign + "</a>";
+          html += "</div>";
+          html += "<div class='name'>" + String(rfHistory[index].srcId) + "</div>";
+        } else {
+          html += "<div class='callsign'>" + String(rfHistory[index].srcId) + "</div>";
+        }
+        html += "</div>";
+
+        // Destination
+        html += "<div class='col-destination'>";
+        if (rfHistory[index].isGroup) html += "TG ";
+        html += String(rfHistory[index].dstId) + "</div>";
+
+        // Duration
+        html += "<div class='col-duration'>" + String(rfHistory[index].duration) + "s</div>";
+
+        // Slot
+        html += "<div class='col-slot'>" + String(rfHistory[index].slotNo) + "</div>";
+
+        html += "</div>";
+      }
+    }
+  }
+
+  html += "</div>";
+  return html;
+}
+
+void handleRFHistory() {
+  server.send(200, "text/html", getRFHistoryHTML());
+}
+
 // Helper function to generate System Status HTML
 String getSystemStatusHTML() {
   String html = "";
@@ -528,6 +618,11 @@ void handleRoot() {
   html += "    filterHistory();";
   html += "  });";
   html += "}";
+  html += "function refreshRFHistory() {";
+  html += "  fetch('/rf-history').then(r => r.text()).then(data => {";
+  html += "    document.getElementById('rf-history-content').innerHTML = data;";
+  html += "  });";
+  html += "}";
   html += "function refreshSystemStatus() {";
   html += "  fetch('/system-status').then(r => r.text()).then(data => {";
   html += "    document.getElementById('system-status-content').innerHTML = data;";
@@ -565,6 +660,7 @@ void handleRoot() {
   html += "}";
   html += "setInterval(refreshActivity, 1000);";
   html += "setInterval(refreshHistory, 2000);";
+  html += "setInterval(refreshRFHistory, 2000);";
   html += "setInterval(refreshSystemStatus, 3000);";
   html += "</script>";
   html += "</head><body>";
@@ -616,6 +712,17 @@ void handleRoot() {
   html += "</div>";
   html += "<div id='dmr-history-content'>";
   html += getDMRHistoryHTML();
+  html += "</div>";
+  html += "</div>";
+
+  // Local RF Activity Card (full width) - Shows outgoing transmissions
+  html += "<div class='card history-card'>";
+  html += "<div class='history-title-bar'>";
+  html += "<h3>Local RF Activity (Last 15 Transmissions)</h3>";
+  html += "<div style='font-size: 0.9em; color: var(--text-color); opacity: 0.7;'>Local RF Activity</div>";
+  html += "</div>";
+  html += "<div id='rf-history-content'>";
+  html += getRFHistoryHTML();
   html += "</div>";
   html += "</div>";
 

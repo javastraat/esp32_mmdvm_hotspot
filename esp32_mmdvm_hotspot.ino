@@ -370,11 +370,35 @@ struct DMRTransmission {
 };
 DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
 
-// DMR Transmission History (for Recent Activity display)
+// TX Sequence and Stream ID tracking (for building DMRD packets when transmitting)
+uint8_t txSequence = 0;              // Incrementing sequence number for TX packets
+uint32_t txStreamId = 0;             // Stream ID for current TX transmission
+unsigned long lastTxTime = 0;        // Timestamp of last TX packet (to detect new transmissions)
+
+// RF Transmission tracking (for local TX history)
+struct RFTransmission {
+  bool active;
+  uint32_t srcId;
+  uint32_t dstId;
+  uint8_t slotNo;
+  bool isGroup;
+  unsigned long startTime;
+  String srcCallsign;
+};
+RFTransmission currentRFTx[2] = {{false, 0, 0, 1, true, 0, ""}, {false, 0, 0, 2, true, 0, ""}};  // One per slot
+
+// DMR Transmission History (for Recent Activity display - INCOMING from network)
 // struct DMRHistory is defined in webpages.h/home.h
 DMRHistory dmrHistory[DMR_HISTORY_SIZE];
 int dmrHistoryIndex = 0;
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
+
+// Local RF Activity History (for Local RF Activity display - OUTGOING to network)
+// struct RFActivityHistory is defined in webpages.h/home.h
+#define RF_HISTORY_SIZE 15
+RFActivityHistory rfHistory[RF_HISTORY_SIZE];
+int rfHistoryIndex = 0;
+void addRFHistory(uint32_t srcId, String srcCallsign, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t slotNo);
 
 // DMR User Information Lookup Cache
 struct UserInfoCache {
@@ -894,6 +918,19 @@ void loop() {
   if (dmrTxActive && (currentMillis - lastDMRFrameTime > 200)) {
     writeDMRStart(false, "");  // Exit TX mode
     dmrTxActive = false;
+  }
+
+  // Check for RF transmission timeout (local TX to network) and add to history
+  for (int i = 0; i < 2; i++) {
+    if (currentRFTx[i].active && (currentMillis - lastTxTime > 1000)) {
+      // RF transmission ended (no new frames for >1 second)
+      uint32_t duration = (currentMillis - currentRFTx[i].startTime) / 1000;
+      if (duration > 0) {  // Only log if transmission lasted at least 1 second
+        addRFHistory(currentRFTx[i].srcId, currentRFTx[i].srcCallsign, currentRFTx[i].dstId,
+                     currentRFTx[i].isGroup, duration, currentRFTx[i].slotNo);
+      }
+      currentRFTx[i].active = false;
+    }
   }
 
   for (int i = 0; i < 2; i++) {
@@ -1543,27 +1580,37 @@ void processMMDVMFrame() {
             logSerial("[DMR] WARNING: Data from radio but NOT logged into DMR network! State: " + String((int)dmrState));
           }
 
-          // Extract DMR frame and send to network
-          int udpBeginResult = udp.beginPacket(dmr_server.c_str(), dmr_port);
-          if (debug_dmr) {
-            logSerial("[DEBUG] UDP beginPacket result: " + String(udpBeginResult));
-            logSerial("[DEBUG] Sending to: " + dmr_server + ":" + String(dmr_port));
-          }
+          // Build proper DMRD packet from modem data
+          // rxBuffer[3..n] contains the modem data (34 bytes: 1 control + 33 DMR frame)
+          uint8_t dmrdPacket[55];  // DMRD packet is always 55 bytes
+          int packetLen = buildDMRDPacket(dmrdPacket, &rxBuffer[3], dataLen, slot);
 
-          size_t bytesWritten = udp.write(&rxBuffer[3], dataLen);
-          if (debug_dmr) {
-            logSerial("[DEBUG] UDP write: " + String(bytesWritten) + " bytes written");
-          }
+          if (packetLen > 0) {
+            // Send DMRD packet to network
+            int udpBeginResult = udp.beginPacket(dmr_server.c_str(), dmr_port);
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP beginPacket result: " + String(udpBeginResult));
+              logSerial("[DEBUG] Sending to: " + dmr_server + ":" + String(dmr_port));
+              logSerial("[DEBUG] Built DMRD packet: " + String(packetLen) + " bytes");
+            }
 
-          int udpEndResult = udp.endPacket();
-          if (debug_dmr) {
-            logSerial("[DEBUG] UDP endPacket result: " + String(udpEndResult));
-          }
+            size_t bytesWritten = udp.write(dmrdPacket, packetLen);
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP write: " + String(bytesWritten) + " bytes written");
+            }
 
-          if (udpEndResult == 1) {
-            logSerial("[DMR] TX Slot" + String(slot) + ": " + String(dataLen) + " bytes sent to network");
+            int udpEndResult = udp.endPacket();
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP endPacket result: " + String(udpEndResult));
+            }
+
+            if (udpEndResult == 1) {
+              logSerial("[DMR] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes DMRD packet sent to network (seq=" + String(dmrdPacket[4]) + ")");
+            } else {
+              logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
+            }
           } else {
-            logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
+            logSerial("[DMR] ERROR: Failed to build DMRD packet!");
           }
 
           digitalWrite(COS_LED_PIN, HIGH);
@@ -2112,6 +2159,139 @@ void sendDMRKeepalive() {
   logSerialVerbose("Keepalive sent");
 }
 
+// ===== Build DMRD Packet for Transmission =====
+// Wraps raw MMDVM modem data (34 bytes) into a proper DMRD packet (55 bytes) for the network
+// MMDVM modem sends: [control byte (1)] + [33-byte DMR frame]
+// DMRD packet needs: "DMRD" + seq + srcID + dstID + rptID + ctrl + streamID + 33-frame + BER + RSSI
+int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDataLen, uint8_t slot) {
+  if (modemDataLen < 34) {
+    logSerial("[ERROR] buildDMRDPacket: modem data too short (" + String(modemDataLen) + " bytes)");
+    return 0;
+  }
+
+  // DMR sync patterns (MS sourced, simplex hotspot mode)
+  const uint8_t MS_DATA_SYNC[]  = {0x0D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x70};
+  const uint8_t MS_AUDIO_SYNC[] = {0x07, 0xF7, 0xD5, 0xDD, 0x57, 0xDF, 0xD0};
+
+  // Extract the 33-byte DMR frame (modemData[1..33])
+  const uint8_t* dmrFrame = &modemData[1];
+
+  // Check sync pattern at bytes 13-19 of the DMR frame (bytes 14-20 in modemData)
+  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0);
+  bool isAudioSync = (memcmp(&dmrFrame[13], MS_AUDIO_SYNC, 7) == 0);
+
+  // Determine data type from sync pattern
+  uint8_t dataType = 0;
+  uint8_t n = 0;  // Voice frame number (0-5)
+
+  if (isDataSync) {
+    // Data sync - extract data type from slot type
+    // Slot type is at bytes 10-11 (embedded in the frame)
+    // For now, we'll use generic data type
+    dataType = 0x01;  // Assume VOICE_LC_HEADER for first data sync
+  } else if (isAudioSync) {
+    // Audio sync = voice sync frame
+    dataType = 0xF0;  // DT_VOICE_SYNC (dummy value, will be encoded as 0x10)
+  } else {
+    // Voice frame - extract N from EMB
+    // Voice frames have EMB (Embedded signalling) at byte 13
+    n = dmrFrame[13] & 0x0F;  // Lower 4 bits = frame number
+    dataType = 0xF1;  // DT_VOICE (dummy value)
+  }
+
+  // Detect new transmission based on data sync (headers generate new stream ID)
+  unsigned long currentTime = millis();
+  bool isNewTransmission = (currentTime - lastTxTime > 1000) || isDataSync;
+
+  if (isNewTransmission) {
+    // New transmission or header - generate new stream ID and reset sequence
+    txSequence = 0;
+    txStreamId = random(1, 0xFFFFFFFE);  // Random stream ID (avoid 0 and 0xFFFFFFFF)
+    if (debug_dmr) {
+      logSerial("[DMR] New TX stream - ID: 0x" + String(txStreamId, HEX) + " Type: " + String(isDataSync ? "DATA" : isAudioSync ? "AUDIO" : "VOICE"));
+    }
+
+    // Start tracking RF transmission for history
+    int slotIndex = slot - 1;
+    currentRFTx[slotIndex].active = true;
+    currentRFTx[slotIndex].srcId = dmr_id;
+    currentRFTx[slotIndex].dstId = 0;  // Will be extracted from LC in frame if possible
+    currentRFTx[slotIndex].slotNo = slot;
+    currentRFTx[slotIndex].isGroup = true;  // Assume group call
+    currentRFTx[slotIndex].startTime = currentTime;
+    currentRFTx[slotIndex].srcCallsign = dmr_callsign;
+  }
+  lastTxTime = currentTime;
+
+  // Build DMRD packet structure (55 bytes total):
+  // Bytes 0-3: "DMRD" magic (4 bytes)
+  output[0] = 'D';
+  output[1] = 'M';
+  output[2] = 'R';
+  output[3] = 'D';
+
+  // Byte 4: Sequence number (incrementing)
+  output[4] = txSequence++;
+
+  // Bytes 5-7: Source DMR ID (our hotspot/user ID) - 3 bytes, big-endian
+  uint32_t srcId = dmr_id;
+  if (dmr_essid > 0) {
+    srcId = dmr_id * 100 + dmr_essid;
+  }
+  output[5] = (srcId >> 16) & 0xFF;
+  output[6] = (srcId >> 8) & 0xFF;
+  output[7] = srcId & 0xFF;
+
+  // Bytes 8-10: Destination ID - set to 0, network will extract from LC in DMR frame
+  output[8] = 0x00;
+  output[9] = 0x00;
+  output[10] = 0x00;
+
+  // Bytes 11-14: Repeater ID (our hotspot ID) - 4 bytes, big-endian
+  uint32_t rptId = srcId;
+  output[11] = (rptId >> 24) & 0xFF;
+  output[12] = (rptId >> 16) & 0xFF;
+  output[13] = (rptId >> 8) & 0xFF;
+  output[14] = rptId & 0xFF;
+
+  // Byte 15: Control byte
+  // Bit 7: Slot (0=slot1, 1=slot2)
+  // Bit 6: Group/Private call (0=group, 1=private)
+  // Bit 5: Data sync flag
+  // Bit 4: Voice sync flag
+  // Bits 3-0: Data type or voice frame number (N)
+  uint8_t controlByte = (slot == 2) ? 0x80 : 0x00;  // Bit 7: slot
+  controlByte |= 0x00;  // Bit 6: group call (0=group)
+
+  if (isDataSync) {
+    controlByte |= 0x20;  // Bit 5: data sync
+    controlByte |= (dataType & 0x0F);  // Bits 0-3: data type
+  } else if (isAudioSync) {
+    controlByte |= 0x10;  // Bit 4: voice sync
+  } else {
+    controlByte |= (n & 0x0F);  // Bits 0-3: voice frame number (N)
+  }
+
+  output[15] = controlByte;
+
+  // Bytes 16-19: Stream ID (4 bytes, big-endian)
+  output[16] = (txStreamId >> 24) & 0xFF;
+  output[17] = (txStreamId >> 16) & 0xFF;
+  output[18] = (txStreamId >> 8) & 0xFF;
+  output[19] = txStreamId & 0xFF;
+
+  // Bytes 20-52: DMR frame data (33 bytes) - copy directly from modem
+  memcpy(&output[20], dmrFrame, 33);
+
+  // Byte 53: BER (Bit Error Rate) - set to 0 for TX
+  output[53] = 0x00;
+
+  // Byte 54: RSSI - set to 0 for TX
+  output[54] = 0x00;
+
+  return 55;  // Total packet size
+}
+
 // ===== Serial Logging Functions =====
 // Log to both USB serial and web buffer
 void logSerial(String message) {
@@ -2417,6 +2597,7 @@ void setupWebServer() {
   server.on("/dmr-slot1", handleDMRSlot1);        // DMR Slot 1 activity
   server.on("/dmr-slot2", handleDMRSlot2);        // DMR Slot 2 activity
   server.on("/dmr-history", handleDMRHistory);    // Recent DMR activity history
+  server.on("/rf-history", handleRFHistory);      // Local RF activity history (outgoing)
   server.on("/system-status", handleSystemStatus); // System status for auto-refresh
 
   // Admin actions
@@ -2734,6 +2915,26 @@ void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String sr
   dmrHistory[dmrHistoryIndex].slotNo = slotNo;
   
   dmrHistoryIndex = (dmrHistoryIndex + 1) % DMR_HISTORY_SIZE;
+}
+
+// Add Local RF transmission to history (outgoing to network)
+void addRFHistory(uint32_t srcId, String srcCallsign, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t slotNo) {
+  // Debug log
+  logSerial("[RF HISTORY] Adding RF TX: " + srcCallsign + " (" + String(srcId) + ") -> " + (isGroup ? "TG" : "") + String(dstId) + " Duration: " + String(duration) + "s Slot: " + String(slotNo));
+
+  // Get current timestamp (NTP time or fallback to uptime)
+  String timestamp = getCurrentTimestamp();
+
+  // Add to circular buffer
+  rfHistory[rfHistoryIndex].srcId = srcId;
+  rfHistory[rfHistoryIndex].srcCallsign = srcCallsign;
+  rfHistory[rfHistoryIndex].dstId = dstId;
+  rfHistory[rfHistoryIndex].isGroup = isGroup;
+  rfHistory[rfHistoryIndex].duration = duration;
+  rfHistory[rfHistoryIndex].slotNo = slotNo;
+  rfHistory[rfHistoryIndex].timestamp = millis();
+
+  rfHistoryIndex = (rfHistoryIndex + 1) % RF_HISTORY_SIZE;
 }
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
