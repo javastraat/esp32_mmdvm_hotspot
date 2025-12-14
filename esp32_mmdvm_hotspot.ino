@@ -198,26 +198,26 @@ SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from 
 //
 // #define LOGO_HEIGHT   16
 // #define LOGO_WIDTH    16
-static const unsigned char PROGMEM logo_bmp1[] =
-{ 
-  B00000000, B11000000,
-  B00000001, B11000000,
-  B00000001, B11000000,
-  B00000011, B11100000,
-  B11110011, B11100000,
-  B11111110, B11111000,
-  B01111110, B11111111,
-  B00110011, B10011111,
-  B00011111, B11111100,
-  B00001101, B01110000,
-  B00011011, B10100000,
-  B00111111, B11100000,
-  B00111111, B11110000,
-  B01111100, B11110000,
-  B01110000, B01110000,
-  B00000000, B00110000 
+// static const unsigned char PROGMEM logo_bmp1[] =
+// { 
+//   B00000000, B11000000,
+//   B00000001, B11000000,
+//   B00000001, B11000000,
+//   B00000011, B11100000,
+//   B11110011, B11100000,
+//   B11111110, B11111000,
+//   B01111110, B11111111,
+//   B00110011, B10011111,
+//   B00011111, B11111100,
+//   B00001101, B01110000,
+//   B00011011, B10100000,
+//   B00111111, B11100000,
+//   B00111111, B11110000,
+//   B01111100, B11110000,
+//   B01110000, B01110000,
+//   B00000000, B00110000 
 
-};
+// };
 
 #define LOGO_WIDTH  128
 #define LOGO_HEIGHT 64
@@ -512,8 +512,8 @@ void setup() {
   delay(1000);
 #endif
 
-  logSerial("\n\n=== ESP32 MMDVM Hotspot ===");
-  logSerial("Initializing...");
+  logSerial("\n\n=== ESP32 MMDVM Hotspot by PD2EMC & PD8JO ===");
+  logSerial("[SYSTEM] Initializing...");
 
   // Load OLED preference early (before setupOLED)
   preferences.begin("mmdvm", false);
@@ -540,7 +540,7 @@ void setup() {
 #if ENABLE_RGB_LED
   rgbLed.begin();
   rgbLed.setStatus(RGBLedStatus::DISCONNECTED);
-  logSerial("RGB LED initialized");
+  logSerial("[RGB LED] RGB LED initialized");
 #endif
 
   // Setup MMDVM Serial
@@ -548,59 +548,59 @@ void setup() {
     updateBootStatus("Init MMDVM...");
   }
   MMDVM_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
-  logSerial("MMDVM Serial initialized");
+  logSerial("[MODEM] MMDVM Serial initialized");
 
   // Initialize SD Card
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
   if (enable_oled) {
     updateBootStatus("Init SD Card...");
   }
-  logSerial("Initializing SD card...");
+  logSerial("[SD] Initializing SD card...");
   sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
   if (SD.begin(SD_CS_PIN, sdSPI)) {
     sdCardAvailable = true;
     sdCardType = SD.cardType();  // Cache the card type
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    logSerial("SD Card initialized successfully");
-    logSerial("SD Card Size: " + String((uint32_t)cardSize) + " MB");
-    logSerial("SD Card Type: " + String(sdCardType == CARD_MMC ? "MMC" : sdCardType == CARD_SD ? "SD" : sdCardType == CARD_SDHC ? "SDHC" : "Unknown"));
+    logSerial("[SD] SD Card initialized successfully");
+    logSerial("[SD] SD Card Size: " + String((uint32_t)cardSize) + " MB");
+    logSerial("[SD] SD Card Type: " + String(sdCardType == CARD_MMC ? "MMC" : sdCardType == CARD_SD ? "SD" : sdCardType == CARD_SDHC ? "SDHC" : "Unknown"));
 
     // Create directories if they don't exist
     if (!SD.exists("/logs")) {
       SD.mkdir("/logs");
-      logSerial("Created /logs directory");
+      logSerial("[SD] Created /logs directory");
     }
     if (!SD.exists("/config")) {
       SD.mkdir("/config");
-      logSerial("Created /config directory");
+      logSerial("[SD] Created /config directory");
     }
     if (!SD.exists("/cache")) {
       SD.mkdir("/cache");
-      logSerial("Created /cache directory");
+      logSerial("[SD] Created /cache directory");
     }
 
     // Test: Read owner.txt if it exists
     if (SD.exists("/owner.txt")) {
-      logSerial("Found /owner.txt on SD card, reading contents:");
+      logSerial("[SD] Found /owner.txt on SD card, reading contents:");
       File testFile = SD.open("/owner.txt");
       if (testFile) {
-        logSerial("--- Start of owner.txt ---");
+        logSerial("[SD] --- Start of owner.txt ---");
         while (testFile.available()) {
           Serial.write(testFile.read());
         }
         testFile.close();
-        logSerial("\n--- End of owner.txt ---");
+        logSerial("[SD] \n--- End of owner.txt ---");
       } else {
-        logSerial("Error: Could not open owner.txt");
+        logSerial("[SD] Error: Could not open owner.txt");
       }
     } else {
-      logSerial("No owner.txt file found on SD card");
+      logSerial("[SD] No owner.txt file found on SD card");
     }
   } else {
     sdCardAvailable = false;
-    logSerial("SD Card initialization failed (card not present or error)");
-    logSerial("Continuing without SD card support...");
+    logSerial("[SD] SD Card initialization failed (card not present or error)");
+    logSerial("[SD] Continuing without SD card support...");
   }
 #endif
 
@@ -612,7 +612,7 @@ void setup() {
     setupEthernet();
 
   // Wait up to 10 seconds for Ethernet to connect
-  logSerial("Waiting for Ethernet connection...");
+  logSerial("[ETH] Waiting for Ethernet connection...");
   int eth_attempts = 0;
   while (!eth_connected && eth_attempts < 20) {
     delay(500);
@@ -621,12 +621,12 @@ void setup() {
   }
   
   if (eth_connected) {
-    logSerial("\nEthernet connected successfully!");
-    logSerial("IP address: " + ETH.localIP().toString());
+    logSerial("[ETH] \nEthernet connected successfully!");
+    logSerial("[ETH] IP address: " + ETH.localIP().toString());
   } else {
     // Ethernet failed, try WiFi (Ethernet will keep trying in background)
-    logSerial("\nEthernet connection timeout. Falling back to WiFi...");
-    logSerial("Note: Ethernet will continue trying in background.");
+    logSerial("[ETH] \nEthernet connection timeout. Falling back to WiFi...");
+    logSerial("[ETH] Note: Ethernet will continue trying in background.");
     if (enable_oled) {
       updateBootStatus("Connecting WiFi...");
     }
@@ -654,7 +654,7 @@ void setup() {
 // }
 #if ENABLE_MDNS
   if (MDNS.begin(device_hostname.c_str())) {
-    logSerial("mDNS started: http://" + device_hostname + ".local");
+    logSerial("[SYSTEM] mDNS started: http://" + device_hostname + ".local");
   }
 #endif
 
@@ -669,7 +669,7 @@ void setup() {
     if (enable_oled) {
       updateBootStatus("Syncing time...");
     }
-    logSerial("Initializing NTP time client...");
+    logSerial("[NTP] Initializing NTP time client...");
     // Configure time with NTP servers (using saved timezone settings or config.h defaults)
     configTime(ntp_timezone_offset, ntp_daylight_offset, NTP_SERVER1, NTP_SERVER2);
 
@@ -682,12 +682,12 @@ void setup() {
     }
 
     if (ntp_attempts < 10) {
-      logSerial("NTP time synchronized successfully");
+      logSerial("[NTP] NTP time synchronized successfully");
       char timeStr[64];
       strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
-      logSerial("Current time: " + String(timeStr));
+      logSerial("[NTP] Current time: " + String(timeStr));
     } else {
-      logSerial("Warning: NTP time sync failed, timestamps will use system time");
+      logSerial("[NTP] Warning: NTP time sync failed, timestamps will use system time");
     }
   }
 
@@ -741,7 +741,7 @@ void setup() {
       logSerial("[MODE] POCSAG mode is disabled by default (not implemented yet)");
     }
   } else {
-    logSerial("[SYSTEM]WiFi not connected - skipping all network connections");
+    logSerial("[SYSTEM] WiFi not connected - skipping all network connections");
   }
 
   if (enable_oled) {
@@ -749,19 +749,19 @@ void setup() {
   }
   delay(1000);  // Show "Ready!" for 1 second
 
-  logSerial("Setup complete!");
+  logSerial("[SYSTEM] Setup complete!");
   if (apMode) {
-    logSerial("Access Point Mode - Connect to: " + String(ap_ssid));
-    logSerial("Web Interface: http://192.168.4.1");
+    logSerial("[AP] Access Point Mode - Connect to: " + String(ap_ssid));
+    logSerial("[AP] Web Interface: http://192.168.4.1");
   } else if (wifiConnected) {
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
     if (eth_connected) {
-      logSerial("Web Interface: http://" + ETH.localIP().toString());
+      logSerial("[ETH] Web Interface: http://" + ETH.localIP().toString());
     } else {
-      logSerial("Web Interface: http://" + WiFi.localIP().toString());
+      logSerial("[WiFi] Web Interface: http://" + WiFi.localIP().toString());
     }
 #else
-    logSerial("Web Interface: http://" + WiFi.localIP().toString());
+    logSerial("[WiFi] Web Interface: http://" + WiFi.localIP().toString());
 #endif
   }
 
@@ -892,16 +892,16 @@ void loop() {
         if (currentMillis - lastLoginAttempt >= DMR_LOGIN_TIMEOUT) {
           if (loginAttempts < DMR_LOGIN_MAX_RETRIES) {
             loginAttempts++;
-            logSerial("DMR login timeout - retrying (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")");
-            dmrLoginStatus = "Retrying... (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")";
+            logSerial("[SERVER] DMR login timeout - retrying (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")");
+            dmrLoginStatus = "[SERVER] Retrying... (" + String(loginAttempts) + "/" + String(DMR_LOGIN_MAX_RETRIES) + ")";
             connectToDMRNetwork();
             lastLoginAttempt = currentMillis;
             if (enable_oled) {
               updateOLEDStatus(); // Update display to show retry status
             }
           } else {
-            logSerial("DMR login failed after " + String(DMR_LOGIN_MAX_RETRIES) + " attempts");
-            dmrLoginStatus = "Login Failed";
+            logSerial("[SERVER] DMR login failed after " + String(DMR_LOGIN_MAX_RETRIES) + " attempts");
+            dmrLoginStatus = "[SERVER] Login Failed";
             dmrState = DMR_STATE::DISCONNECTED;
             if (enable_oled) {
               updateOLEDStatus(); // Update display to show failure
@@ -925,7 +925,7 @@ void loop() {
 }
 
 void setupWiFi() {
-  logSerial("Connecting to WiFi: " + String(ssid));
+  logSerial("[WiFi] Connecting to WiFi: " + String(ssid));
 
   setLEDMode(LED_MODE::FAST_BLINK);  // Fast blink while connecting
 
@@ -955,18 +955,18 @@ void setupWiFi() {
 #if ENABLE_RGB_LED
     rgbLed.setStatus(RGBLedStatus::NETWORK_CONNECTED);
 #endif
-    logSerial("\nWiFi Connected!");
-    logSerial("IP Address: " + WiFi.localIP().toString());
+    logSerial("\n[WiFi] WiFi Connected!");
+    logSerial("[WiFi] IP Address: " + WiFi.localIP().toString());
 
     // Start UDP
     udp.begin(LOCAL_PORT);
   } else {
-    logSerial("\nWiFi Connection Failed!");
+    logSerial("\n[WiFi] WiFi Connection Failed!");
 
     // Try all configured alternate WiFi networks
     for (int i = 0; i < 5; i++) {
       if (wifiNetworks[i].ssid.length() > 0) {
-        logSerial("Trying WiFi [" + wifiNetworks[i].label + "]: " + wifiNetworks[i].ssid);
+        logSerial("[WiFi] Trying WiFi [" + wifiNetworks[i].label + "]: " + wifiNetworks[i].ssid);
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);  // Clear any previous config
         WiFi.setHostname(device_hostname.c_str());                        // Set WiFi hostname
         WiFi.begin(wifiNetworks[i].ssid.c_str(), wifiNetworks[i].password.c_str());
@@ -985,8 +985,8 @@ void setupWiFi() {
 #if ENABLE_RGB_LED
           rgbLed.setStatus(RGBLedStatus::NETWORK_CONNECTED);
 #endif
-          logSerial("\nWiFi Connected [" + wifiNetworks[i].label + "]!");
-          logSerial("IP Address: " + WiFi.localIP().toString());
+          logSerial("\n[WiFi] WiFi Connected [" + wifiNetworks[i].label + "]!");
+          logSerial("[WiFi] IP Address: " + WiFi.localIP().toString());
           udp.begin(LOCAL_PORT);
           return;
         }
@@ -994,7 +994,7 @@ void setupWiFi() {
     }
 
     // If all fails, start Access Point
-    logSerial("Starting Access Point mode...");
+    logSerial("[WiFi] Starting Access Point mode...");
     setupAccessPoint();
   }
 }
@@ -1009,9 +1009,9 @@ void setupAccessPoint() {
 #endif
 
   IPAddress IP = WiFi.softAPIP();
-  logSerial("AP IP address: " + IP.toString());
-  logSerial("AP SSID: " + String(ap_ssid));
-  logSerial("AP Password: " + String(ap_password));
+  logSerial("[WiFi] AP IP address: " + IP.toString());
+  logSerial("[WiFi] AP SSID: " + String(ap_ssid));
+  logSerial("[WiFi] AP Password: " + String(ap_password));
 
   apMode = true;
 }
@@ -1020,20 +1020,20 @@ void setupAccessPoint() {
 void WiFiEvent(arduino_event_id_t event) {
   switch (event) {
     case ARDUINO_EVENT_ETH_START:
-      logSerial("ETH Started");
+      logSerial("[ETH] ETH Started");
       ETH.setHostname(device_hostname.c_str());
       break;
     case ARDUINO_EVENT_ETH_CONNECTED:
-      logSerial("ETH Connected");
+      logSerial("[ETH] ETH Connected");
       break;
     case ARDUINO_EVENT_ETH_GOT_IP:
-      logSerial("ETH MAC: " + ETH.macAddress());
-      logSerial("ETH IPv4: " + ETH.localIP().toString());
+      logSerial("[ETH] ETH MAC: " + ETH.macAddress());
+      logSerial("[ETH] ETH IPv4: " + ETH.localIP().toString());
       if (ETH.fullDuplex()) {
-        logSerial("ETH Mode: FULL_DUPLEX");
+        logSerial("[ETH] ETH Mode: FULL_DUPLEX");
       }
-      logSerial("ETH Speed: " + String(ETH.linkSpeed()) + "Mbps");
-      logSerial("ETH Gateway: " + ETH.gatewayIP().toString());
+      logSerial("[ETH] ETH Speed: " + String(ETH.linkSpeed()) + "Mbps");
+      logSerial("[ETH] ETH Gateway: " + ETH.gatewayIP().toString());
       eth_connected = true;
       wifiConnected = true;
       setLEDMode(LED_MODE::STEADY);
@@ -1043,10 +1043,10 @@ void WiFiEvent(arduino_event_id_t event) {
 
       // Start UDP for DMR network
       udp.begin(LOCAL_PORT);
-      logSerial("UDP started on port " + String(LOCAL_PORT));
+      logSerial("[NETWORK] UDP started on port " + String(LOCAL_PORT));
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
-      logSerial("ETH Disconnected");
+      logSerial("[ETH] ETH Disconnected");
       eth_connected = false;
       // Don't touch wifiConnected - WiFi may still be active
 #if ENABLE_RGB_LED
@@ -1057,7 +1057,7 @@ void WiFiEvent(arduino_event_id_t event) {
 #endif
       break;
     case ARDUINO_EVENT_ETH_STOP:
-      logSerial("ETH Stopped");
+      logSerial("[ETH] ETH Stopped");
       eth_connected = false;
       // Don't touch wifiConnected - WiFi may still be active
       break;
@@ -1069,7 +1069,7 @@ void WiFiEvent(arduino_event_id_t event) {
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 void setupEthernet() {
-  logSerial("Initializing Ethernet (LILYGO T-ETH-ELITE)...");
+  logSerial("[ETH] Initializing Ethernet (LILYGO T-ETH-ELITE)...");
 
   WiFi.onEvent(WiFiEvent);
 
@@ -1084,12 +1084,12 @@ void setupEthernet() {
   if (!ETH.begin(ETH_PHY_W5500, 1, ETH_CS_PIN, ETH_INT_PIN, ETH_RST_PIN,
                  SPI3_HOST,
                  ETH_SCLK_PIN, ETH_MISO_PIN, ETH_MOSI_PIN)) {
-    logSerial("ETH start Failed!");
-    logSerial("ERROR: Could not initialize Ethernet hardware!");
-    logSerial("Please check your wiring and board configuration.");
+    logSerial("[ETH] ETH start Failed!");
+    logSerial("[ETH] ERROR: Could not initialize Ethernet hardware!");
+    logSerial("[ETH] Please check your wiring and board configuration.");
   } else {
-    logSerial("ETH initialization started");
-    logSerial("Ethernet will connect in background...");
+    logSerial("[ETH] ETH initialization started");
+    logSerial("[ETH] Ethernet will connect in background...");
     // Give it a moment to start connecting
     delay(2000);
   }
@@ -1097,11 +1097,11 @@ void setupEthernet() {
 #endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 void setupMMDVM() {
-  logSerial("Initializing MMDVM...");
+  logSerial("[MODEM] Initializing MMDVM...");
   
   // Wake up MMDVM by starting continuous serial on GPIO 13
   // The modem needs ongoing UART activity on GPIO 13 to wake up and stay active
-  logSerial("Starting MMDVM wakeup serial on GPIO " + String(MMDVM_WAKEUP_PIN) + "...");
+  logSerial("[MODEM] Starting MMDVM wakeup serial on GPIO " + String(MMDVM_WAKEUP_PIN) + "...");
   
   MMDVMWakeup.begin(115200, SERIAL_8N1, 1, MMDVM_WAKEUP_PIN);  // RX=1, TX=13
   mmdvmWakeupActive = true;
@@ -1140,7 +1140,7 @@ void setupMMDVM() {
                 modemFirmwareVersion += (char)wakeRxBuffer[j];
               }
             }
-            logSerial("Modem Firmware (from wakeup): " + modemFirmwareVersion);
+            logSerial("[MODEM] Modem Firmware (from wakeup): " + modemFirmwareVersion);
             versionFromWakeup = true;
           }
           wakeRxPtr = 0;
@@ -1153,7 +1153,7 @@ void setupMMDVM() {
     }
   }
 
-  logSerial("MMDVM wakeup active (SVC LED should be blinking)");
+  logSerial("[MODEM] MMDVM wakeup active (SVC LED should be blinking)");
 
   // Clear any pending data from wakeup responses
   while (MMDVM_SERIAL.available()) {
@@ -1164,7 +1164,7 @@ void setupMMDVM() {
 
   // If we didn't get version from wakeup, try main UART
   if (!versionFromWakeup) {
-    logSerial("Requesting modem firmware version on main UART...");
+    logSerial("[MODEM] Requesting modem firmware version on main UART...");
     sendMMDVMCommand(CMD_GET_VERSION, NULL, 0);
     MMDVM_SERIAL.flush();
 
@@ -1196,7 +1196,7 @@ void setupMMDVM() {
                   modemFirmwareVersion += (char)tempRxBuffer[i];
                 }
               }
-              logSerial("Modem Firmware: " + modemFirmwareVersion);
+              logSerial("[MODEM] Modem Firmware: " + modemFirmwareVersion);
               versionReceived = true;
             }
             tempRxPtr = 0;
@@ -1211,14 +1211,14 @@ void setupMMDVM() {
     }
 
     if (!versionReceived) {
-      logSerial("Warning: No version response from modem");
+      logSerial("[MODEM] Warning: No version response from modem");
     }
   }
 
   // IMPORTANT: Set frequency BEFORE config (per MMDVMHost sequence)
   // This ensures the radio is tuned before mode-specific settings are applied
   uint8_t rfPower = 100;  // RF power level (0-255, typically 100)
-  logSerial("Setting modem frequency...");
+  logSerial("[MODEM] Setting modem frequency...");
   sendFrequency(dmr_rx_freq, dmr_tx_freq, rfPower);
   delay(100);
 
@@ -1281,11 +1281,15 @@ void setupMMDVM() {
   else if (modemState == 0x05) modeStr = "NXDN";
   else if (modemState == 0x07) modeStr = "POCSAG";
 
-  logSerial("Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") +
-            " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF"));
-  logSerial("Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) +
+  logSerial("[MODEM] Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") +
+            " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF")+
+            " YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") +
+            " P25: " + String(mode_p25_enabled ? "ON" : "OFF") +
+            " NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") +
+            " POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
+  logSerial("[MODEM] Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) +
             " byte[3] (state): 0x" + String(modemState, HEX));
-  logSerial("Setting modem configuration (Mode: " + modeStr + ", Color Code: " + String(dmr_color_code) + ")...");
+  logSerial("[MODEM] Setting modem configuration (Mode: " + modeStr + ", Color Code: " + String(dmr_color_code) + ")...");
   sendMMDVMCommand(CMD_SET_CONFIG, config, 23);
   delay(200);  // Give modem time to configure and set mode
 
@@ -1294,10 +1298,10 @@ void setupMMDVM() {
 
   // Only mark modem as ready if we successfully received firmware version
   if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
-    logSerial("MMDVM Initialized - Modem Ready");
+    logSerial("[MODEM] MMDVM Initialized - Modem Ready");
     mmdvmReady = true;
   } else {
-    logSerial("MMDVM Initialized - WARNING: No modem firmware version detected!");
+    logSerial("[MODEM] MMDVM Initialized - WARNING: No modem firmware version detected!");
     mmdvmReady = false;
   }
 }
@@ -1350,7 +1354,7 @@ void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower) {
 
   sendMMDVMCommand(CMD_SET_FREQ, freqData, 14);
 
-  logSerial("Frequency set - RX: " + String(rxFreq) + " Hz, TX: " + String(txFreq) + " Hz, Power: " + String(rfPower));
+  logSerial("[MODEM] Frequency set - RX: " + String(rxFreq) + " Hz, TX: " + String(txFreq) + " Hz, Power: " + String(rfPower));
 }
 
 void writeDMRStart(bool tx, String callsign) {
@@ -1365,7 +1369,7 @@ void writeDMRStart(bool tx, String callsign) {
   MMDVM_SERIAL.write(buffer, 4);
   MMDVM_SERIAL.flush();
   
-  String logMsg = tx ? "[MMDVM] DMR TX START" : "[MMDVM] DMR TX STOP";
+  String logMsg = tx ? "[MODEM] DMR TX START" : "[MODEM] DMR TX STOP";
   if (callsign.length() > 0) {
     logMsg += " - " + callsign;
   }
@@ -1408,7 +1412,7 @@ void processMMDVMFrame() {
   switch (cmd) {
     case CMD_GET_VERSION:
       {
-        String version = "MMDVM Version: ";
+        String version = "[MODEM] MMDVM Version: ";
         for (int i = 3; i < rxBufferPtr; i++) {
           version += (char)rxBuffer[i];
         }
@@ -1418,14 +1422,14 @@ void processMMDVMFrame() {
 
     case CMD_GET_STATUS:
       {
-        String status = "MMDVM Status - Mode: " + String(rxBuffer[3]) + " TX: " + String(rxBuffer[4]) + " Overflow: " + String(rxBuffer[7]);
+        String status = "[MODEM] MMDVM Status - Mode: " + String(rxBuffer[3]) + " TX: " + String(rxBuffer[4]) + " Overflow: " + String(rxBuffer[7]);
         logSerial(status);
       }
       break;
 
     case CMD_ACK:
       // Modem acknowledged a command
-      logSerialVerbose("MMDVM ACK received");
+      logSerialVerbose("[MODEM] MMDVM ACK received");
       break;
 
     case CMD_NAK:
@@ -1454,7 +1458,7 @@ void processMMDVMFrame() {
           case 5: reasonStr = "Not Enough Buffer Space"; break;
           default: reasonStr = "Unknown (" + String(reason) + ")"; break;
         }
-        logSerial("MMDVM NAK - Command: " + cmdStr + ", Reason: " + reasonStr);
+        logSerial("[MODEM] MMDVM NAK - Command: " + cmdStr + ", Reason: " + reasonStr);
       } else if (rxBufferPtr >= 4) {
         uint8_t reason = rxBuffer[3];
         String reasonStr;
@@ -1466,9 +1470,9 @@ void processMMDVMFrame() {
           case 5: reasonStr = "Not Enough Buffer Space"; break;
           default: reasonStr = "Unknown (" + String(reason) + ")"; break;
         }
-        logSerial("MMDVM NAK - Reason: " + reasonStr);
+        logSerial("[MODEM] MMDVM NAK - Reason: " + reasonStr);
       } else {
-        logSerial("MMDVM NAK received");
+        logSerial("[MODEM] MMDVM NAK received");
       }
       break;
 
@@ -1482,7 +1486,7 @@ void processMMDVMFrame() {
         udp.write(&rxBuffer[3], dataLen);
         udp.endPacket();
 
-        logSerial("DMR data forwarded to network");
+        logSerial("[DMR] DMR data forwarded to network");
         digitalWrite(COS_LED_PIN, HIGH);
 #if ENABLE_RGB_LED
         rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
@@ -1496,7 +1500,7 @@ void processMMDVMFrame() {
       break;
 
     default:
-      logSerial("Unknown MMDVM command: 0x" + String(cmd, HEX));
+      logSerial("[MODEM] Unknown MMDVM command: 0x" + String(cmd, HEX));
       break;
   }
 }
@@ -1525,7 +1529,7 @@ void handleNetwork() {
         if (isKeepalive) {
           logSerialVerbose(hexDump);
         } else {
-          logSerial(hexDump);
+          logSerial("[NETWORK] " + hexDump);
         }
       }
 
@@ -1544,8 +1548,8 @@ void handleNetwork() {
             case DMR_STATE::WAITING_CONFIG: stageMsg += "CONFIG"; break;
             default: stageMsg += "UNKNOWN";
           }
-          logSerial(stageMsg);
-          logSerial("STOPPING - Please check configuration and reboot");
+          logSerial("[DMR] " + stageMsg);
+          logSerial("[DMR] STOPPING - Please check configuration and reboot");
 
           // Stop trying to prevent ban
           dmrState = DMR_STATE::DISCONNECTED;
@@ -1561,26 +1565,26 @@ void handleNetwork() {
             if (dmrSalt[i] < 0x10) saltHex += "0";
             saltHex += String(dmrSalt[i], HEX);
           }
-          logSerial(saltHex);
+          logSerial("[DMR] " + saltHex);
 
           switch (dmrState) {
             case DMR_STATE::WAITING_LOGIN:
-              logSerial("Login ACK received (state: WAITING_LOGIN), sending auth...");
+              logSerial("[DMR] Login ACK received (state: WAITING_LOGIN), sending auth...");
               dmrState = DMR_STATE::WAITING_AUTH;
               sendDMRAuth();
               break;
             case DMR_STATE::WAITING_AUTH:
-              logSerial("Auth ACK received (state: WAITING_AUTH), sending config...");
+              logSerial("[DMR] Auth ACK received (state: WAITING_AUTH), sending config...");
               dmrState = DMR_STATE::WAITING_CONFIG;
               sendDMRConfig();
               break;
             case DMR_STATE::WAITING_CONFIG:
-              logSerial("Config ACK - CONNECTED!");
+              logSerial("[DMR] Config ACK - CONNECTED!");
               dmrLoggedIn = true;
               dmrLoginStatus = "Connected";
               dmrState = DMR_STATE::CONNECTED;
               loginAttempts = 0; // Reset retry counter on successful login
-              logSerial("DMR Network fully connected and operational!");
+              logSerial("[DMR] DMR Network fully connected and operational!");
 
               // Force immediate OLED update to show connected status
               if (enable_oled) {
@@ -1590,10 +1594,10 @@ void handleNetwork() {
               break;
             case DMR_STATE::DISCONNECTED:
               // Don't retry after NAK to prevent bans
-              logSerial("RPTACK received but in DISCONNECTED state - ignoring");
+              logSerial("[DMR] RPTACK received but in DISCONNECTED state - ignoring");
               break;
             default:
-              logSerial("RPTACK received in unexpected state: " + String((int)dmrState));
+              logSerial("[DMR] RPTACK received in unexpected state: " + String((int)dmrState));
               break;
           }
         }
@@ -1678,7 +1682,7 @@ void handleNetwork() {
             if (ber > 0 || rssi > 0) {
               dmrInfo += " BER=" + String(ber) + " RSSI=" + String(rssi);
             }
-            logSerial(dmrInfo);
+            logSerial("[DMR] " + dmrInfo);
           } else {
             // Continue existing transmission - just update sequence
             tx.lastSeq = seqNo;
@@ -1749,7 +1753,7 @@ void handleNetwork() {
                   logMsg += ", " + dmrActivity[activityIndex].srcCountry;
                 }
               }
-              logSerial(logMsg);
+              logSerial("[INFO] " + logMsg);
             }
           } else {
             // Update lastUpdate for timeout detection but keep startTime unchanged
@@ -1805,7 +1809,7 @@ if (debug_mmdvm) {
                              String(dmrModemData[2], HEX) + " " +
                              String(dmrModemData[3], HEX) + " " +
                              String(dmrModemData[4], HEX);
-            logSerial(debugMsg);
+            logSerial("[DMR] " + debugMsg);
 }
 
             // Only send DMR START once at beginning of transmission
@@ -1839,11 +1843,11 @@ void connectToDMRNetwork() {
   dmrState = DMR_STATE::WAITING_LOGIN;
   lastLoginAttempt = millis(); // Start timeout timer
 
-  logSerial("Connecting to DMR Network...");
-  logSerial("Server: " + dmr_server + ":" + String(dmr_port));
-  logSerial("Callsign: " + dmr_callsign + " ID: " + String(dmr_id));
+  logSerial("[DMR] Connecting to DMR Network...");
+  logSerial("[DMR] Server: " + dmr_server + ":" + String(dmr_port));
+  logSerial("[DMR] Callsign: " + dmr_callsign + " ID: " + String(dmr_id));
   if (dmr_essid > 0) {
-    logSerial("ESSID: " + String(dmr_essid));
+    logSerial("[DMR] ESSID: " + String(dmr_essid));
   }
 
   // Create proper BrandMeister login packet
@@ -1867,7 +1871,7 @@ void connectToDMRNetwork() {
   udp.write(loginPacket, 8);
   udp.endPacket();
 
-  logSerial("Login packet sent, ID: " + String(id_to_send));
+  logSerial("[DMR] Login packet sent, ID: " + String(id_to_send));
 }
 
 void sendDMRAuth() {
@@ -1883,7 +1887,7 @@ if (debug_password) {
   } else {
     passDebug += " [EMPTY!]";
   }
-  logSerial(passDebug);
+  logSerial("[DMR] " + passDebug);
 }
 
   // Calculate SHA256 hash of (salt + password)
@@ -1925,7 +1929,7 @@ if (debug_password) {
   udp.write(authPacket, 40);
   udp.endPacket();
 
-  logSerial("Auth packet sent (40 bytes)");
+  logSerial("[DMR] Auth packet sent (40 bytes)");
 }
 
 void sendDMRConfig() {
@@ -1982,8 +1986,8 @@ void sendDMRConfig() {
       configDebug += ".";
     }
   }
-  logSerial(configDebug);
-  logSerial("Config string length: " + String(strlen(configString)));
+  logSerial("[DMR] " + configDebug);
+  logSerial("[DMR] Config string length: " + String(strlen(configString)));
 
   // Build the packet with binary ID
   uint8_t configPacket[302];
@@ -2000,7 +2004,7 @@ void sendDMRConfig() {
   udp.write(configPacket, 302);
   udp.endPacket();
 
-  logSerial("Config packet sent (302 bytes)");
+  logSerial("[DMR] Config packet sent (302 bytes)");
 }
 
 void sendDMRKeepalive() {
@@ -2057,7 +2061,7 @@ bool writeSDFile(const char* path, const char* data) {
 
   File file = SD.open(path, FILE_WRITE);
   if (!file) {
-    logSerial("Failed to open file for writing: " + String(path));
+    logSerial("[SD] Failed to open file for writing: " + String(path));
     return false;
   }
 
@@ -2065,7 +2069,7 @@ bool writeSDFile(const char* path, const char* data) {
     file.close();
     return true;
   } else {
-    logSerial("Write failed");
+    logSerial("[SD] Write failed");
     file.close();
     return false;
   }
@@ -2092,7 +2096,7 @@ bool appendSDFile(const char* path, const char* data) {
 
   File file = SD.open(path, FILE_APPEND);
   if (!file) {
-    logSerial("Failed to open file for appending: " + String(path));
+    logSerial("[SD] Failed to open file for appending: " + String(path));
     return false;
   }
 
@@ -2100,7 +2104,7 @@ bool appendSDFile(const char* path, const char* data) {
     file.close();
     return true;
   } else {
-    logSerial("Append failed");
+    logSerial("[SD] Append failed");
     file.close();
     return false;
   }
@@ -2141,11 +2145,11 @@ void loadConfig() {
     dmr_description = preferences.getString("dmr_desc", "ESP32-MMDVM");
     dmr_url = preferences.getString("dmr_url", "");
 
-    logSerial("Loaded DMR config from storage");
-    logSerial("Callsign: " + dmr_callsign);
-    logSerial("DMR ID: " + String(dmr_id));
-    logSerial("Server: " + dmr_server);
-    logSerial("ESSID: " + String(dmr_essid));
+    logSerial("[SYSTEM] Loaded DMR config from storage");
+    logSerial("[SYSTEM] Callsign: " + dmr_callsign);
+    logSerial("[SYSTEM] DMR ID: " + String(dmr_id));
+    logSerial("[SYSTEM] Server: " + dmr_server);
+    logSerial("[SYSTEM] ESSID: " + String(dmr_essid));
   }
 
   // Load WiFi alternate settings
@@ -2161,19 +2165,18 @@ void loadConfig() {
 
   // Load hostname setting
   device_hostname = preferences.getString("hostname", MDNS_HOSTNAME);
-  logSerial("Hostname: " + device_hostname);
+  logSerial("[SYSTEM] Hostname: " + device_hostname);
 
   // Load verbose logging setting
   verbose_logging = preferences.getBool("verbose_log", false);
-  logSerial("Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
-
+  logSerial("[SYSTEM] Verbose logging: " + String(verbose_logging ? "enabled" : "disabled"));
   // Load debug settings (from preferences or config.h defaults)
   debug_serial = preferences.getBool("debug_serial", DEBUG_SERIAL);
   debug_mmdvm = preferences.getBool("debug_mmdvm", DEBUG_MMDVM);
   debug_network = preferences.getBool("debug_network", DEBUG_NETWORK);
   debug_dmr = preferences.getBool("debug_dmr", DEBUG_DMR);
   debug_password = preferences.getBool("debug_password", DEBUG_PASSWORD);
-  logSerial("Debug settings - Serial: " + String(debug_serial ? "ON" : "OFF") + 
+  logSerial("[SYSTEM] Debug settings - Serial: " + String(debug_serial ? "ON" : "OFF") + 
             " | MMDVM: " + String(debug_mmdvm ? "ON" : "OFF") + 
             " | Network: " + String(debug_network ? "ON" : "OFF") + 
             " | DMR: " + String(debug_dmr ? "ON" : "OFF") + 
@@ -2181,12 +2184,12 @@ void loadConfig() {
 
   // Load OLED display setting
   enable_oled = preferences.getBool("enable_oled", ENABLE_OLED);
-  logSerial("OLED display: " + String(enable_oled ? "enabled" : "disabled"));
+  logSerial("[OLED] OLED display: " + String(enable_oled ? "enabled" : "disabled"));
 
   // Load NTP timezone settings
   ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
   ntp_daylight_offset = preferences.getLong("ntp_dst_offset", NTP_DAYLIGHT_OFFSET);
-  logSerial("NTP Timezone offset: " + String(ntp_timezone_offset) + "s, DST offset: " + String(ntp_daylight_offset) + "s");
+  logSerial("[NTP] Timezone offset: " + String(ntp_timezone_offset) + "s, DST offset: " + String(ntp_daylight_offset) + "s");
 
   // Load web username
   web_username = preferences.getString("web_username", WEB_USERNAME);
@@ -2199,7 +2202,7 @@ void loadConfig() {
   if (web_password.length() == 0) {
     web_password = WEB_PASSWORD;  // Fallback to default if empty
   }
-  logSerial("Web authentication: enabled (user/password: " + web_username + "/" + web_password + ")");
+  logSerial("[SYSTEM] Web authentication: enabled (user/password: " + web_username + "/" + web_password + ")");
 
   // Load mode enable/disable settings (use config.h defaults if not saved)
   mode_dmr_enabled = preferences.getBool("mode_dmr", DEFAULT_MODE_DMR);
@@ -2208,11 +2211,11 @@ void loadConfig() {
   mode_p25_enabled = preferences.getBool("mode_p25", DEFAULT_MODE_P25);
   mode_nxdn_enabled = preferences.getBool("mode_nxdn", DEFAULT_MODE_NXDN);
   mode_pocsag_enabled = preferences.getBool("mode_pocsag", DEFAULT_MODE_POCSAG);
-  logSerial("Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
+  logSerial("[SYSTEM] Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
 
   // Load modem type
   modem_type = preferences.getString("modem_type", DEFAULT_MODEM_TYPE);
-  logSerial("Modem type: " + modem_type);
+  logSerial("[MODEM] Modem type: " + modem_type);
 
   preferences.end();
 }
@@ -2280,7 +2283,7 @@ void saveConfig() {
   preferences.putString("modem_type", modem_type);
 
   preferences.end();
-  logSerial("Configuration saved to storage");
+  logSerial("[SYSTEM] Configuration saved to storage");
 }
 
 // ===== Web Server Setup =====
@@ -2333,7 +2336,7 @@ void setupWebServer() {
   server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
 
   server.begin();
-  logSerial("Web server started.");
+  logSerial("[SYSTEM] Web server started.");
 }
 
 // ===== Status LED Control =====
@@ -2559,7 +2562,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       }
     }
   } else if (httpCode > 0) {
-    logSerial("User info lookup failed: HTTP " + String(httpCode));
+    logSerial("[API] User info lookup failed: HTTP " + String(httpCode));
   }
   
   http.end();
@@ -2670,9 +2673,9 @@ void setupOLED() {
   // Create mutex for display access protection
   displayMutex = xSemaphoreCreateMutex();
   if (displayMutex == NULL) {
-    logSerial("OLED: Failed to create display mutex!");
+    logSerial("[OLED] Failed to create display mutex!");
   } else {
-    logSerial("OLED: Display mutex created");
+    logSerial("[OLED] Display mutex created");
   }
 
   // Initialize I2C
@@ -2680,26 +2683,26 @@ void setupOLED() {
 
   // Initialize OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
-    logSerial("OLED: SSD1306 allocation failed!");
+    logSerial("[OLED] SSD1306 allocation failed!");
     return;
   }
-  logSerial("OLED: Display initialized successfully");
+  logSerial("[OLED] Display initialized successfully");
 
   // Display boot logos
   //
   //Bitmap logo first
   displayBitmap();
-  logSerial("OLED: Display logo bitmap");
+  logSerial("[OLED] Display logo bitmap");
   delay(5000);  // Show logo for 2 seconds
   //
   // Then ESP32 logo
   //displayESP32Logo();
-  //logSerial("OLED: Showing ESP32 logo");
+  //logSerial("[OLED] Showing ESP32 logo");
   //delay(2000);  // Show logo for 2 seconds
   //
   // boot logo last
   displayBootLogo();
-  logSerial("OLED: Showing boot screen");
+  logSerial("[OLED] Showing boot screen");
 }
 
 
@@ -2790,7 +2793,7 @@ void displayBootLogo() {
 
   display.display();
 
-  logSerial("OLED: Boot logo displayed");
+  logSerial("[OLED] Boot logo displayed");
 }
 
 void updateBootStatus(String status) {
@@ -2808,7 +2811,7 @@ void updateBootStatus(String status) {
 
   display.display();
 
-  logSerial("OLED: " + status);
+  logSerial("[OLED] " + status);
 }
 
 void updateOLEDStatus() {
@@ -2818,7 +2821,7 @@ void updateOLEDStatus() {
   if (displayMutex != NULL) {
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
       // Could not acquire mutex in 50ms, skip this update to avoid blocking
-      logSerial("OLED: Skipped update - mutex busy");
+      logSerial("[OLED] Skipped update - mutex busy");
       return;
     }
   }
@@ -3116,11 +3119,11 @@ void setOLEDPower(bool on) {
   if (on) {
     display.ssd1306_command(SSD1306_DISPLAYON);
     oledDisplayOn = true;
-    logSerial("OLED: Display turned ON");
+    logSerial("[OLED] Display turned ON");
   } else {
     display.ssd1306_command(SSD1306_DISPLAYOFF);
     oledDisplayOn = false;
-    logSerial("OLED: Display turned OFF");
+    logSerial("[OLED] Display turned OFF");
   }
 }
 
