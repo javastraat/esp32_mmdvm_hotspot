@@ -1526,23 +1526,58 @@ void processMMDVMFrame() {
     case CMD_DMR_DATA1:
     case CMD_DMR_DATA2:
       // DMR data received from MMDVM - forward to network (TRANSMITTING)
-      if (wifiConnected) {
-        // Extract DMR frame and send to network
+      {
+        uint8_t slot = (cmd == CMD_DMR_DATA1) ? 1 : 2;
         uint16_t dataLen = rxBufferPtr - 3;
-        udp.beginPacket(dmr_server.c_str(), dmr_port);
-        udp.write(&rxBuffer[3], dataLen);
-        udp.endPacket();
 
-        logSerial("[DMR] DMR data forwarded to network");
-        digitalWrite(COS_LED_PIN, HIGH);
+        if (debug_dmr) {
+          logSerial("[DEBUG] RX from radio: Slot " + String(slot) + ", Buffer size: " + String(rxBufferPtr) + ", Data length: " + String(dataLen) + " bytes");
+          logSerial("[DEBUG] WiFi connected: " + String(wifiConnected ? "YES" : "NO"));
+          logSerial("[DEBUG] DMR logged in: " + String(dmrLoggedIn ? "YES" : "NO"));
+          logSerial("[DEBUG] DMR state: " + String((int)dmrState));
+        }
+
+        if (wifiConnected) {
+          // Check if we're actually connected to DMR network
+          if (!dmrLoggedIn) {
+            logSerial("[DMR] WARNING: Data from radio but NOT logged into DMR network! State: " + String((int)dmrState));
+          }
+
+          // Extract DMR frame and send to network
+          int udpBeginResult = udp.beginPacket(dmr_server.c_str(), dmr_port);
+          if (debug_dmr) {
+            logSerial("[DEBUG] UDP beginPacket result: " + String(udpBeginResult));
+            logSerial("[DEBUG] Sending to: " + dmr_server + ":" + String(dmr_port));
+          }
+
+          size_t bytesWritten = udp.write(&rxBuffer[3], dataLen);
+          if (debug_dmr) {
+            logSerial("[DEBUG] UDP write: " + String(bytesWritten) + " bytes written");
+          }
+
+          int udpEndResult = udp.endPacket();
+          if (debug_dmr) {
+            logSerial("[DEBUG] UDP endPacket result: " + String(udpEndResult));
+          }
+
+          if (udpEndResult == 1) {
+            logSerial("[DMR] TX Slot" + String(slot) + ": " + String(dataLen) + " bytes sent to network");
+          } else {
+            logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
+          }
+
+          digitalWrite(COS_LED_PIN, HIGH);
 #if ENABLE_RGB_LED
-        rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
+          rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
 #endif
-        delay(50);
-        digitalWrite(COS_LED_PIN, LOW);
+          delay(50);
+          digitalWrite(COS_LED_PIN, LOW);
 #if ENABLE_RGB_LED
-        rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
+          rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
 #endif
+        } else {
+          logSerial("[DMR] ERROR: Cannot send - WiFi not connected!");
+        }
       }
       break;
 
