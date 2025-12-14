@@ -384,8 +384,10 @@ struct RFTransmission {
   bool isGroup;
   unsigned long startTime;
   String srcCallsign;
+  uint8_t startSeq;  // First sequence number
+  uint8_t lastSeq;   // Last sequence number
 };
-RFTransmission currentRFTx[2] = {{false, 0, 0, 1, true, 0, ""}, {false, 0, 0, 2, true, 0, ""}};  // One per slot
+RFTransmission currentRFTx[2] = {{false, 0, 0, 1, true, 0, "", 0, 0}, {false, 0, 0, 2, true, 0, "", 0, 0}};  // One per slot
 
 // DMR Transmission History (for Recent Activity display - INCOMING from network)
 // struct DMRHistory is defined in webpages.h/home.h
@@ -925,6 +927,13 @@ void loop() {
     if (currentRFTx[i].active && (currentMillis - lastTxTime > 1000)) {
       // RF transmission ended (no new frames for >1 second)
       uint32_t duration = (currentMillis - currentRFTx[i].startTime) / 1000;
+
+      // Log [END] with sequence range, similar to network RX format
+      if (currentRFTx[i].lastSeq > currentRFTx[i].startSeq) {
+        logSerial("[DMR] [RF->NET] Slot" + String(currentRFTx[i].slotNo) + " Seq=" + String(currentRFTx[i].startSeq) + "-" + String(currentRFTx[i].lastSeq) +
+                  " " + String(currentRFTx[i].srcId) + "->TG" + String(currentRFTx[i].dstId) + " [END]");
+      }
+
       if (duration > 0) {  // Only log if transmission lasted at least 1 second
         addRFHistory(currentRFTx[i].srcId, currentRFTx[i].srcCallsign, currentRFTx[i].dstId,
                      currentRFTx[i].isGroup, duration, currentRFTx[i].slotNo);
@@ -1010,7 +1019,7 @@ void loop() {
 }
 
 void setupWiFi() {
-  logSerial("[WiFi] Connecting to WiFi: " + String(ssid));
+  Serial.print("[WiFi] Connecting to WiFi: " + String(ssid));
 
   setLEDMode(LED_MODE::FAST_BLINK);  // Fast blink while connecting
 
@@ -1606,7 +1615,10 @@ void processMMDVMFrame() {
             }
 
             if (udpEndResult == 1) {
-              logSerial("[DMR] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes DMRD packet sent to network (seq=" + String(dmrdPacket[4]) + ")");
+              // Only log individual packets in debug mode
+              if (debug_dmr) {
+                logSerial("[DMR] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes DMRD packet sent to network (seq=" + String(dmrdPacket[4]) + ")");
+              }
             } else {
               logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
             }
@@ -2213,9 +2225,6 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
     // New transmission or header - generate new stream ID and reset sequence
     txSequence = 0;
     txStreamId = random(1, 0xFFFFFFFE);  // Random stream ID (avoid 0 and 0xFFFFFFFF)
-    if (debug_dmr) {
-      logSerial("[DMR] New TX stream - ID: 0x" + String(txStreamId, HEX) + " Type: " + String(isDataSync ? "DATA" : isAudioSync ? "AUDIO" : "VOICE"));
-    }
 
     // Start tracking RF transmission for history
     int slotIndex = slot - 1;
@@ -2226,6 +2235,13 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
     currentRFTx[slotIndex].isGroup = true;  // Assume group call
     currentRFTx[slotIndex].startTime = currentTime;
     currentRFTx[slotIndex].srcCallsign = dmr_callsign;
+    currentRFTx[slotIndex].startSeq = 0;
+    currentRFTx[slotIndex].lastSeq = 0;
+
+    // Log [START] similar to network RX format
+    String frameTypeStr = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
+    logSerial("[DMR] [RF->NET] Slot" + String(slot) + " Seq=" + String(txSequence) + " " +
+              String(dmr_id) + "->TG0 [START] Type=" + frameTypeStr);
 
     // Also update Live DMR Activity display (so RF TX shows in real-time on web UI and OLED)
     dmrActivity[slotIndex].active = true;
@@ -2263,6 +2279,11 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
   if (dmrActivity[slotIndex].active && dmrActivity[slotIndex].srcId == dmr_id) {
     dmrActivity[slotIndex].lastUpdate = currentTime;
     dmrActivity[slotIndex].frameType = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
+  }
+
+  // Track last sequence number for [END] logging
+  if (currentRFTx[slotIndex].active) {
+    currentRFTx[slotIndex].lastSeq = txSequence;
   }
 
   // Build DMRD packet structure (55 bytes total):
