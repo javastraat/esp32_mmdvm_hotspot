@@ -937,7 +937,8 @@ void loop() {
     // Check if DMR activity has timed out and add to history before deactivating
     if (dmrActivity[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
       // Add to history when activity times out (transmission ended)
-      if (dmrActivity[i].srcId > 0) {
+      // ONLY add to Recent DMR Activity if it's from the network (not local RF)
+      if (dmrActivity[i].srcId > 0 && dmrActivity[i].srcId != dmr_id) {
         uint32_t duration = (currentMillis - dmrActivity[i].startTime) / 1000;
         String location = "";
         if (dmrActivity[i].srcCity.length() > 0 || dmrActivity[i].srcCountry.length() > 0) {
@@ -1829,7 +1830,9 @@ void handleNetwork() {
           int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
           
           // Check if we need to add previous transmission to history (DMR ID changed)
-          if (dmrActivity[activityIndex].active && dmrActivity[activityIndex].srcId > 0 && dmrActivity[activityIndex].srcId != srcId) {
+          // ONLY add to Recent DMR Activity if it's from the network (not local RF)
+          if (dmrActivity[activityIndex].active && dmrActivity[activityIndex].srcId > 0 &&
+              dmrActivity[activityIndex].srcId != srcId && dmrActivity[activityIndex].srcId != dmr_id) {
             // Previous transmission ended, add it to history
             uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
             String location = "";
@@ -1838,8 +1841,8 @@ void handleNetwork() {
               if (dmrActivity[activityIndex].srcCity.length() > 0 && dmrActivity[activityIndex].srcCountry.length() > 0) location += ", ";
               if (dmrActivity[activityIndex].srcCountry.length() > 0) location += dmrActivity[activityIndex].srcCountry;
             }
-            addDMRHistory(dmrActivity[activityIndex].srcId, dmrActivity[activityIndex].srcCallsign, 
-                         dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId, 
+            addDMRHistory(dmrActivity[activityIndex].srcId, dmrActivity[activityIndex].srcCallsign,
+                         dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId,
                          dmrActivity[activityIndex].isGroup, duration, 0, 0, dmrActivity[activityIndex].slotNo);
           }
           
@@ -2223,8 +2226,44 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
     currentRFTx[slotIndex].isGroup = true;  // Assume group call
     currentRFTx[slotIndex].startTime = currentTime;
     currentRFTx[slotIndex].srcCallsign = dmr_callsign;
+
+    // Also update Live DMR Activity display (so RF TX shows in real-time on web UI and OLED)
+    dmrActivity[slotIndex].active = true;
+    dmrActivity[slotIndex].srcId = dmr_id;
+    dmrActivity[slotIndex].dstId = 0;  // Will be extracted from LC if available
+    dmrActivity[slotIndex].srcCallsign = dmr_callsign;
+    dmrActivity[slotIndex].isGroup = true;
+    dmrActivity[slotIndex].frameType = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
+    dmrActivity[slotIndex].startTime = currentTime;
+    dmrActivity[slotIndex].lastUpdate = currentTime;
+    dmrActivity[slotIndex].slotNo = slot;
+
+    // Lookup user info for display
+    String userInfo = lookupUserInfo(dmr_id);
+    if (userInfo.length() > 0) {
+      int pipe1 = userInfo.indexOf('|');
+      if (pipe1 > 0) {
+        dmrActivity[slotIndex].srcCallsign = userInfo.substring(0, pipe1);
+        int pipe2 = userInfo.indexOf('|', pipe1 + 1);
+        if (pipe2 > 0) {
+          dmrActivity[slotIndex].srcName = userInfo.substring(pipe1 + 1, pipe2);
+          int pipe3 = userInfo.indexOf('|', pipe2 + 1);
+          if (pipe3 > 0) {
+            dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
+            dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe3 + 1);
+          }
+        }
+      }
+    }
   }
   lastTxTime = currentTime;
+
+  // Keep Live DMR Activity updated while transmitting (update timestamp)
+  int slotIndex = slot - 1;
+  if (dmrActivity[slotIndex].active && dmrActivity[slotIndex].srcId == dmr_id) {
+    dmrActivity[slotIndex].lastUpdate = currentTime;
+    dmrActivity[slotIndex].frameType = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
+  }
 
   // Build DMRD packet structure (55 bytes total):
   // Bytes 0-3: "DMRD" magic (4 bytes)
@@ -2684,21 +2723,32 @@ void updateStatusLED() {
 // Enhanced user info lookup - checks cache first, then API
 String lookupUserInfo(uint32_t dmrId) {
   if (dmrId == 0) return "";
-  
+
+  // Check for special DMR system IDs first (these won't be in RadioID database)
+  switch (dmrId) {
+    case 9990: return "Echo|Echo Test|Parrot|Service";
+    case 4000: return "Disconnect|Disconnect|Service|Command";
+    case 5000: return "Status|Status Check|Service|Command";
+    case 8045: return "Time|Time Server|Service|Server";
+    case 9000: return "NXDN|NXDN Reflector|Service|Server";
+    case 9099: return "Info|Information|Service|Server";
+    default: break;  // Continue with normal lookup
+  }
+
   // Check cache first
   String cached = getCachedUserInfo(dmrId);
   if (cached.length() > 0) {
     return cached;
   }
-  
+
   // Not in cache, try API lookup
   String userInfo = lookupUserInfoAPI(dmrId);
-  
+
   // Cache the result (even if empty to avoid repeated failed lookups)
   if (userInfo.length() > 0) {
     cacheUserInfo(dmrId, userInfo);
   }
-  
+
   return userInfo;
 }
 
