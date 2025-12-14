@@ -1296,14 +1296,11 @@ void handleSaveOLED() {
     // Handle auto-blanking settings
     if (server.hasArg("autoBlank")) {
       oledAutoBlankEnabled = (server.arg("autoBlank") == "1");
-      logSerial("[DEBUG] Received autoBlank: " + server.arg("autoBlank") + " -> " + String(oledAutoBlankEnabled));
     }
     if (server.hasArg("blankTimeout")) {
       oledBlankTimeout = server.arg("blankTimeout").toInt();
-      logSerial("[DEBUG] Received blankTimeout: " + server.arg("blankTimeout") + " -> " + String(oledBlankTimeout) + "ms");
     }
 
-    logSerial("[DEBUG] About to save - autoBlank=" + String(oledAutoBlankEnabled) + ", timeout=" + String(oledBlankTimeout));
     saveConfig();
 
     String status = "SUCCESS: OLED display " + String(enable_oled ? "enabled" : "disabled");

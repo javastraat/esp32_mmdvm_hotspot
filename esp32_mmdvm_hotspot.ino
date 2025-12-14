@@ -2237,18 +2237,8 @@ void loadConfig() {
   bool firstBootAutoBlank = !preferences.isKey("oled_autoblank");
   bool firstBootTimeout = !preferences.isKey("oled_blank_to");
 
-  if (debug_serial) {
-    logSerial("[DEBUG] Auto-blank key exists: " + String(!firstBootAutoBlank));
-    logSerial("[DEBUG] Timeout key exists: " + String(!firstBootTimeout));
-  }
-
   oledAutoBlankEnabled = preferences.getBool("oled_autoblank", OLED_AUTO_BLANK_ENABLE);
   oledBlankTimeout = preferences.getULong("oled_blank_to", OLED_BLANK_TIMEOUT);
-
-  if (debug_serial) {
-    logSerial("[DEBUG] Loaded auto-blank: " + String(oledAutoBlankEnabled));
-    logSerial("[DEBUG] Loaded timeout: " + String(oledBlankTimeout) + "ms");
-  }
 
   // Save defaults on first boot so they appear in showPrefs
   if (firstBootAutoBlank) {
@@ -2345,12 +2335,8 @@ void saveConfig() {
   preferences.putBool("enable_oled", enable_oled);
 
   // Save OLED auto-blanking settings
-  size_t autoBlankResult = preferences.putBool("oled_autoblank", oledAutoBlankEnabled);
-  size_t timeoutResult = preferences.putULong("oled_blank_to", oledBlankTimeout);
-  if (debug_serial) {
-    logSerial("[DEBUG] Saved auto-blank: " + String(oledAutoBlankEnabled) + " (bytes: " + String(autoBlankResult) + ")");
-    logSerial("[DEBUG] Saved timeout: " + String(oledBlankTimeout) + "ms (bytes: " + String(timeoutResult) + ")");
-  }
+  preferences.putBool("oled_autoblank", oledAutoBlankEnabled);
+  preferences.putULong("oled_blank_to", oledBlankTimeout);
 
   // Save web credentials
   preferences.putString("web_username", web_username);
