@@ -1613,12 +1613,15 @@ void processMMDVMFrame() {
             logSerial("[DMR] ERROR: Failed to build DMRD packet!");
           }
 
+          // Flash COS LED briefly, then restore previous state
+          bool previousLedState = ledState;  // Save current LED state
           digitalWrite(COS_LED_PIN, HIGH);
 #if ENABLE_RGB_LED
           rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
 #endif
           delay(50);
-          digitalWrite(COS_LED_PIN, LOW);
+          // Restore previous LED state (WiFi status)
+          digitalWrite(COS_LED_PIN, previousLedState ? HIGH : LOW);
 #if ENABLE_RGB_LED
           rgbLed.setStatus(RGBLedStatus::IDLE_CONNECTED);
 #endif
