@@ -1821,13 +1821,13 @@ void handleNetwork() {
             tx.frameType = String(dataTypeStr);
             
             // Log the start of transmission
-            String dmrInfo = "[SERVER] DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
+            String dmrInfo = "DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
                             " " + String(srcId) + "->" + (isGroup ? "TG" : "") + String(dstId) +
                             " [START] Type=" + String(dataTypeStr);
             if (ber > 0 || rssi > 0) {
               dmrInfo += " BER=" + String(ber) + " RSSI=" + String(rssi);
             }
-            logSerial("[DMR] " + dmrInfo);
+            logSerial("[SERVER] " + dmrInfo);
           } else {
             // Continue existing transmission - just update sequence
             tx.lastSeq = seqNo;
@@ -1890,7 +1890,7 @@ void handleNetwork() {
             
             // Log with enhanced info if found
             if (dmrActivity[activityIndex].srcCallsign.length() > 0 && isNewTransmission) {
-              String logMsg = "[INFO] Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
+              String logMsg = "Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
               if (dmrActivity[activityIndex].srcName.length() > 0) {
                 logMsg += " - " + dmrActivity[activityIndex].srcName;
               }
