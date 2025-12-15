@@ -96,8 +96,8 @@ uint8_t dmr_essid = 0;  // ESSID 0-99
 const int dmr_port = DMR_PORT;
 
 // Additional DMR Configuration
-uint32_t dmr_rx_freq = 434000000;  // RX Frequency in Hz
-uint32_t dmr_tx_freq = 434000000;  // TX Frequency in Hz
+uint32_t dmr_rx_freq = MMDVM_FREQUENCY + MMDVM_RX_FREQ_OFFSET;  // RX Frequency in Hz (from config.h)
+uint32_t dmr_tx_freq = MMDVM_FREQUENCY + MMDVM_TX_FREQ_OFFSET;  // TX Frequency in Hz (from config.h)
 uint8_t dmr_power = 10;            // Power 0-99
 uint8_t dmr_color_code = 1;        // Color Code 0-15
 float dmr_latitude = 0.0;          // Latitude
@@ -2265,8 +2265,8 @@ void loadConfig() {
     dmr_essid = preferences.getUChar("dmr_essid", 0);
 
     // Load additional config options
-    dmr_rx_freq = preferences.getUInt("dmr_rx_freq", 434000000);
-    dmr_tx_freq = preferences.getUInt("dmr_tx_freq", 434000000);
+    dmr_rx_freq = preferences.getUInt("dmr_rx_freq", MMDVM_FREQUENCY + MMDVM_RX_FREQ_OFFSET);
+    dmr_tx_freq = preferences.getUInt("dmr_tx_freq", MMDVM_FREQUENCY + MMDVM_TX_FREQ_OFFSET);
     dmr_power = preferences.getUChar("dmr_power", 10);
     dmr_color_code = preferences.getUChar("dmr_cc", 1);
     dmr_latitude = preferences.getFloat("dmr_lat", 0.0);

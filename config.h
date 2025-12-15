@@ -122,7 +122,7 @@
 #define MMDVM_RF_LEVEL 100      // RF output power percentage (0-100)
 
 // Frequency Settings (for software-defined MMDVM hats)
-#define MMDVM_FREQUENCY 435000000  // Frequency in Hz (e.g., 434 MHz)
+#define MMDVM_FREQUENCY 434000000  // Frequency in Hz (e.g., 434 MHz)
 #define MMDVM_TX_FREQ_OFFSET 0     // TX frequency offset in Hz
 #define MMDVM_RX_FREQ_OFFSET 0     // RX frequency offset in Hz
 
