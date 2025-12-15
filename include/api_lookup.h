@@ -36,6 +36,9 @@ extern int userCacheIndex;
 extern CallsignCache callsignCache[DMR_CALLSIGN_CACHE_SIZE];
 extern int callsignCacheIndex;
 
+// External network state
+extern bool wifiConnected;
+
 // External logging function
 extern void logSerial(String message);
 extern void logSerialVerbose(String message);
@@ -50,5 +53,7 @@ String lookupUserInfo(uint32_t dmrId);
 String lookupUserInfoAPI(uint32_t dmrId);
 String getCachedCallsign(uint32_t dmrId);
 String getCachedUserInfo(uint32_t dmrId);
+void cacheCallsign(uint32_t dmrId, String callsign);
+void cacheUserInfo(uint32_t dmrId, String userInfo);
 
 #endif // API_LOOKUP_H
