@@ -1,0 +1,61 @@
+I need you to help extract function implementations from the main .ino file and create separate .cpp files. Here's what needs to be done:
+
+**Your task:**
+Create the following .cpp files in the `/Users/einstein/Software/esp32_mmdvm_hotspot/include/` directory:
+
+1. **preferences.cpp** - Extract these functions from esp32_mmdvm_hotspot.ino:
+   - loadConfig() (starts around line 2256)
+   - saveConfig() (starts around line 2374)
+
+2. **network.cpp** - Extract these functions:
+   - setupWiFi() (line 827)
+   - setupAccessPoint() (line 902)  
+   - setupEthernet() (line 971)
+   - WiFiEvent() - find this function
+
+3. **dmr_network.cpp** - Extract these functions:
+   - connectToDMRNetwork() (line 1793)
+   - sendDMRAuth() (line 1830)
+   - sendDMRConfig() (line 1888)
+   - sendDMRKeepalive() (line 1963)
+   - handleNetwork() (line 1459)
+
+4. **mmdvm_modem.cpp** - Extract these functions:
+   - setupMMDVM() (line 999)
+   - sendMMDVMCommand() (line 1209)
+   - sendFrequency() (line 1222)
+   - writeDMRStart() (line 1260)
+   - handleMMDVMSerial() (line 1279)
+   - processMMDVMFrame() (line 1307)
+
+5. **oled.cpp** - Extract OLED-related functions (search for functions starting with "setupOLED", "updateOLEDStatus", "updateBootStatus", "displayBootLogo", "displayESP32Logo", "testdrawbitmap", "setOLEDPower", "toggleOLEDPower")
+
+6. **api_lookup.cpp** - Extract API lookup functions:
+   - lookupCallsign()
+   - lookupCallsignAPI()
+   - lookupUserInfo()
+   - lookupUserInfoAPI()
+   - getCachedCallsign()
+   - getCachedUserInfo()
+   - cacheUserInfo()
+
+**Format for each .cpp file:**
+```cpp
+/*
+ * filename.cpp - Module Description
+ *
+ * Implementation of module functions
+ */
+
+#include "filename.h"
+
+// Function implementations here
+```
+
+**Important:**
+- Read the complete function implementations from esp32_mmdvm_hotspot.ino
+- Include the appropriate .h file at the top
+- Preserve all comments and logic
+- Don't modify the function code, just move it
+
+When you're done, report back with a summary of what you created.
