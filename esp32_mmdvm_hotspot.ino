@@ -42,9 +42,9 @@
 #include <Adafruit_SSD1306.h>
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
-#include <ETHClass2.h>       //Is to use the modified ETHClass
-#define ETH  ETH2
+#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+#include <ETHClass2.h>  //Is to use the modified ETHClass
+#define ETH ETH2
 #else
 #include <ETH.h>
 #endif
@@ -101,8 +101,8 @@ String dmr_url = DMR_URL;
 String device_hostname = MDNS_HOSTNAME;
 
 // NTP Time settings
-long ntp_timezone_offset = NTP_TIMEZONE_OFFSET;    // Timezone offset in seconds
-long ntp_daylight_offset = NTP_DAYLIGHT_OFFSET;    // Daylight saving offset in seconds
+long ntp_timezone_offset = NTP_TIMEZONE_OFFSET;  // Timezone offset in seconds
+long ntp_daylight_offset = NTP_DAYLIGHT_OFFSET;  // Daylight saving offset in seconds
 
 // Verbose logging setting (shows keepalive messages)
 bool verbose_logging = false;
@@ -199,7 +199,7 @@ SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from 
 // #define LOGO_HEIGHT   16
 // #define LOGO_WIDTH    16
 // static const unsigned char PROGMEM logo_bmp1[] =
-// { 
+// {
 //   B00000000, B11000000,
 //   B00000001, B11000000,
 //   B00000001, B11000000,
@@ -215,79 +215,78 @@ SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from 
 //   B00111111, B11110000,
 //   B01111100, B11110000,
 //   B01110000, B01110000,
-//   B00000000, B00110000 
+//   B00000000, B00110000
 
 // };
 
-#define LOGO_WIDTH  128
+#define LOGO_WIDTH 128
 #define LOGO_HEIGHT 64
-static const unsigned char PROGMEM logo_bmp[] =
-{
-// 'p', 128x64px
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x1f, 0xfc, 0x1e, 0x9f, 0xf0, 0x3c, 0x3c, 0x03, 0xf3, 0xf0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20, 
-0x07, 0x0c, 0x31, 0x87, 0x38, 0x7e, 0x7e, 0x00, 0xe1, 0xc0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20, 
-0x07, 0x04, 0x70, 0x87, 0x1c, 0x8e, 0x4f, 0x00, 0xe1, 0xc0, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x60, 
-0x07, 0x20, 0x70, 0x87, 0x1c, 0x0c, 0x07, 0x00, 0xe1, 0xc0, 0xf3, 0xf3, 0xbe, 0xc0, 0x79, 0xf8, 
-0x07, 0x20, 0x78, 0x07, 0x1c, 0x18, 0x07, 0x00, 0xe1, 0xc1, 0x99, 0xc6, 0x6f, 0x60, 0xcc, 0xe0, 
-0x07, 0xe0, 0x3e, 0x07, 0x38, 0x3c, 0x06, 0x00, 0xff, 0xc3, 0x9d, 0xc7, 0x2e, 0x71, 0xce, 0xe0, 
-0x07, 0x20, 0x0f, 0x87, 0xf0, 0x1e, 0x0c, 0x00, 0xe1, 0xc3, 0x9d, 0xc7, 0x8e, 0x71, 0xce, 0xe0, 
-0x07, 0x20, 0x43, 0xc7, 0x00, 0x0f, 0x08, 0x00, 0xe1, 0xc3, 0x9d, 0xc3, 0xce, 0x71, 0xce, 0xe0, 
-0x07, 0x02, 0x41, 0xc7, 0x00, 0x07, 0x10, 0x00, 0xe1, 0xc3, 0x9d, 0xc1, 0xee, 0x71, 0xce, 0xe0, 
-0x07, 0x02, 0x61, 0xc7, 0x00, 0xc7, 0x20, 0x80, 0xe1, 0xc3, 0x9d, 0xc4, 0xee, 0x71, 0xce, 0xe0, 
-0x07, 0x06, 0x71, 0x87, 0x00, 0xe6, 0x7f, 0x00, 0xe1, 0xc1, 0x99, 0xd6, 0x6f, 0x60, 0xcc, 0xe8, 
-0x1f, 0xfe, 0x4f, 0x1f, 0xc0, 0x78, 0xff, 0x03, 0xf3, 0xf0, 0xf0, 0xe5, 0xce, 0xc0, 0x78, 0x70, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x38, 0x00, 0x1f, 0xbf, 0x0e, 0x7f, 0x70, 0xf1, 0xd0, 0x1c, 0x07, 0xef, 0xc3, 0x87, 0x8f, 0x00, 
-0x18, 0x00, 0x0c, 0xd9, 0x8f, 0x31, 0x38, 0xe3, 0x30, 0x32, 0x03, 0x36, 0x66, 0xc3, 0x19, 0x80, 
-0x18, 0x00, 0x0c, 0xd8, 0xd3, 0x30, 0x38, 0xe6, 0x10, 0x32, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0, 
-0x1e, 0x3b, 0x0c, 0xd8, 0xc3, 0x34, 0x3d, 0x66, 0x00, 0x34, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0, 
-0x1b, 0x1a, 0x0f, 0x98, 0xc2, 0x3c, 0x2d, 0x66, 0x00, 0x5b, 0x83, 0xe6, 0x33, 0x83, 0x30, 0xc0, 
-0x1b, 0x1a, 0x0c, 0x18, 0xc4, 0x34, 0x2d, 0x66, 0x00, 0xd9, 0x03, 0x06, 0x36, 0xc3, 0x30, 0xc0, 
-0x1b, 0x0c, 0x0c, 0x18, 0xc8, 0x30, 0x2e, 0x66, 0x00, 0xce, 0x03, 0x06, 0x36, 0xdb, 0x30, 0xc0, 
-0x1b, 0x0c, 0x0c, 0x19, 0x8f, 0x31, 0x26, 0x63, 0x10, 0xe6, 0x83, 0x06, 0x66, 0xdb, 0x19, 0x80, 
-0x16, 0x04, 0x1e, 0x3f, 0x1f, 0x7f, 0x76, 0xf1, 0xe0, 0x7b, 0x07, 0x8f, 0xc3, 0x8e, 0x0f, 0x00, 
-0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+static const unsigned char PROGMEM logo_bmp[] = {
+  // 'p', 128x64px
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x1f, 0xfc, 0x1e, 0x9f, 0xf0, 0x3c, 0x3c, 0x03, 0xf3, 0xf0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20,
+  0x07, 0x0c, 0x31, 0x87, 0x38, 0x7e, 0x7e, 0x00, 0xe1, 0xc0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20,
+  0x07, 0x04, 0x70, 0x87, 0x1c, 0x8e, 0x4f, 0x00, 0xe1, 0xc0, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x60,
+  0x07, 0x20, 0x70, 0x87, 0x1c, 0x0c, 0x07, 0x00, 0xe1, 0xc0, 0xf3, 0xf3, 0xbe, 0xc0, 0x79, 0xf8,
+  0x07, 0x20, 0x78, 0x07, 0x1c, 0x18, 0x07, 0x00, 0xe1, 0xc1, 0x99, 0xc6, 0x6f, 0x60, 0xcc, 0xe0,
+  0x07, 0xe0, 0x3e, 0x07, 0x38, 0x3c, 0x06, 0x00, 0xff, 0xc3, 0x9d, 0xc7, 0x2e, 0x71, 0xce, 0xe0,
+  0x07, 0x20, 0x0f, 0x87, 0xf0, 0x1e, 0x0c, 0x00, 0xe1, 0xc3, 0x9d, 0xc7, 0x8e, 0x71, 0xce, 0xe0,
+  0x07, 0x20, 0x43, 0xc7, 0x00, 0x0f, 0x08, 0x00, 0xe1, 0xc3, 0x9d, 0xc3, 0xce, 0x71, 0xce, 0xe0,
+  0x07, 0x02, 0x41, 0xc7, 0x00, 0x07, 0x10, 0x00, 0xe1, 0xc3, 0x9d, 0xc1, 0xee, 0x71, 0xce, 0xe0,
+  0x07, 0x02, 0x61, 0xc7, 0x00, 0xc7, 0x20, 0x80, 0xe1, 0xc3, 0x9d, 0xc4, 0xee, 0x71, 0xce, 0xe0,
+  0x07, 0x06, 0x71, 0x87, 0x00, 0xe6, 0x7f, 0x00, 0xe1, 0xc1, 0x99, 0xd6, 0x6f, 0x60, 0xcc, 0xe8,
+  0x1f, 0xfe, 0x4f, 0x1f, 0xc0, 0x78, 0xff, 0x03, 0xf3, 0xf0, 0xf0, 0xe5, 0xce, 0xc0, 0x78, 0x70,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x38, 0x00, 0x1f, 0xbf, 0x0e, 0x7f, 0x70, 0xf1, 0xd0, 0x1c, 0x07, 0xef, 0xc3, 0x87, 0x8f, 0x00,
+  0x18, 0x00, 0x0c, 0xd9, 0x8f, 0x31, 0x38, 0xe3, 0x30, 0x32, 0x03, 0x36, 0x66, 0xc3, 0x19, 0x80,
+  0x18, 0x00, 0x0c, 0xd8, 0xd3, 0x30, 0x38, 0xe6, 0x10, 0x32, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0,
+  0x1e, 0x3b, 0x0c, 0xd8, 0xc3, 0x34, 0x3d, 0x66, 0x00, 0x34, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0,
+  0x1b, 0x1a, 0x0f, 0x98, 0xc2, 0x3c, 0x2d, 0x66, 0x00, 0x5b, 0x83, 0xe6, 0x33, 0x83, 0x30, 0xc0,
+  0x1b, 0x1a, 0x0c, 0x18, 0xc4, 0x34, 0x2d, 0x66, 0x00, 0xd9, 0x03, 0x06, 0x36, 0xc3, 0x30, 0xc0,
+  0x1b, 0x0c, 0x0c, 0x18, 0xc8, 0x30, 0x2e, 0x66, 0x00, 0xce, 0x03, 0x06, 0x36, 0xdb, 0x30, 0xc0,
+  0x1b, 0x0c, 0x0c, 0x19, 0x8f, 0x31, 0x26, 0x63, 0x10, 0xe6, 0x83, 0x06, 0x66, 0xdb, 0x19, 0x80,
+  0x16, 0x04, 0x1e, 0x3f, 0x1f, 0x7f, 0x76, 0xf1, 0xe0, 0x7b, 0x07, 0x8f, 0xc3, 0x8e, 0x0f, 0x00,
+  0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 // Icon bitmaps for OLED display (8x8 pixels)
@@ -353,8 +352,8 @@ unsigned long lastKeepalive = 0;
 // DMR Activity Tracking (struct defined in home.h)
 // Track up to 2 simultaneous transmissions (one per slot)
 DMRActivity dmrActivity[2] = {
-  {0, 0, 1, true, "", "", "", "", "", 0, 0, false},
-  {0, 0, 2, true, "", "", "", "", "", 0, 0, false}
+  { 0, 0, 1, true, "", "", "", "", "", 0, 0, false },
+  { 0, 0, 2, true, "", "", "", "", "", 0, 0, false }
 };
 
 // DMR Transmission Tracking (for consolidated log output)
@@ -368,12 +367,12 @@ struct DMRTransmission {
   bool active;
   String frameType;
 };
-DMRTransmission currentTx[2] = {{0, 0, 0, true, 0, 0, false, ""}, {0, 0, 0, true, 0, 0, false, ""}};
+DMRTransmission currentTx[2] = { { 0, 0, 0, true, 0, 0, false, "" }, { 0, 0, 0, true, 0, 0, false, "" } };
 
 // TX Sequence and Stream ID tracking (for building DMRD packets when transmitting)
-uint8_t txSequence = 0;              // Incrementing sequence number for TX packets
-uint32_t txStreamId = 0;             // Stream ID for current TX transmission
-unsigned long lastTxTime = 0;        // Timestamp of last TX packet (to detect new transmissions)
+uint8_t txSequence = 0;        // Incrementing sequence number for TX packets
+uint32_t txStreamId = 0;       // Stream ID for current TX transmission
+unsigned long lastTxTime = 0;  // Timestamp of last TX packet (to detect new transmissions)
 
 // RF Transmission tracking (for local TX history)
 struct RFTransmission {
@@ -387,7 +386,7 @@ struct RFTransmission {
   uint8_t startSeq;  // First sequence number
   uint8_t lastSeq;   // Last sequence number
 };
-RFTransmission currentRFTx[2] = {{false, 0, 0, 1, true, 0, "", 0, 0}, {false, 0, 0, 2, true, 0, "", 0, 0}};  // One per slot
+RFTransmission currentRFTx[2] = { { false, 0, 0, 1, true, 0, "", 0, 0 }, { false, 0, 0, 2, true, 0, "", 0, 0 } };  // One per slot
 
 // DMR Transmission History (for Recent Activity display - INCOMING from network)
 // struct DMRHistory is defined in webpages.h/home.h
@@ -433,7 +432,7 @@ WiFiNetwork wifiNetworks[5] = {
 
 // Firmware version from config.h
 String firmwareVersion = FIRMWARE_VERSION;
-String modemFirmwareVersion = "Unknown"; // MMDVM modem firmware version
+String modemFirmwareVersion = "Unknown";  // MMDVM modem firmware version
 
 // LED Status Control (STATUS_LED_PIN defined in config.h)
 
@@ -460,17 +459,17 @@ String modem_type = DEFAULT_MODEM_TYPE;
 
 // OLED timing and state variables (always available for runtime checks)
 unsigned long lastOLEDUpdate = 0;
-unsigned long lastNetworkToggle = 0;     // Separate timer for network toggle
-#define OLED_UPDATE_INTERVAL 5000        // Update OLED every 5 seconds (idle)
-#define OLED_UPDATE_INTERVAL_ACTIVE 1000 // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
-#define NETWORK_TOGGLE_INTERVAL 5000     // Toggle network display every 5 seconds
-bool oledShowEthernet = true;  // Toggle between ETH and WiFi display when both connected
-int oledActiveSlot = 1;        // Track which slot to display when both active (start with Slot 2)
-int oledHeaderCycle = 0;       // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
-bool oledDisplayOn = true;     // Track OLED display power state (for physical on/off control)
+unsigned long lastNetworkToggle = 0;      // Separate timer for network toggle
+#define OLED_UPDATE_INTERVAL 5000         // Update OLED every 5 seconds (idle)
+#define OLED_UPDATE_INTERVAL_ACTIVE 1000  // Update OLED every 2 seconds when DMR active (reduced from 1s to avoid SPI conflicts)
+#define NETWORK_TOGGLE_INTERVAL 5000      // Toggle network display every 5 seconds
+bool oledShowEthernet = true;             // Toggle between ETH and WiFi display when both connected
+int oledActiveSlot = 1;                   // Track which slot to display when both active (start with Slot 2)
+int oledHeaderCycle = 0;                  // Cycle through: 0=WiFi, 1=ETH, 2=Callsign (or fewer if not all connected)
+bool oledDisplayOn = true;                // Track OLED display power state (for physical on/off control)
 
 // OLED Auto-Blanking variables
-bool oledAutoBlankEnabled = OLED_AUTO_BLANK_ENABLE;  // Enable/disable auto-blanking (can be changed at runtime)
+bool oledAutoBlankEnabled = OLED_AUTO_BLANK_ENABLE;   // Enable/disable auto-blanking (can be changed at runtime)
 unsigned long oledBlankTimeout = OLED_BLANK_TIMEOUT;  // Timeout duration in milliseconds (can be changed at runtime)
 unsigned long lastActivityTime = 0;                   // Timestamp of last activity (DMR, button press, etc.)
 bool oledBlankingActive = false;                      // Track if screen was auto-blanked (vs manually turned off)
@@ -596,7 +595,9 @@ void setup() {
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
     logSerial("[SD] SD Card initialized successfully");
     logSerial("[SD] SD Card Size: " + String((uint32_t)cardSize) + " MB");
-    logSerial("[SD] SD Card Type: " + String(sdCardType == CARD_MMC ? "MMC" : sdCardType == CARD_SD ? "SD" : sdCardType == CARD_SDHC ? "SDHC" : "Unknown"));
+    logSerial("[SD] SD Card Type: " + String(sdCardType == CARD_MMC ? "MMC" : sdCardType == CARD_SD   ? "SD"
+                                                                            : sdCardType == CARD_SDHC ? "SDHC"
+                                                                                                      : "Unknown"));
 
     // Create directories if they don't exist
     if (!SD.exists("/logs")) {
@@ -638,10 +639,10 @@ void setup() {
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-    if (enable_oled) {
-      updateBootStatus("Init Ethernet...");
-    }
-    setupEthernet();
+  if (enable_oled) {
+    updateBootStatus("Init Ethernet...");
+  }
+  setupEthernet();
 
   // Wait up to 10 seconds for Ethernet to connect
   logSerial("[ETH] Waiting for Ethernet connection...");
@@ -651,7 +652,7 @@ void setup() {
     Serial.print(".");
     eth_attempts++;
   }
-  
+
   if (eth_connected) {
     logSerial("[ETH] \nEthernet connected successfully!");
     logSerial("[ETH] IP address: " + ETH.localIP().toString());
@@ -730,9 +731,9 @@ void setup() {
   if (wifiConnected) {
     // DMR Network Connection
     if (mode_dmr_enabled) {
-      #if ENABLE_OLED
+#if ENABLE_OLED
       updateBootStatus("Connecting DMR...");
-      #endif
+#endif
       connectToDMRNetwork();
     } else {
       logSerial("[MODE] DMR mode is disabled - skipping DMR network connection");
@@ -809,7 +810,7 @@ void setup() {
 void loop() {
   // MMDVM wakeup serial on GPIO 13 stays open (no need to send more data after initial wakeup)
   // Just keeping the UART port active is enough to keep the modem awake
-  
+
   // Check for OLED power button press (GPIO 0)
   static unsigned long lastButtonPress = 0;
   static bool lastButtonState = HIGH;
@@ -827,14 +828,14 @@ void loop() {
     } else {
       // Normal toggle behavior (manual on/off)
       toggleOLEDPower();
-      oledBlankingActive = false;  // Clear auto-blanking flag when manually controlled
+      oledBlankingActive = false;   // Clear auto-blanking flag when manually controlled
       lastActivityTime = millis();  // Reset activity timer
     }
 
     lastButtonPress = millis();
   }
   lastButtonState = buttonState;
-  
+
   // Update status LED
   updateStatusLED();
 
@@ -865,9 +866,9 @@ void loop() {
 #endif
 #endif
 
-    int maxCycle = 1; // Default: 2 states (network + callsign)
+    int maxCycle = 1;  // Default: 2 states (network + callsign)
     if (hasWifi && hasEth) {
-      maxCycle = 2; // 3 states (wifi, eth, callsign)
+      maxCycle = 2;  // 3 states (wifi, eth, callsign)
     }
 
     oledHeaderCycle++;
@@ -930,8 +931,7 @@ void loop() {
 
       // Log [END] with sequence range, similar to network RX format
       if (currentRFTx[i].lastSeq > currentRFTx[i].startSeq) {
-        logSerial("[DMR] [RF->NET] Slot" + String(currentRFTx[i].slotNo) + " Seq=" + String(currentRFTx[i].startSeq) + "-" + String(currentRFTx[i].lastSeq) +
-                  " " + String(currentRFTx[i].srcId) + "->TG" + String(currentRFTx[i].dstId) + " [END]");
+        logSerial("[DMR] [RF->NET] Slot" + String(currentRFTx[i].slotNo) + " Seq=" + String(currentRFTx[i].startSeq) + "-" + String(currentRFTx[i].lastSeq) + " " + String(currentRFTx[i].srcId) + "->TG" + String(currentRFTx[i].dstId) + " [END]");
       }
 
       if (duration > 0) {  // Only log if transmission lasted at least 1 second
@@ -956,17 +956,15 @@ void loop() {
           if (dmrActivity[i].srcCountry.length() > 0) location += dmrActivity[i].srcCountry;
         }
         addDMRHistory(dmrActivity[i].srcId, dmrActivity[i].srcCallsign, dmrActivity[i].srcName, location,
-                     dmrActivity[i].dstId, dmrActivity[i].isGroup, duration, 0, 0, dmrActivity[i].slotNo);
+                      dmrActivity[i].dstId, dmrActivity[i].isGroup, duration, 0, 0, dmrActivity[i].slotNo);
       }
       dmrActivity[i].active = false;
     }
-    
+
     // Also check transmission timeout and log the end
     if (currentTx[i].active && (currentMillis - dmrActivity[i].lastUpdate > DMR_ACTIVITY_TIMEOUT)) {
       if (currentTx[i].lastSeq > currentTx[i].startSeq) {
-        String txSummary = "[SERVER] DMR: Slot" + String(currentTx[i].slotNo) + " Seq=" + String(currentTx[i].startSeq) + "-" + String(currentTx[i].lastSeq) + 
-                          " " + String(currentTx[i].srcId) + "->" + (currentTx[i].isGroup ? "TG" : "") + String(currentTx[i].dstId) +
-                          " [END]";
+        String txSummary = "[SERVER] DMR: Slot" + String(currentTx[i].slotNo) + " Seq=" + String(currentTx[i].startSeq) + "-" + String(currentTx[i].lastSeq) + " " + String(currentTx[i].srcId) + "->" + (currentTx[i].isGroup ? "TG" : "") + String(currentTx[i].dstId) + " [END]";
         logSerial(txSummary);
       }
       currentTx[i].active = false;
@@ -979,9 +977,7 @@ void loop() {
 
     // Check for DMR login timeout and retry if needed
     if (mode_dmr_enabled && !dmrLoggedIn && wifiConnected) {
-      if (dmrState == DMR_STATE::WAITING_LOGIN ||
-          dmrState == DMR_STATE::WAITING_AUTH ||
-          dmrState == DMR_STATE::WAITING_CONFIG) {
+      if (dmrState == DMR_STATE::WAITING_LOGIN || dmrState == DMR_STATE::WAITING_AUTH || dmrState == DMR_STATE::WAITING_CONFIG) {
 
         if (currentMillis - lastLoginAttempt >= DMR_LOGIN_TIMEOUT) {
           if (loginAttempts < DMR_LOGIN_MAX_RETRIES) {
@@ -991,14 +987,14 @@ void loop() {
             connectToDMRNetwork();
             lastLoginAttempt = currentMillis;
             if (enable_oled) {
-              updateOLEDStatus(); // Update display to show retry status
+              updateOLEDStatus();  // Update display to show retry status
             }
           } else {
             logSerial("[SERVER] DMR login failed after " + String(DMR_LOGIN_MAX_RETRIES) + " attempts");
             dmrLoginStatus = "[SERVER] Login Failed";
             dmrState = DMR_STATE::DISCONNECTED;
             if (enable_oled) {
-              updateOLEDStatus(); // Update display to show failure
+              updateOLEDStatus();  // Update display to show failure
             }
           }
         }
@@ -1192,17 +1188,17 @@ void setupEthernet() {
 
 void setupMMDVM() {
   logSerial("[MODEM] Initializing MMDVM...");
-  
+
   // Wake up MMDVM by starting continuous serial on GPIO 13
   // The modem needs ongoing UART activity on GPIO 13 to wake up and stay active
   logSerial("[MODEM] Starting MMDVM wakeup serial on GPIO " + String(MMDVM_WAKEUP_PIN) + "...");
-  
+
   MMDVMWakeup.begin(115200, SERIAL_8N1, 1, MMDVM_WAKEUP_PIN);  // RX=1, TX=13
   mmdvmWakeupActive = true;
   delay(100);
-  
+
   // Send initial wakeup burst and try to get version from wakeup responses
-  uint8_t wakeCmd[] = {MMDVM_FRAME_START, 0x03, CMD_GET_VERSION};
+  uint8_t wakeCmd[] = { MMDVM_FRAME_START, 0x03, CMD_GET_VERSION };
   bool versionFromWakeup = false;
   uint8_t wakeRxBuffer[256];
   int wakeRxPtr = 0;
@@ -1210,7 +1206,7 @@ void setupMMDVM() {
   for (int i = 0; i < 20 && !versionFromWakeup; i++) {
     MMDVMWakeup.write(wakeCmd, 3);
     MMDVMWakeup.flush();
-    delay(100); // Longer delay to allow response
+    delay(100);  // Longer delay to allow response
 
     // Check for response on wakeup serial
     unsigned long wakeTimeout = millis() + 50;
@@ -1228,7 +1224,7 @@ void setupMMDVM() {
 
         if (wakeRxPtr >= frameLength) {
           if (wakeRxPtr >= 3 && wakeRxBuffer[2] == CMD_GET_VERSION && wakeRxPtr > 4) {
-            modemFirmwareVersion = ""; // Clear existing version
+            modemFirmwareVersion = "";  // Clear existing version
             for (int j = 4; j < wakeRxPtr && wakeRxBuffer[j] != 0x00; j++) {
               if (wakeRxBuffer[j] >= 32 && wakeRxBuffer[j] < 127) {
                 modemFirmwareVersion += (char)wakeRxBuffer[j];
@@ -1254,7 +1250,7 @@ void setupMMDVM() {
     MMDVM_SERIAL.read();
   }
 
-  delay(1000); // Give modem more time to stabilize
+  delay(1000);  // Give modem more time to stabilize
 
   // If we didn't get version from wakeup, try main UART
   if (!versionFromWakeup) {
@@ -1263,7 +1259,7 @@ void setupMMDVM() {
     MMDVM_SERIAL.flush();
 
     // Wait for version response
-    unsigned long versionTimeout = millis() + 3000; // 3 second timeout
+    unsigned long versionTimeout = millis() + 3000;  // 3 second timeout
     bool versionReceived = false;
     uint8_t tempRxBuffer[256];
     int tempRxPtr = 0;
@@ -1284,7 +1280,7 @@ void setupMMDVM() {
           if (tempRxPtr >= frameLength) {
             // Check if this is a version response
             if (tempRxPtr >= 3 && tempRxBuffer[2] == CMD_GET_VERSION) {
-              modemFirmwareVersion = ""; // Clear existing version
+              modemFirmwareVersion = "";  // Clear existing version
               for (int i = 4; i < tempRxPtr && tempRxBuffer[i] != 0x00; i++) {
                 if (tempRxBuffer[i] >= 32 && tempRxBuffer[i] < 127) {
                   modemFirmwareVersion += (char)tempRxBuffer[i];
@@ -1337,12 +1333,12 @@ void setupMMDVM() {
   config[2] = MMDVM_TX_DELAY;
 
   // Byte 3: Modem state (0x00=IDLE, 0x01=DSTAR, 0x02=DMR, etc.)
-  uint8_t modemState = 0x00;  // Start in IDLE, will set mode separately
-  if (mode_dmr_enabled) modemState = 0x02;  // DMR
-  else if (mode_dstar_enabled) modemState = 0x01;  // D-Star
-  else if (mode_ysf_enabled) modemState = 0x03;  // YSF
-  else if (mode_p25_enabled) modemState = 0x04;  // P25
-  else if (mode_nxdn_enabled) modemState = 0x05;  // NXDN
+  uint8_t modemState = 0x00;                        // Start in IDLE, will set mode separately
+  if (mode_dmr_enabled) modemState = 0x02;          // DMR
+  else if (mode_dstar_enabled) modemState = 0x01;   // D-Star
+  else if (mode_ysf_enabled) modemState = 0x03;     // YSF
+  else if (mode_p25_enabled) modemState = 0x04;     // P25
+  else if (mode_nxdn_enabled) modemState = 0x05;    // NXDN
   else if (mode_pocsag_enabled) modemState = 0x07;  // POCSAG
   config[3] = modemState;
 
@@ -1375,14 +1371,8 @@ void setupMMDVM() {
   else if (modemState == 0x05) modeStr = "NXDN";
   else if (modemState == 0x07) modeStr = "POCSAG";
 
-  logSerial("[MODEM] Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") +
-            " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF")+
-            " YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") +
-            " P25: " + String(mode_p25_enabled ? "ON" : "OFF") +
-            " NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") +
-            " POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
-  logSerial("[MODEM] Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) +
-            " byte[3] (state): 0x" + String(modemState, HEX));
+  logSerial("[MODEM] Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
+  logSerial("[MODEM] Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) + " byte[3] (state): 0x" + String(modemState, HEX));
   logSerial("[MODEM] Setting modem configuration (Mode: " + modeStr + ", Color Code: " + String(dmr_color_code) + ")...");
   sendMMDVMCommand(CMD_SET_CONFIG, config, 23);
   delay(200);  // Give modem time to configure and set mode
@@ -1459,10 +1449,10 @@ void writeDMRStart(bool tx, String callsign) {
   buffer[1] = 4;  // Length
   buffer[2] = CMD_DMR_START;
   buffer[3] = tx ? 0x01 : 0x00;  // 0x01 = start TX, 0x00 = stop TX
-  
+
   MMDVM_SERIAL.write(buffer, 4);
   MMDVM_SERIAL.flush();
-  
+
   String logMsg = tx ? "[MODEM] DMR TX START" : "[MODEM] DMR TX STOP";
   if (callsign.length() > 0) {
     logMsg += " - " + callsign;
@@ -1728,13 +1718,13 @@ void handleNetwork() {
               dmrLoggedIn = true;
               dmrLoginStatus = "Connected";
               dmrState = DMR_STATE::CONNECTED;
-              loginAttempts = 0; // Reset retry counter on successful login
+              loginAttempts = 0;  // Reset retry counter on successful login
               logSerial("[DMR] DMR Network fully connected and operational!");
 
               // Force immediate OLED update to show connected status
               if (enable_oled) {
                 updateOLEDStatus();
-                lastOLEDUpdate = millis(); // Reset timer
+                lastOLEDUpdate = millis();  // Reset timer
               }
               break;
             case DMR_STATE::DISCONNECTED:
@@ -1757,17 +1747,17 @@ void handleNetwork() {
           uint32_t srcId = (packet[5] << 16) | (packet[6] << 8) | packet[7];
           uint32_t dstId = (packet[8] << 16) | (packet[9] << 8) | packet[10];
           uint32_t rptId = (packet[11] << 24) | (packet[12] << 16) | (packet[13] << 8) | packet[14];
-          
+
           uint8_t controlByte = packet[15];
           uint8_t slotNo = (controlByte & 0x80) ? 2 : 1;
           bool isGroup = (controlByte & 0x40) == 0;  // 0=Group, 1=Private
           bool dataSync = (controlByte & 0x20) != 0;
           bool voiceSync = (controlByte & 0x10) != 0;
           uint8_t dataType = controlByte & 0x0F;
-          
+
           uint8_t ber = packet[53];
           uint8_t rssi = packet[54];
-          
+
           // Data type names
           const char* dataTypeStr = "UNKNOWN";
           switch (dataType) {
@@ -1781,35 +1771,33 @@ void handleNetwork() {
             case 0x09: dataTypeStr = "IDLE"; break;
             case 0x0A: dataTypeStr = "RATE_1_DATA"; break;
           }
-          
+
           // If it's a voice frame (no specific data type flag), show as VOICE
           if (!dataSync && voiceSync) {
             dataTypeStr = "VOICE";
           } else if (!dataSync && !voiceSync) {
             dataTypeStr = "VOICE_BURST";
           }
-          
+
           // Check if this is a TERM_LC (transmission end marker)
-          bool isTermLC = (dataType == 0x02); // TERM_LC
-          
+          bool isTermLC = (dataType == 0x02);  // TERM_LC
+
           // Build readable log message with consolidated transmission tracking
           int txIndex = slotNo - 1;
-          DMRTransmission &tx = currentTx[txIndex];
-          
+          DMRTransmission& tx = currentTx[txIndex];
+
           // Check if this is a new transmission (different source/dest or was inactive)
           bool isNewTransmission = !tx.active || tx.srcId != srcId || tx.dstId != dstId;
-          
+
           // TERM_LC within the same transmission is just a superframe marker, not the actual end
           // Only end transmission if we haven't seen frames for a while or source/dest changed
           if (isNewTransmission) {
             // Log the previous transmission summary if it was active
             if (tx.active && tx.lastSeq > tx.startSeq) {
-              String txSummary = "[SERVER] DMR: Slot" + String(tx.slotNo) + " Seq=" + String(tx.startSeq) + "-" + String(tx.lastSeq) + 
-                                " " + String(tx.srcId) + "->" + (tx.isGroup ? "TG" : "") + String(tx.dstId) +
-                                " [END]";
+              String txSummary = "[SERVER] DMR: Slot" + String(tx.slotNo) + " Seq=" + String(tx.startSeq) + "-" + String(tx.lastSeq) + " " + String(tx.srcId) + "->" + (tx.isGroup ? "TG" : "") + String(tx.dstId) + " [END]";
               logSerial(txSummary);
             }
-            
+
             // Start new transmission tracking
             tx.srcId = srcId;
             tx.dstId = dstId;
@@ -1819,11 +1807,9 @@ void handleNetwork() {
             tx.lastSeq = seqNo;
             tx.active = true;
             tx.frameType = String(dataTypeStr);
-            
+
             // Log the start of transmission
-            String dmrInfo = "DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + 
-                            " " + String(srcId) + "->" + (isGroup ? "TG" : "") + String(dstId) +
-                            " [START] Type=" + String(dataTypeStr);
+            String dmrInfo = "DMR: Slot" + String(slotNo) + " Seq=" + String(seqNo) + " " + String(srcId) + "->" + (isGroup ? "TG" : "") + String(dstId) + " [START] Type=" + String(dataTypeStr);
             if (ber > 0 || rssi > 0) {
               dmrInfo += " BER=" + String(ber) + " RSSI=" + String(rssi);
             }
@@ -1837,14 +1823,13 @@ void handleNetwork() {
             }
             // Don't log individual frames within a transmission
           }
-          
+
           // Update DMR activity tracking
           int activityIndex = slotNo - 1;  // Slot 1 = index 0, Slot 2 = index 1
-          
+
           // Check if we need to add previous transmission to history (DMR ID changed)
           // ONLY add to Recent DMR Activity if it's from the network (not local RF)
-          if (dmrActivity[activityIndex].active && dmrActivity[activityIndex].srcId > 0 &&
-              dmrActivity[activityIndex].srcId != srcId && dmrActivity[activityIndex].srcId != dmr_id) {
+          if (dmrActivity[activityIndex].active && dmrActivity[activityIndex].srcId > 0 && dmrActivity[activityIndex].srcId != srcId && dmrActivity[activityIndex].srcId != dmr_id) {
             // Previous transmission ended, add it to history
             uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
             String location = "";
@@ -1854,17 +1839,15 @@ void handleNetwork() {
               if (dmrActivity[activityIndex].srcCountry.length() > 0) location += dmrActivity[activityIndex].srcCountry;
             }
             addDMRHistory(dmrActivity[activityIndex].srcId, dmrActivity[activityIndex].srcCallsign,
-                         dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId,
-                         dmrActivity[activityIndex].isGroup, duration, 0, 0, dmrActivity[activityIndex].slotNo);
+                          dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId,
+                          dmrActivity[activityIndex].isGroup, duration, 0, 0, dmrActivity[activityIndex].slotNo);
           }
-          
+
           // Only set start time and lookup user info if this is a new transmission (not just another frame)
-          if (!dmrActivity[activityIndex].active || 
-              dmrActivity[activityIndex].srcId != srcId || 
-              dmrActivity[activityIndex].dstId != dstId) {
+          if (!dmrActivity[activityIndex].active || dmrActivity[activityIndex].srcId != srcId || dmrActivity[activityIndex].dstId != dstId) {
             dmrActivity[activityIndex].startTime = millis();   // Actual transmission start time
             dmrActivity[activityIndex].lastUpdate = millis();  // Keep for timeout detection
-            
+
             // Lookup detailed user information (async, will use cache if available)
             String userInfo = lookupUserInfo(srcId);
             // userInfo format: "callsign|name|city|country" or just "callsign" for basic lookup
@@ -1887,7 +1870,7 @@ void handleNetwork() {
             } else {
               dmrActivity[activityIndex].srcCallsign = userInfo;
             }
-            
+
             // Log with enhanced info if found
             if (dmrActivity[activityIndex].srcCallsign.length() > 0 && isNewTransmission) {
               String logMsg = "Station: " + dmrActivity[activityIndex].srcCallsign + " (" + String(srcId) + ")";
@@ -1906,19 +1889,19 @@ void handleNetwork() {
             // Update lastUpdate for timeout detection but keep startTime unchanged
             dmrActivity[activityIndex].lastUpdate = millis();
           }
-          
+
           dmrActivity[activityIndex].srcId = srcId;
           dmrActivity[activityIndex].dstId = dstId;
           dmrActivity[activityIndex].slotNo = slotNo;
           dmrActivity[activityIndex].isGroup = isGroup;
           dmrActivity[activityIndex].frameType = String(dataTypeStr);
           dmrActivity[activityIndex].active = true;
-          
+
           // Update current talkgroup for quick status
           if (isGroup) {
             currentTalkgroup = dstId;
           }
-          
+
           // Mark that we've seen TERM_LC for this transmission (but don't add to history yet)
           // History will be added when the transmission times out and becomes inactive
 
@@ -1945,19 +1928,14 @@ void handleNetwork() {
             // The TAG is stripped before transmission (see Modem.cpp line 1253)
 
             uint8_t dmrModemData[34];
-            dmrModemData[0] = 0x00;  // Control byte
+            dmrModemData[0] = 0x00;                     // Control byte
             memcpy(&dmrModemData[1], &packet[20], 33);  // Copy 33-byte DMR frame
 
-if (debug_mmdvm) {
-            // Debug logging
-            String debugMsg = "TX->Modem: Slot" + String(slotNo) + " Len=" + String(34) +
-                             " Ctrl=" + String(dmrModemData[0], HEX) +
-                             " Frame[0-3]=" + String(dmrModemData[1], HEX) + " " +
-                             String(dmrModemData[2], HEX) + " " +
-                             String(dmrModemData[3], HEX) + " " +
-                             String(dmrModemData[4], HEX);
-            //logSerial("[DMR] " + debugMsg);
-}
+            if (debug_mmdvm) {
+              // Debug logging
+              String debugMsg = "TX->Modem: Slot" + String(slotNo) + " Len=" + String(34) + " Ctrl=" + String(dmrModemData[0], HEX) + " Frame[0-3]=" + String(dmrModemData[1], HEX) + " " + String(dmrModemData[2], HEX) + " " + String(dmrModemData[3], HEX) + " " + String(dmrModemData[4], HEX);
+              //logSerial("[DMR] " + debugMsg);
+            }
 
             // Only send DMR START once at beginning of transmission
             if (!dmrTxActive) {
@@ -1965,13 +1943,13 @@ if (debug_mmdvm) {
               dmrTxActive = true;
             }
             lastDMRFrameTime = millis();
-            
+
             uint8_t cmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
             sendMMDVMCommand(cmd, dmrModemData, 34);
-            
+
             // DMR frames are transmitted every 60ms - add delay to prevent buffer overflow
             delay(55);
-            
+
 #if ENABLE_RGB_LED
             rgbLed.setStatus(RGBLedStatus::RECEIVING);
             delay(5);
@@ -1988,7 +1966,7 @@ void connectToDMRNetwork() {
   dmrLoginStatus = "Connecting...";
   dmrLoggedIn = false;
   dmrState = DMR_STATE::WAITING_LOGIN;
-  lastLoginAttempt = millis(); // Start timeout timer
+  lastLoginAttempt = millis();  // Start timeout timer
 
   logSerial("[DMR] Connecting to DMR Network...");
   logSerial("[DMR] Server: " + dmr_server + ":" + String(dmr_port));
@@ -2022,20 +2000,20 @@ void connectToDMRNetwork() {
 }
 
 void sendDMRAuth() {
-// Send RPTK (authorization) packet with SHA256(salt + password)
-// Format: "RPTK" + DMR_ID (4 bytes binary) + SHA256 hash (32 bytes binary)
-// SHA256 input: salt (4 binary bytes) + password (ASCII string)
+  // Send RPTK (authorization) packet with SHA256(salt + password)
+  // Format: "RPTK" + DMR_ID (4 bytes binary) + SHA256 hash (32 bytes binary)
+  // SHA256 input: salt (4 binary bytes) + password (ASCII string)
 
-// Debug: Show password being used (with more detail)
-if (debug_password) {
-  String passDebug = "Using password: length=" + String(dmr_password.length());
-  if (dmr_password.length() > 0) {
-    passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length() - 4));
-  } else {
-    passDebug += " [EMPTY!]";
+  // Debug: Show password being used (with more detail)
+  if (debug_password) {
+    String passDebug = "Using password: length=" + String(dmr_password.length());
+    if (dmr_password.length() > 0) {
+      passDebug += ", last4=" + dmr_password.substring(max(0, (int)dmr_password.length() - 4));
+    } else {
+      passDebug += " [EMPTY!]";
+    }
+    logSerial("[DMR] " + passDebug);
   }
-  logSerial("[DMR] " + passDebug);
-}
 
   // Calculate SHA256 hash of (salt + password)
   size_t passLen = dmr_password.length();
@@ -2188,8 +2166,8 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
   }
 
   // DMR sync patterns (MS sourced, simplex hotspot mode)
-  const uint8_t MS_DATA_SYNC[]  = {0x0D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x70};
-  const uint8_t MS_AUDIO_SYNC[] = {0x07, 0xF7, 0xD5, 0xDD, 0x57, 0xDF, 0xD0};
+  const uint8_t MS_DATA_SYNC[] = { 0x0D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x70 };
+  const uint8_t MS_AUDIO_SYNC[] = { 0x07, 0xF7, 0xD5, 0xDD, 0x57, 0xDF, 0xD0 };
 
   // Extract the 33-byte DMR frame (modemData[1..33])
   const uint8_t* dmrFrame = &modemData[1];
@@ -2214,7 +2192,7 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
     // Voice frame - extract N from EMB
     // Voice frames have EMB (Embedded signalling) at byte 13
     n = dmrFrame[13] & 0x0F;  // Lower 4 bits = frame number
-    dataType = 0xF1;  // DT_VOICE (dummy value)
+    dataType = 0xF1;          // DT_VOICE (dummy value)
   }
 
   // Detect new transmission based on data sync (headers generate new stream ID)
@@ -2240,8 +2218,7 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
 
     // Log [START] similar to network RX format
     String frameTypeStr = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
-    logSerial("[DMR] [RF->NET] Slot" + String(slot) + " Seq=" + String(txSequence) + " " +
-              String(dmr_id) + "->TG0 [START] Type=" + frameTypeStr);
+    logSerial("[DMR] [RF->NET] Slot" + String(slot) + " Seq=" + String(txSequence) + " " + String(dmr_id) + "->TG0 [START] Type=" + frameTypeStr);
 
     // Also update Live DMR Activity display (so RF TX shows in real-time on web UI and OLED)
     dmrActivity[slotIndex].active = true;
@@ -2324,10 +2301,10 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
   // Bit 4: Voice sync flag
   // Bits 3-0: Data type or voice frame number (N)
   uint8_t controlByte = (slot == 2) ? 0x80 : 0x00;  // Bit 7: slot
-  controlByte |= 0x00;  // Bit 6: group call (0=group)
+  controlByte |= 0x00;                              // Bit 6: group call (0=group)
 
   if (isDataSync) {
-    controlByte |= 0x20;  // Bit 5: data sync
+    controlByte |= 0x20;               // Bit 5: data sync
     controlByte |= (dataType & 0x0F);  // Bits 0-3: data type
   } else if (isAudioSync) {
     controlByte |= 0x10;  // Bit 4: voice sync
@@ -2371,7 +2348,7 @@ void logSerialVerbose(String message) {
   if (debug_network) {
     Serial.println(message);
   }
-  
+
   // Also store in web buffer if verbose logging is enabled
   if (verbose_logging) {
     serialLog[serialLogIndex] = message;
@@ -2501,11 +2478,7 @@ void loadConfig() {
   debug_network = preferences.getBool("debug_network", DEBUG_NETWORK);
   debug_dmr = preferences.getBool("debug_dmr", DEBUG_DMR);
   debug_password = preferences.getBool("debug_password", DEBUG_PASSWORD);
-  logSerial("[SYSTEM] Debug settings - Serial: " + String(debug_serial ? "ON" : "OFF") + 
-            " | MMDVM: " + String(debug_mmdvm ? "ON" : "OFF") + 
-            " | Network: " + String(debug_network ? "ON" : "OFF") + 
-            " | DMR: " + String(debug_dmr ? "ON" : "OFF") + 
-            " | Password: " + String(debug_password ? "ON" : "OFF"));
+  logSerial("[SYSTEM] Debug settings - Serial: " + String(debug_serial ? "ON" : "OFF") + " | MMDVM: " + String(debug_mmdvm ? "ON" : "OFF") + " | Network: " + String(debug_network ? "ON" : "OFF") + " | DMR: " + String(debug_dmr ? "ON" : "OFF") + " | Password: " + String(debug_password ? "ON" : "OFF"));
 
   // Load OLED display setting
   enable_oled = preferences.getBool("enable_oled", ENABLE_OLED);
@@ -2528,8 +2501,7 @@ void loadConfig() {
     logSerial("[OLED] Blank timeout initialized to default: " + String(oledBlankTimeout / 1000) + "s");
   }
 
-  logSerial("[OLED] Auto-blank: " + String(oledAutoBlankEnabled ? "enabled" : "disabled") +
-            ", Timeout: " + String(oledBlankTimeout / 1000) + "s");
+  logSerial("[OLED] Auto-blank: " + String(oledAutoBlankEnabled ? "enabled" : "disabled") + ", Timeout: " + String(oledBlankTimeout / 1000) + "s");
 
   // Load NTP timezone settings
   ntp_timezone_offset = preferences.getLong("ntp_tz_offset", NTP_TIMEZONE_OFFSET);
@@ -2654,14 +2626,14 @@ void setupWebServer() {
 
   // Data endpoints
   server.on("/logs", handleGetLogs);
-  server.on("/statusdata", handleStatusData);     // Status page data
+  server.on("/statusdata", handleStatusData);  // Status page data
   server.on("/wifiscan", handleWifiScan);
-  server.on("/dmr-activity", handleDMRActivity);  // Live DMR activity for home page
-  server.on("/dmr-slot1", handleDMRSlot1);        // DMR Slot 1 activity
-  server.on("/dmr-slot2", handleDMRSlot2);        // DMR Slot 2 activity
-  server.on("/dmr-history", handleDMRHistory);    // Recent DMR activity history
-  server.on("/rf-history", handleRFHistory);      // Local RF activity history (outgoing)
-  server.on("/system-status", handleSystemStatus); // System status for auto-refresh
+  server.on("/dmr-activity", handleDMRActivity);    // Live DMR activity for home page
+  server.on("/dmr-slot1", handleDMRSlot1);          // DMR Slot 1 activity
+  server.on("/dmr-slot2", handleDMRSlot2);          // DMR Slot 2 activity
+  server.on("/dmr-history", handleDMRHistory);      // Recent DMR activity history
+  server.on("/rf-history", handleRFHistory);        // Local RF activity history (outgoing)
+  server.on("/system-status", handleSystemStatus);  // System status for auto-refresh
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);
@@ -2776,28 +2748,28 @@ String lookupUserInfo(uint32_t dmrId) {
 // Legacy callsign lookup function - checks cache first, then API
 String lookupCallsign(uint32_t dmrId) {
   if (dmrId == 0) return "";
-  
+
   // Try enhanced lookup first
   String userInfo = lookupUserInfo(dmrId);
   if (userInfo.length() > 0) {
     int pipeIndex = userInfo.indexOf('|');
     return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
   }
-  
+
   // Fallback to legacy cache
   String cached = getCachedCallsign(dmrId);
   if (cached.length() > 0) {
     return cached;
   }
-  
+
   // Not in cache, try API lookup
   String callsign = lookupCallsignAPI(dmrId);
-  
+
   // Cache the result (even if empty to avoid repeated failed lookups)
   if (callsign.length() > 0) {
     cacheCallsign(dmrId, callsign);
   }
-  
+
   return callsign;
 }
 
@@ -2842,26 +2814,26 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   if (!wifiConnected) {
     return "";
   }
-  
+
   HTTPClient http;
   String url = String(DMR_API_URL) + String(dmrId);
-  
+
   http.begin(url);
   http.setTimeout(DMR_API_TIMEOUT);  // API timeout from config.h
-  
+
   int httpCode = http.GET();
   String userInfo = "";
-  
+
   if (httpCode == 200) {
     String payload = http.getString();
-    
+
     // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
     // Parse multiple fields: callsign, name/fname, city, country
     String callsign = "";
     String name = "";
     String city = "";
     String country = "";
-    
+
     // Extract callsign
     int csIndex = payload.indexOf("\"callsign\":\"");
     if (csIndex > 0) {
@@ -2871,7 +2843,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
         callsign = payload.substring(csIndex, endIndex);
       }
     }
-    
+
     // Extract name (prefer 'name' over 'fname')
     int nameIndex = payload.indexOf("\"name\":\"");
     if (nameIndex > 0) {
@@ -2892,7 +2864,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
         }
       }
     }
-    
+
     // Extract city
     int cityIndex = payload.indexOf("\"city\":\"");
     if (cityIndex > 0) {
@@ -2903,7 +2875,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
         if (city == "null") city = "";
       }
     }
-    
+
     // Extract country
     int countryIndex = payload.indexOf("\"country\":\"");
     if (countryIndex > 0) {
@@ -2914,7 +2886,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
         if (country == "null") country = "";
       }
     }
-    
+
     // Build userInfo string: "callsign|name|city|country"
     if (callsign.length() > 0) {
       userInfo = callsign;
@@ -2925,7 +2897,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   } else if (httpCode > 0) {
     logSerial("[API] User info lookup failed: HTTP " + String(httpCode));
   }
-  
+
   http.end();
   return userInfo;
 }
@@ -2987,7 +2959,7 @@ void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String sr
   dmrHistory[dmrHistoryIndex].ber = ber;
   dmrHistory[dmrHistoryIndex].rssi = rssi;
   dmrHistory[dmrHistoryIndex].slotNo = slotNo;
-  
+
   dmrHistoryIndex = (dmrHistoryIndex + 1) % DMR_HISTORY_SIZE;
 }
 
@@ -3050,7 +3022,7 @@ uint8_t getSDCardType() {
 #if ENABLE_OLED
 void setupOLED() {
   if (!enable_oled) return;
-  
+
   // Create mutex for display access protection
   displayMutex = xSemaphoreCreateMutex();
   if (displayMutex == NULL) {
@@ -3063,7 +3035,7 @@ void setupOLED() {
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
   // Initialize OLED display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
     logSerial("[OLED] SSD1306 allocation failed!");
     return;
   }
@@ -3091,7 +3063,7 @@ void displayBitmap(void) {
   display.clearDisplay();
 
   display.drawBitmap(
-    (display.width()  - LOGO_WIDTH ) / 2,
+    (display.width() - LOGO_WIDTH) / 2,
     (display.height() - LOGO_HEIGHT) / 2,
     logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, 1);
   display.display();
@@ -3179,7 +3151,7 @@ void displayBootLogo() {
 
 void updateBootStatus(String status) {
   if (!enable_oled) return;
-  
+
   // Update only the status line at the bottom of boot screen
   // Clear the status area (bottom line)
   display.fillRect(0, 55, OLED_WIDTH, 9, SSD1306_BLACK);
@@ -3197,7 +3169,7 @@ void updateBootStatus(String status) {
 
 void updateOLEDStatus() {
   if (!enable_oled) return;
-  
+
   // Try to acquire mutex to prevent SPI conflicts with Ethernet
   if (displayMutex != NULL) {
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
@@ -3243,7 +3215,7 @@ void updateOLEDStatus() {
   display.print(timeStr);
 
   // Draw icons on the right side of top line (right to left)
-  int iconX = OLED_WIDTH - ICON_WIDTH; // Start from right edge
+  int iconX = OLED_WIDTH - ICON_WIDTH;  // Start from right edge
 
   // Draw network icons - show both if both connected
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -3289,7 +3261,7 @@ void updateOLEDStatus() {
   if (bothSlotsActive) {
     // Both active - alternate between them
     slotToDisplay = oledActiveSlot;
-    oledActiveSlot = (oledActiveSlot == 0) ? 1 : 0; // Toggle for next update
+    oledActiveSlot = (oledActiveSlot == 0) ? 1 : 0;  // Toggle for next update
   } else if (dmrActivity[1].active) {
     // Only Slot 2 active (prioritize Slot 2)
     slotToDisplay = 1;
@@ -3337,8 +3309,7 @@ void updateOLEDStatus() {
     display.setCursor(0, 20);
 
     // Check if any mode is enabled
-    bool anyModeEnabled = mode_dmr_enabled || mode_dstar_enabled || mode_ysf_enabled ||
-                          mode_p25_enabled || mode_nxdn_enabled || mode_pocsag_enabled;
+    bool anyModeEnabled = mode_dmr_enabled || mode_dstar_enabled || mode_ysf_enabled || mode_p25_enabled || mode_nxdn_enabled || mode_pocsag_enabled;
 
     if (!anyModeEnabled) {
       // No modes activated - center the text
@@ -3421,7 +3392,7 @@ void updateOLEDStatus() {
 #endif
 
   String bottomLine = "";
-  bool centerText = false; // Flag to center callsign text
+  bool centerText = false;  // Flag to center callsign text
 
   if (hasWifi && hasEth) {
     // Both connected - cycle through 3 screens
@@ -3496,7 +3467,7 @@ void updateOLEDStatus() {
 // Control OLED display power (software on/off)
 void setOLEDPower(bool on) {
   if (!enable_oled) return;
-  
+
   if (on) {
     display.ssd1306_command(SSD1306_DISPLAYON);
     oledDisplayOn = true;
