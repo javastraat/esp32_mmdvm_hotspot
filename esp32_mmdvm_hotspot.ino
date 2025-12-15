@@ -22,34 +22,41 @@
  * - ESPmDNS (built-in)
  */
 
+// ===== System Libraries =====
+#include <time.h>
+#include <Update.h>
+
+// ===== ESP32 Core Libraries =====
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <Preferences.h>
+#include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include <Preferences.h>
+
+// ===== Security & Storage Libraries =====
 #include "mbedtls/md.h"
 #include "nvs_flash.h"
-#include <Update.h>
-#include <HTTPClient.h>
-#include <time.h>
-#include "config.h"
-#include "include/webpages.h"
-#include "include/RGBLedController.h"
 
-// Module Headers - Organized functionality
-#include "include/led_control.h"
-#include "include/preferences.h"
-#include "include/network.h"
-#include "include/dmr_network.h"
-#include "include/mmdvm_modem.h"
-#include "include/oled.h"
-#include "include/oled_graphics.h"
-#include "include/api_lookup.h"
-
-// OLED Display Support (runtime enable/disable)
-#include <Wire.h>
+// ===== Display Libraries =====
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Wire.h>
+
+// ===== Configuration =====
+#include "config.h"
+
+// ===== Project Modules =====
+#include "include/api_lookup.h"
+#include "include/dmr_network.h"
+#include "include/led_control.h"
+#include "include/mmdvm_modem.h"
+#include "include/network.h"
+#include "include/oled.h"
+#include "include/oled_graphics.h"
+#include "include/preferences.h"
+#include "include/RGBLedController.h"
+#include "include/webpages.h"
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
