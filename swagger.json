@@ -92,30 +92,6 @@
         }
       }
     },
-    "/serialmonitor": {
-      "get": {
-        "tags": ["Pages"],
-        "summary": "Serial monitor page",
-        "description": "Real-time serial monitor with live log updates",
-        "responses": {
-          "200": {
-            "description": "HTML serial monitor page"
-          }
-        }
-      }
-    },
-    "/wificonfig": {
-      "get": {
-        "tags": ["Pages"],
-        "summary": "WiFi configuration page",
-        "description": "Configure WiFi networks (5 slots)",
-        "responses": {
-          "200": {
-            "description": "HTML WiFi configuration page"
-          }
-        }
-      }
-    },
     "/modeconfig": {
       "get": {
         "tags": ["Pages"],
@@ -124,30 +100,6 @@
         "responses": {
           "200": {
             "description": "HTML configuration page"
-          }
-        }
-      }
-    },
-    "/admin": {
-      "get": {
-        "tags": ["Pages"],
-        "summary": "Admin page",
-        "description": "System administration page with advanced settings, firmware updates, and preferences",
-        "responses": {
-          "200": {
-            "description": "HTML admin page"
-          }
-        }
-      }
-    },
-    "/resetconfig": {
-      "get": {
-        "tags": ["Pages"],
-        "summary": "Reset configuration page",
-        "description": "Factory reset confirmation page",
-        "responses": {
-          "200": {
-            "description": "HTML reset confirmation page"
           }
         }
       }
@@ -204,30 +156,6 @@
         "responses": {
           "200": {
             "description": "HTML table with transmission history"
-          }
-        }
-      }
-    },
-    "/rf-history": {
-      "get": {
-        "tags": ["DMR Activity"],
-        "summary": "Get RF transmission history",
-        "description": "Retrieve local RF (outgoing) transmission history",
-        "responses": {
-          "200": {
-            "description": "HTML table with RF transmission history"
-          }
-        }
-      }
-    },
-    "/system-status": {
-      "get": {
-        "tags": ["System Status"],
-        "summary": "Get system status",
-        "description": "Get current system status for auto-refresh displays",
-        "responses": {
-          "200": {
-            "description": "HTML fragment with system status"
           }
         }
       }
@@ -342,61 +270,6 @@
         }
       }
     },
-    "/savemodes": {
-      "post": {
-        "tags": ["Configuration"],
-        "summary": "Save protocol modes",
-        "description": "Enable or disable protocol modes (DMR, D-Star, YSF, P25, NXDN, POCSAG)",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "mode_dmr": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable DMR mode"
-                  },
-                  "mode_dstar": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable D-Star mode"
-                  },
-                  "mode_ysf": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable YSF mode"
-                  },
-                  "mode_p25": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable P25 mode"
-                  },
-                  "mode_nxdn": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable NXDN mode"
-                  },
-                  "mode_pocsag": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable POCSAG mode"
-                  }
-                },
-                "description": "Omit parameters to disable modes. Device will restart after saving."
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Mode settings saved, device will restart"
-          }
-        }
-      }
-    },
     "/saveconfig": {
       "post": {
         "tags": ["Configuration"],
@@ -481,109 +354,6 @@
         "responses": {
           "200": {
             "description": "Verbose logging setting updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/save-debug": {
-      "post": {
-        "tags": ["Configuration"],
-        "summary": "Save debug settings",
-        "description": "Update debug logging flags for serial, MMDVM, network, DMR, and password",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "debug_serial": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable serial debug"
-                  },
-                  "debug_mmdvm": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable MMDVM debug"
-                  },
-                  "debug_network": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable network debug"
-                  },
-                  "debug_dmr": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable DMR debug"
-                  },
-                  "debug_password": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable password debug"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Debug settings updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/save-oled": {
-      "post": {
-        "tags": ["Configuration"],
-        "summary": "Save OLED settings",
-        "description": "Update OLED display settings including enable/disable, auto-blank, and timeout",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "enable_oled": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable OLED, omit to disable"
-                  },
-                  "oled_auto_blank": {
-                    "type": "integer",
-                    "enum": [1],
-                    "description": "Include with value 1 to enable auto-blank, omit to disable"
-                  },
-                  "oled_blank_timeout": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Auto-blank timeout in milliseconds (0 = never blank)",
-                    "example": 60000
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OLED settings updated",
             "content": {
               "application/json": {
                 "schema": {

@@ -22,41 +22,24 @@
  * - ESPmDNS (built-in)
  */
 
-// ===== System Libraries =====
-#include <time.h>
-#include <Update.h>
-
-// ===== ESP32 Core Libraries =====
-#include <ESPmDNS.h>
-#include <HTTPClient.h>
-#include <Preferences.h>
-#include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-
-// ===== Security & Storage Libraries =====
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <Preferences.h>
 #include "mbedtls/md.h"
 #include "nvs_flash.h"
+#include <Update.h>
+#include <HTTPClient.h>
+#include <time.h>
+#include "config.h"
+#include "webpages.h"
+#include "RGBLedController.h"
 
-// ===== Display Libraries =====
+// OLED Display Support (runtime enable/disable)
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <Wire.h>
-
-// ===== Configuration =====
-#include "config.h"
-
-// ===== Project Modules =====
-#include "include/api_lookup.h"
-#include "include/dmr_network.h"
-#include "include/led_control.h"
-#include "include/mmdvm_modem.h"
-#include "include/network.h"
-#include "include/oled.h"
-#include "include/oled_graphics.h"
-#include "include/preferences.h"
-#include "include/RGBLedController.h"
-#include "include/webpages.h"
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
@@ -103,8 +86,8 @@ uint8_t dmr_essid = 0;  // ESSID 0-99
 const int dmr_port = DMR_PORT;
 
 // Additional DMR Configuration
-uint32_t dmr_rx_freq = MMDVM_FREQUENCY + MMDVM_RX_FREQ_OFFSET;  // RX Frequency in Hz (from config.h)
-uint32_t dmr_tx_freq = MMDVM_FREQUENCY + MMDVM_TX_FREQ_OFFSET;  // TX Frequency in Hz (from config.h)
+uint32_t dmr_rx_freq = 434000000;  // RX Frequency in Hz
+uint32_t dmr_tx_freq = 434000000;  // TX Frequency in Hz
 uint8_t dmr_power = 10;            // Power 0-99
 uint8_t dmr_color_code = 1;        // Color Code 0-15
 float dmr_latitude = 0.0;          // Latitude
@@ -190,7 +173,13 @@ uint8_t txBuffer[512];
 int rxBufferPtr = 0;
 
 // DMR Network State Machine
-// (DMR_STATE enum moved to dmr_network.h)
+enum class DMR_STATE {
+  DISCONNECTED,
+  WAITING_LOGIN,
+  WAITING_AUTH,
+  WAITING_CONFIG,
+  CONNECTED
+};
 DMR_STATE dmrState = DMR_STATE::DISCONNECTED;
 uint8_t dmrSalt[4];
 unsigned long lastLoginAttempt = 0;
@@ -206,6 +195,153 @@ RGBLedController rgbLed(LEDBORG_RED_PIN, LEDBORG_GREEN_PIN, LEDBORG_BLUE_PIN,
 #if ENABLE_OLED
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 SemaphoreHandle_t displayMutex = NULL;  // Mutex to protect display access from SPI conflicts
+//
+// #define LOGO_HEIGHT   16
+// #define LOGO_WIDTH    16
+// static const unsigned char PROGMEM logo_bmp1[] =
+// { 
+//   B00000000, B11000000,
+//   B00000001, B11000000,
+//   B00000001, B11000000,
+//   B00000011, B11100000,
+//   B11110011, B11100000,
+//   B11111110, B11111000,
+//   B01111110, B11111111,
+//   B00110011, B10011111,
+//   B00011111, B11111100,
+//   B00001101, B01110000,
+//   B00011011, B10100000,
+//   B00111111, B11100000,
+//   B00111111, B11110000,
+//   B01111100, B11110000,
+//   B01110000, B01110000,
+//   B00000000, B00110000 
+
+// };
+
+#define LOGO_WIDTH  128
+#define LOGO_HEIGHT 64
+static const unsigned char PROGMEM logo_bmp[] =
+{
+// 'p', 128x64px
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x1f, 0xfc, 0x1e, 0x9f, 0xf0, 0x3c, 0x3c, 0x03, 0xf3, 0xf0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20, 
+0x07, 0x0c, 0x31, 0x87, 0x38, 0x7e, 0x7e, 0x00, 0xe1, 0xc0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x20, 
+0x07, 0x04, 0x70, 0x87, 0x1c, 0x8e, 0x4f, 0x00, 0xe1, 0xc0, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x60, 
+0x07, 0x20, 0x70, 0x87, 0x1c, 0x0c, 0x07, 0x00, 0xe1, 0xc0, 0xf3, 0xf3, 0xbe, 0xc0, 0x79, 0xf8, 
+0x07, 0x20, 0x78, 0x07, 0x1c, 0x18, 0x07, 0x00, 0xe1, 0xc1, 0x99, 0xc6, 0x6f, 0x60, 0xcc, 0xe0, 
+0x07, 0xe0, 0x3e, 0x07, 0x38, 0x3c, 0x06, 0x00, 0xff, 0xc3, 0x9d, 0xc7, 0x2e, 0x71, 0xce, 0xe0, 
+0x07, 0x20, 0x0f, 0x87, 0xf0, 0x1e, 0x0c, 0x00, 0xe1, 0xc3, 0x9d, 0xc7, 0x8e, 0x71, 0xce, 0xe0, 
+0x07, 0x20, 0x43, 0xc7, 0x00, 0x0f, 0x08, 0x00, 0xe1, 0xc3, 0x9d, 0xc3, 0xce, 0x71, 0xce, 0xe0, 
+0x07, 0x02, 0x41, 0xc7, 0x00, 0x07, 0x10, 0x00, 0xe1, 0xc3, 0x9d, 0xc1, 0xee, 0x71, 0xce, 0xe0, 
+0x07, 0x02, 0x61, 0xc7, 0x00, 0xc7, 0x20, 0x80, 0xe1, 0xc3, 0x9d, 0xc4, 0xee, 0x71, 0xce, 0xe0, 
+0x07, 0x06, 0x71, 0x87, 0x00, 0xe6, 0x7f, 0x00, 0xe1, 0xc1, 0x99, 0xd6, 0x6f, 0x60, 0xcc, 0xe8, 
+0x1f, 0xfe, 0x4f, 0x1f, 0xc0, 0x78, 0xff, 0x03, 0xf3, 0xf0, 0xf0, 0xe5, 0xce, 0xc0, 0x78, 0x70, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x38, 0x00, 0x1f, 0xbf, 0x0e, 0x7f, 0x70, 0xf1, 0xd0, 0x1c, 0x07, 0xef, 0xc3, 0x87, 0x8f, 0x00, 
+0x18, 0x00, 0x0c, 0xd9, 0x8f, 0x31, 0x38, 0xe3, 0x30, 0x32, 0x03, 0x36, 0x66, 0xc3, 0x19, 0x80, 
+0x18, 0x00, 0x0c, 0xd8, 0xd3, 0x30, 0x38, 0xe6, 0x10, 0x32, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0, 
+0x1e, 0x3b, 0x0c, 0xd8, 0xc3, 0x34, 0x3d, 0x66, 0x00, 0x34, 0x03, 0x36, 0x36, 0xc3, 0x30, 0xc0, 
+0x1b, 0x1a, 0x0f, 0x98, 0xc2, 0x3c, 0x2d, 0x66, 0x00, 0x5b, 0x83, 0xe6, 0x33, 0x83, 0x30, 0xc0, 
+0x1b, 0x1a, 0x0c, 0x18, 0xc4, 0x34, 0x2d, 0x66, 0x00, 0xd9, 0x03, 0x06, 0x36, 0xc3, 0x30, 0xc0, 
+0x1b, 0x0c, 0x0c, 0x18, 0xc8, 0x30, 0x2e, 0x66, 0x00, 0xce, 0x03, 0x06, 0x36, 0xdb, 0x30, 0xc0, 
+0x1b, 0x0c, 0x0c, 0x19, 0x8f, 0x31, 0x26, 0x63, 0x10, 0xe6, 0x83, 0x06, 0x66, 0xdb, 0x19, 0x80, 
+0x16, 0x04, 0x1e, 0x3f, 0x1f, 0x7f, 0x76, 0xf1, 0xe0, 0x7b, 0x07, 0x8f, 0xc3, 0x8e, 0x0f, 0x00, 
+0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// Icon bitmaps for OLED display (8x8 pixels)
+#define ICON_WIDTH 8
+#define ICON_HEIGHT 8
+
+// WiFi icon (8x8)
+static const unsigned char PROGMEM icon_wifi[] = {
+  0b00000000,
+  0b00111100,
+  0b01000010,
+  0b10011001,
+  0b00100100,
+  0b00011000,
+  0b00011000,
+  0b00000000
+};
+
+// Ethernet/Cable icon (8x8)
+static const unsigned char PROGMEM icon_ethernet[] = {
+  0b00000000,
+  0b01111110,
+  0b01000010,
+  0b01011010,
+  0b01011010,
+  0b01000010,
+  0b01111110,
+  0b00000000
+};
+
+// Antenna/RF icon (8x8) - looks like radio waves
+static const unsigned char PROGMEM icon_antenna[] = {
+  0b00011000,
+  0b00111100,
+  0b01011010,
+  0b10011001,
+  0b00011000,
+  0b00100100,
+  0b01000010,
+  0b10000001
+};
+
+// DMR icon (8x8)
+static const unsigned char PROGMEM icon_dmr[] = {
+  0b11111111,
+  0b11000011,
+  0b10100101,
+  0b10011001,
+  0b10011001,
+  0b10100101,
+  0b11000011,
+  0b11111111
+};
+
 #endif
 
 // Serial Monitor Buffer (SERIAL_LOG_SIZE defined in webpages.h)
@@ -266,11 +402,22 @@ RFActivityHistory rfHistory[RF_HISTORY_SIZE];
 int rfHistoryIndex = 0;
 void addRFHistory(uint32_t srcId, String srcCallsign, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t slotNo);
 
-// DMR User Information Lookup Cache (struct defined in api_lookup.h)
-UserCache userCache[DMR_USER_CACHE_SIZE];
+// DMR User Information Lookup Cache
+struct UserInfoCache {
+  uint32_t dmrId;
+  String callsign;
+  String userInfo;  // Format: "callsign|name|city|country"
+  unsigned long timestamp;
+};
+UserInfoCache userCache[DMR_USER_CACHE_SIZE];
 int userCacheIndex = 0;
 
-// Legacy callsign cache for backward compatibility (struct defined in api_lookup.h)
+// Legacy callsign cache for backward compatibility
+struct CallsignCache {
+  uint32_t dmrId;
+  String callsign;
+  unsigned long timestamp;
+};
 CallsignCache callsignCache[DMR_CALLSIGN_CACHE_SIZE];
 int callsignCacheIndex = 0;
 
@@ -289,7 +436,13 @@ String firmwareVersion = FIRMWARE_VERSION;
 String modemFirmwareVersion = "Unknown"; // MMDVM modem firmware version
 
 // LED Status Control (STATUS_LED_PIN defined in config.h)
-// (LED_MODE enum moved to led_control.h)
+
+enum class LED_MODE {
+  OFF,
+  STEADY,      // Connected to WiFi
+  FAST_BLINK,  // Connecting to WiFi
+  SLOW_BLINK   // Access Point mode
+};
 LED_MODE currentLedMode = LED_MODE::OFF;
 unsigned long lastLedToggle = 0;
 bool ledState = false;
@@ -323,8 +476,42 @@ unsigned long lastActivityTime = 0;                   // Timestamp of last activ
 bool oledBlankingActive = false;                      // Track if screen was auto-blanked (vs manually turned off)
 
 // ===== Function Prototypes =====
-// (Most function declarations moved to respective header files)
+void setupWiFi();
+void setupAccessPoint();
+void setupEthernet();
+void WiFiEvent(arduino_event_id_t event);
 void setupWebServer();
+void setupMMDVM();
+void setupOLED();
+void displayESP32Logo();
+void testdrawbitmap();
+void displayBootLogo();
+void updateBootStatus(String status);
+void updateOLEDStatus();
+void setOLEDPower(bool on);
+void toggleOLEDPower();
+void loadConfig();
+void saveConfig();
+void handleMMDVMSerial();
+void handleNetwork();
+void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
+void writeDMRStart(bool tx, String callsign = "");
+void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
+void processMMDVMFrame();
+void updateStatusLED();
+void setLEDMode(LED_MODE mode);
+void sendDMRKeepalive();
+void connectToDMRNetwork();
+void sendDMRAuth();
+void sendDMRConfig();
+void logSerial(String message);
+void logSerialVerbose(String message);
+String lookupCallsign(uint32_t dmrId);
+String lookupCallsignAPI(uint32_t dmrId);
+String lookupUserInfo(uint32_t dmrId);
+String lookupUserInfoAPI(uint32_t dmrId);
+String getCachedCallsign(uint32_t dmrId);
+String getCachedUserInfo(uint32_t dmrId);
 void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
@@ -2272,8 +2459,8 @@ void loadConfig() {
     dmr_essid = preferences.getUChar("dmr_essid", 0);
 
     // Load additional config options
-    dmr_rx_freq = preferences.getUInt("dmr_rx_freq", MMDVM_FREQUENCY + MMDVM_RX_FREQ_OFFSET);
-    dmr_tx_freq = preferences.getUInt("dmr_tx_freq", MMDVM_FREQUENCY + MMDVM_TX_FREQ_OFFSET);
+    dmr_rx_freq = preferences.getUInt("dmr_rx_freq", 434000000);
+    dmr_tx_freq = preferences.getUInt("dmr_tx_freq", 434000000);
     dmr_power = preferences.getUChar("dmr_power", 10);
     dmr_color_code = preferences.getUChar("dmr_cc", 1);
     dmr_latitude = preferences.getFloat("dmr_lat", 0.0);
@@ -2503,11 +2690,256 @@ void setupWebServer() {
 }
 
 // ===== Status LED Control =====
-// ===== LED Control Functions =====
-// Moved to led_control.cpp
+void setLEDMode(LED_MODE mode) {
+  currentLedMode = mode;
+  lastLedToggle = millis();
+
+  // Set initial state based on mode
+  if (mode == LED_MODE::STEADY) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    ledState = true;
+  } else if (mode == LED_MODE::OFF) {
+    digitalWrite(STATUS_LED_PIN, LOW);
+    ledState = false;
+  }
+}
+
+void updateStatusLED() {
+  unsigned long currentMillis = millis();
+  unsigned long interval;
+
+  switch (currentLedMode) {
+    case LED_MODE::OFF:
+      // LED stays off
+      break;
+
+    case LED_MODE::STEADY:
+      // LED stays on
+      break;
+
+    case LED_MODE::FAST_BLINK:
+      // Fast blink (200ms interval) - connecting to WiFi
+      interval = 200;
+      if (currentMillis - lastLedToggle >= interval) {
+        ledState = !ledState;
+        digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+        lastLedToggle = currentMillis;
+      }
+      break;
+
+    case LED_MODE::SLOW_BLINK:
+      // Slow blink (1000ms interval) - Access Point mode
+      interval = 1000;
+      if (currentMillis - lastLedToggle >= interval) {
+        ledState = !ledState;
+        digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+        lastLedToggle = currentMillis;
+      }
+      break;
+  }
+}
 
 // ===== DMR User Information Lookup Functions =====
-// Moved to api_lookup.cpp
+
+// Enhanced user info lookup - checks cache first, then API
+String lookupUserInfo(uint32_t dmrId) {
+  if (dmrId == 0) return "";
+
+  // Check for special DMR system IDs first (these won't be in RadioID database)
+  switch (dmrId) {
+    case 9990: return "Echo|Echo Test|Parrot|Service";
+    case 4000: return "Disconnect|Disconnect|Service|Command";
+    case 5000: return "Status|Status Check|Service|Command";
+    case 8045: return "Time|Time Server|Service|Server";
+    case 9000: return "NXDN|NXDN Reflector|Service|Server";
+    case 9099: return "Info|Information|Service|Server";
+    default: break;  // Continue with normal lookup
+  }
+
+  // Check cache first
+  String cached = getCachedUserInfo(dmrId);
+  if (cached.length() > 0) {
+    return cached;
+  }
+
+  // Not in cache, try API lookup
+  String userInfo = lookupUserInfoAPI(dmrId);
+
+  // Cache the result (even if empty to avoid repeated failed lookups)
+  if (userInfo.length() > 0) {
+    cacheUserInfo(dmrId, userInfo);
+  }
+
+  return userInfo;
+}
+
+// Legacy callsign lookup function - checks cache first, then API
+String lookupCallsign(uint32_t dmrId) {
+  if (dmrId == 0) return "";
+  
+  // Try enhanced lookup first
+  String userInfo = lookupUserInfo(dmrId);
+  if (userInfo.length() > 0) {
+    int pipeIndex = userInfo.indexOf('|');
+    return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
+  }
+  
+  // Fallback to legacy cache
+  String cached = getCachedCallsign(dmrId);
+  if (cached.length() > 0) {
+    return cached;
+  }
+  
+  // Not in cache, try API lookup
+  String callsign = lookupCallsignAPI(dmrId);
+  
+  // Cache the result (even if empty to avoid repeated failed lookups)
+  if (callsign.length() > 0) {
+    cacheCallsign(dmrId, callsign);
+  }
+  
+  return callsign;
+}
+
+// Check if user info is in cache
+String getCachedUserInfo(uint32_t dmrId) {
+  for (int i = 0; i < DMR_USER_CACHE_SIZE; i++) {
+    if (userCache[i].dmrId == dmrId && userCache[i].userInfo.length() > 0) {
+      return userCache[i].userInfo;
+    }
+  }
+  return "";
+}
+
+// Add user info to cache (circular buffer)
+void cacheUserInfo(uint32_t dmrId, String userInfo) {
+  userCache[userCacheIndex].dmrId = dmrId;
+  userCache[userCacheIndex].userInfo = userInfo;
+  userCache[userCacheIndex].timestamp = millis();
+  userCacheIndex = (userCacheIndex + 1) % DMR_USER_CACHE_SIZE;
+}
+
+// Check if callsign is in legacy cache
+String getCachedCallsign(uint32_t dmrId) {
+  for (int i = 0; i < DMR_CALLSIGN_CACHE_SIZE; i++) {
+    if (callsignCache[i].dmrId == dmrId && callsignCache[i].callsign.length() > 0) {
+      return callsignCache[i].callsign;
+    }
+  }
+  return "";
+}
+
+// Add callsign to legacy cache (circular buffer)
+void cacheCallsign(uint32_t dmrId, String callsign) {
+  callsignCache[callsignCacheIndex].dmrId = dmrId;
+  callsignCache[callsignCacheIndex].callsign = callsign;
+  callsignCache[callsignCacheIndex].timestamp = millis();
+  callsignCacheIndex = (callsignCacheIndex + 1) % DMR_CALLSIGN_CACHE_SIZE;
+}
+
+// Enhanced user info lookup via RadioID.net API
+String lookupUserInfoAPI(uint32_t dmrId) {
+  if (!wifiConnected) {
+    return "";
+  }
+  
+  HTTPClient http;
+  String url = String(DMR_API_URL) + String(dmrId);
+  
+  http.begin(url);
+  http.setTimeout(DMR_API_TIMEOUT);  // API timeout from config.h
+  
+  int httpCode = http.GET();
+  String userInfo = "";
+  
+  if (httpCode == 200) {
+    String payload = http.getString();
+    
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
+    // Parse multiple fields: callsign, name/fname, city, country
+    String callsign = "";
+    String name = "";
+    String city = "";
+    String country = "";
+    
+    // Extract callsign
+    int csIndex = payload.indexOf("\"callsign\":\"");
+    if (csIndex > 0) {
+      csIndex += 12;  // Length of "callsign":"
+      int endIndex = payload.indexOf("\"", csIndex);
+      if (endIndex > csIndex) {
+        callsign = payload.substring(csIndex, endIndex);
+      }
+    }
+    
+    // Extract name (prefer 'name' over 'fname')
+    int nameIndex = payload.indexOf("\"name\":\"");
+    if (nameIndex > 0) {
+      nameIndex += 8;  // Length of "name":"
+      int endIndex = payload.indexOf("\"", nameIndex);
+      if (endIndex > nameIndex) {
+        name = payload.substring(nameIndex, endIndex);
+        if (name == "null" || name.length() == 0) {
+          // Try fname if name is null/empty
+          int fnameIndex = payload.indexOf("\"fname\":\"");
+          if (fnameIndex > 0) {
+            fnameIndex += 9;  // Length of "fname":"
+            int fendIndex = payload.indexOf("\"", fnameIndex);
+            if (fendIndex > fnameIndex) {
+              name = payload.substring(fnameIndex, fendIndex);
+            }
+          }
+        }
+      }
+    }
+    
+    // Extract city
+    int cityIndex = payload.indexOf("\"city\":\"");
+    if (cityIndex > 0) {
+      cityIndex += 8;  // Length of "city":"
+      int endIndex = payload.indexOf("\"", cityIndex);
+      if (endIndex > cityIndex) {
+        city = payload.substring(cityIndex, endIndex);
+        if (city == "null") city = "";
+      }
+    }
+    
+    // Extract country
+    int countryIndex = payload.indexOf("\"country\":\"");
+    if (countryIndex > 0) {
+      countryIndex += 11;  // Length of "country":"
+      int endIndex = payload.indexOf("\"", countryIndex);
+      if (endIndex > countryIndex) {
+        country = payload.substring(countryIndex, endIndex);
+        if (country == "null") country = "";
+      }
+    }
+    
+    // Build userInfo string: "callsign|name|city|country"
+    if (callsign.length() > 0) {
+      userInfo = callsign;
+      if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
+        userInfo += "|" + name + "|" + city + "|" + country;
+      }
+    }
+  } else if (httpCode > 0) {
+    logSerial("[API] User info lookup failed: HTTP " + String(httpCode));
+  }
+  
+  http.end();
+  return userInfo;
+}
+
+// Legacy callsign lookup via RadioID.net API
+String lookupCallsignAPI(uint32_t dmrId) {
+  // Use enhanced lookup and extract just the callsign
+  String userInfo = lookupUserInfoAPI(dmrId);
+  if (userInfo.length() > 0) {
+    int pipeIndex = userInfo.indexOf('|');
+    return (pipeIndex > 0) ? userInfo.substring(0, pipeIndex) : userInfo;
+  }
+  return "";
+}
 
 // Helper function to get current timestamp in HH:MM:SS format
 String getCurrentTimestamp() {
@@ -2615,4 +3047,491 @@ uint8_t getSDCardType() {
 #endif
 
 // ===== OLED Display Functions =====
-// Moved to oled.cpp
+#if ENABLE_OLED
+void setupOLED() {
+  if (!enable_oled) return;
+  
+  // Create mutex for display access protection
+  displayMutex = xSemaphoreCreateMutex();
+  if (displayMutex == NULL) {
+    logSerial("[OLED] Failed to create display mutex!");
+  } else {
+    logSerial("[OLED] Display mutex created");
+  }
+
+  // Initialize I2C
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+
+  // Initialize OLED display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
+    logSerial("[OLED] SSD1306 allocation failed!");
+    return;
+  }
+  logSerial("[OLED] Display initialized successfully");
+
+  // Display boot logos
+  //
+  //Bitmap logo first
+  displayBitmap();
+  logSerial("[OLED] Display logo bitmap");
+  delay(5000);  // Show logo for 2 seconds
+  //
+  // Then ESP32 logo
+  //displayESP32Logo();
+  //logSerial("[OLED] Showing ESP32 logo");
+  //delay(2000);  // Show logo for 2 seconds
+  //
+  // boot logo last
+  displayBootLogo();
+  logSerial("[OLED] Showing boot screen");
+}
+
+
+void displayBitmap(void) {
+  display.clearDisplay();
+
+  display.drawBitmap(
+    (display.width()  - LOGO_WIDTH ) / 2,
+    (display.height() - LOGO_HEIGHT) / 2,
+    logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, 1);
+  display.display();
+  delay(1000);
+}
+
+void displayESP32Logo() {
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Draw decorative top border
+  for (int i = 0; i < OLED_WIDTH; i += 4) {
+    display.drawPixel(i, 0, SSD1306_WHITE);
+    display.drawPixel(i + 1, 1, SSD1306_WHITE);
+  }
+
+  // ESP32 text - large and centered
+  display.setTextSize(3);
+  String esp32Text = "ESP32";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(esp32Text, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 15);
+  display.println(esp32Text);
+
+  // MMDVM Hotspot text - smaller, centered
+  display.setTextSize(1);
+  String mmdvmText = "MMDVM Hotspot";
+  display.getTextBounds(mmdvmText, 0, 0, &x1, &y1, &w, &h);
+  x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 45);
+  display.println(mmdvmText);
+
+  // Draw decorative bottom border
+  for (int i = 0; i < OLED_WIDTH; i += 4) {
+    display.drawPixel(i, OLED_HEIGHT - 2, SSD1306_WHITE);
+    display.drawPixel(i + 1, OLED_HEIGHT - 1, SSD1306_WHITE);
+  }
+
+  display.display();
+}
+
+void displayBootLogo() {
+  display.clearDisplay();
+
+  // Set text properties
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Title with callsign - centered
+  String title = "ESP32 Hotspot";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 0);
+  display.println(title);
+
+  // Draw a line
+  display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
+
+  // Firmware version
+  display.setCursor(0, 14);
+  display.println("Version:");
+  display.setCursor(0, 24);
+  display.println(FIRMWARE_VERSION);
+
+  // Authors
+  display.setCursor(0, 34);
+  display.println("Made by:");
+  display.setCursor(0, 44);
+  display.println("PD2EMC & PD8JO");
+
+  // Status
+  display.setCursor(0, 55);
+  display.println("Booting...");
+
+  display.display();
+
+  logSerial("[OLED] Boot logo displayed");
+}
+
+void updateBootStatus(String status) {
+  if (!enable_oled) return;
+  
+  // Update only the status line at the bottom of boot screen
+  // Clear the status area (bottom line)
+  display.fillRect(0, 55, OLED_WIDTH, 9, SSD1306_BLACK);
+
+  // Display new status
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 55);
+  display.println(status);
+
+  display.display();
+
+  logSerial("[OLED] " + status);
+}
+
+void updateOLEDStatus() {
+  if (!enable_oled) return;
+  
+  // Try to acquire mutex to prevent SPI conflicts with Ethernet
+  if (displayMutex != NULL) {
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+      // Could not acquire mutex in 50ms, skip this update to avoid blocking
+      logSerial("[OLED] Skipped update - mutex busy");
+      return;
+    }
+  }
+
+  // Clear entire display for clean look
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // ===== TOP LINE: Date on left, Time centered, Icons on right =====
+  // Get current time
+  struct tm timeinfo;
+  String dateStr = "";
+  String timeStr = "";
+  if (getLocalTime(&timeinfo)) {
+    char dateBuf[8];
+    char timeBuf[8];
+    strftime(dateBuf, sizeof(dateBuf), "%d/%m", &timeinfo);
+    strftime(timeBuf, sizeof(timeBuf), "%H:%M", &timeinfo);
+    dateStr = String(dateBuf);
+    timeStr = String(timeBuf);
+  } else {
+    dateStr = "--/--";
+    timeStr = "--:--";
+  }
+
+  // Display date on the left
+  display.setCursor(0, 0);
+  display.print(dateStr);
+
+  // Display time centered
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
+  int16_t timeX = (OLED_WIDTH - w) / 2;
+  display.setCursor(timeX, 0);
+  display.print(timeStr);
+
+  // Draw icons on the right side of top line (right to left)
+  int iconX = OLED_WIDTH - ICON_WIDTH; // Start from right edge
+
+  // Draw network icons - show both if both connected
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  if (eth_connected && wifiConnected) {
+    // Both connected - show both icons
+    display.drawBitmap(iconX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+  } else if (eth_connected) {
+    // Ethernet only
+    display.drawBitmap(iconX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+  } else if (wifiConnected) {
+    // WiFi only
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+  }
+#else
+  if (wifiConnected) {
+    display.drawBitmap(iconX, 0, icon_wifi, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+    iconX -= (ICON_WIDTH + 2);
+  }
+#endif
+
+  // Draw antenna/DMR icon (left of network icons)
+  if (mode_dmr_enabled && dmrLoggedIn) {
+    display.drawBitmap(iconX, 0, icon_antenna, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
+  }
+
+  // Draw a line below top row
+  display.drawLine(0, 10, OLED_WIDTH, 10, SSD1306_WHITE);
+
+  // DMR Activity Section (between the two lines)
+  // Check for active DMR transmission
+  bool activityDisplayed = false;
+
+  // Check if both slots are active
+  bool bothSlotsActive = dmrActivity[0].active && dmrActivity[1].active;
+
+  // Determine which slot to display
+  int slotToDisplay = -1;
+  if (bothSlotsActive) {
+    // Both active - alternate between them
+    slotToDisplay = oledActiveSlot;
+    oledActiveSlot = (oledActiveSlot == 0) ? 1 : 0; // Toggle for next update
+  } else if (dmrActivity[1].active) {
+    // Only Slot 2 active (prioritize Slot 2)
+    slotToDisplay = 1;
+  } else if (dmrActivity[0].active) {
+    // Only Slot 1 active
+    slotToDisplay = 0;
+  }
+
+  // Display the selected slot
+  if (slotToDisplay >= 0) {
+    int i = slotToDisplay;
+
+    // Callsign - LARGE and prominent (2x size, centered)
+    display.setTextSize(2);
+    String callsign = (dmrActivity[i].srcCallsign.length() > 0) ? dmrActivity[i].srcCallsign : "Unknown";
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(callsign, 0, 0, &x1, &y1, &w, &h);
+    int16_t x = (OLED_WIDTH - w) / 2;
+    display.setCursor(x, 14);
+    display.println(callsign);
+
+    // Duration (small text, below callsign)
+    display.setTextSize(1);
+    display.setCursor(0, 32);
+    unsigned long duration = (millis() - dmrActivity[i].startTime) / 1000;
+    display.print("Duration: ");
+    display.print(duration);
+    display.println("s");
+
+    // DMR ID -> Talkgroup with slot indicator at the end (small text)
+    display.setCursor(0, 42);
+    display.print(dmrActivity[i].srcId);
+    display.print(" -> TG ");
+    display.print(dmrActivity[i].dstId);
+    display.print(" [S");
+    display.print(dmrActivity[i].slotNo);
+    display.print("]");
+
+    activityDisplayed = true;
+  }
+
+  // If no active transmission, show idle state
+  if (!activityDisplayed) {
+    display.setCursor(0, 20);
+
+    // Check if any mode is enabled
+    bool anyModeEnabled = mode_dmr_enabled || mode_dstar_enabled || mode_ysf_enabled ||
+                          mode_p25_enabled || mode_nxdn_enabled || mode_pocsag_enabled;
+
+    if (!anyModeEnabled) {
+      // No modes activated - center the text
+      String line1 = "No mode activated";
+      String line2 = "Enable mode in web";
+
+      int16_t x1, y1;
+      uint16_t w, h;
+
+      // Center first line
+      display.getTextBounds(line1, 0, 0, &x1, &y1, &w, &h);
+      int16_t x = (OLED_WIDTH - w) / 2;
+      display.setCursor(x, 20);
+      display.println(line1);
+
+      // Center second line
+      display.getTextBounds(line2, 0, 0, &x1, &y1, &w, &h);
+      x = (OLED_WIDTH - w) / 2;
+      display.setCursor(x, 30);
+      display.println(line2);
+    } else if (mode_dmr_enabled) {
+      // DMR mode is enabled - show status
+      if (dmrLoggedIn) {
+        display.println("DMR: Listening");
+
+        // Show current talkgroup if available
+        if (currentTalkgroup > 0) {
+          display.setCursor(0, 30);
+          display.print("TG: ");
+          display.println(currentTalkgroup);
+        }
+
+        // Show last caller callsign (check both slots for most recent)
+        String lastCaller = "";
+        unsigned long mostRecentTime = 0;
+
+        for (int i = 0; i < 2; i++) {
+          if (dmrActivity[i].srcCallsign.length() > 0 && dmrActivity[i].lastUpdate > mostRecentTime) {
+            lastCaller = dmrActivity[i].srcCallsign;
+            mostRecentTime = dmrActivity[i].lastUpdate;
+          }
+        }
+
+        if (lastCaller.length() > 0) {
+          display.setCursor(0, 40);
+          display.print("Last: ");
+          display.println(lastCaller);
+        }
+      } else {
+        // DMR enabled but not connected
+        display.println("DMR Mode Active");
+        display.setCursor(0, 30);
+        display.print("Status: ");
+        display.println(dmrLoginStatus);
+      }
+    } else {
+      // Other mode is enabled (D-Star, YSF, P25, NXDN, POCSAG)
+      // Show which mode(s) are enabled but not yet implemented
+      display.println("Mode enabled:");
+      display.setCursor(0, 30);
+      if (mode_dstar_enabled) display.println("D-Star (N/A)");
+      else if (mode_ysf_enabled) display.println("YSF (N/A)");
+      else if (mode_p25_enabled) display.println("P25 (N/A)");
+      else if (mode_nxdn_enabled) display.println("NXDN (N/A)");
+      else if (mode_pocsag_enabled) display.println("POCSAG (N/A)");
+    }
+  }
+
+  // ===== BOTTOM ROW: Cycling Network/Callsign info =====
+  // Draw a line above bottom status
+  display.drawLine(0, 50, OLED_WIDTH, 50, SSD1306_WHITE);
+
+  display.setTextSize(1);
+
+  // Determine what to show based on connections and cycle state
+  bool hasWifi = wifiConnected;
+  bool hasEth = false;
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  hasEth = eth_connected;
+#endif
+
+  String bottomLine = "";
+  bool centerText = false; // Flag to center callsign text
+
+  if (hasWifi && hasEth) {
+    // Both connected - cycle through 3 screens
+    if (oledHeaderCycle == 0) {
+      bottomLine = "WiFi: " + WiFi.localIP().toString();
+    } else if (oledHeaderCycle == 1) {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+      bottomLine = "ETH: " + ETH.localIP().toString();
+#endif
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (hasWifi) {
+    // WiFi only - alternate between 2 screens
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "WiFi: " + WiFi.localIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (hasEth) {
+    // ETH only - alternate between 2 screens
+    if (oledHeaderCycle % 2 == 0) {
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+      bottomLine = "ETH: " + ETH.localIP().toString();
+#endif
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else if (apMode) {
+    // AP mode
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "AP: " + WiFi.softAPIP().toString();
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  } else {
+    // No network - alternate between warning and callsign
+    if (oledHeaderCycle % 2 == 0) {
+      bottomLine = "No Network";
+      centerText = true;
+    } else {
+      bottomLine = dmr_callsign + " - ESP32 HS";
+      centerText = true;
+    }
+  }
+
+  // Center the text if it's the callsign, otherwise left-align
+  if (centerText) {
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(bottomLine, 0, 0, &x1, &y1, &w, &h);
+    int16_t x = (OLED_WIDTH - w) / 2;
+    display.setCursor(x, 54);
+  } else {
+    display.setCursor(0, 54);
+  }
+
+  display.print(bottomLine);
+
+  display.display();
+
+  // Release mutex after display update is complete
+  if (displayMutex != NULL) {
+    xSemaphoreGive(displayMutex);
+  }
+}
+
+// Control OLED display power (software on/off)
+void setOLEDPower(bool on) {
+  if (!enable_oled) return;
+  
+  if (on) {
+    display.ssd1306_command(SSD1306_DISPLAYON);
+    oledDisplayOn = true;
+    logSerial("[OLED] Display turned ON");
+  } else {
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
+    oledDisplayOn = false;
+    logSerial("[OLED] Display turned OFF");
+  }
+}
+
+// Toggle OLED display power
+void toggleOLEDPower() {
+  setOLEDPower(!oledDisplayOn);
+}
+
+#else
+// Stub functions when OLED is disabled at compile time
+void setupOLED() {
+  // No-op when OLED is disabled
+}
+
+void updateBootStatus(String status) {
+  // No-op when OLED is disabled
+}
+
+void updateOLEDStatus() {
+  // No-op when OLED is disabled
+}
+
+void setOLEDPower(bool on) {
+  // No-op when OLED is disabled
+}
+
+void toggleOLEDPower() {
+  // No-op when OLED is disabled
+}
+#endif

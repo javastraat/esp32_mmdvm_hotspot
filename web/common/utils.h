@@ -32,39 +32,9 @@ String getFooter() {
   return footer;
 }
 
-// Pages that don't require authentication
-const char* publicPages[] = {
-  "/",              // Home page
-  "/status",        // Status page
-  "/statusdata",    // Status page data (for auto-refresh)
-  "/dmr-activity",  // DMR activity data
-  "/dmr-slot1",     // DMR Slot 1 data
-  "/dmr-slot2",     // DMR Slot 2 data
-  "/dmr-history",   // DMR history data
-  "/rf-history",    // RF history data
-  "/system-status"  // System status data
-};
-
-// Check if current URI is a public page
-bool isPublicPage() {
-  String uri = server.uri();
-  for (size_t i = 0; i < sizeof(publicPages) / sizeof(publicPages[0]); i++) {
-    if (uri.equals(publicPages[i])) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Authentication check function
 bool checkAuthentication() {
-  // Skip authentication for public pages
-  if (isPublicPage()) {
-    return true;
-  }
-  
-  // Require authentication for all other pages
-  if (!server.authenticate(web_username.c_str(), web_password.c_str())) {
+  if (!server.authenticate(WEB_USERNAME, web_password.c_str())) {
     server.requestAuthentication();
     return false;
   }

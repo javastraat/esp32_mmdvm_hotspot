@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251215_ESP32_BETA"  // Update version as needed
-//#define FIRMWARE_VERSION "20251215_ESP32"  // Update version as needed
+//#define FIRMWARE_VERSION "20251214_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251214_ESP32_BETA"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -122,7 +122,7 @@
 #define MMDVM_RF_LEVEL 100      // RF output power percentage (0-100)
 
 // Frequency Settings (for software-defined MMDVM hats)
-#define MMDVM_FREQUENCY 434000000  // Frequency in Hz (e.g., 434 MHz)
+#define MMDVM_FREQUENCY 435000000  // Frequency in Hz (e.g., 434 MHz)
 #define MMDVM_TX_FREQ_OFFSET 0     // TX frequency offset in Hz
 #define MMDVM_RX_FREQ_OFFSET 0     // RX frequency offset in Hz
 

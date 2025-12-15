@@ -37,8 +37,6 @@ extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
 
 // DMR Activity structure
-#ifndef DMR_ACTIVITY_STRUCT_DEFINED
-#define DMR_ACTIVITY_STRUCT_DEFINED
 struct DMRActivity {
   uint32_t srcId;
   uint32_t dstId;
@@ -53,7 +51,6 @@ struct DMRActivity {
   unsigned long startTime;  // Actual transmission start time
   bool active;
 };
-#endif
 extern DMRActivity dmrActivity[2];
 
 // DMR History structure (matches esp32_mmdvm_hotspot.ino)
