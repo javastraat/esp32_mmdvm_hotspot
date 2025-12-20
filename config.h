@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251215_ESP32_BETA"  // Update version as needed
-//#define FIRMWARE_VERSION "20251215_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251220_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20251220_ESP32"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -33,9 +33,10 @@
 // Choose your network and uncomment the appropriate server
 
 // BrandMeister Servers
-#define DMR_SERVER "44.131.4.1"  // BrandMeister US
-// #define DMR_SERVER "44.225.62.11"  // BrandMeister EU
+//#define DMR_SERVER "44.131.4.1"  // BrandMeister US
+//#define DMR_SERVER "44.137.42.20"  // BrandMeister 2041
 // #define DMR_SERVER "45.248.50.1"   // BrandMeister Australia
+#define DMR_SERVER "api.brandmeister.network"  // Main BrandMeister hub
 
 #define DMR_PORT 62031    // BrandMeister default port
 #define LOCAL_PORT 62032  // Local UDP port for hotspot

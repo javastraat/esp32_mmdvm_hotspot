@@ -175,6 +175,7 @@ void handleDMRConfig() {
   
   const BMServer bmServers[] = {
     {"2041.master.brandmeister.network", "BM_2041_Netherlands"},
+    {"api.brandmeister.network", "BM_Main_BrandMeister_Hub"},
     {"44.148.230.201", "BM_2001_Europe_HAMNET"},
     {"2022.master.brandmeister.network", "BM_2022_Greece"},
     {"2061.master.brandmeister.network", "BM_2061_Belgium"},
