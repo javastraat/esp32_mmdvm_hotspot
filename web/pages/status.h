@@ -68,10 +68,96 @@ void handleStatus() {
   html += "</style>";
   html += "<script>";
   html += "let autoRefresh = true;";
+  html += "function renderStatus(data) {";
+  html += "  let html = '<div class=\"status-grid\">';";
+  // WiFi Status Card
+  html += "  html += '<div class=\"card\"><h3>WiFi Status</h3>';";
+  html += "  if (data.wifi.connected) {";
+  html += "    html += '<div class=\"status connected\">Status: Connected</div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">SSID:</span><span class=\"metric-value\">' + data.wifi.ssid + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">IP Address:</span><span class=\"metric-value\">' + data.wifi.ip + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Signal Strength:</span><span class=\"metric-value\">' + data.wifi.rssi + ' dBm</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">MAC Address:</span><span class=\"metric-value\">' + data.wifi.mac + '</span></div>';";
+  html += "  } else if (data.wifi.apMode) {";
+  html += "    html += '<div class=\"status warning\">Status: Access Point Mode</div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">AP IP:</span><span class=\"metric-value\">' + data.wifi.apIP + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Clients:</span><span class=\"metric-value\">' + data.wifi.clients + '</span></div>';";
+  html += "  } else {";
+  html += "    html += '<div class=\"status disconnected\">Status: Disconnected</div>';";
+  html += "  }";
+  html += "  html += '</div>';";
+  // Ethernet Status Card (if available)
+  html += "  if (data.ethernet) {";
+  html += "    html += '<div class=\"card\"><h3>Ethernet Status</h3>';";
+  html += "    if (data.ethernet.connected) {";
+  html += "      html += '<div class=\"status connected\">Status: Connected</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">IP Address:</span><span class=\"metric-value\">' + data.ethernet.ip + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">MAC Address:</span><span class=\"metric-value\">' + data.ethernet.mac + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Link Speed:</span><span class=\"metric-value\">' + data.ethernet.linkSpeed + ' Mbps</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Mode:</span><span class=\"metric-value\">' + (data.ethernet.fullDuplex ? 'Full Duplex' : 'Half Duplex') + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Gateway:</span><span class=\"metric-value\">' + data.ethernet.gateway + '</span></div>';";
+  html += "    } else {";
+  html += "      html += '<div class=\"status disconnected\">Status: Not Connected</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Info:</span><span class=\"metric-value\">Cable unplugged or disabled</span></div>';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "  }";
+  // SD Card Status (if available)
+  html += "  if (data.sdCard) {";
+  html += "    html += '<div class=\"card\"><h3>SD Card Status</h3>';";
+  html += "    if (data.sdCard.available) {";
+  html += "      html += '<div class=\"status connected\">Status: Available</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.sdCard.type + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Total Size:</span><span class=\"metric-value\">' + data.sdCard.totalMB + ' MB</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Used:</span><span class=\"metric-value\">' + data.sdCard.usedMB + ' MB</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Free:</span><span class=\"metric-value\">' + data.sdCard.freeMB + ' MB</span></div>';";
+  html += "    } else {";
+  html += "      html += '<div class=\"status disconnected\">Status: Not Available</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Info:</span><span class=\"metric-value\">No card inserted</span></div>';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "  }";
+  // DMR Network Status Card
+  html += "  html += '<div class=\"card\"><h3>DMR Network Status</h3>';";
+  html += "  let dmrClass = data.dmr.loggedIn ? 'connected' : 'disconnected';";
+  html += "  html += '<div class=\"status ' + dmrClass + '\">Status: ' + data.dmr.status + '</div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Server:</span><span class=\"metric-value\">' + data.dmr.serverDisplay + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Callsign:</span><span class=\"metric-value\">' + data.dmr.callsign + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.dmr.dmrId + '</span></div>';";
+  html += "  if (data.dmr.essid > 0) {";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">ESSID:</span><span class=\"metric-value\">' + data.dmr.essid + '</span></div>';";
+  html += "  }";
+  html += "  if (data.dmr.currentTalkgroup > 0) {";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Current Talkgroup:</span><span class=\"metric-value\">TG ' + data.dmr.currentTalkgroup + '</span></div>';";
+  html += "  } else {";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Current Talkgroup:</span><span class=\"metric-value\">None</span></div>';";
+  html += "  }";
+  html += "  html += '</div>';";
+  // MMDVM Hardware Status Card
+  html += "  html += '<div class=\"card\"><h3>MMDVM Hardware Status</h3>';";
+  html += "  let mmdvmClass = data.mmdvm.ready ? 'connected' : 'disconnected';";
+  html += "  html += '<div class=\"status ' + mmdvmClass + '\">Status: ' + (data.mmdvm.ready ? 'Ready' : 'Not Ready') + '</div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">RX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.rxFreq).toFixed(4) + ' MHz</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">TX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.txFreq).toFixed(4) + ' MHz</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Color Code:</span><span class=\"metric-value\">' + data.mmdvm.colorCode + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Power Level:</span><span class=\"metric-value\">' + data.mmdvm.power + '</span></div>';";
+  html += "  html += '</div>';";
+  // Station Information Card
+  html += "  html += '<div class=\"card\"><h3>Station Information</h3>';";
+  html += "  let callsignClass = data.station.isDefaultCallsign ? 'disconnected' : 'connected';";
+  html += "  let callsignText = data.station.isDefaultCallsign ? 'Callsign: N0CALL (Not Configured)' : 'Callsign: ' + data.station.callsign;";
+  html += "  html += '<div class=\"status ' + callsignClass + '\">' + callsignText + '</div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.station.dmrId + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">ESSID:</span><span class=\"metric-value\">' + (data.station.essid === 0 ? 'None' : data.station.essid) + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Location:</span><span class=\"metric-value\">' + data.station.location + '</span></div>';";
+  html += "  html += '</div>';";
+  html += "  html += '</div>';";
+  html += "  document.getElementById('status-content').innerHTML = html;";
+  html += "}";
   html += "function updateStatus() {";
   html += "  if (!autoRefresh) return;";
-  html += "  fetch('/statusdata').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('status-content').innerHTML = data;";
+  html += "  fetch('/statusdata').then(r => r.json()).then(data => {";
+  html += "    renderStatus(data);";
   html += "  }).catch(e => console.log('Failed to fetch status:', e));";
   html += "}";
   html += "function toggleAutoRefresh() {";
@@ -190,8 +276,8 @@ String getStatusContent() {
   html += "<h3>MMDVM Hardware Status</h3>";
   String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
   html += "<div class='status " + mmdvmClass + "'>Status: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
-  html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 3) + " MHz</span></div>";
-  html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 3) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 4) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 4) + " MHz</span></div>";
   html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Power Level:</span><span class='metric-value'>" + String(dmr_power) + "</span></div>";
   html += "</div>";
@@ -215,7 +301,86 @@ String getStatusContent() {
 
 void handleStatusData() {
   if (!checkAuthentication()) return;
-  server.send(200, "text/html", getStatusContent());
+
+  // Build JSON response
+  String json = "{";
+
+  // WiFi Status
+  json += "\"wifi\":{";
+  json += "\"connected\":" + String(wifiConnected ? "true" : "false") + ",";
+  json += "\"apMode\":" + String(apMode ? "true" : "false");
+  if (wifiConnected) {
+    json += ",\"ssid\":\"" + WiFi.SSID() + "\"";
+    json += ",\"ip\":\"" + WiFi.localIP().toString() + "\"";
+    json += ",\"rssi\":" + String(WiFi.RSSI());
+    json += ",\"mac\":\"" + WiFi.macAddress() + "\"";
+  } else if (apMode) {
+    json += ",\"apIP\":\"" + WiFi.softAPIP().toString() + "\"";
+    json += ",\"clients\":" + String(WiFi.softAPgetStationNum());
+  }
+  json += "},";
+
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  // Ethernet Status
+  json += "\"ethernet\":{";
+  json += "\"connected\":" + String(eth_connected ? "true" : "false");
+  if (eth_connected) {
+    json += ",\"ip\":\"" + getEthIPAddress() + "\"";
+    json += ",\"mac\":\"" + getEthMACAddress() + "\"";
+    json += ",\"linkSpeed\":" + String(getEthLinkSpeed());
+    json += ",\"fullDuplex\":" + String(getEthFullDuplex() ? "true" : "false");
+    json += ",\"gateway\":\"" + getEthGatewayIP() + "\"";
+  }
+  json += "},";
+
+  // SD Card Status
+  json += "\"sdCard\":{";
+  json += "\"available\":" + String(sdCardAvailable ? "true" : "false");
+  if (sdCardAvailable) {
+    uint64_t cardSize = getSDCardSize() / (1024 * 1024);
+    uint64_t usedSize = getSDUsedBytes() / (1024 * 1024);
+    uint8_t cardType = getSDCardType();
+    json += ",\"type\":\"" + String(cardType == 1 ? "MMC" : cardType == 2 ? "SD" : cardType == 3 ? "SDHC" : "Unknown") + "\"";
+    json += ",\"totalMB\":" + String((uint32_t)cardSize);
+    json += ",\"usedMB\":" + String((uint32_t)usedSize);
+    json += ",\"freeMB\":" + String((uint32_t)(cardSize - usedSize));
+  }
+  json += "},";
+#endif
+
+  // DMR Network Status
+  json += "\"dmr\":{";
+  json += "\"loggedIn\":" + String(dmrLoggedIn ? "true" : "false") + ",";
+  json += "\"status\":\"" + dmrLoginStatus + "\",";
+  json += "\"server\":\"" + dmr_server + "\",";
+  json += "\"serverDisplay\":\"" + getServerDisplayName(dmr_server) + "\",";
+  json += "\"callsign\":\"" + dmr_callsign + "\",";
+  json += "\"dmrId\":" + String(dmr_id) + ",";
+  json += "\"essid\":" + String(dmr_essid) + ",";
+  json += "\"currentTalkgroup\":" + String(currentTalkgroup);
+  json += "},";
+
+  // MMDVM Hardware Status
+  json += "\"mmdvm\":{";
+  json += "\"ready\":" + String(mmdvmReady ? "true" : "false") + ",";
+  json += "\"rxFreq\":" + String(dmr_rx_freq/1000000.0, 4) + ",";
+  json += "\"txFreq\":" + String(dmr_tx_freq/1000000.0, 4) + ",";
+  json += "\"colorCode\":" + String(dmr_color_code) + ",";
+  json += "\"power\":" + String(dmr_power);
+  json += "},";
+
+  // Station Information
+  json += "\"station\":{";
+  json += "\"callsign\":\"" + dmr_callsign + "\",";
+  json += "\"isDefaultCallsign\":" + String((dmr_callsign == "N0CALL") ? "true" : "false") + ",";
+  json += "\"dmrId\":" + String(dmr_id) + ",";
+  json += "\"essid\":" + String(dmr_essid) + ",";
+  json += "\"location\":\"" + dmr_location + "\"";
+  json += "}";
+
+  json += "}";
+
+  server.send(200, "application/json", json);
 }
 
 #endif // WEB_PAGES_STATUS_H

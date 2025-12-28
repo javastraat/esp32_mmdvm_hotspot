@@ -51,10 +51,64 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 ### System Status
 
 #### `GET /statusdata`
-**Description:** Retrieve current system status as HTML fragment
+**Description:** Retrieve current system status information
 **Authentication:** Required
-**Response:** HTML content with status cards
+**Response:** JSON object with system status data
+**Content-Type:** `application/json`
 **Used by:** Auto-refresh on status page
+
+**Response Format:**
+```json
+{
+  "wifi": {
+    "connected": true,
+    "apMode": false,
+    "ssid": "TechInc",
+    "ip": "192.168.2.217",
+    "rssi": -67,
+    "mac": "CC:BA:97:00:4C:A8"
+  },
+  "ethernet": {          // Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    "connected": true,
+    "ip": "192.168.1.100",
+    "mac": "AA:BB:CC:DD:EE:FF",
+    "linkSpeed": 100,
+    "fullDuplex": true,
+    "gateway": "192.168.1.1"
+  },
+  "sdCard": {            // Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    "available": true,
+    "type": "SDHC",
+    "totalMB": 32000,
+    "usedMB": 1500,
+    "freeMB": 30500
+  },
+  "dmr": {
+    "loggedIn": true,
+    "status": "Connected",
+    "server": "2041.master.brandmeister.network",
+    "serverDisplay": "BM_2041_Netherlands",
+    "callsign": "PD2EMC",
+    "dmrId": 2041152,
+    "essid": 0,
+    "currentTalkgroup": 91
+  },
+  "mmdvm": {
+    "ready": true,
+    "rxFreq": 434.0000,
+    "txFreq": 434.0000,
+    "colorCode": 1,
+    "power": 10
+  },
+  "station": {
+    "callsign": "PD2EMC",
+    "isDefaultCallsign": false,
+    "dmrId": 2041152,
+    "essid": 0,
+    "location": "Amsterdam,NL"
+  }
+}
+```
 
 #### `GET /logs`
 **Description:** Retrieve serial log entries

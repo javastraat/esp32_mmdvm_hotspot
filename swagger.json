@@ -232,11 +232,89 @@
       "get": {
         "tags": ["System Status"],
         "summary": "Get status data",
-        "description": "Retrieve current system status as HTML fragment",
+        "description": "Retrieve current system status information as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML content with status cards"
+            "description": "JSON object with system status data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "wifi": {
+                      "type": "object",
+                      "properties": {
+                        "connected": {"type": "boolean"},
+                        "apMode": {"type": "boolean"},
+                        "ssid": {"type": "string"},
+                        "ip": {"type": "string"},
+                        "rssi": {"type": "integer"},
+                        "mac": {"type": "string"},
+                        "apIP": {"type": "string"},
+                        "clients": {"type": "integer"}
+                      }
+                    },
+                    "ethernet": {
+                      "type": "object",
+                      "description": "Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM",
+                      "properties": {
+                        "connected": {"type": "boolean"},
+                        "ip": {"type": "string"},
+                        "mac": {"type": "string"},
+                        "linkSpeed": {"type": "integer"},
+                        "fullDuplex": {"type": "boolean"},
+                        "gateway": {"type": "string"}
+                      }
+                    },
+                    "sdCard": {
+                      "type": "object",
+                      "description": "Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM",
+                      "properties": {
+                        "available": {"type": "boolean"},
+                        "type": {"type": "string"},
+                        "totalMB": {"type": "integer"},
+                        "usedMB": {"type": "integer"},
+                        "freeMB": {"type": "integer"}
+                      }
+                    },
+                    "dmr": {
+                      "type": "object",
+                      "properties": {
+                        "loggedIn": {"type": "boolean"},
+                        "status": {"type": "string"},
+                        "server": {"type": "string"},
+                        "serverDisplay": {"type": "string"},
+                        "callsign": {"type": "string"},
+                        "dmrId": {"type": "integer"},
+                        "essid": {"type": "integer"},
+                        "currentTalkgroup": {"type": "integer"}
+                      }
+                    },
+                    "mmdvm": {
+                      "type": "object",
+                      "properties": {
+                        "ready": {"type": "boolean"},
+                        "rxFreq": {"type": "number", "description": "RX Frequency in MHz with 4 decimal precision"},
+                        "txFreq": {"type": "number", "description": "TX Frequency in MHz with 4 decimal precision"},
+                        "colorCode": {"type": "integer"},
+                        "power": {"type": "integer"}
+                      }
+                    },
+                    "station": {
+                      "type": "object",
+                      "properties": {
+                        "callsign": {"type": "string"},
+                        "isDefaultCallsign": {"type": "boolean"},
+                        "dmrId": {"type": "integer"},
+                        "essid": {"type": "integer"},
+                        "location": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
