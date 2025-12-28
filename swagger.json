@@ -34,6 +34,7 @@
       "basicAuth": []
     }
   ],
+  "x-security-note": "All endpoints require authentication except: /, /status, /statusdata, /dmr-activity, /dmr-slot1, /dmr-slot2, /dmr-history, /rf-history, /system-status",
   "tags": [
     {
       "name": "Pages",
@@ -66,6 +67,7 @@
         "tags": ["Pages"],
         "summary": "Home page",
         "description": "Main dashboard with live DMR activity and recent transmission history",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML home page",
@@ -80,14 +82,14 @@
         }
       }
     },
-    "/status": {
+    "/admin": {
       "get": {
         "tags": ["Pages"],
-        "summary": "Status page",
-        "description": "System status page with WiFi, DMR, and hardware information",
+        "summary": "Admin page",
+        "description": "Administration panel for system settings, firmware updates, and advanced configuration",
         "responses": {
           "200": {
-            "description": "HTML status page"
+            "description": "HTML admin page"
           }
         }
       }
@@ -104,11 +106,61 @@
         }
       }
     },
+    "/resetconfig": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Reset configuration page",
+        "description": "Factory reset confirmation page",
+        "responses": {
+          "200": {
+            "description": "HTML reset confirmation page"
+          }
+        }
+      }
+    },
+    "/serialmonitor": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Serial monitor page",
+        "description": "Serial console/log monitor page for viewing real-time system logs",
+        "responses": {
+          "200": {
+            "description": "HTML serial monitor page"
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Status page",
+        "description": "System status page with WiFi, DMR, and hardware information",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML status page"
+          }
+        }
+      }
+    },
+    "/wificonfig": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "WiFi configuration page",
+        "description": "WiFi network configuration page for managing network connections",
+        "responses": {
+          "200": {
+            "description": "HTML WiFi configuration page"
+          }
+        }
+      }
+    },
     "/dmr-activity": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get combined DMR activity",
         "description": "Retrieve live DMR activity for both slots",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML fragment with both slot activities",
@@ -129,6 +181,7 @@
         "tags": ["DMR Activity"],
         "summary": "Get Slot 1 activity",
         "description": "Retrieve live DMR activity for Slot 1 (dual-slot modems only)",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML fragment with Slot 1 activity"
@@ -141,6 +194,7 @@
         "tags": ["DMR Activity"],
         "summary": "Get Slot 2 activity",
         "description": "Retrieve live DMR activity for Slot 2",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML fragment with Slot 2 activity"
@@ -153,9 +207,23 @@
         "tags": ["DMR Activity"],
         "summary": "Get DMR transmission history",
         "description": "Retrieve last 15 DMR transmissions with details",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML table with transmission history"
+          }
+        }
+      }
+    },
+    "/rf-history": {
+      "get": {
+        "tags": ["DMR Activity"],
+        "summary": "Get RF transmission history",
+        "description": "Retrieve local RF activity history with transmission details",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML table with RF transmission history"
           }
         }
       }
@@ -165,6 +233,7 @@
         "tags": ["System Status"],
         "summary": "Get status data",
         "description": "Retrieve current system status as HTML fragment",
+        "security": [],
         "responses": {
           "200": {
             "description": "HTML content with status cards"
@@ -187,6 +256,19 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/system-status": {
+      "get": {
+        "tags": ["System Status"],
+        "summary": "Get system status",
+        "description": "Retrieve current system status for dashboard display",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML fragment with system status information"
           }
         }
       }
@@ -270,6 +352,35 @@
         }
       }
     },
+    "/savemodes": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Save mode settings",
+        "description": "Enable or disable protocol modes (DMR, etc.)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode_dmr": {
+                    "type": "integer",
+                    "enum": [0, 1],
+                    "description": "1 to enable DMR mode, 0 to disable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mode settings saved"
+          }
+        }
+      }
+    },
     "/saveconfig": {
       "post": {
         "tags": ["Configuration"],
@@ -318,6 +429,78 @@
         "responses": {
           "200": {
             "description": "Hostname saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-debug": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Configure debug output",
+        "description": "Enable or disable debug output settings",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "debug": {
+                    "type": "integer",
+                    "enum": [0, 1],
+                    "description": "1 to enable debug output, 0 to disable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debug output setting updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/save-oled": {
+      "post": {
+        "tags": ["Configuration"],
+        "summary": "Configure OLED display",
+        "description": "Configure OLED display settings and parameters",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "oled_enabled": {
+                    "type": "integer",
+                    "enum": [0, 1],
+                    "description": "1 to enable OLED, 0 to disable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OLED settings updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -411,7 +594,7 @@
       "post": {
         "tags": ["Configuration"],
         "summary": "Change web username",
-        "description": "Update web interface authentication username",
+        "description": "Update web interface authentication username (default: admin)",
         "requestBody": {
           "required": true,
           "content": {
@@ -422,6 +605,7 @@
                   "username": {
                     "type": "string",
                     "minLength": 3,
+                    "default": "admin",
                     "example": "admin"
                   }
                 },
@@ -448,7 +632,7 @@
       "post": {
         "tags": ["Configuration"],
         "summary": "Change web password",
-        "description": "Update web interface authentication password",
+        "description": "Update web interface authentication password (default: pi-star)",
         "requestBody": {
           "required": true,
           "content": {
@@ -459,6 +643,7 @@
                   "password": {
                     "type": "string",
                     "minLength": 6,
+                    "default": "pi-star",
                     "example": "newpassword"
                   }
                 },
@@ -735,7 +920,7 @@
       "basicAuth": {
         "type": "http",
         "scheme": "basic",
-        "description": "Web interface username and password (default: admin/pi-star)"
+        "description": "Web interface basic authentication. Default credentials - Username: admin, Password: pi-star"
       }
     },
     "schemas": {
