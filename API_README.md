@@ -122,33 +122,145 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 #### `GET /dmr-activity`
 **Description:** Get combined live DMR activity for both slots
 **Authentication:** Required
-**Response:** HTML content with both slot activities
+**Response:** JSON object with activity data for both slots
+**Content-Type:** `application/json`
 **Update Rate:** Real-time (recommended polling: 1-2 seconds)
+
+**Response Format:**
+```json
+{
+  "slots": [
+    {
+      "slotNo": 1,
+      "active": true,
+      "srcId": 3025119,
+      "srcCallsign": "VE3XIO",
+      "srcName": "James",
+      "srcCity": "Oil Springs",
+      "srcCountry": "Canada",
+      "dstId": 91,
+      "isGroup": true,
+      "frameType": "VOICE_BURST",
+      "duration": 5
+    },
+    {
+      "slotNo": 2,
+      "active": false
+    }
+  ]
+}
+```
 
 #### `GET /dmr-slot1`
 **Description:** Get live DMR activity for Slot 1 only
 **Authentication:** Required
-**Response:** HTML content with Slot 1 activity
+**Response:** JSON object with Slot 1 activity data
+**Content-Type:** `application/json`
 **Note:** Only relevant for dual-slot modems
+
+**Response Format:**
+```json
+{
+  "slotNo": 1,
+  "active": true,
+  "srcId": 3025119,
+  "srcCallsign": "VE3XIO",
+  "srcName": "James",
+  "srcCity": "Oil Springs",
+  "srcCountry": "Canada",
+  "dstId": 91,
+  "isGroup": true,
+  "frameType": "VOICE_BURST",
+  "duration": 5
+}
+```
 
 #### `GET /dmr-slot2`
 **Description:** Get live DMR activity for Slot 2 only
 **Authentication:** Required
-**Response:** HTML content with Slot 2 activity
+**Response:** JSON object with Slot 2 activity data
+**Content-Type:** `application/json`
+
+**Response Format:** Same as `/dmr-slot1`
 
 #### `GET /dmr-history`
 **Description:** Get recent DMR transmission history (last 15 transmissions)
 **Authentication:** Required
-**Response:** HTML table with transmission history including:
-- Timestamp
-- Source callsign (linked to QRZ.com)
-- Name, Location
-- DMR ID
-- Destination (TG/Private)
-- Slot number
-- Duration
-- BER (Bit Error Rate)
-- RSSI (Signal Strength)
+**Response:** JSON object with transmission history array
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "history": [
+    {
+      "timestamp": "12:34:56",
+      "srcId": 2041152,
+      "srcCallsign": "PD2EMC",
+      "srcName": "Einstein",
+      "srcLocation": "Amsterdam,NL",
+      "dstId": 91,
+      "isGroup": true,
+      "duration": 3,
+      "ber": 0,
+      "rssi": 120,
+      "slotNo": 2
+    }
+  ]
+}
+```
+
+#### `GET /rf-history`
+**Description:** Get local RF transmission history (last 15 transmissions)
+**Authentication:** Required
+**Response:** JSON object with local RF activity history
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "history": [
+    {
+      "secondsAgo": 45,
+      "srcId": 2041152,
+      "srcCallsign": "PD2EMC",
+      "dstId": 91,
+      "isGroup": true,
+      "duration": 2,
+      "slotNo": 2
+    }
+  ]
+}
+```
+
+#### `GET /system-status`
+**Description:** Get system status overview
+**Authentication:** Required
+**Response:** JSON object with system status information
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "network": {
+    "wifiConnected": true,
+    "apMode": false,
+    "ethConnected": false
+  },
+  "system": {
+    "mmdvmReady": true,
+    "dmrLoggedIn": true
+  },
+  "modes": {
+    "dmr": true,
+    "dstar": false,
+    "ysf": false,
+    "p25": false,
+    "nxdn": false,
+    "pocsag": false
+  }
+}
+```
 
 ---
 

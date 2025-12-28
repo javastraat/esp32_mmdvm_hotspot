@@ -159,16 +159,36 @@
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get combined DMR activity",
-        "description": "Retrieve live DMR activity for both slots",
+        "description": "Retrieve live DMR activity for both slots as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML fragment with both slot activities",
+            "description": "JSON object with activity data for both slots",
             "content": {
-              "text/html": {
+              "application/json": {
                 "schema": {
-                  "type": "string",
-                  "example": "<div class='activity-card'>...</div>"
+                  "type": "object",
+                  "properties": {
+                    "slots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slotNo": {"type": "integer"},
+                          "active": {"type": "boolean"},
+                          "srcId": {"type": "integer"},
+                          "srcCallsign": {"type": "string"},
+                          "srcName": {"type": "string"},
+                          "srcCity": {"type": "string"},
+                          "srcCountry": {"type": "string"},
+                          "dstId": {"type": "integer"},
+                          "isGroup": {"type": "boolean"},
+                          "frameType": {"type": "string"},
+                          "duration": {"type": "integer"}
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -180,11 +200,31 @@
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get Slot 1 activity",
-        "description": "Retrieve live DMR activity for Slot 1 (dual-slot modems only)",
+        "description": "Retrieve live DMR activity for Slot 1 (dual-slot modems only) as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML fragment with Slot 1 activity"
+            "description": "JSON object with Slot 1 activity data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slotNo": {"type": "integer"},
+                    "active": {"type": "boolean"},
+                    "srcId": {"type": "integer"},
+                    "srcCallsign": {"type": "string"},
+                    "srcName": {"type": "string"},
+                    "srcCity": {"type": "string"},
+                    "srcCountry": {"type": "string"},
+                    "dstId": {"type": "integer"},
+                    "isGroup": {"type": "boolean"},
+                    "frameType": {"type": "string"},
+                    "duration": {"type": "integer"}
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -193,11 +233,31 @@
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get Slot 2 activity",
-        "description": "Retrieve live DMR activity for Slot 2",
+        "description": "Retrieve live DMR activity for Slot 2 as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML fragment with Slot 2 activity"
+            "description": "JSON object with Slot 2 activity data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slotNo": {"type": "integer"},
+                    "active": {"type": "boolean"},
+                    "srcId": {"type": "integer"},
+                    "srcCallsign": {"type": "string"},
+                    "srcName": {"type": "string"},
+                    "srcCity": {"type": "string"},
+                    "srcCountry": {"type": "string"},
+                    "dstId": {"type": "integer"},
+                    "isGroup": {"type": "boolean"},
+                    "frameType": {"type": "string"},
+                    "duration": {"type": "integer"}
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -206,11 +266,39 @@
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get DMR transmission history",
-        "description": "Retrieve last 15 DMR transmissions with details",
+        "description": "Retrieve last 15 DMR transmissions with details as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML table with transmission history"
+            "description": "JSON object with transmission history array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "timestamp": {"type": "string"},
+                          "srcId": {"type": "integer"},
+                          "srcCallsign": {"type": "string"},
+                          "srcName": {"type": "string"},
+                          "srcLocation": {"type": "string"},
+                          "dstId": {"type": "integer"},
+                          "isGroup": {"type": "boolean"},
+                          "duration": {"type": "integer"},
+                          "ber": {"type": "integer"},
+                          "rssi": {"type": "integer"},
+                          "slotNo": {"type": "integer"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -219,11 +307,35 @@
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get RF transmission history",
-        "description": "Retrieve local RF activity history with transmission details",
+        "description": "Retrieve local RF activity history with transmission details as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML table with RF transmission history"
+            "description": "JSON object with local RF transmission history array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "secondsAgo": {"type": "integer"},
+                          "srcId": {"type": "integer"},
+                          "srcCallsign": {"type": "string"},
+                          "dstId": {"type": "integer"},
+                          "isGroup": {"type": "boolean"},
+                          "duration": {"type": "integer"},
+                          "slotNo": {"type": "integer"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -342,11 +454,46 @@
       "get": {
         "tags": ["System Status"],
         "summary": "Get system status",
-        "description": "Retrieve current system status for dashboard display",
+        "description": "Retrieve current system status for dashboard display as JSON",
         "security": [],
         "responses": {
           "200": {
-            "description": "HTML fragment with system status information"
+            "description": "JSON object with system status information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "network": {
+                      "type": "object",
+                      "properties": {
+                        "wifiConnected": {"type": "boolean"},
+                        "apMode": {"type": "boolean"},
+                        "ethConnected": {"type": "boolean", "description": "Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM"}
+                      }
+                    },
+                    "system": {
+                      "type": "object",
+                      "properties": {
+                        "mmdvmReady": {"type": "boolean"},
+                        "dmrLoggedIn": {"type": "boolean"}
+                      }
+                    },
+                    "modes": {
+                      "type": "object",
+                      "properties": {
+                        "dmr": {"type": "boolean"},
+                        "dstar": {"type": "boolean"},
+                        "ysf": {"type": "boolean"},
+                        "p25": {"type": "boolean"},
+                        "nxdn": {"type": "boolean"},
+                        "pocsag": {"type": "boolean"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

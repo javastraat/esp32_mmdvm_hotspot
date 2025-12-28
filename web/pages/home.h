@@ -243,15 +243,80 @@ String getDMRSlotHTML(int slotIndex) {
 }
 
 void handleDMRActivity() {
-  server.send(200, "text/html", getDMRActivityHTML());
+  // Return JSON for both slots
+  String json = "{\"slots\":[";
+
+  for (int i = 0; i < 2; i++) {
+    DMRActivity &activity = dmrActivity[i];
+    if (i > 0) json += ",";
+
+    json += "{";
+    json += "\"slotNo\":" + String(activity.slotNo) + ",";
+    json += "\"active\":" + String(activity.active ? "true" : "false");
+
+    if (activity.active) {
+      json += ",\"srcId\":" + String(activity.srcId);
+      json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
+      json += ",\"srcName\":\"" + activity.srcName + "\"";
+      json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+      json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
+      json += ",\"dstId\":" + String(activity.dstId);
+      json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
+      json += ",\"frameType\":\"" + activity.frameType + "\"";
+      json += ",\"duration\":" + String((millis() - activity.startTime) / 1000);
+    }
+
+    json += "}";
+  }
+
+  json += "]}";
+  server.send(200, "application/json", json);
 }
 
 void handleDMRSlot1() {
-  server.send(200, "text/html", getDMRSlotHTML(0));
+  DMRActivity &activity = dmrActivity[0];
+
+  String json = "{";
+  json += "\"slotNo\":" + String(activity.slotNo) + ",";
+  json += "\"active\":" + String(activity.active ? "true" : "false");
+
+  if (activity.active) {
+    json += ",\"srcId\":" + String(activity.srcId);
+    json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
+    json += ",\"srcName\":\"" + activity.srcName + "\"";
+    json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+    json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
+    json += ",\"dstId\":" + String(activity.dstId);
+    json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
+    json += ",\"frameType\":\"" + activity.frameType + "\"";
+    json += ",\"duration\":" + String((millis() - activity.startTime) / 1000);
+  }
+
+  json += "}";
+  server.send(200, "application/json", json);
 }
 
 void handleDMRSlot2() {
-  server.send(200, "text/html", getDMRSlotHTML(1));
+  DMRActivity &activity = dmrActivity[1];
+
+  String json = "{";
+  json += "\"slotNo\":" + String(activity.slotNo) + ",";
+  json += "\"active\":" + String(activity.active ? "true" : "false");
+
+  if (activity.active) {
+    json += ",\"srcId\":" + String(activity.srcId);
+    json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
+    json += ",\"srcName\":\"" + activity.srcName + "\"";
+    json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+    json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
+    json += ",\"dstId\":" + String(activity.dstId);
+    json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
+    json += ",\"frameType\":\"" + activity.frameType + "\"";
+    json += ",\"duration\":" + String((millis() - activity.startTime) / 1000);
+  }
+
+  json += "}";
+  server.send(200, "application/json", json);
 }
 
 // Helper function to generate DMR History HTML
@@ -320,7 +385,34 @@ String getDMRHistoryHTML() {
 }
 
 void handleDMRHistory() {
-  server.send(200, "text/html", getDMRHistoryHTML());
+  String json = "{\"history\":[";
+
+  bool firstEntry = true;
+  // Show entries in reverse chronological order (newest first)
+  for (int i = 0; i < 15; i++) {
+    int index = (dmrHistoryIndex - 1 - i + 15) % 15;
+    if (dmrHistory[index].srcId > 0) {
+      if (!firstEntry) json += ",";
+      firstEntry = false;
+
+      json += "{";
+      json += "\"timestamp\":\"" + dmrHistory[index].timestamp + "\",";
+      json += "\"srcId\":" + String(dmrHistory[index].srcId) + ",";
+      json += "\"srcCallsign\":\"" + dmrHistory[index].srcCallsign + "\",";
+      json += "\"srcName\":\"" + dmrHistory[index].srcName + "\",";
+      json += "\"srcLocation\":\"" + dmrHistory[index].srcLocation + "\",";
+      json += "\"dstId\":" + String(dmrHistory[index].dstId) + ",";
+      json += "\"isGroup\":" + String(dmrHistory[index].isGroup ? "true" : "false") + ",";
+      json += "\"duration\":" + String(dmrHistory[index].duration) + ",";
+      json += "\"ber\":" + String(dmrHistory[index].ber) + ",";
+      json += "\"rssi\":" + String(dmrHistory[index].rssi) + ",";
+      json += "\"slotNo\":" + String(dmrHistory[index].slotNo);
+      json += "}";
+    }
+  }
+
+  json += "]}";
+  server.send(200, "application/json", json);
 }
 
 // Helper function to generate Local RF Activity HTML
@@ -397,7 +489,33 @@ String getRFHistoryHTML() {
 }
 
 void handleRFHistory() {
-  server.send(200, "text/html", getRFHistoryHTML());
+  String json = "{\"history\":[";
+
+  bool firstEntry = true;
+  // Show entries in reverse chronological order (newest first)
+  for (int i = 0; i < 15; i++) {
+    int index = (rfHistoryIndex - 1 - i + 15) % 15;
+    if (rfHistory[index].srcId > 0) {
+      if (!firstEntry) json += ",";
+      firstEntry = false;
+
+      // Calculate time ago
+      unsigned long secondsAgo = (millis() - rfHistory[index].timestamp) / 1000;
+
+      json += "{";
+      json += "\"secondsAgo\":" + String(secondsAgo) + ",";
+      json += "\"srcId\":" + String(rfHistory[index].srcId) + ",";
+      json += "\"srcCallsign\":\"" + rfHistory[index].srcCallsign + "\",";
+      json += "\"dstId\":" + String(rfHistory[index].dstId) + ",";
+      json += "\"isGroup\":" + String(rfHistory[index].isGroup ? "true" : "false") + ",";
+      json += "\"duration\":" + String(rfHistory[index].duration) + ",";
+      json += "\"slotNo\":" + String(rfHistory[index].slotNo);
+      json += "}";
+    }
+  }
+
+  json += "]}";
+  server.send(200, "application/json", json);
 }
 
 // Helper function to generate System Status HTML
@@ -527,7 +645,35 @@ String getSystemStatusHTML() {
 }
 
 void handleSystemStatus() {
-  server.send(200, "text/html", getSystemStatusHTML());
+  String json = "{";
+
+  // Network connectivity
+  json += "\"network\":{";
+  json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
+  json += "\"apMode\":" + String(apMode ? "true" : "false");
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+  json += ",\"ethConnected\":" + String(eth_connected ? "true" : "false");
+#endif
+  json += "},";
+
+  // System status
+  json += "\"system\":{";
+  json += "\"mmdvmReady\":" + String(mmdvmReady ? "true" : "false") + ",";
+  json += "\"dmrLoggedIn\":" + String(dmrLoggedIn ? "true" : "false");
+  json += "},";
+
+  // Digital modes
+  json += "\"modes\":{";
+  json += "\"dmr\":" + String(mode_dmr_enabled ? "true" : "false") + ",";
+  json += "\"dstar\":" + String(mode_dstar_enabled ? "true" : "false") + ",";
+  json += "\"ysf\":" + String(mode_ysf_enabled ? "true" : "false") + ",";
+  json += "\"p25\":" + String(mode_p25_enabled ? "true" : "false") + ",";
+  json += "\"nxdn\":" + String(mode_nxdn_enabled ? "true" : "false") + ",";
+  json += "\"pocsag\":" + String(mode_pocsag_enabled ? "true" : "false");
+  json += "}";
+
+  json += "}";
+  server.send(200, "application/json", json);
 }
 
 void handleRoot() {
@@ -579,28 +725,149 @@ void handleRoot() {
   html += "@media (max-width: 768px) { .history-title-bar { flex-direction: column; align-items: flex-start; gap: 10px; } .filter-controls { align-self: flex-end; } .history-header, .history-row { grid-template-columns: 60px 1fr 80px 50px; } .col-slot { display: none; } }";
   html += "</style>";
   html += "<script>";
+  // Render functions for JSON data
+  html += "function renderDMRSlot(data) {";
+  html += "  let html = '';";
+  html += "  let cardClass = data.active ? 'activity-card' : 'activity-idle';";
+  html += "  html += '<div class=\"' + cardClass + '\">';";
+  html += "  html += '<div class=\"activity-details\">';";
+  html += "  if (data.active) {";
+  html += "    html += '<div class=\"callsign-header\">';";
+  html += "    if (data.srcCallsign && data.srcCallsign.length > 0) {";
+  html += "      html += '<a href=\"https://www.qrz.com/db/' + data.srcCallsign + '\" target=\"_blank\" rel=\"noopener noreferrer\">' + data.srcCallsign + '</a>';";
+  html += "    } else {";
+  html += "      html += 'Unknown';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "    if (data.srcName && data.srcName.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Name:</span><span class=\"metric-value\">' + data.srcName + '</span></div>';";
+  html += "    if (data.srcCity && data.srcCity.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">City:</span><span class=\"metric-value\">' + data.srcCity + '</span></div>';";
+  html += "    if (data.srcCountry && data.srcCountry.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Country:</span><span class=\"metric-value\">' + data.srcCountry + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.srcId + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Destination:</span><span class=\"metric-value\">' + (data.isGroup ? 'TG ' : '') + data.dstId + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.frameType + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Duration:</span><span class=\"metric-value\">' + data.duration + 's</span></div>';";
+  html += "  } else {";
+  html += "    html += '<div class=\"no-activity\">No Active Transmission</div>';";
+  html += "  }";
+  html += "  html += '</div></div>';";
+  html += "  return html;";
+  html += "}";
+  html += "function renderDMRHistory(data) {";
+  html += "  let html = '<div class=\"history-container\">';";
+  html += "  if (data.history.length === 0) {";
+  html += "    html += '<div class=\"no-history\">No recent transmissions</div>';";
+  html += "  } else {";
+  html += "    html += '<div class=\"history-header\">';";
+  html += "    html += '<div class=\"col-time\">Time</div>';";
+  html += "    html += '<div class=\"col-station\">Station</div>';";
+  html += "    html += '<div class=\"col-destination\">Destination</div>';";
+  html += "    html += '<div class=\"col-duration\">Duration</div>';";
+  html += "    html += '<div class=\"col-slot\">Slot</div>';";
+  html += "    html += '</div>';";
+  html += "    data.history.forEach(entry => {";
+  html += "      html += '<div class=\"history-row\" data-duration=\"' + entry.duration + '\">';";
+  html += "      html += '<div class=\"col-time\">' + entry.timestamp + '</div>';";
+  html += "      html += '<div class=\"col-station\">';";
+  html += "      if (entry.srcCallsign && entry.srcCallsign.length > 0) {";
+  html += "        html += '<div class=\"callsign\"><a href=\"https://www.qrz.com/db/' + entry.srcCallsign + '\" target=\"_blank\" rel=\"noopener noreferrer\">' + entry.srcCallsign + '</a></div>';";
+  html += "        if (entry.srcName && entry.srcName.length > 0) html += '<div class=\"name\">' + entry.srcName + '</div>';";
+  html += "        if (entry.srcLocation && entry.srcLocation.length > 0) html += '<div class=\"location\">' + entry.srcLocation + '</div>';";
+  html += "      } else {";
+  html += "        html += '<div class=\"callsign\">' + entry.srcId + '</div>';";
+  html += "      }";
+  html += "      html += '</div>';";
+  html += "      html += '<div class=\"col-destination\">' + (entry.isGroup ? 'TG ' : '') + entry.dstId + '</div>';";
+  html += "      html += '<div class=\"col-duration\">' + entry.duration + 's</div>';";
+  html += "      html += '<div class=\"col-slot\">' + entry.slotNo + '</div>';";
+  html += "      html += '</div>';";
+  html += "    });";
+  html += "  }";
+  html += "  html += '</div>';";
+  html += "  return html;";
+  html += "}";
+  html += "function renderRFHistory(data) {";
+  html += "  let html = '<div class=\"history-container\">';";
+  html += "  if (data.history.length === 0) {";
+  html += "    html += '<div class=\"no-history\">No local RF transmissions yet</div>';";
+  html += "  } else {";
+  html += "    html += '<div class=\"history-header\">';";
+  html += "    html += '<div class=\"col-time\">Time</div>';";
+  html += "    html += '<div class=\"col-station\">Station</div>';";
+  html += "    html += '<div class=\"col-destination\">Destination</div>';";
+  html += "    html += '<div class=\"col-duration\">Duration</div>';";
+  html += "    html += '<div class=\"col-slot\">Slot</div>';";
+  html += "    html += '</div>';";
+  html += "    data.history.forEach(entry => {";
+  html += "      let timeAgo = entry.secondsAgo < 60 ? entry.secondsAgo + 's ago' : entry.secondsAgo < 3600 ? Math.floor(entry.secondsAgo / 60) + 'm ago' : Math.floor(entry.secondsAgo / 3600) + 'h ago';";
+  html += "      html += '<div class=\"history-row rf-history-row\" data-duration=\"' + entry.duration + '\">';";
+  html += "      html += '<div class=\"col-time\">' + timeAgo + '</div>';";
+  html += "      html += '<div class=\"col-station\">';";
+  html += "      if (entry.srcCallsign && entry.srcCallsign.length > 0) {";
+  html += "        html += '<div class=\"callsign\"><a href=\"https://www.qrz.com/db/' + entry.srcCallsign + '\" target=\"_blank\">' + entry.srcCallsign + '</a></div>';";
+  html += "        html += '<div class=\"name\">' + entry.srcId + '</div>';";
+  html += "      } else {";
+  html += "        html += '<div class=\"callsign\">' + entry.srcId + '</div>';";
+  html += "      }";
+  html += "      html += '</div>';";
+  html += "      html += '<div class=\"col-destination\">' + (entry.isGroup ? 'TG ' : '') + entry.dstId + '</div>';";
+  html += "      html += '<div class=\"col-duration\">' + entry.duration + 's</div>';";
+  html += "      html += '<div class=\"col-slot\">' + entry.slotNo + '</div>';";
+  html += "      html += '</div>';";
+  html += "    });";
+  html += "  }";
+  html += "  html += '</div>';";
+  html += "  return html;";
+  html += "}";
+  html += "function renderSystemStatus(data) {";
+  html += "  let html = '';";
+  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Network Connectivity</div><div class=\"status-badges\">';";
+  html += "  if (data.network.wifiConnected) {";
+  html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> WiFi Connected</span>';";
+  html += "  } else if (data.network.apMode) {";
+  html += "    html += '<span class=\"status-badge badge-warning\"><span class=\"status-dot dot-yellow\"></span> WiFi (AP Mode)</span>';";
+  html += "  } else {";
+  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> WiFi Disconnected</span>';";
+  html += "  }";
+  html += "  if (data.network.ethConnected !== undefined) {";
+  html += "    if (data.network.ethConnected) {";
+  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> Ethernet</span>';";
+  html += "    } else {";
+  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> Ethernet</span>';";
+  html += "    }";
+  html += "  }";
+  html += "  html += '</div></div>';";
+  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">System Status</div><div class=\"status-badges\">';";
+  html += "  if (data.system.mmdvmReady) {";
+  html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MMDVM Ready</span>';";
+  html += "  } else {";
+  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MMDVM Not Ready</span>';";
+  html += "  }";
+  html += "  if (data.system.dmrLoggedIn) {";
+  html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> DMR Network</span>';";
+  html += "  } else {";
+  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> DMR Network</span>';";
+  html += "  }";
+  html += "  html += '</div></div>';";
+  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Digital Modes</div><div class=\"status-badges\">';";
+  html += "  html += data.modes.dmr ? '<span class=\"mode-badge mode-on\"><span class=\"toggle-switch toggle-switch-on\"><span class=\"toggle-knob toggle-knob-on\"></span></span>DMR ON</span>' : '<span class=\"mode-badge mode-off\"><span class=\"toggle-switch toggle-switch-off\"><span class=\"toggle-knob toggle-knob-off\"></span></span>DMR OFF</span>';";
+  html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>D-Star (N/A)</span>';";
+  html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>YSF (N/A)</span>';";
+  html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>P25 (N/A)</span>';";
+  html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>NXDN (N/A)</span>';";
+  html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>POCSAG (N/A)</span>';";
+  html += "  html += '</div></div>';";
+  html += "  return html;";
+  html += "}";
   html += "function refreshActivity() {";
   html += "  let activeCallsigns = [];";
-  html += "  fetch('/dmr-slot1').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-activity-slot1').innerHTML = data;";
-  html += "    const parser = new DOMParser();";
-  html += "    const doc = parser.parseFromString(data, 'text/html');";
-  html += "    const activeCard = doc.querySelector('.activity-card');";
-  html += "    if (activeCard) {";
-  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
-  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
-  html += "    }";
+  html += "  fetch('/dmr-slot1').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('dmr-activity-slot1').innerHTML = renderDMRSlot(data);";
+  html += "    if (data.active && data.srcCallsign) activeCallsigns.push(data.srcCallsign);";
   html += "    updateTitle(activeCallsigns);";
   html += "  });";
-  html += "  fetch('/dmr-slot2').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-activity-slot2').innerHTML = data;";
-  html += "    const parser = new DOMParser();";
-  html += "    const doc = parser.parseFromString(data, 'text/html');";
-  html += "    const activeCard = doc.querySelector('.activity-card');";
-  html += "    if (activeCard) {";
-  html += "      const callsignLink = doc.querySelector('.callsign-header a');";
-  html += "      if (callsignLink) activeCallsigns.push(callsignLink.textContent);";
-  html += "    }";
+  html += "  fetch('/dmr-slot2').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('dmr-activity-slot2').innerHTML = renderDMRSlot(data);";
+  html += "    if (data.active && data.srcCallsign) activeCallsigns.push(data.srcCallsign);";
   html += "    updateTitle(activeCallsigns);";
   html += "  });";
   html += "}";
@@ -613,19 +880,19 @@ void handleRoot() {
   html += "  }";
   html += "}";
   html += "function refreshHistory() {";
-  html += "  fetch('/dmr-history').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('dmr-history-content').innerHTML = data;";
+  html += "  fetch('/dmr-history').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('dmr-history-content').innerHTML = renderDMRHistory(data);";
   html += "    filterHistory();";
   html += "  });";
   html += "}";
   html += "function refreshRFHistory() {";
-  html += "  fetch('/rf-history').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('rf-history-content').innerHTML = data;";
+  html += "  fetch('/rf-history').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('rf-history-content').innerHTML = renderRFHistory(data);";
   html += "  });";
   html += "}";
   html += "function refreshSystemStatus() {";
-  html += "  fetch('/system-status').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('system-status-content').innerHTML = data;";
+  html += "  fetch('/system-status').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('system-status-content').innerHTML = renderSystemStatus(data);";
   html += "  });";
   html += "}";
   html += "function filterHistory() {";
