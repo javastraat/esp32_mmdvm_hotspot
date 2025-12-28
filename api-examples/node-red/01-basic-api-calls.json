@@ -1,643 +1,940 @@
 [
-  {
-    "id": "basic_flow_tab",
-    "type": "tab",
-    "label": "ESP32 MMDVM - Basic API Calls (All 11 Endpoints)",
-    "disabled": false,
-    "info": "# ESP32 MMDVM Hotspot - Basic API Calls\n\nThis flow demonstrates simple HTTP requests to ALL 11 API endpoints.\n\n## Quick Start:\n\n1. **Update Base URL & Credentials:**\n   - Double-click any HTTP Request node (blue nodes)\n   - Change URL from `http://esp32-mmdvm.local` to your ESP32's IP\n   - Update credentials if different from defaults:\n     - Username: admin\n     - Password: pi-star\n\n2. **Test the endpoints:**\n   - Click any inject button to make a test call\n   - View JSON responses in the debug panel (right sidebar)\n\n## All 11 API Endpoints:\n\n### System Information\n- GET /api/status - Network & DMR status\n- GET /api/system-information - ESP32 hardware details\n- GET /api/modem-information - MMDVM modem firmware info\n- GET /api/system-status - System status overview\n\n### DMR Activity\n- GET /api/dmr-activity - Both slots activity\n- GET /api/dmr-slot1 - Slot 1 only\n- GET /api/dmr-slot2 - Slot 2 only\n- GET /api/dmr-history - Recent DMR transmissions\n- GET /api/rf-history - Local RF activity\n\n### Utilities\n- GET /api/logs - Serial monitor logs\n- GET /api/wifiscan - Available WiFi networks\n\n## Next Steps:\n\nOnce you've tested the basic calls, check out:\n- 02-monitoring-dashboard.json for a complete UI dashboard\n- 03-advanced-examples.json for alerts, logging, and integrations"
-  },
-  {
-    "id": "comment_config",
-    "type": "comment",
-    "z": "basic_flow_tab",
-    "name": "CONFIGURATION - Double-click any HTTP Request node to change URL (http://esp32-mmdvm.local) and credentials (admin/pi-star)",
-    "info": "To configure:\n1. Double-click any blue HTTP Request node\n2. Change URL to your ESP32 IP address\n3. Update username/password if different from defaults",
-    "x": 430,
-    "y": 60,
-    "wires": []
-  },
-  {
-    "id": "comment_system",
-    "type": "comment",
-    "z": "basic_flow_tab",
-    "name": "System Information Endpoints",
-    "info": "",
-    "x": 180,
-    "y": 120,
-    "wires": []
-  },
-  {
-    "id": "inject_status",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 160,
-    "wires": [["http_status"]]
-  },
-  {
-    "id": "http_status",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/status",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/status",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "basic_flow_tab",
+        "type": "tab",
+        "label": "ESP32 MMDVM - Basic API Calls (All 11 Endpoints)",
+        "disabled": false,
+        "info": "# ESP32 MMDVM Hotspot - Basic API Calls\n\nThis flow demonstrates simple HTTP requests to ALL 11 API endpoints.\n\n## Quick Start:\n\n1. **Update Base URL & Credentials:**\n   - Double-click any HTTP Request node (blue nodes)\n   - Change URL from `http://esp32-mmdvm.local` to your ESP32's IP\n   - Update credentials if different from defaults:\n     - Username: admin\n     - Password: pi-star\n\n2. **Test the endpoints:**\n   - Click any inject button to make a test call\n   - View JSON responses in the debug panel (right sidebar)\n\n## All 11 API Endpoints:\n\n### System Information\n- GET /api/status - Network & DMR status\n- GET /api/system-information - ESP32 hardware details\n- GET /api/modem-information - MMDVM modem firmware info\n- GET /api/system-status - System status overview\n\n### DMR Activity\n- GET /api/dmr-activity - Both slots activity\n- GET /api/dmr-slot1 - Slot 1 only\n- GET /api/dmr-slot2 - Slot 2 only\n- GET /api/dmr-history - Recent DMR transmissions\n- GET /api/rf-history - Local RF activity\n\n### Utilities\n- GET /api/logs - Serial monitor logs\n- GET /api/wifiscan - Available WiFi networks\n\n## Next Steps:\n\nOnce you've tested the basic calls, check out:\n- 02-monitoring-dashboard.json for a complete UI dashboard\n- 03-advanced-examples.json for alerts, logging, and integrations"
     },
-    "x": 300,
-    "y": 160,
-    "wires": [["debug_status"]]
-  },
-  {
-    "id": "debug_status",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "Status",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 490,
-    "y": 160,
-    "wires": []
-  },
-  {
-    "id": "inject_sysinfo",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 200,
-    "wires": [["http_sysinfo"]]
-  },
-  {
-    "id": "http_sysinfo",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/system-information",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/system-information",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "comment_config",
+        "type": "comment",
+        "z": "basic_flow_tab",
+        "name": "CONFIGURATION - Double-click Function nodes to change URL (http://esp32-mmdvm.local) and credentials (admin/pi-star)",
+        "info": "To configure:\n1. Double-click the function node\n2. Change URL to your ESP32 IP address\n3. Update username/password if different from defaults",
+        "x": 400,
+        "y": 60,
+        "wires": []
     },
-    "x": 350,
-    "y": 200,
-    "wires": [["debug_sysinfo"]]
-  },
-  {
-    "id": "debug_sysinfo",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "System Info",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 590,
-    "y": 200,
-    "wires": []
-  },
-  {
-    "id": "inject_modeminfo",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 240,
-    "wires": [["http_modeminfo"]]
-  },
-  {
-    "id": "http_modeminfo",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/modem-information",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/modem-information",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "comment_system",
+        "type": "comment",
+        "z": "basic_flow_tab",
+        "name": "System Information Endpoints",
+        "info": "",
+        "x": 155,
+        "y": 120,
+        "wires": []
     },
-    "x": 350,
-    "y": 240,
-    "wires": [["debug_modeminfo"]]
-  },
-  {
-    "id": "debug_modeminfo",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "Modem Info",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 590,
-    "y": 240,
-    "wires": []
-  },
-  {
-    "id": "inject_system_status",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 280,
-    "wires": [["http_system_status"]]
-  },
-  {
-    "id": "http_system_status",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/system-status",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/system-status",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "inject_status",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 160,
+        "wires": [
+            [
+                "82023443d6124a7c"
+            ]
+        ]
     },
-    "x": 320,
-    "y": 280,
-    "wires": [["debug_system_status"]]
-  },
-  {
-    "id": "debug_system_status",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "System Status",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 550,
-    "y": 280,
-    "wires": []
-  },
-  {
-    "id": "comment_dmr",
-    "type": "comment",
-    "z": "basic_flow_tab",
-    "name": "DMR Activity Endpoints",
-    "info": "",
-    "x": 170,
-    "y": 340,
-    "wires": []
-  },
-  {
-    "id": "inject_dmr_activity",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 380,
-    "wires": [["http_dmr_activity"]]
-  },
-  {
-    "id": "http_dmr_activity",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/dmr-activity",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/dmr-activity",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "http_status",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/status",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/status",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 340,
+        "y": 160,
+        "wires": [
+            [
+                "debug_status"
+            ]
+        ]
     },
-    "x": 320,
-    "y": 380,
-    "wires": [["debug_dmr_activity"]]
-  },
-  {
-    "id": "debug_dmr_activity",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "DMR Activity",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 550,
-    "y": 380,
-    "wires": []
-  },
-  {
-    "id": "inject_dmr_slot1",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 420,
-    "wires": [["http_dmr_slot1"]]
-  },
-  {
-    "id": "http_dmr_slot1",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/dmr-slot1",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/dmr-slot1",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "debug_status",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "Status",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 585,
+        "y": 160,
+        "wires": []
     },
-    "x": 310,
-    "y": 420,
-    "wires": [["debug_dmr_slot1"]]
-  },
-  {
-    "id": "debug_dmr_slot1",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "DMR Slot 1",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 530,
-    "y": 420,
-    "wires": []
-  },
-  {
-    "id": "inject_dmr_slot2",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 460,
-    "wires": [["http_dmr_slot2"]]
-  },
-  {
-    "id": "http_dmr_slot2",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/dmr-slot2",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/dmr-slot2",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "inject_sysinfo",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 200,
+        "wires": [
+            [
+                "c75943cff82585a7"
+            ]
+        ]
     },
-    "x": 310,
-    "y": 460,
-    "wires": [["debug_dmr_slot2"]]
-  },
-  {
-    "id": "debug_dmr_slot2",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "DMR Slot 2",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 530,
-    "y": 460,
-    "wires": []
-  },
-  {
-    "id": "inject_dmr_history",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 500,
-    "wires": [["http_dmr_history"]]
-  },
-  {
-    "id": "http_dmr_history",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/dmr-history",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/dmr-history",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "http_sysinfo",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/system-information",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/system-information",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 380,
+        "y": 200,
+        "wires": [
+            [
+                "debug_sysinfo"
+            ]
+        ]
     },
-    "x": 310,
-    "y": 500,
-    "wires": [["debug_dmr_history"]]
-  },
-  {
-    "id": "debug_dmr_history",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "DMR History",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 540,
-    "y": 500,
-    "wires": []
-  },
-  {
-    "id": "inject_rf_history",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 540,
-    "wires": [["http_rf_history"]]
-  },
-  {
-    "id": "http_rf_history",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/rf-history",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/rf-history",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "debug_sysinfo",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "System Info",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 605,
+        "y": 200,
+        "wires": []
     },
-    "x": 300,
-    "y": 540,
-    "wires": [["debug_rf_history"]]
-  },
-  {
-    "id": "debug_rf_history",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "RF History",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 530,
-    "y": 540,
-    "wires": []
-  },
-  {
-    "id": "comment_other",
-    "type": "comment",
-    "z": "basic_flow_tab",
-    "name": "Utility Endpoints",
-    "info": "",
-    "x": 150,
-    "y": 600,
-    "wires": []
-  },
-  {
-    "id": "inject_logs",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 640,
-    "wires": [["http_logs"]]
-  },
-  {
-    "id": "http_logs",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/logs",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/logs",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "inject_modeminfo",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 240,
+        "wires": [
+            [
+                "31e8f541b4714cc9"
+            ]
+        ]
     },
-    "x": 280,
-    "y": 640,
-    "wires": [["debug_logs"]]
-  },
-  {
-    "id": "debug_logs",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "Logs",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 470,
-    "y": 640,
-    "wires": []
-  },
-  {
-    "id": "inject_wifiscan",
-    "type": "inject",
-    "z": "basic_flow_tab",
-    "name": "Trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 110,
-    "y": 680,
-    "wires": [["http_wifiscan"]]
-  },
-  {
-    "id": "http_wifiscan",
-    "type": "http request",
-    "z": "basic_flow_tab",
-    "name": "GET /api/wifiscan",
-    "method": "GET",
-    "ret": "obj",
-    "paytoqs": "ignore",
-    "url": "http://esp32-mmdvm.local/api/wifiscan",
-    "tls": "",
-    "persist": false,
-    "proxy": "",
-    "authType": "basic",
-    "sendsearch": false,
-    "credentials": {
-      "user": "admin",
-      "password": "pi-star"
+    {
+        "id": "http_modeminfo",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/modem-information",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/modem-information",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 380,
+        "y": 240,
+        "wires": [
+            [
+                "debug_modeminfo"
+            ]
+        ]
     },
-    "x": 300,
-    "y": 680,
-    "wires": [["debug_wifiscan"]]
-  },
-  {
-    "id": "debug_wifiscan",
-    "type": "debug",
-    "z": "basic_flow_tab",
-    "name": "WiFi Scan",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 530,
-    "y": 680,
-    "wires": []
-  }
+    {
+        "id": "debug_modeminfo",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "Modem Info",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 605,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "inject_system_status",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 280,
+        "wires": [
+            [
+                "2544d7b26c53da69"
+            ]
+        ]
+    },
+    {
+        "id": "http_system_status",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/system-status",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/system-status",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 370,
+        "y": 280,
+        "wires": [
+            [
+                "debug_system_status"
+            ]
+        ]
+    },
+    {
+        "id": "debug_system_status",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "System Status",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 615,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "comment_dmr",
+        "type": "comment",
+        "z": "basic_flow_tab",
+        "name": "DMR Activity Endpoints",
+        "info": "",
+        "x": 135,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "inject_dmr_activity",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 380,
+        "wires": [
+            [
+                "b656f35d566a0ad8"
+            ]
+        ]
+    },
+    {
+        "id": "http_dmr_activity",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/dmr-activity",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/dmr-activity",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 360,
+        "y": 380,
+        "wires": [
+            [
+                "debug_dmr_activity"
+            ]
+        ]
+    },
+    {
+        "id": "debug_dmr_activity",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "DMR Activity",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 565,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "inject_dmr_slot1",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 420,
+        "wires": [
+            [
+                "9a40d051f24f4b66"
+            ]
+        ]
+    },
+    {
+        "id": "http_dmr_slot1",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/dmr-slot1",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/dmr-slot1",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 350,
+        "y": 420,
+        "wires": [
+            [
+                "debug_dmr_slot1"
+            ]
+        ]
+    },
+    {
+        "id": "debug_dmr_slot1",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "DMR Slot 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 565,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "inject_dmr_slot2",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 460,
+        "wires": [
+            [
+                "4928a196dc1f5406"
+            ]
+        ]
+    },
+    {
+        "id": "http_dmr_slot2",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/dmr-slot2",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/dmr-slot2",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 350,
+        "y": 460,
+        "wires": [
+            [
+                "debug_dmr_slot2"
+            ]
+        ]
+    },
+    {
+        "id": "debug_dmr_slot2",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "DMR Slot 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 565,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "inject_dmr_history",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 500,
+        "wires": [
+            [
+                "585760c7582e2c2b"
+            ]
+        ]
+    },
+    {
+        "id": "http_dmr_history",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/dmr-history",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/dmr-history",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 360,
+        "y": 500,
+        "wires": [
+            [
+                "debug_dmr_history"
+            ]
+        ]
+    },
+    {
+        "id": "debug_dmr_history",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "DMR History",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 565,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "inject_rf_history",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 540,
+        "wires": [
+            [
+                "d6a901bc4d5d1e08"
+            ]
+        ]
+    },
+    {
+        "id": "http_rf_history",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/rf-history",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/rf-history",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 350,
+        "y": 540,
+        "wires": [
+            [
+                "debug_rf_history"
+            ]
+        ]
+    },
+    {
+        "id": "debug_rf_history",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "RF History",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 565,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "comment_other",
+        "type": "comment",
+        "z": "basic_flow_tab",
+        "name": "Utility Endpoints",
+        "info": "",
+        "x": 115,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "inject_logs",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 640,
+        "wires": [
+            [
+                "08be3b3bbe7a6cdc"
+            ]
+        ]
+    },
+    {
+        "id": "http_logs",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/logs",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/logs",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 340,
+        "y": 640,
+        "wires": [
+            [
+                "debug_logs"
+            ]
+        ]
+    },
+    {
+        "id": "debug_logs",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "Logs",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 525,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "inject_wifiscan",
+        "type": "inject",
+        "z": "basic_flow_tab",
+        "name": "Trigger",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 680,
+        "wires": [
+            [
+                "dac479b0356392e2"
+            ]
+        ]
+    },
+    {
+        "id": "http_wifiscan",
+        "type": "http request",
+        "z": "basic_flow_tab",
+        "name": "GET /api/wifiscan",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://{{server}}/api/wifiscan",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 350,
+        "y": 680,
+        "wires": [
+            [
+                "debug_wifiscan"
+            ]
+        ]
+    },
+    {
+        "id": "debug_wifiscan",
+        "type": "debug",
+        "z": "basic_flow_tab",
+        "name": "WiFi Scan",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 535,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "08be3b3bbe7a6cdc",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 6",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 640,
+        "wires": [
+            [
+                "http_logs"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "dac479b0356392e2",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 7",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 680,
+        "wires": [
+            [
+                "http_wifiscan"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "d6a901bc4d5d1e08",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 8",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 540,
+        "wires": [
+            [
+                "http_rf_history"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "585760c7582e2c2b",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 9",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 500,
+        "wires": [
+            [
+                "http_dmr_history"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "4928a196dc1f5406",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 13",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 460,
+        "wires": [
+            [
+                "http_dmr_slot2"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "9a40d051f24f4b66",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 14",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 420,
+        "wires": [
+            [
+                "http_dmr_slot1"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "b656f35d566a0ad8",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 15",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 380,
+        "wires": [
+            [
+                "http_dmr_activity"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "2544d7b26c53da69",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 21",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 280,
+        "wires": [
+            [
+                "http_system_status"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "31e8f541b4714cc9",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 22",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 240,
+        "wires": [
+            [
+                "http_modeminfo"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "c75943cff82585a7",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 23",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 200,
+        "wires": [
+            [
+                "http_sysinfo"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "82023443d6124a7c",
+        "type": "function",
+        "z": "basic_flow_tab",
+        "name": "function 24",
+        "func": "msg.server = flow.get('esp32_server') || 'esp32-mmdvm.local';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 160,
+        "wires": [
+            [
+                "http_status"
+            ]
+        ],
+        "l": false
+    }
 ]
