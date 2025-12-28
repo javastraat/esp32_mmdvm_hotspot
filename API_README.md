@@ -113,7 +113,19 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 #### `GET /logs`
 **Description:** Retrieve serial log entries
 **Authentication:** Required
-**Response:** Plain text log entries
+**Response:** JSON object with log entries array
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "logs": [
+    "2025-01-15 12:34:56 - DMR Network connected",
+    "2025-01-15 12:35:01 - MMDVM Ready",
+    "2025-01-15 12:35:15 - RX: PD2EMC -> TG 91"
+  ]
+}
+```
 
 ---
 

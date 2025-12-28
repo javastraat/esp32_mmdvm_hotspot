@@ -435,14 +435,23 @@
       "get": {
         "tags": ["System Status"],
         "summary": "Get serial logs",
-        "description": "Retrieve serial monitor log entries",
+        "description": "Retrieve serial monitor log entries as JSON",
         "responses": {
           "200": {
-            "description": "Plain text log entries",
+            "description": "JSON object with log entries array",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "logs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Array of log entries (oldest first, up to 50 entries)"
+                    }
+                  }
                 }
               }
             }

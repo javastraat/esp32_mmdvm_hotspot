@@ -37,10 +37,21 @@ void handleMonitor() {
   html += "</style>";
   html += "<script>";
   html += "let autoRefresh = true;";
+  html += "function renderLogs(data) {";
+  html += "  let html = '';";
+  html += "  if (data.logs.length === 0) {";
+  html += "    html = '<div class=\"log-line\">No logs yet...</div>';";
+  html += "  } else {";
+  html += "    data.logs.forEach(log => {";
+  html += "      html += '<div class=\"log-line\">' + log + '</div>';";
+  html += "    });";
+  html += "  }";
+  html += "  return html;";
+  html += "}";
   html += "function updateLogs() {";
   html += "  if (!autoRefresh) return;";
-  html += "  fetch('/logs').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('logs').innerHTML = data;";
+  html += "  fetch('/logs').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('logs').innerHTML = renderLogs(data);";
   html += "    document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;";
   html += "  }).catch(e => console.log('Failed to fetch logs:', e));";
   html += "}";
@@ -84,22 +95,29 @@ void handleMonitor() {
 void handleGetLogs() {
   if (!checkAuthentication()) return;
 
-  String logs = "";
+  // Build JSON response with log entries
+  String json = "{\"logs\":[";
 
+  bool firstEntry = true;
   // Display logs in order (oldest first)
   int start = serialLogIndex;
   for (int i = 0; i < SERIAL_LOG_SIZE; i++) {
     int idx = (start + i) % SERIAL_LOG_SIZE;
     if (serialLog[idx].length() > 0) {
-      logs += "<div class='log-line'>" + serialLog[idx] + "</div>";
+      if (!firstEntry) json += ",";
+      firstEntry = false;
+
+      // Escape quotes in log messages
+      String escapedLog = serialLog[idx];
+      escapedLog.replace("\"", "\\\"");
+      escapedLog.replace("\\", "\\\\");
+
+      json += "\"" + escapedLog + "\"";
     }
   }
 
-  if (logs.length() == 0) {
-    logs = "<div class='log-line'>No logs yet...</div>";
-  }
-
-  server.send(200, "text/html", logs);
+  json += "]}";
+  server.send(200, "application/json", json);
 }
 
 void handleClearLogs() {
