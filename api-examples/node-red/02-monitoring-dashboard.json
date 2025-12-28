@@ -1,15 +1,15 @@
 [
     {
-        "id": "853e185027f461d4",
+        "id": "5561a5168b20bc3e",
         "type": "tab",
         "label": "ESP32 MMDVM - Dashboard",
         "disabled": false,
         "info": "# ESP32 MMDVM Hotspot - Monitoring Dashboard\n\nThis flow creates a complete monitoring dashboard with real-time updates.\n\n## Prerequisites:\n\n**Install node-red-dashboard:**\n```\ncd ~/.node-red\nnpm install node-red-dashboard\n```\n\nRestart Node-RED after installation.\n\n## Quick Start:\n\n1. **Update Base URL & Credentials (if needed):**\n   - Edit the change node labeled \"Set Base URL & Auth\"\n   - Default URL: http://esp32-mmdvm.local\n   - Default credentials: admin / pi-star\n   - Update the URL in the first rule if your ESP32 has a different address\n   - Update the credentials in the JSONata expression if different: $base64encode(\"admin:pi-star\")\n\n3. **Access the Dashboard:**\n   - Navigate to `http://your-node-red-ip:1880/ui`\n   - The dashboard will show:\n     - System metrics (CPU, memory, uptime)\n     - DMR activity status\n     - Network status\n     - Modem information\n\n## Dashboard Features:\n\n- **Auto-refresh** every 5 seconds\n- **Memory usage gauge** with threshold alerts\n- **Uptime display** in human-readable format\n- **DMR activity** real-time display\n- **Network status** indicators\n- **Charts** for memory usage over time\n\n## Customization:\n\nYou can adjust:\n- Refresh interval (change the inject node repeat value)\n- Gauge thresholds (edit gauge node settings)\n- Chart history length (edit chart node buffer size)"
     },
     {
-        "id": "7bd0eb102c84fa4a",
+        "id": "4f1609b74fd3d9fe",
         "type": "inject",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Poll every 5 sec",
         "props": [],
         "repeat": "5",
@@ -21,14 +21,14 @@
         "y": 100,
         "wires": [
             [
-                "7d90bfba6ae0d07c"
+                "b70341d4054d4521"
             ]
         ]
     },
     {
-        "id": "77e310c217c05e90",
+        "id": "1a9c5ecaa4aab1db",
         "type": "http request",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "GET system-information",
         "method": "GET",
         "ret": "obj",
@@ -45,15 +45,15 @@
         "y": 60,
         "wires": [
             [
-                "aaf5641ce98c703b",
-                "173f609a64f55b8d"
+                "8ea39d609ae58c65",
+                "46c62c3d547eb1b6"
             ]
         ]
     },
     {
-        "id": "aaf5641ce98c703b",
+        "id": "8ea39d609ae58c65",
         "type": "function",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Parse System Info",
         "func": "const data = msg.payload;\n\n// PSRAM percentage (working memory) - FREE percentage\nmsg.psramPercent = ((data.memory.freePsramKB / (data.memory.psramSizeMB * 1024)) * 100).toFixed(1);\n\n// Heap percentage - FREE percentage\nmsg.heapPercent = data.memory.freeHeapPercent;\n\n// Sketch usage percentage - USED percentage (inverse)\nconst totalSketch = data.flash.sketchSizeKB + data.flash.freeSketchSpaceKB;\nmsg.sketchPercent = ((data.flash.freeSketchSpaceKB / totalSketch) * 100).toFixed(1);\n\n// Uptime in human readable format\nconst uptime = data.uptime;\nlet uptimeStr = '';\nif (uptime.days > 0) uptimeStr += uptime.days + 'd ';\nif (uptime.hours > 0) uptimeStr += uptime.hours + 'h ';\nuptimeStr += uptime.minutes + 'm ' + uptime.secondsRemaining + 's';\nmsg.uptimeStr = uptimeStr;\n\n// Chip info\nmsg.chipModel = data.chip.model;\nmsg.chipRevision = data.chip.revision;\nmsg.chipCores = data.chip.cores;\nmsg.cpuFreq = data.chip.cpuFreqMHz;\n\n// Memory details\nmsg.freeHeapKB = data.memory.freeHeapKB.toFixed(1);\nmsg.heapSizeKB = data.memory.heapSizeKB.toFixed(1);\nmsg.minFreeHeapKB = data.memory.minFreeHeapKB.toFixed(1);\nmsg.psramSizeMB = data.memory.psramSizeMB;\nmsg.freePsramKB = data.memory.freePsramKB.toFixed(1);\n\n// Flash info\nmsg.flashSizeMB = data.flash.sizeMB;\nmsg.flashSpeedMHz = data.flash.speedMHz;\nmsg.sketchSizeKB = data.flash.sketchSizeKB.toFixed(1);\nmsg.freeSketchSpaceKB = data.flash.freeSketchSpaceKB.toFixed(1);\n\n// Firmware version\nmsg.firmwareVersion = data.firmware.version;\nmsg.sdkVersion = data.firmware.sdkVersion;\nmsg.buildDate = data.firmware.buildDate;\n\nreturn msg;",
         "outputs": 1,
@@ -65,27 +65,27 @@
         "y": 60,
         "wires": [
             [
-                "d9ad16d07ddc42e8",
-                "5999544ac7458b3d",
-                "e4560eaf110623bd",
-                "de369482fb36928e",
-                "7a54026df3a4c898",
-                "a4bf8aac2793adcf",
-                "b811b91bebea2cff",
-                "646bd241b86be9bd",
-                "24169dc65cdbc2fe",
-                "c609bb3d75e4e8d9",
-                "a03929521429a24f",
-                "48c8efae76e4423e",
-                "62c7fd16c8685f42",
-                "38fd3addad59b950"
+                "f20d8988df54e9b0",
+                "dfeba4157560835b",
+                "920d046efa324f2f",
+                "819fd58f1fca4c58",
+                "9c917f1e20fdb967",
+                "84f0c5108b61fe34",
+                "a3cfb4a4a405be2b",
+                "294bb76b44fad70a",
+                "94ed442eb88a5d05",
+                "5455084d58c6af0b",
+                "aeb3b3c4905cf82e",
+                "aa9460db21fa1b59",
+                "cb7458791de18d83",
+                "f88f5cd2dbbbd497"
             ]
         ]
     },
     {
-        "id": "d9ad16d07ddc42e8",
+        "id": "f20d8988df54e9b0",
         "type": "ui_gauge",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "PSRAM Working Memory",
         "group": "c63c4d6f6053e227",
         "order": 1,
@@ -109,9 +109,9 @@
         "wires": []
     },
     {
-        "id": "5999544ac7458b3d",
+        "id": "dfeba4157560835b",
         "type": "ui_gauge",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Heap Memory",
         "group": "c63c4d6f6053e227",
         "order": 2,
@@ -135,9 +135,9 @@
         "wires": []
     },
     {
-        "id": "e4560eaf110623bd",
+        "id": "920d046efa324f2f",
         "type": "ui_gauge",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Sketch Space",
         "group": "c63c4d6f6053e227",
         "order": 3,
@@ -161,9 +161,9 @@
         "wires": []
     },
     {
-        "id": "33427ae2ac37f7e5",
+        "id": "56765baba5e40bc6",
         "type": "ui_chart",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Memory Chart",
         "group": "c63c4d6f6053e227",
         "order": 4,
@@ -196,9 +196,9 @@
         ]
     },
     {
-        "id": "de369482fb36928e",
+        "id": "819fd58f1fca4c58",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 5,
         "width": "12",
@@ -212,9 +212,9 @@
         "wires": []
     },
     {
-        "id": "a03929521429a24f",
+        "id": "aeb3b3c4905cf82e",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 6,
         "width": "12",
@@ -228,9 +228,9 @@
         "wires": []
     },
     {
-        "id": "7a54026df3a4c898",
+        "id": "9c917f1e20fdb967",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 7,
         "width": "12",
@@ -244,9 +244,9 @@
         "wires": []
     },
     {
-        "id": "a4bf8aac2793adcf",
+        "id": "84f0c5108b61fe34",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 8,
         "width": "12",
@@ -260,9 +260,9 @@
         "wires": []
     },
     {
-        "id": "b811b91bebea2cff",
+        "id": "a3cfb4a4a405be2b",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 9,
         "width": "12",
@@ -276,9 +276,9 @@
         "wires": []
     },
     {
-        "id": "646bd241b86be9bd",
+        "id": "294bb76b44fad70a",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 10,
         "width": "12",
@@ -292,9 +292,9 @@
         "wires": []
     },
     {
-        "id": "24169dc65cdbc2fe",
+        "id": "94ed442eb88a5d05",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 11,
         "width": "12",
@@ -308,9 +308,9 @@
         "wires": []
     },
     {
-        "id": "c609bb3d75e4e8d9",
+        "id": "5455084d58c6af0b",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 12,
         "width": "12",
@@ -324,9 +324,9 @@
         "wires": []
     },
     {
-        "id": "48c8efae76e4423e",
+        "id": "aa9460db21fa1b59",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 13,
         "width": "12",
@@ -340,9 +340,9 @@
         "wires": []
     },
     {
-        "id": "62c7fd16c8685f42",
+        "id": "cb7458791de18d83",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 14,
         "width": "12",
@@ -361,9 +361,9 @@
         "wires": []
     },
     {
-        "id": "3bb5dab071a69f7f",
+        "id": "2fe6083f0e6c142d",
         "type": "http request",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "GET modem-information",
         "method": "GET",
         "ret": "obj",
@@ -380,16 +380,16 @@
         "y": 555,
         "wires": [
             [
-                "931a81b0a5e95ccb"
+                "bca195aaef83f572"
             ]
         ]
     },
     {
-        "id": "931a81b0a5e95ccb",
+        "id": "bca195aaef83f572",
         "type": "function",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Parse Modem Info",
-        "func": "const data = msg.payload;\n\nmsg.modemHardware = data.hardware;\nmsg.modemFirmware = data.firmwareVersion;\nmsg.modemTransceiver = data.transceiver;\nmsg.modemCrystal = data.crystal;\n\nreturn msg;",
+        "func": "const data = msg.payload;\n\nmsg.modemHardware = data.hardware;\nmsg.modemFirmware = data.firmwareVersion;\nmsg.modemBuildDate = data.buildDate;\nmsg.modemCrystal = data.crystal;\nmsg.modemTransceiver = data.transceiver;\nmsg.modemAuthor = data.author;\nmsg.modemGitId = data.gitId;\n\nreturn msg;",
         "outputs": 1,
         "noerr": 0,
         "initialize": "",
@@ -399,64 +399,132 @@
         "y": 555,
         "wires": [
             [
-                "0d07e9fb35151d32",
-                "5bd5e04995a7f3fd",
-                "4e2cdc93e5dec831"
+                "c8ddee9cc6bd54a4",
+                "e5a8c5bb025305e4",
+                "3873cb0df312126e",
+                "0f1f8d0eb5727d5e",
+                "323f20e166d73f88",
+                "132d24c87e4f6a8b",
+                "bfd3b9d7fbb8df8c"
             ]
         ]
     },
     {
-        "id": "0d07e9fb35151d32",
+        "id": "c8ddee9cc6bd54a4",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "6c811184f98e923b",
         "order": 1,
-        "width": "6",
+        "width": "12",
         "height": "1",
         "name": "Modem Hardware",
         "label": "Hardware:",
         "format": "{{msg.modemHardware}}",
         "layout": "row-spread",
         "x": 1065,
-        "y": 580,
+        "y": 530,
         "wires": []
     },
     {
-        "id": "5bd5e04995a7f3fd",
+        "id": "e5a8c5bb025305e4",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "6c811184f98e923b",
         "order": 2,
-        "width": "3",
+        "width": "12",
         "height": "1",
         "name": "Firmware",
         "label": "Firmware:",
         "format": "{{msg.modemFirmware}}",
         "layout": "row-spread",
         "x": 1040,
-        "y": 520,
+        "y": 560,
         "wires": []
     },
     {
-        "id": "4e2cdc93e5dec831",
+        "id": "0f1f8d0eb5727d5e",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "6c811184f98e923b",
         "order": 3,
-        "width": "3",
+        "width": "12",
+        "height": "1",
+        "name": "Modem Build Date",
+        "label": "Build Date:",
+        "format": "{{msg.modemBuildDate}}",
+        "layout": "row-spread",
+        "x": 1065,
+        "y": 590,
+        "wires": []
+    },
+    {
+        "id": "3873cb0df312126e",
+        "type": "ui_text",
+        "z": "5561a5168b20bc3e",
+        "group": "6c811184f98e923b",
+        "order": 4,
+        "width": "12",
         "height": "1",
         "name": "Transceiver",
         "label": "Transceiver:",
-        "format": "{{msg.modemTransceiver}} ({{msg.modemCrystal}})",
+        "format": "{{msg.modemTransceiver}}",
         "layout": "row-spread",
         "x": 1045,
-        "y": 550,
+        "y": 620,
         "wires": []
     },
     {
-        "id": "3887a02754e53482",
+        "id": "323f20e166d73f88",
+        "type": "ui_text",
+        "z": "5561a5168b20bc3e",
+        "group": "6c811184f98e923b",
+        "order": 5,
+        "width": "12",
+        "height": "1",
+        "name": "Crystal",
+        "label": "Crystal:",
+        "format": "{{msg.modemCrystal}}",
+        "layout": "row-spread",
+        "x": 1045,
+        "y": 650,
+        "wires": []
+    },
+    {
+        "id": "132d24c87e4f6a8b",
+        "type": "ui_text",
+        "z": "5561a5168b20bc3e",
+        "group": "6c811184f98e923b",
+        "order": 6,
+        "width": "12",
+        "height": "1",
+        "name": "Modem Author",
+        "label": "Author:",
+        "format": "{{msg.modemAuthor}}",
+        "layout": "row-spread",
+        "x": 1065,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "bfd3b9d7fbb8df8c",
+        "type": "ui_text",
+        "z": "5561a5168b20bc3e",
+        "group": "6c811184f98e923b",
+        "order": 7,
+        "width": "12",
+        "height": "1",
+        "name": "Modem Git ID",
+        "label": "Git ID:",
+        "format": "{{msg.modemGitId}}",
+        "layout": "row-spread",
+        "x": 1065,
+        "y": 710,
+        "wires": []
+    },
+    {
+        "id": "8c6bce2f557fc695",
         "type": "http request",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "GET status",
         "method": "GET",
         "ret": "obj",
@@ -473,14 +541,14 @@
         "y": 675,
         "wires": [
             [
-                "76a45841715d9b21"
+                "9a20407138022918"
             ]
         ]
     },
     {
-        "id": "76a45841715d9b21",
+        "id": "9a20407138022918",
         "type": "function",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Parse Status",
         "func": "const data = msg.payload;\n\n// Network status\nmsg.wifiConnected = data.wifi.connected;\nmsg.wifiSSID = data.wifi.ssid || 'N/A';\nmsg.wifiIP = data.wifi.ip || data.wifi.apIP || 'N/A';\n\n// DMR status\nmsg.dmrLoggedIn = data.dmr.loggedIn;\nmsg.dmrServer = data.dmr.serverDisplay;\nmsg.mmdvmReady = Boolean(data.mmdvm.ready);\n\nreturn msg;",
         "outputs": 1,
@@ -492,16 +560,16 @@
         "y": 675,
         "wires": [
             [
-                "38fd3addad59b950",
-                "d9b2478654341652",
-                "687195755c7d503a"
+                "f88f5cd2dbbbd497",
+                "d9a3bd68f4d0da31",
+                "6cdec7c6e044128b"
             ]
         ]
     },
     {
-        "id": "38fd3addad59b950",
+        "id": "f88f5cd2dbbbd497",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "c63c4d6f6053e227",
         "order": 15,
         "width": "12",
@@ -515,9 +583,9 @@
         "wires": []
     },
     {
-        "id": "d9b2478654341652",
+        "id": "d9a3bd68f4d0da31",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 1,
         "width": "12",
@@ -531,9 +599,9 @@
         "wires": []
     },
     {
-        "id": "687195755c7d503a",
+        "id": "6cdec7c6e044128b",
         "type": "ui_led",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "order": 2,
         "group": "302269bcb769a690",
         "width": "2",
@@ -559,9 +627,9 @@
         "wires": []
     },
     {
-        "id": "1fa3f7ad23e1b2da",
+        "id": "e1418918e8ab9418",
         "type": "ui_led",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "order": 3,
         "group": "302269bcb769a690",
         "width": "2",
@@ -572,12 +640,12 @@
         "colorForValue": [
             {
                 "color": "#ff0000",
-                "value": "false",
+                "value": "true",
                 "valueType": "bool"
             },
             {
                 "color": "#00ff00",
-                "value": "true",
+                "value": "false",
                 "valueType": "bool"
             }
         ],
@@ -585,14 +653,14 @@
         "shape": "circle",
         "showGlow": true,
         "name": "",
-        "x": 820,
-        "y": 850,
+        "x": 970,
+        "y": 945,
         "wires": []
     },
     {
-        "id": "ab3cec22292cde6f",
+        "id": "67042d19eee2603f",
         "type": "ui_led",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "order": 11,
         "group": "302269bcb769a690",
         "width": "2",
@@ -603,12 +671,12 @@
         "colorForValue": [
             {
                 "color": "#ff0000",
-                "value": "false",
+                "value": "true",
                 "valueType": "bool"
             },
             {
                 "color": "#00ff00",
-                "value": "true",
+                "value": "false",
                 "valueType": "bool"
             }
         ],
@@ -616,14 +684,14 @@
         "shape": "circle",
         "showGlow": true,
         "name": "",
-        "x": 815,
-        "y": 890,
+        "x": 970,
+        "y": 1015,
         "wires": []
     },
     {
-        "id": "29f52ab7e69ffe49",
+        "id": "db3bf1ea9bb2588c",
         "type": "http request",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "GET dmr-activity",
         "method": "GET",
         "ret": "obj",
@@ -640,16 +708,16 @@
         "y": 795,
         "wires": [
             [
-                "73a937d7ca82067f"
+                "c0bba6730d3886bc"
             ]
         ]
     },
     {
-        "id": "73a937d7ca82067f",
+        "id": "c0bba6730d3886bc",
         "type": "function",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Parse DMR Activity",
-        "func": "const slots = msg.payload.slots;\n\n// Slot 1\nconst slot1 = slots[0];\nif (slot1.active) {\n    const callType = slot1.isGroup ? 'Group' : 'Private';\n    msg.slot1Callsign = `${slot1.srcCallsign} (${slot1.srcName})`;\n    msg.slot1DmrId = slot1.srcId;\n    msg.slot1Location = `${slot1.srcCity}, ${slot1.srcCountry}`;\n    msg.slot1Target = `TG${slot1.dstId} (${callType})`;\n    msg.slot1Type = slot1.frameType;\n    msg.slot1Duration = `${slot1.duration}s`;\n    msg.slot1Idle = false;\n} else {\n    msg.slot1Callsign = 'Idle';\n    msg.slot1DmrId = '-';\n    msg.slot1Location = '-';\n    msg.slot1Target = '-';\n    msg.slot1Type = '-';\n    msg.slot1Duration = '-';\n    msg.slot1Idle = true;\n}\n\n// Slot 2\nconst slot2 = slots[1];\nif (slot2.active) {\n    const callType = slot2.isGroup ? 'Group' : 'Private';\n    msg.slot2Callsign = `${slot2.srcCallsign} (${slot2.srcName})`;\n    msg.slot2DmrId = slot2.srcId;\n    msg.slot2Location = `${slot2.srcCity}, ${slot2.srcCountry}`;\n    msg.slot2Target = `TG${slot2.dstId} (${callType})`;\n    msg.slot2Type = slot2.frameType;\n    msg.slot2Duration = `${slot2.duration}s`;\n    msg.slot2Idle = false;\n} else {\n    msg.slot2Callsign = 'Idle';\n    msg.slot2DmrId = '-';\n    msg.slot2Location = '-';\n    msg.slot2Target = '-';\n    msg.slot2Type = '-';\n    msg.slot2Duration = '-';\n    msg.slot2Idle = true;\n}\n\nreturn msg;",
+        "func": "const slots = msg.payload.slots;\n\n// Slot 1\nconst slot1 = slots[0];\nif (slot1.active) {\n    const callType = slot1.isGroup ? 'Group' : 'Private';\n    msg.slot1Callsign = `${slot1.srcCallsign} (${slot1.srcName})`;\n    msg.slot1DmrId = slot1.srcId;\n    msg.slot1Location = `${slot1.srcCity}, ${slot1.srcCountry}`;\n    msg.slot1Target = `TG${slot1.dstId} (${callType})`;\n    msg.slot1Type = slot1.frameType;\n    msg.slot1Duration = `${slot1.duration}s`;\n    msg.slot1Idle = !slot1.active; // LED should show when idle (not active)\n} else {\n    msg.slot1Callsign = 'Idle';\n    msg.slot1DmrId = '-';\n    msg.slot1Location = '-';\n    msg.slot1Target = '-';\n    msg.slot1Type = '-';\n    msg.slot1Duration = '-';\n    msg.slot1Idle = !slot1.active; // LED should show when idle (not active)\n}\n\n// Slot 2\nconst slot2 = slots[1];\nif (slot2.active) {\n    const callType = slot2.isGroup ? 'Group' : 'Private';\n    msg.slot2Callsign = `${slot2.srcCallsign} (${slot2.srcName})`;\n    msg.slot2DmrId = slot2.srcId;\n    msg.slot2Location = `${slot2.srcCity}, ${slot2.srcCountry}`;\n    msg.slot2Target = `TG${slot2.dstId} (${callType})`;\n    msg.slot2Type = slot2.frameType;\n    msg.slot2Duration = `${slot2.duration}s`;\n    msg.slot2Idle = !slot2.active; // LED should show when idle (not active)\n} else {\n    msg.slot2Callsign = 'Idle';\n    msg.slot2DmrId = '-';\n    msg.slot2Location = '-';\n    msg.slot2Target = '-';\n    msg.slot2Type = '-';\n    msg.slot2Duration = '-';\n    msg.slot2Idle = !slot2.active; // LED should show when idle (not active)\n}\n\nreturn msg;",
         "outputs": 1,
         "noerr": 0,
         "initialize": "",
@@ -659,28 +727,27 @@
         "y": 795,
         "wires": [
             [
-                "e11e9b5a10892233",
-                "69ee4ed237c28a8b",
-                "6d081718bfaa47c2",
-                "4c162fcdd6088bb3",
-                "ad93b47dd9bf809f",
-                "470b4b6d489b8d7f",
-                "1fa3f7ad23e1b2da",
-                "e5d993cb6eb30678",
-                "4e3e9f185a39a6ca",
-                "6e3dea2b43c14b4e",
-                "40488eca3ffa6524",
-                "2e02ea09e87afa73",
-                "bb3752468d3a99a2",
-                "ab3cec22292cde6f",
-                "7f37246b99b9af42"
+                "96830807b8affbcc",
+                "76e803684d948c05",
+                "e9e82ae2bf18ac22",
+                "efdc41887c652d6d",
+                "3941e1c8dc8c4fa4",
+                "802072b18b2689d3",
+                "6d5f3371f4f4d49d",
+                "d2b5a932d8232336",
+                "a4c376783b2317da",
+                "a8d01941bd88070a",
+                "a070166a44e8d5d1",
+                "6f3554d5b18a3bb6",
+                "a91455f4977b9cca",
+                "fa773ac728372ca8"
             ]
         ]
     },
     {
-        "id": "e11e9b5a10892233",
+        "id": "96830807b8affbcc",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 4,
         "width": "12",
@@ -694,9 +761,9 @@
         "wires": []
     },
     {
-        "id": "69ee4ed237c28a8b",
+        "id": "76e803684d948c05",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 5,
         "width": "12",
@@ -710,9 +777,9 @@
         "wires": []
     },
     {
-        "id": "6d081718bfaa47c2",
+        "id": "e9e82ae2bf18ac22",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 6,
         "width": "12",
@@ -726,9 +793,9 @@
         "wires": []
     },
     {
-        "id": "4c162fcdd6088bb3",
+        "id": "efdc41887c652d6d",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 7,
         "width": "12",
@@ -742,9 +809,9 @@
         "wires": []
     },
     {
-        "id": "ad93b47dd9bf809f",
+        "id": "3941e1c8dc8c4fa4",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 8,
         "width": "12",
@@ -758,9 +825,9 @@
         "wires": []
     },
     {
-        "id": "470b4b6d489b8d7f",
+        "id": "802072b18b2689d3",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 9,
         "width": "12",
@@ -774,9 +841,9 @@
         "wires": []
     },
     {
-        "id": "e5d993cb6eb30678",
+        "id": "6d5f3371f4f4d49d",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 12,
         "width": "12",
@@ -790,9 +857,9 @@
         "wires": []
     },
     {
-        "id": "4e3e9f185a39a6ca",
+        "id": "d2b5a932d8232336",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 13,
         "width": "12",
@@ -806,9 +873,9 @@
         "wires": []
     },
     {
-        "id": "6e3dea2b43c14b4e",
+        "id": "a4c376783b2317da",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 14,
         "width": "12",
@@ -822,9 +889,9 @@
         "wires": []
     },
     {
-        "id": "40488eca3ffa6524",
+        "id": "a8d01941bd88070a",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 15,
         "width": "12",
@@ -838,9 +905,9 @@
         "wires": []
     },
     {
-        "id": "2e02ea09e87afa73",
+        "id": "a070166a44e8d5d1",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 16,
         "width": "12",
@@ -854,9 +921,9 @@
         "wires": []
     },
     {
-        "id": "bb3752468d3a99a2",
+        "id": "6f3554d5b18a3bb6",
         "type": "ui_text",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "group": "302269bcb769a690",
         "order": 17,
         "width": "12",
@@ -870,11 +937,11 @@
         "wires": []
     },
     {
-        "id": "7d90bfba6ae0d07c",
+        "id": "b70341d4054d4521",
         "type": "function",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "Set base url",
-        "func": "msg.server = flow.get('esp32_server') || '192.168.2.217';\nreturn msg;",
+        "func": "msg.server = flow.get('esp32_server') || '192.168.2.123';\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -885,18 +952,18 @@
         "y": 100,
         "wires": [
             [
-                "77e310c217c05e90",
-                "3bb5dab071a69f7f",
-                "3887a02754e53482",
-                "29f52ab7e69ffe49"
+                "1a9c5ecaa4aab1db",
+                "2fe6083f0e6c142d",
+                "8c6bce2f557fc695",
+                "db3bf1ea9bb2588c"
             ]
         ],
         "l": false
     },
     {
-        "id": "173f609a64f55b8d",
+        "id": "46c62c3d547eb1b6",
         "type": "debug",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "debug 1",
         "active": false,
         "tosidebar": true,
@@ -911,26 +978,51 @@
         "l": false
     },
     {
-        "id": "7f37246b99b9af42",
-        "type": "debug",
-        "z": "853e185027f461d4",
-        "name": "debug 2",
-        "active": false,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 650,
-        "y": 870,
-        "wires": [],
+        "id": "a91455f4977b9cca",
+        "type": "function",
+        "z": "5561a5168b20bc3e",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.slots[0].active;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 805,
+        "y": 965,
+        "wires": [
+            [
+                "e1418918e8ab9418"
+            ]
+        ],
         "l": false
     },
     {
-        "id": "b7ab6d7c2569a20d",
+        "id": "fa773ac728372ca8",
+        "type": "function",
+        "z": "5561a5168b20bc3e",
+        "name": "slot 2",
+        "func": "msg.payload = msg.payload.slots[1].active;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 805,
+        "y": 1010,
+        "wires": [
+            [
+                "67042d19eee2603f"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "b0998aa6974cdfca",
         "type": "ui_spacer",
-        "z": "853e185027f461d4",
+        "z": "5561a5168b20bc3e",
         "name": "spacer",
         "group": "302269bcb769a690",
         "order": 10,
@@ -978,7 +1070,7 @@
         "hidden": false
     },
     {
-        "id": "6109915088b25fca",
+        "id": "dee52f35ca1e5da7",
         "type": "global-config",
         "env": [],
         "modules": {
