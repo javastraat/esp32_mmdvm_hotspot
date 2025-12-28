@@ -45,8 +45,8 @@ String getFooter() {
 // Pages that don't require authentication
 const char* publicPages[] = {
   "/",              // Home page
-  "/api/status",        // Status page
-  "/api/statusdata",    // Status page data (for auto-refresh)
+  "/status",        // Status page
+  "/api/status",    // Status page data (for auto-refresh)
   "/api/dmr-activity",  // DMR activity data
   "/api/dmr-slot1",     // DMR Slot 1 data
   "/api/dmr-slot2",     // DMR Slot 2 data
