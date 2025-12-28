@@ -2638,6 +2638,7 @@ void setupWebServer() {
   // API endpoints (recommended - JSON responses)
   server.on("/api/logs", handleGetLogs);
   server.on("/api/status", handleStatusData);
+  server.on("/api/wifiscan", handleWifiScan);
   server.on("/api/dmr-activity", handleDMRActivity);
   server.on("/api/dmr-slot1", handleDMRSlot1);
   server.on("/api/dmr-slot2", handleDMRSlot2);

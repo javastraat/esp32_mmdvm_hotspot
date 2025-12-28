@@ -507,20 +507,44 @@
         }
       }
     },
-    "/wifiscan": {
+    "/api/wifiscan": {
       "get": {
         "tags": ["Configuration"],
         "summary": "Scan WiFi networks",
-        "description": "Scan for available WiFi networks",
+        "description": "Scan for available WiFi networks and return as JSON",
         "responses": {
           "200": {
-            "description": "Array of WiFi networks",
+            "description": "JSON object with array of WiFi networks",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WiFiNetwork"
+                  "type": "object",
+                  "properties": {
+                    "networks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ssid": {
+                            "type": "string",
+                            "description": "WiFi network name"
+                          },
+                          "rssi": {
+                            "type": "integer",
+                            "description": "Signal strength in dBm"
+                          },
+                          "channel": {
+                            "type": "integer",
+                            "description": "WiFi channel number"
+                          },
+                          "encryption": {
+                            "type": "string",
+                            "description": "Security type",
+                            "enum": ["Open", "Secured"]
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

@@ -199,10 +199,30 @@ void handleConfig() {
   html += "  }";
   html += "}";
   
+  html += "function renderNetworks(data) {";
+  html += "  let html = '';";
+  html += "  if (data.networks.length === 0) {";
+  html += "    html = '<div class=\"network-item\">No networks found</div>';";
+  html += "  } else {";
+  html += "    data.networks.forEach(network => {";
+  html += "      let signalQuality = '';";
+  html += "      if (network.rssi >= -50) signalQuality = 'Excellent';";
+  html += "      else if (network.rssi >= -60) signalQuality = 'Good';";
+  html += "      else if (network.rssi >= -70) signalQuality = 'Fair';";
+  html += "      else signalQuality = 'Weak';";
+  html += "      html += '<div class=\"network-item\" onclick=\"selectNetwork(\\'' + network.ssid.replace(/'/g, \"\\\\'\" ) + '\\')\"><strong>' + network.ssid + '</strong>';";
+  html += "      html += '<span class=\"signal-strength\">' + network.rssi + ' dBm (' + signalQuality + ', ' + network.encryption + ')</span></div>';";
+  html += "    });";
+  html += "  }";
+  html += "  return html;";
+  html += "}";
   html += "function scanNetworks() {";
   html += "  document.getElementById('scan-results').style.display = 'block';";
-  html += "  fetch('/wifiscan').then(r => r.text()).then(data => {";
-  html += "    document.getElementById('networks').innerHTML = data;";
+  html += "  document.getElementById('networks').innerHTML = 'Scanning...';";
+  html += "  fetch('/api/wifiscan').then(r => r.json()).then(data => {";
+  html += "    document.getElementById('networks').innerHTML = renderNetworks(data);";
+  html += "  }).catch(e => {";
+  html += "    document.getElementById('networks').innerHTML = '<div class=\"network-item\">Scan failed</div>';";
   html += "  });";
   html += "}";
   
@@ -285,30 +305,26 @@ void handleSaveConfig() {
 }
 
 void handleWifiScan() {
-  String html = "";
   int n = WiFi.scanNetworks();
 
-  if (n == 0) {
-    html = "<div class='network-item'>No networks found</div>";
-  } else {
+  String json = "{\"networks\":[";
+
+  if (n > 0) {
     for (int i = 0; i < n; ++i) {
-      String security = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured";
-      String ssid = WiFi.SSID(i);
-      String escapedSsid = ssid;
-      // Escape for JavaScript string inside double quotes: escape backslash, double quote, and special chars
-      escapedSsid.replace("\\", "\\\\");
-      escapedSsid.replace("\"", "\\\"");
-      escapedSsid.replace("'", "\\'");
-      html += "<div class='network-item' onclick=\"selectNetwork('";
-      html += escapedSsid;
-      html += "')\">";
-      html += "<strong>" + ssid + "</strong>";
-      html += "<span class='signal-strength'>" + String(WiFi.RSSI(i)) + " dBm (" + security + ")</span>";
-      html += "</div>";
+      if (i > 0) json += ",";
+
+      json += "{";
+      json += "\"ssid\":\"" + WiFi.SSID(i) + "\",";
+      json += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
+      json += "\"channel\":" + String(WiFi.channel(i)) + ",";
+      json += "\"encryption\":\"" + String((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured") + "\"";
+      json += "}";
     }
   }
 
-  server.send(200, "text/html", html);
+  json += "]}";
+
+  server.send(200, "application/json", json);
 }
 
 #endif // WEB_PAGES_WIFI_CONFIG_H

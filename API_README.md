@@ -290,18 +290,31 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ### Configuration
 
-#### `GET /wifiscan`
+#### `GET /api/wifiscan` (Recommended)
+#### `GET /wifiscan` (Legacy)
 **Description:** Scan for available WiFi networks
 **Authentication:** Required
-**Response:** JSON array of WiFi networks
+**Response:** JSON object with array of WiFi networks
+**Content-Type:** `application/json`
+
+**Response Format:**
 ```json
-[
-  {
-    "ssid": "NetworkName",
-    "rssi": -45,
-    "encryption": 3
-  }
-]
+{
+  "networks": [
+    {
+      "ssid": "MyNetwork",
+      "rssi": -45,
+      "channel": 6,
+      "encryption": "Secured"
+    },
+    {
+      "ssid": "OpenNetwork",
+      "rssi": -67,
+      "channel": 11,
+      "encryption": "Open"
+    }
+  ]
+}
 ```
 
 #### `GET /export-config`
