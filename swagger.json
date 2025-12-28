@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "ESP32 MMDVM Hotspot API",
-    "description": "REST API for ESP32 MMDVM Hotspot web interface - Control and monitor your DMR hotspot via HTTP",
+    "description": "REST API for ESP32 MMDVM Hotspot web interface - Control and monitor your DMR hotspot via HTTP. All JSON endpoints are available with the /api/ prefix (recommended) for clear distinction between HTML pages and data endpoints.",
     "version": "1.0.0",
     "contact": {
       "name": "ESP32 MMDVM Hotspot Project",
@@ -34,7 +34,7 @@
       "basicAuth": []
     }
   ],
-  "x-security-note": "All endpoints require authentication except: /, /status, /statusdata, /dmr-activity, /dmr-slot1, /dmr-slot2, /dmr-history, /rf-history, /system-status",
+  "x-security-note": "All endpoints require authentication except: /, /status, /api/status, /api/dmr-activity, /api/dmr-slot1, /api/dmr-slot2, /api/dmr-history, /api/rf-history, /api/system-status, /api/logs (and their legacy equivalents)",
   "tags": [
     {
       "name": "Pages",
@@ -155,7 +155,7 @@
         }
       }
     },
-    "/dmr-activity": {
+    "/api/dmr-activity": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get combined DMR activity",
@@ -196,7 +196,7 @@
         }
       }
     },
-    "/dmr-slot1": {
+    "/api/dmr-slot1": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get Slot 1 activity",
@@ -229,7 +229,7 @@
         }
       }
     },
-    "/dmr-slot2": {
+    "/api/dmr-slot2": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get Slot 2 activity",
@@ -262,7 +262,7 @@
         }
       }
     },
-    "/dmr-history": {
+    "/api/dmr-history": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get DMR transmission history",
@@ -303,7 +303,7 @@
         }
       }
     },
-    "/rf-history": {
+    "/api/rf-history": {
       "get": {
         "tags": ["DMR Activity"],
         "summary": "Get RF transmission history",
@@ -340,7 +340,7 @@
         }
       }
     },
-    "/statusdata": {
+    "/api/status": {
       "get": {
         "tags": ["System Status"],
         "summary": "Get status data",
@@ -431,7 +431,7 @@
         }
       }
     },
-    "/logs": {
+    "/api/logs": {
       "get": {
         "tags": ["System Status"],
         "summary": "Get serial logs",
@@ -459,7 +459,7 @@
         }
       }
     },
-    "/system-status": {
+    "/api/system-status": {
       "get": {
         "tags": ["System Status"],
         "summary": "Get system status",

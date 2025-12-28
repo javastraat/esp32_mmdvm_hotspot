@@ -8,6 +8,10 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 **Authentication:** Most endpoints require HTTP Basic Authentication with configured web username/password.
 
+**API Endpoints:** All JSON API endpoints are available with the `/api/` prefix (recommended) for clear distinction between HTML pages and data endpoints. Legacy endpoints without the prefix are maintained for backward compatibility.
+
+**Recommended:** Use `/api/*` endpoints (e.g., `/api/status`, `/api/logs`) instead of legacy endpoints (e.g., `/statusdata`, `/logs`).
+
 ---
 
 ## Web Pages (GET)
@@ -50,7 +54,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ### System Status
 
-#### `GET /statusdata`
+#### `GET /api/status` (Recommended)
+#### `GET /statusdata` (Legacy)
 **Description:** Retrieve current system status information
 **Authentication:** Required
 **Response:** JSON object with system status data
@@ -110,7 +115,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /logs`
+#### `GET /api/logs` (Recommended)
+#### `GET /logs` (Legacy)
 **Description:** Retrieve serial log entries
 **Authentication:** Required
 **Response:** JSON object with log entries array
@@ -131,7 +137,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ### DMR Activity
 
-#### `GET /dmr-activity`
+#### `GET /api/dmr-activity` (Recommended)
+#### `GET /dmr-activity` (Legacy)
 **Description:** Get combined live DMR activity for both slots
 **Authentication:** Required
 **Response:** JSON object with activity data for both slots
@@ -163,7 +170,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /dmr-slot1`
+#### `GET /api/dmr-slot1` (Recommended)
+#### `GET /dmr-slot1` (Legacy)
 **Description:** Get live DMR activity for Slot 1 only
 **Authentication:** Required
 **Response:** JSON object with Slot 1 activity data
@@ -187,15 +195,17 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /dmr-slot2`
+#### `GET /api/dmr-slot2` (Recommended)
+#### `GET /dmr-slot2` (Legacy)
 **Description:** Get live DMR activity for Slot 2 only
 **Authentication:** Required
 **Response:** JSON object with Slot 2 activity data
 **Content-Type:** `application/json`
 
-**Response Format:** Same as `/dmr-slot1`
+**Response Format:** Same as `/api/dmr-slot1`
 
-#### `GET /dmr-history`
+#### `GET /api/dmr-history` (Recommended)
+#### `GET /dmr-history` (Legacy)
 **Description:** Get recent DMR transmission history (last 15 transmissions)
 **Authentication:** Required
 **Response:** JSON object with transmission history array
@@ -222,7 +232,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /rf-history`
+#### `GET /api/rf-history` (Recommended)
+#### `GET /rf-history` (Legacy)
 **Description:** Get local RF transmission history (last 15 transmissions)
 **Authentication:** Required
 **Response:** JSON object with local RF activity history
@@ -245,7 +256,8 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /system-status`
+#### `GET /api/system-status` (Recommended)
+#### `GET /system-status` (Legacy)
 **Description:** Get system status overview
 **Authentication:** Required
 **Response:** JSON object with system status information

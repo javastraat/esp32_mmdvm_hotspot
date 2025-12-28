@@ -50,7 +50,7 @@ void handleMonitor() {
   html += "}";
   html += "function updateLogs() {";
   html += "  if (!autoRefresh) return;";
-  html += "  fetch('/logs').then(r => r.json()).then(data => {";
+  html += "  fetch('/api/logs').then(r => r.json()).then(data => {";
   html += "    document.getElementById('logs').innerHTML = renderLogs(data);";
   html += "    document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;";
   html += "  }).catch(e => console.log('Failed to fetch logs:', e));";

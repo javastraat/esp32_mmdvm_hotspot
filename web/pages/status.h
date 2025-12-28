@@ -156,7 +156,7 @@ void handleStatus() {
   html += "}";
   html += "function updateStatus() {";
   html += "  if (!autoRefresh) return;";
-  html += "  fetch('/statusdata').then(r => r.json()).then(data => {";
+  html += "  fetch('/api/status').then(r => r.json()).then(data => {";
   html += "    renderStatus(data);";
   html += "  }).catch(e => console.log('Failed to fetch status:', e));";
   html += "}";
