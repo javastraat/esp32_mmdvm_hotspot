@@ -2624,18 +2624,7 @@ void setupWebServer() {
   server.on("/resetconfig", handleResetConfig);
   server.on("/confirmreset", HTTP_POST, handleConfirmReset);
 
-  // Data endpoints (legacy - for backward compatibility)
-  server.on("/logs", handleGetLogs);
-  server.on("/statusdata", handleStatusData);  // Status page data
-  server.on("/wifiscan", handleWifiScan);
-  server.on("/dmr-activity", handleDMRActivity);    // Live DMR activity for home page
-  server.on("/dmr-slot1", handleDMRSlot1);          // DMR Slot 1 activity
-  server.on("/dmr-slot2", handleDMRSlot2);          // DMR Slot 2 activity
-  server.on("/dmr-history", handleDMRHistory);      // Recent DMR activity history
-  server.on("/rf-history", handleRFHistory);        // Local RF activity history (outgoing)
-  server.on("/system-status", handleSystemStatus);  // System status for auto-refresh
-
-  // API endpoints (recommended - JSON responses)
+  // API endpoints - JSON responses
   server.on("/api/logs", handleGetLogs);
   server.on("/api/status", handleStatusData);
   server.on("/api/wifiscan", handleWifiScan);
@@ -2645,6 +2634,8 @@ void setupWebServer() {
   server.on("/api/dmr-history", handleDMRHistory);
   server.on("/api/rf-history", handleRFHistory);
   server.on("/api/system-status", handleSystemStatus);
+  server.on("/api/system-information", handleSystemInformation);
+  server.on("/api/modem-information", handleModemInformation);
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);

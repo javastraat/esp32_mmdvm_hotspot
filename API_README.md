@@ -8,9 +8,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 **Authentication:** Most endpoints require HTTP Basic Authentication with configured web username/password.
 
-**API Endpoints:** All JSON API endpoints are available with the `/api/` prefix (recommended) for clear distinction between HTML pages and data endpoints. Legacy endpoints without the prefix are maintained for backward compatibility.
-
-**Recommended:** Use `/api/*` endpoints (e.g., `/api/status`, `/api/logs`) instead of legacy endpoints (e.g., `/statusdata`, `/logs`).
+**API Endpoints:** All JSON data endpoints use the `/api/` prefix for clear distinction between HTML pages and data endpoints.
 
 ---
 
@@ -54,8 +52,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ### System Status
 
-#### `GET /api/status` (Recommended)
-#### `GET /statusdata` (Legacy)
+#### `GET /api/status`
 **Description:** Retrieve current system status information
 **Authentication:** Required
 **Response:** JSON object with system status data
@@ -115,8 +112,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /api/logs` (Recommended)
-#### `GET /logs` (Legacy)
+#### `GET /api/logs`
 **Description:** Retrieve serial log entries
 **Authentication:** Required
 **Response:** JSON object with log entries array
@@ -137,8 +133,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ### DMR Activity
 
-#### `GET /api/dmr-activity` (Recommended)
-#### `GET /dmr-activity` (Legacy)
+#### `GET /api/dmr-activity`
 **Description:** Get combined live DMR activity for both slots
 **Authentication:** Required
 **Response:** JSON object with activity data for both slots
@@ -170,8 +165,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /api/dmr-slot1` (Recommended)
-#### `GET /dmr-slot1` (Legacy)
+#### `GET /api/dmr-slot1`
 **Description:** Get live DMR activity for Slot 1 only
 **Authentication:** Required
 **Response:** JSON object with Slot 1 activity data
@@ -195,8 +189,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /api/dmr-slot2` (Recommended)
-#### `GET /dmr-slot2` (Legacy)
+#### `GET /api/dmr-slot2`
 **Description:** Get live DMR activity for Slot 2 only
 **Authentication:** Required
 **Response:** JSON object with Slot 2 activity data
@@ -204,8 +197,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 **Response Format:** Same as `/api/dmr-slot1`
 
-#### `GET /api/dmr-history` (Recommended)
-#### `GET /dmr-history` (Legacy)
+#### `GET /api/dmr-history`
 **Description:** Get recent DMR transmission history (last 15 transmissions)
 **Authentication:** Required
 **Response:** JSON object with transmission history array
@@ -232,8 +224,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /api/rf-history` (Recommended)
-#### `GET /rf-history` (Legacy)
+#### `GET /api/rf-history`
 **Description:** Get local RF transmission history (last 15 transmissions)
 **Authentication:** Required
 **Response:** JSON object with local RF activity history
@@ -256,8 +247,7 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 }
 ```
 
-#### `GET /api/system-status` (Recommended)
-#### `GET /system-status` (Legacy)
+#### `GET /api/system-status`
 **Description:** Get system status overview
 **Authentication:** Required
 **Response:** JSON object with system status information
@@ -288,10 +278,77 @@ This document describes all available HTTP API endpoints for the ESP32 MMDVM Hot
 
 ---
 
+### Hardware Information
+
+#### `GET /api/system-information`
+**Description:** Get detailed ESP32 system information for remote monitoring
+**Authentication:** Required
+**Response:** JSON object with system hardware and firmware details
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "uptime": {
+    "seconds": 3661,
+    "days": 0,
+    "hours": 1,
+    "minutes": 1,
+    "secondsRemaining": 1
+  },
+  "chip": {
+    "model": "ESP32-S3",
+    "revision": 1,
+    "cores": 2,
+    "cpuFreqMHz": 240
+  },
+  "memory": {
+    "freeHeapKB": 156.3,
+    "freeHeapPercent": 38,
+    "minFreeHeapKB": 142.8,
+    "heapSizeKB": 412.5,
+    "psramSizeMB": 8,
+    "freePsramKB": 7890.2
+  },
+  "flash": {
+    "sizeMB": 16,
+    "speedMHz": 80,
+    "sketchSizeKB": 1456.3,
+    "freeSketchSpaceKB": 2640.0
+  },
+  "firmware": {
+    "sdkVersion": "v4.4.6",
+    "version": "20251223_ESP32",
+    "buildDate": "Dec 23 2025 14:32:10"
+  }
+}
+```
+
+#### `GET /api/modem-information`
+**Description:** Get MMDVM modem firmware and hardware information for remote monitoring
+**Authentication:** Required
+**Response:** JSON object with parsed modem firmware details
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "rawVersion": "MMDVM_HS_Hat-v1.5.2 20201108 14.7456MHz ADF7021 FW by CA6JAU GitID #89daa20",
+  "hardware": "MMDVM_HS_Hat",
+  "firmwareVersion": "1.5.2",
+  "buildDate": "2020-11-08",
+  "crystal": "14.7456MHz",
+  "transceiver": "ADF7021",
+  "author": "CA6JAU",
+  "gitId": "#89daa20"
+}
+```
+
+---
+
 ### Configuration
 
-#### `GET /api/wifiscan` (Recommended)
-#### `GET /wifiscan` (Legacy)
+#### `GET /api/wifiscan`
 **Description:** Scan for available WiFi networks
 **Authentication:** Required
 **Response:** JSON object with array of WiFi networks

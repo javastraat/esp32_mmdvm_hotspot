@@ -1921,4 +1921,187 @@ void handleShowPreferences() {
   logSerial("Preferences display requested by user");
 }
 
+void handleSystemInformation() {
+  if (!checkAuthentication()) return;
+
+  // Uptime calculation
+  unsigned long uptimeSeconds = millis() / 1000;
+  unsigned long days = uptimeSeconds / 86400;
+  unsigned long hours = (uptimeSeconds % 86400) / 3600;
+  unsigned long minutes = (uptimeSeconds % 3600) / 60;
+  unsigned long seconds = uptimeSeconds % 60;
+
+  // Build JSON response
+  String json = "{";
+
+  // Uptime
+  json += "\"uptime\":{";
+  json += "\"seconds\":" + String(uptimeSeconds) + ",";
+  json += "\"days\":" + String(days) + ",";
+  json += "\"hours\":" + String(hours) + ",";
+  json += "\"minutes\":" + String(minutes) + ",";
+  json += "\"secondsRemaining\":" + String(seconds);
+  json += "},";
+
+  // Chip information
+  json += "\"chip\":{";
+  json += "\"model\":\"" + String(ESP.getChipModel()) + "\",";
+  json += "\"revision\":" + String(ESP.getChipRevision()) + ",";
+  json += "\"cores\":" + String(ESP.getChipCores()) + ",";
+  json += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz());
+  json += "},";
+
+  // Memory information
+  json += "\"memory\":{";
+  json += "\"freeHeapKB\":" + String(ESP.getFreeHeap() / 1024.0, 1) + ",";
+  json += "\"freeHeapPercent\":" + String(ESP.getFreeHeap() * 100 / ESP.getHeapSize()) + ",";
+  json += "\"minFreeHeapKB\":" + String(ESP.getMinFreeHeap() / 1024.0, 1) + ",";
+  json += "\"heapSizeKB\":" + String(ESP.getHeapSize() / 1024.0, 1);
+
+  // PSRAM info (if available)
+  if (ESP.getPsramSize() > 0) {
+    json += ",\"psramSizeMB\":" + String(ESP.getPsramSize() / 1024 / 1024);
+    json += ",\"freePsramKB\":" + String(ESP.getFreePsram() / 1024.0, 1);
+  }
+  json += "},";
+
+  // Flash information
+  json += "\"flash\":{";
+  json += "\"sizeMB\":" + String(ESP.getFlashChipSize() / 1024 / 1024) + ",";
+  json += "\"speedMHz\":" + String(ESP.getFlashChipSpeed() / 1000000) + ",";
+  json += "\"sketchSizeKB\":" + String(ESP.getSketchSize() / 1024.0, 1) + ",";
+  json += "\"freeSketchSpaceKB\":" + String(ESP.getFreeSketchSpace() / 1024.0, 1);
+  json += "},";
+
+  // SDK and firmware information
+  json += "\"firmware\":{";
+  json += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
+  json += "\"version\":\"" + String(FIRMWARE_VERSION) + "\",";
+  json += "\"buildDate\":\"" + String(__DATE__) + " " + String(__TIME__) + "\"";
+  json += "}";
+
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+void handleModemInformation() {
+  if (!checkAuthentication()) return;
+
+  // Parse modem firmware version string
+  // Example: "MMDVM_HS_Hat-v1.5.2 20201108 14.7456MHz ADF7021 FW by CA6JAU GitID #89daa20"
+  String hardware = "Unknown";
+  String version = "Unknown";
+  String buildDate = "Unknown";
+  String crystal = "Unknown";
+  String transceiver = "Unknown";
+  String author = "Unknown";
+  String gitId = "Unknown";
+
+  if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
+    String fwStr = modemFirmwareVersion;
+
+    // Extract hardware (before "-v" or first space)
+    int vPos = fwStr.indexOf("-v");
+    if (vPos > 0) {
+      hardware = fwStr.substring(0, vPos);
+      fwStr = fwStr.substring(vPos + 2); // Skip "-v"
+    } else {
+      int spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        hardware = fwStr.substring(0, spacePos);
+        fwStr = fwStr.substring(spacePos + 1);
+      }
+    }
+
+    // Extract version (digits and dots until space)
+    int spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      version = fwStr.substring(0, spacePos);
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract build date (8 digits, may have suffix like _WPSD)
+    spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      String dateStr = fwStr.substring(0, spacePos);
+
+      // Check if first 8 characters are digits (YYYYMMDD)
+      if (dateStr.length() >= 8) {
+        bool isValidDate = true;
+        for (int i = 0; i < 8; i++) {
+          if (!isdigit(dateStr.charAt(i))) {
+            isValidDate = false;
+            break;
+          }
+        }
+
+        if (isValidDate) {
+          // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+        }
+      }
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract crystal frequency (number followed by MHz)
+    int mhzPos = fwStr.indexOf("MHz");
+    if (mhzPos > 0) {
+      int startPos = 0;
+      for (int i = mhzPos - 1; i >= 0; i--) {
+        if (fwStr.charAt(i) == ' ') {
+          startPos = i + 1;
+          break;
+        }
+      }
+      crystal = fwStr.substring(startPos, mhzPos + 3);
+      fwStr = fwStr.substring(mhzPos + 3);
+    }
+
+    // Extract transceiver (word after MHz, before " FW")
+    fwStr.trim();
+    int fwPos = fwStr.indexOf(" FW");
+    if (fwPos > 0) {
+      // Get the first word (transceiver name)
+      spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        transceiver = fwStr.substring(0, spacePos);
+      } else {
+        // No space found, use everything before " FW"
+        transceiver = fwStr.substring(0, fwPos);
+      }
+      fwStr = fwStr.substring(fwPos + 3); // Skip " FW"
+    }
+
+    // Extract author (after "by " before " GitID")
+    int byPos = fwStr.indexOf("by ");
+    int gitPos = fwStr.indexOf(" GitID");
+    if (byPos >= 0 && gitPos > byPos) {
+      author = fwStr.substring(byPos + 3, gitPos);
+      author.trim();
+    }
+
+    // Extract Git ID (after "GitID ")
+    gitPos = fwStr.indexOf("GitID ");
+    if (gitPos >= 0) {
+      gitId = fwStr.substring(gitPos + 6);
+      gitId.trim();
+    }
+  }
+
+  // Build JSON response
+  String json = "{";
+  json += "\"rawVersion\":\"" + modemFirmwareVersion + "\",";
+  json += "\"hardware\":\"" + hardware + "\",";
+  json += "\"firmwareVersion\":\"" + version + "\",";
+  json += "\"buildDate\":\"" + buildDate + "\",";
+  json += "\"crystal\":\"" + crystal + "\",";
+  json += "\"transceiver\":\"" + transceiver + "\",";
+  json += "\"author\":\"" + author + "\",";
+  json += "\"gitId\":\"" + gitId + "\"";
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
 #endif // WEB_PAGES_ADMIN_H

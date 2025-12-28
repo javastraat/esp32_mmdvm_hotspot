@@ -45,14 +45,14 @@ String getFooter() {
 // Pages that don't require authentication
 const char* publicPages[] = {
   "/",              // Home page
-  "/status",        // Status page
-  "/statusdata",    // Status page data (for auto-refresh)
-  "/dmr-activity",  // DMR activity data
-  "/dmr-slot1",     // DMR Slot 1 data
-  "/dmr-slot2",     // DMR Slot 2 data
-  "/dmr-history",   // DMR history data
-  "/rf-history",    // RF history data
-  "/system-status"  // System status data
+  "/api/status",        // Status page
+  "/api/statusdata",    // Status page data (for auto-refresh)
+  "/api/dmr-activity",  // DMR activity data
+  "/api/dmr-slot1",     // DMR Slot 1 data
+  "/api/dmr-slot2",     // DMR Slot 2 data
+  "/api/dmr-history",   // DMR history data
+  "/api/rf-history",    // RF history data
+  "/api/system-status"  // System status data
 };
 
 // Check if current URI is a public page

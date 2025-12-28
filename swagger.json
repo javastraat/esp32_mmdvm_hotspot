@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "ESP32 MMDVM Hotspot API",
-    "description": "REST API for ESP32 MMDVM Hotspot web interface - Control and monitor your DMR hotspot via HTTP. All JSON endpoints are available with the /api/ prefix (recommended) for clear distinction between HTML pages and data endpoints.",
+    "description": "REST API for ESP32 MMDVM Hotspot web interface - Control and monitor your DMR hotspot via HTTP. All JSON data endpoints use the /api/ prefix for clear distinction between HTML pages and data endpoints.",
     "version": "1.0.0",
     "contact": {
       "name": "ESP32 MMDVM Hotspot Project",
@@ -34,7 +34,7 @@
       "basicAuth": []
     }
   ],
-  "x-security-note": "All endpoints require authentication except: /, /status, /api/status, /api/dmr-activity, /api/dmr-slot1, /api/dmr-slot2, /api/dmr-history, /api/rf-history, /api/system-status, /api/logs (and their legacy equivalents)",
+  "x-security-note": "All endpoints require authentication except: /, /status, /api/status, /api/dmr-activity, /api/dmr-slot1, /api/dmr-slot2, /api/dmr-history, /api/rf-history, /api/system-status, /api/logs",
   "tags": [
     {
       "name": "Pages",
@@ -499,6 +499,103 @@
                         "pocsag": {"type": "boolean"}
                       }
                     }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system-information": {
+      "get": {
+        "tags": ["System Status"],
+        "summary": "Get ESP32 system information",
+        "description": "Get detailed ESP32 hardware and firmware information for remote monitoring",
+        "responses": {
+          "200": {
+            "description": "JSON object with system information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uptime": {
+                      "type": "object",
+                      "properties": {
+                        "seconds": {"type": "integer"},
+                        "days": {"type": "integer"},
+                        "hours": {"type": "integer"},
+                        "minutes": {"type": "integer"},
+                        "secondsRemaining": {"type": "integer"}
+                      }
+                    },
+                    "chip": {
+                      "type": "object",
+                      "properties": {
+                        "model": {"type": "string"},
+                        "revision": {"type": "integer"},
+                        "cores": {"type": "integer"},
+                        "cpuFreqMHz": {"type": "integer"}
+                      }
+                    },
+                    "memory": {
+                      "type": "object",
+                      "properties": {
+                        "freeHeapKB": {"type": "number"},
+                        "freeHeapPercent": {"type": "integer"},
+                        "minFreeHeapKB": {"type": "number"},
+                        "heapSizeKB": {"type": "number"},
+                        "psramSizeMB": {"type": "integer"},
+                        "freePsramKB": {"type": "number"}
+                      }
+                    },
+                    "flash": {
+                      "type": "object",
+                      "properties": {
+                        "sizeMB": {"type": "integer"},
+                        "speedMHz": {"type": "integer"},
+                        "sketchSizeKB": {"type": "number"},
+                        "freeSketchSpaceKB": {"type": "number"}
+                      }
+                    },
+                    "firmware": {
+                      "type": "object",
+                      "properties": {
+                        "sdkVersion": {"type": "string"},
+                        "version": {"type": "string"},
+                        "buildDate": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/modem-information": {
+      "get": {
+        "tags": ["System Status"],
+        "summary": "Get MMDVM modem information",
+        "description": "Get MMDVM modem firmware and hardware information for remote monitoring",
+        "responses": {
+          "200": {
+            "description": "JSON object with modem information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rawVersion": {"type": "string"},
+                    "hardware": {"type": "string"},
+                    "firmwareVersion": {"type": "string"},
+                    "buildDate": {"type": "string"},
+                    "crystal": {"type": "string"},
+                    "transceiver": {"type": "string"},
+                    "author": {"type": "string"},
+                    "gitId": {"type": "string"}
                   }
                 }
               }
