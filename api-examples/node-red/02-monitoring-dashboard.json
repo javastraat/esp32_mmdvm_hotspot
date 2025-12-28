@@ -348,9 +348,14 @@
         "width": "12",
         "height": "1",
         "name": "Build Date",
-        "label": "Built:",
+        "label": "Build:",
         "format": "{{msg.buildDate}}",
         "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
         "x": 1045,
         "y": 435,
         "wires": []
@@ -973,7 +978,7 @@
         "hidden": false
     },
     {
-        "id": "608e51db54cf653c",
+        "id": "6109915088b25fca",
         "type": "global-config",
         "env": [],
         "modules": {
