@@ -8,8 +8,8 @@
 #define CONFIG_H
 
 // ===== Firmware Version =====
-#define FIRMWARE_VERSION "20251228_ESP32_BETA"  // Update version as needed
-//#define FIRMWARE_VERSION "20251228_ESP32"  // Update version as needed
+//#define FIRMWARE_VERSION "20251229_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20251229_ESP32_BETA"  // Update version as needed
 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
 //#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -247,6 +247,17 @@
 // ===== Modem Hardware Type =====
 // Default modem type - can be changed via web interface
 #define DEFAULT_MODEM_TYPE "mmdvmhshat"  // Default: MMDVM_HS_Hat (DB9MAT & DF2ET)
+
+// ===== MQTT Configuration =====
+// MQTT pub/sub for real-time data streaming (disabled by default)
+#define MQTT_ENABLED false                    // Enable/disable MQTT (can be changed via web interface)
+#define MQTT_BROKER ""                        // MQTT broker hostname or IP (e.g., "broker.hivemq.com" or "192.168.1.100")
+#define MQTT_PORT 1883                        // MQTT broker port (default: 1883, secure: 8883)
+#define MQTT_USERNAME ""                      // MQTT username (leave empty if no authentication)
+#define MQTT_PASSWORD ""                      // MQTT password (leave empty if no authentication)
+#define MQTT_CLIENT_ID ""                     // MQTT client ID (default: will use DMR callsign)
+#define MQTT_TOPIC_PREFIX ""                  // MQTT topic prefix (default: will use "{hostname}/{callsign}", e.g., "esp32-mmdvm/N0CALL")
+#define MQTT_PUBLISH_INTERVAL 30000           // How often to publish status updates in milliseconds (30000 = 30 seconds)
 
 // ===== Validation =====
 #if !defined(DMR_CALLSIGN) || !defined(DMR_ID)

@@ -12,9 +12,11 @@
 #include <Preferences.h>
 #include <HTTPClient.h>
 #include <Update.h>
+#include <PubSubClient.h>
 
 // External variables and functions
 extern WebServer server;
+extern PubSubClient mqttClient;
 extern bool wifiConnected;
 extern bool apMode;
 extern bool mmdvmReady;
@@ -62,6 +64,19 @@ extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
 extern String modem_type;
+extern bool mqtt_enabled;
+extern String mqtt_broker;
+extern uint16_t mqtt_port;
+extern String mqtt_username;
+extern String mqtt_password;
+extern String mqtt_client_id;
+extern String mqtt_topic_prefix;
+extern uint32_t mqtt_publish_interval;
+extern bool mqttConnected;
+extern unsigned long lastMqttPublish;
+extern String lastMqttError;
+extern unsigned long mqttConnectAttempts;
+extern unsigned long lastMqttConnectAttempt;
 extern void logSerial(String message);
 extern void saveConfig();
 extern String getCommonCSS();
@@ -625,6 +640,67 @@ void handleAdmin() {
   html += "</form>";
   html += "</div>";
 
+  // MQTT Configuration Card
+  html += "<div class='card'>";
+  html += "<h3>MQTT Configuration</h3>";
+  html += "<p>Configure MQTT pub/sub for real-time data streaming</p>";
+  html += "<form id='mqtt-form' onsubmit='saveMqttConfig(event)'>";
+
+  // Enable/Disable
+  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;margin:15px 0;'>";
+  html += "<input type='checkbox' id='mqtt-enabled' " + String(mqtt_enabled ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
+  html += "<span><strong>Enable MQTT</strong></span>";
+  html += "</label>";
+
+  // Broker
+  html += "<label>MQTT Broker:</label>";
+  html += "<input type='text' id='mqtt-broker' value='" + mqtt_broker + "' placeholder='e.g., broker.hivemq.com or 192.168.1.100' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+
+  // Port
+  html += "<label>Port:</label>";
+  html += "<input type='number' id='mqtt-port' value='" + String(mqtt_port) + "' min='1' max='65535' placeholder='1883' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+
+  // Username
+  html += "<label>Username (optional):</label>";
+  html += "<input type='text' id='mqtt-username' value='" + mqtt_username + "' placeholder='Leave empty if no auth' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+
+  // Password
+  html += "<label>Password (optional):</label>";
+  html += "<div style='position:relative;'>";
+  html += "<input type='password' id='mqtt-password' value='" + mqtt_password + "' placeholder='Leave empty if no auth' style='width:100%;padding:8px;padding-right:40px;margin:5px 0;box-sizing:border-box;'>";
+  html += "<span onclick='togglePasswordField(\"mqtt-password\")' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;' title='Show/Hide'>&#128065;</span>";
+  html += "</div>";
+
+  // Client ID
+  html += "<label>Client ID:</label>";
+  html += "<input type='text' id='mqtt-client-id' value='" + mqtt_client_id + "' placeholder='Default: your callsign' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+
+  // Topic Prefix
+  html += "<label>Topic Prefix:</label>";
+  html += "<input type='text' id='mqtt-topic-prefix' value='" + mqtt_topic_prefix + "' placeholder='Default: " + device_hostname + "/" + dmr_callsign + "' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+
+  // Publish Interval
+  html += "<label>Publish Interval (ms):</label>";
+  html += "<input type='number' id='mqtt-interval' value='" + String(mqtt_publish_interval) + "' min='5000' max='300000' placeholder='30000' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+  html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>How often to publish system/modem/network status (5000-300000 ms)</p>";
+
+  // Submit button
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save MQTT Config</button>";
+  html += "</form>";
+
+  // MQTT Status Info
+  html += "<div style='margin-top:15px;padding:10px;background:var(--info-bg);border-radius:4px;font-size:0.9em;'>";
+  html += "<strong>Topics Published:</strong><br>";
+  html += "<span style='font-size:0.85em;color:var(--text-muted);'>Default prefix: <code>" + device_hostname + "/" + dmr_callsign + "</code></span><br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/system/status</code> - Detailed system info (uptime, chip, memory, flash, firmware)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/modem/status</code> - Modem details (hardware, version, crystal, transceiver)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/network/status</code> - DMR network status<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/slot1/activity</code> - Slot 1 (callsign, name, city, country)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/slot2/activity</code> - Slot 2 (callsign, name, city, country)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/availability</code> - Online/offline (LWT)<br>";
+  html += "</div>";
+  html += "</div>";
+
   // Configuration Management Card
   html += "<div class='card'>";
   html += "<h3>Configuration Management</h3>";
@@ -832,6 +908,26 @@ void handleAdmin() {
   html += "      }";
   html += "    });";
   html += "  }";
+  html += "}";
+  html += "function saveMqttConfig(event) {";
+  html += "  event.preventDefault();";
+  html += "  var enabled = document.getElementById('mqtt-enabled').checked ? '1' : '0';";
+  html += "  var broker = encodeURIComponent(document.getElementById('mqtt-broker').value);";
+  html += "  var port = document.getElementById('mqtt-port').value;";
+  html += "  var username = encodeURIComponent(document.getElementById('mqtt-username').value);";
+  html += "  var password = encodeURIComponent(document.getElementById('mqtt-password').value);";
+  html += "  var clientId = encodeURIComponent(document.getElementById('mqtt-client-id').value);";
+  html += "  var prefix = encodeURIComponent(document.getElementById('mqtt-topic-prefix').value);";
+  html += "  var interval = document.getElementById('mqtt-interval').value;";
+  html += "  var body = 'enabled=' + enabled + '&broker=' + broker + '&port=' + port + '&username=' + username + '&password=' + password + '&client_id=' + clientId + '&prefix=' + prefix + '&interval=' + interval;";
+  html += "  fetch('/save-mqtt-config', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body}).then(response => response.text()).then(data => {";
+  html += "    if (data.includes('SUCCESS')) {";
+  html += "      alert('MQTT configuration saved successfully!');";
+  html += "      location.reload();";
+  html += "    } else {";
+  html += "      alert('Error: ' + data);";
+  html += "    }";
+  html += "  });";
   html += "}";
   html += "function rebootSystem() {";
   html += "  if (confirm('Are you sure you want to reboot the system? This will temporarily interrupt service.')) {";
@@ -1411,6 +1507,118 @@ void handleSavePassword() {
   }
 }
 
+void handleSaveMqttConfig() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("enabled") && server.hasArg("broker") && server.hasArg("port") &&
+      server.hasArg("client_id") && server.hasArg("prefix") && server.hasArg("interval")) {
+
+    mqtt_enabled = (server.arg("enabled") == "1");
+    mqtt_broker = server.arg("broker");
+    mqtt_port = server.arg("port").toInt();
+    mqtt_username = server.arg("username");
+    mqtt_password = server.arg("password");
+    mqtt_client_id = server.arg("client_id");
+    mqtt_topic_prefix = server.arg("prefix");
+    mqtt_publish_interval = server.arg("interval").toInt();
+
+    // Validate values
+    if (mqtt_port < 1 || mqtt_port > 65535) {
+      server.send(400, "text/plain", "ERROR: Invalid port number (1-65535)");
+      return;
+    }
+
+    if (mqtt_publish_interval < 5000 || mqtt_publish_interval > 300000) {
+      server.send(400, "text/plain", "ERROR: Publish interval must be between 5000-300000 ms");
+      return;
+    }
+
+    // Set defaults if fields are empty
+    if (mqtt_client_id.length() == 0) {
+      mqtt_client_id = dmr_callsign;
+    }
+    if (mqtt_topic_prefix.length() == 0) {
+      mqtt_topic_prefix = "mmdvm/" + dmr_callsign;
+    }
+
+    saveConfig();
+
+    // Disconnect existing MQTT connection to force reconnect with new settings
+    if (mqttClient.connected()) {
+      mqttClient.disconnect();
+      mqttConnected = false;
+    }
+
+    String status = "SUCCESS: MQTT config saved - ";
+    status += mqtt_enabled ? "Enabled" : "Disabled";
+    if (mqtt_enabled) {
+      status += " | Broker: " + mqtt_broker + ":" + String(mqtt_port);
+    }
+    server.send(200, "text/plain", status);
+    logSerial(status);
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing MQTT parameters");
+  }
+}
+
+void handleMqttMonitor() {
+  if (!checkAuthentication()) return;
+
+  // Build JSON response
+  String json = "{";
+  json += "\"enabled\":" + String(mqtt_enabled ? "true" : "false") + ",";
+  json += "\"connected\":" + String(mqttConnected ? "true" : "false") + ",";
+  json += "\"broker\":\"" + mqtt_broker + "\",";
+  json += "\"port\":" + String(mqtt_port) + ",";
+  json += "\"client_id\":\"" + mqtt_client_id + "\",";
+  json += "\"topic_prefix\":\"" + mqtt_topic_prefix + "\",";
+  json += "\"publish_interval\":" + String(mqtt_publish_interval) + ",";
+  json += "\"connect_attempts\":" + String(mqttConnectAttempts) + ",";
+  json += "\"last_publish\":" + String(lastMqttPublish) + ",";
+  json += "\"uptime\":" + String(millis() / 1000) + ",";
+
+  if (lastMqttError.length() > 0) {
+    json += "\"last_error\":\"" + lastMqttError + "\",";
+  } else {
+    json += "\"last_error\":null,";
+  }
+
+  // Add MQTT client state
+  int mqttState = mqttClient.state();
+  json += "\"mqtt_state\":" + String(mqttState) + ",";
+
+  // State descriptions
+  String stateDesc = "";
+  switch (mqttState) {
+    case -4: stateDesc = "MQTT_CONNECTION_TIMEOUT"; break;
+    case -3: stateDesc = "MQTT_CONNECTION_LOST"; break;
+    case -2: stateDesc = "MQTT_CONNECT_FAILED"; break;
+    case -1: stateDesc = "MQTT_DISCONNECTED"; break;
+    case 0: stateDesc = "MQTT_CONNECTED"; break;
+    case 1: stateDesc = "MQTT_CONNECT_BAD_PROTOCOL"; break;
+    case 2: stateDesc = "MQTT_CONNECT_BAD_CLIENT_ID"; break;
+    case 3: stateDesc = "MQTT_CONNECT_UNAVAILABLE"; break;
+    case 4: stateDesc = "MQTT_CONNECT_BAD_CREDENTIALS"; break;
+    case 5: stateDesc = "MQTT_CONNECT_UNAUTHORIZED"; break;
+    default: stateDesc = "UNKNOWN"; break;
+  }
+  json += "\"state_description\":\"" + stateDesc + "\",";
+
+  // Add topics info
+  json += "\"topics\":{";
+  json += "\"system_info\":\"" + mqtt_topic_prefix + "/system/info\",";
+  json += "\"modem_status\":\"" + mqtt_topic_prefix + "/modem/status\",";
+  json += "\"network_status\":\"" + mqtt_topic_prefix + "/network/status\",";
+  json += "\"slot1_activity\":\"" + mqtt_topic_prefix + "/slot1/activity\",";
+  json += "\"slot2_activity\":\"" + mqtt_topic_prefix + "/slot2/activity\",";
+  json += "\"availability\":\"" + mqtt_topic_prefix + "/availability\"";
+  json += "}";
+
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
 void handleReboot() {
   if (!checkAuthentication()) return;
 
@@ -1485,6 +1693,17 @@ void handleExportConfig() {
   config += "MODE_P25=" + String(mode_p25_enabled ? "1" : "0") + "\n";
   config += "MODE_NXDN=" + String(mode_nxdn_enabled ? "1" : "0") + "\n";
   config += "MODE_POCSAG=" + String(mode_pocsag_enabled ? "1" : "0") + "\n";
+
+  // MQTT Configuration
+  config += "\n[MQTT_CONFIG]\n";
+  config += "MQTT_ENABLED=" + String(mqtt_enabled ? "1" : "0") + "\n";
+  config += "MQTT_BROKER=" + mqtt_broker + "\n";
+  config += "MQTT_PORT=" + String(mqtt_port) + "\n";
+  config += "MQTT_USERNAME=" + mqtt_username + "\n";
+  config += "MQTT_PASSWORD=" + mqtt_password + "\n";
+  config += "MQTT_CLIENT_ID=" + mqtt_client_id + "\n";
+  config += "MQTT_TOPIC_PREFIX=" + mqtt_topic_prefix + "\n";
+  config += "MQTT_PUBLISH_INTERVAL=" + String(mqtt_publish_interval) + "\n";
 
   server.send(200, "text/plain", config);
 }
@@ -1568,6 +1787,14 @@ void handleImportConfig() {
           else if (key == "MODE_P25") mode_p25_enabled = (value == "1");
           else if (key == "MODE_NXDN") mode_nxdn_enabled = (value == "1");
           else if (key == "MODE_POCSAG") mode_pocsag_enabled = (value == "1");
+          else if (key == "MQTT_ENABLED") mqtt_enabled = (value == "1");
+          else if (key == "MQTT_BROKER") mqtt_broker = value;
+          else if (key == "MQTT_PORT") mqtt_port = value.toInt();
+          else if (key == "MQTT_USERNAME") mqtt_username = value;
+          else if (key == "MQTT_PASSWORD") mqtt_password = value;
+          else if (key == "MQTT_CLIENT_ID") mqtt_client_id = value;
+          else if (key == "MQTT_TOPIC_PREFIX") mqtt_topic_prefix = value;
+          else if (key == "MQTT_PUBLISH_INTERVAL") mqtt_publish_interval = value.toInt();
 
           logSerial("Imported: " + key + " = " + value);
         }
@@ -1670,12 +1897,18 @@ void handleShowPreferences() {
     "web_username", "web_password"
   };
 
+  const char* mqttKeys[] = {
+    "mqtt_enabled", "mqtt_broker", "mqtt_port", "mqtt_user", "mqtt_pass",
+    "mqtt_client", "mqtt_prefix", "mqtt_interval"
+  };
+
   Category categories[] = {
     {"DMR Configuration", dmrKeys, sizeof(dmrKeys) / sizeof(dmrKeys[0])},
     {"WiFi Networks", wifiKeys, sizeof(wifiKeys) / sizeof(wifiKeys[0])},
     {"System Settings", systemKeys, sizeof(systemKeys) / sizeof(systemKeys[0])},
     {"Mode Configuration", modeKeys, sizeof(modeKeys) / sizeof(modeKeys[0])},
-    {"Web Interface", webKeys, sizeof(webKeys) / sizeof(webKeys[0])}
+    {"Web Interface", webKeys, sizeof(webKeys) / sizeof(webKeys[0])},
+    {"MQTT Configuration", mqttKeys, sizeof(mqttKeys) / sizeof(mqttKeys[0])}
   };
 
   int categoryCount = sizeof(categories) / sizeof(categories[0]);
@@ -1770,9 +2003,28 @@ void handleShowPreferences() {
             keySize = 4;
           }
         }
+        else if (keyName == "mqtt_port") {
+          // MQTT port (UShort)
+          uint16_t ushortVal = preferences.getUShort(keyName.c_str(), 0);
+          if (ushortVal > 0 || preferences.isKey(keyName.c_str())) {
+            value = String(ushortVal);
+            type = "UShort";
+            keySize = 2;
+          }
+        }
+        else if (keyName == "mqtt_interval") {
+          // MQTT publish interval (UInt32, stored in milliseconds)
+          uint32_t uintVal = preferences.getUInt(keyName.c_str(), 0);
+          if (uintVal > 0 || preferences.isKey(keyName.c_str())) {
+            value = String(uintVal);
+            value += " ms (" + String(uintVal / 1000) + " sec)";
+            type = "UInt32";
+            keySize = 4;
+          }
+        }
         else if (keyName == "verbose_log" || keyName == "enable_oled" || keyName == "oled_autoblank" ||
-                 keyName.startsWith("mode_") || keyName.startsWith("debug_")) {
-          // Known Bool keys (verbose_log, enable_oled, oled_autoblank, mode_*, debug_*)
+                 keyName == "mqtt_enabled" || keyName.startsWith("mode_") || keyName.startsWith("debug_")) {
+          // Known Bool keys (verbose_log, enable_oled, oled_autoblank, mqtt_enabled, mode_*, debug_*)
           bool boolVal = preferences.getBool(keyName.c_str(), false);
           value = String(boolVal ? "true" : "false");
           type = "Bool";

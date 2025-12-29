@@ -32,6 +32,7 @@
 #include <Update.h>
 #include <HTTPClient.h>
 #include <time.h>
+#include <PubSubClient.h>
 #include "config.h"
 #include "webpages.h"
 #include "RGBLedController.h"
@@ -121,6 +122,16 @@ bool enable_oled = ENABLE_OLED;
 String web_username = WEB_USERNAME;
 String web_password = WEB_PASSWORD;
 
+// MQTT Configuration (defaults from config.h)
+bool mqtt_enabled = MQTT_ENABLED;
+String mqtt_broker = MQTT_BROKER;
+uint16_t mqtt_port = MQTT_PORT;
+String mqtt_username = MQTT_USERNAME;
+String mqtt_password = MQTT_PASSWORD;
+String mqtt_client_id = MQTT_CLIENT_ID;
+String mqtt_topic_prefix = MQTT_TOPIC_PREFIX;
+uint32_t mqtt_publish_interval = MQTT_PUBLISH_INTERVAL;
+
 // MMDVM Settings
 #define SERIAL_BAUD MMDVM_SERIAL_BAUD
 #define MMDVM_SERIAL Serial2
@@ -162,6 +173,8 @@ unsigned long lastDMRFrameTime = 0;
 WiFiUDP udp;
 WebServer server(80);
 Preferences preferences;
+WiFiClient mqttWifiClient;
+PubSubClient mqttClient(mqttWifiClient);
 bool wifiConnected = false;
 bool apMode = false;
 bool mmdvmReady = false;
@@ -184,6 +197,13 @@ DMR_STATE dmrState = DMR_STATE::DISCONNECTED;
 uint8_t dmrSalt[4];
 unsigned long lastLoginAttempt = 0;
 int loginAttempts = 0;
+
+// MQTT State
+bool mqttConnected = false;
+unsigned long lastMqttPublish = 0;
+String lastMqttError = "";
+unsigned long mqttConnectAttempts = 0;
+unsigned long lastMqttConnectAttempt = 0;
 
 // RGB LED Status Indicator
 #if ENABLE_RGB_LED
@@ -493,6 +513,8 @@ void loadConfig();
 void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
+void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
+                              const String& name, const String& city, const String& country, bool isGroup);
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
 void writeDMRStart(bool tx, String callsign = "");
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
@@ -559,6 +581,9 @@ void setup() {
 
   // Load full configuration
   loadConfig();
+
+  // Configure MQTT buffer size (default is 256 bytes, increase for larger payloads)
+  mqttClient.setBufferSize(1024);  // 1KB buffer for system info and modem status messages
 
   // Setup GPIO
   pinMode(OLED_BUTTON_PIN, INPUT_PULLUP);  // Button to toggle OLED display on/off
@@ -846,6 +871,9 @@ void loop() {
 
   // Handle web server
   server.handleClient();
+
+  // Handle MQTT client
+  mqttLoop();
 
   // Handle MMDVM serial communication
   handleMMDVMSerial();
@@ -1850,6 +1878,7 @@ void handleNetwork() {
 
             // Lookup detailed user information (async, will use cache if available)
             String userInfo = lookupUserInfo(srcId);
+            String callsignForMqtt = "";  // Will be populated after lookup
             // userInfo format: "callsign|name|city|country" or just "callsign" for basic lookup
             int pipe1 = userInfo.indexOf('|');
             if (pipe1 > 0) {
@@ -1869,6 +1898,16 @@ void handleNetwork() {
               }
             } else {
               dmrActivity[activityIndex].srcCallsign = userInfo;
+            }
+
+            // Publish to MQTT when new transmission starts with all available info
+            if (dmrActivity[activityIndex].srcCallsign.length() > 0) {
+              mqttPublishSlotActivity(slotNo, srcId, dstId,
+                                     dmrActivity[activityIndex].srcCallsign,
+                                     dmrActivity[activityIndex].srcName,
+                                     dmrActivity[activityIndex].srcCity,
+                                     dmrActivity[activityIndex].srcCountry,
+                                     isGroup);
             }
 
             // Log with enhanced info if found
@@ -2423,6 +2462,351 @@ bool sdFileExists(const char* path) {
 }
 #endif
 
+// ===== MQTT Functions =====
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  // MQTT message received callback (for future use - subscriptions)
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  logSerial("[MQTT] Message on topic '" + String(topic) + "': " + message);
+}
+
+bool mqttConnect() {
+  if (!mqtt_enabled || mqtt_broker.length() == 0) {
+    return false;
+  }
+
+  if (!wifiConnected) {
+    return false;
+  }
+
+  // Limit reconnect attempts
+  if (millis() - lastMqttConnectAttempt < 5000) {
+    return false;  // Don't retry more than once every 5 seconds
+  }
+  lastMqttConnectAttempt = millis();
+  mqttConnectAttempts++;
+
+  logSerial("[MQTT] Connecting to broker: " + mqtt_broker + ":" + String(mqtt_port));
+
+  mqttClient.setServer(mqtt_broker.c_str(), mqtt_port);
+  mqttClient.setCallback(mqttCallback);
+  mqttClient.setKeepAlive(60);
+  mqttClient.setSocketTimeout(10);
+
+  bool connected = false;
+  if (mqtt_username.length() > 0) {
+    // Set Last Will Testament (LWT) - notify when device goes offline
+    String lwtTopic = mqtt_topic_prefix + "/availability";
+    connected = mqttClient.connect(mqtt_client_id.c_str(), mqtt_username.c_str(),
+                                    mqtt_password.c_str(), lwtTopic.c_str(), 0, true, "offline");
+  } else {
+    String lwtTopic = mqtt_topic_prefix + "/availability";
+    connected = mqttClient.connect(mqtt_client_id.c_str(), NULL, NULL,
+                                    lwtTopic.c_str(), 0, true, "offline");
+  }
+
+  if (connected) {
+    mqttConnected = true;
+    lastMqttError = "";
+    logSerial("[MQTT] Connected successfully (attempts: " + String(mqttConnectAttempts) + ")");
+
+    // Publish online status
+    String availTopic = mqtt_topic_prefix + "/availability";
+    mqttClient.publish(availTopic.c_str(), "online", true);
+
+    return true;
+  } else {
+    mqttConnected = false;
+    int state = mqttClient.state();
+    String errorMsg = "Connection failed, state: " + String(state);
+    lastMqttError = errorMsg;
+    logSerial("[MQTT] " + errorMsg);
+    return false;
+  }
+}
+
+void mqttPublishSystemInfo() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/system/status";
+
+  // Calculate uptime breakdown
+  unsigned long uptimeSeconds = millis() / 1000;
+  unsigned long days = uptimeSeconds / 86400;
+  unsigned long hours = (uptimeSeconds % 86400) / 3600;
+  unsigned long minutes = (uptimeSeconds % 3600) / 60;
+  unsigned long seconds = uptimeSeconds % 60;
+
+  // Calculate memory stats
+  uint32_t freeHeap = ESP.getFreeHeap();
+  uint32_t heapSize = ESP.getHeapSize();
+  uint32_t minFreeHeap = ESP.getMinFreeHeap();
+  float freeHeapKB = freeHeap / 1024.0;
+  float heapSizeKB = heapSize / 1024.0;
+  float minFreeHeapKB = minFreeHeap / 1024.0;
+  uint8_t freeHeapPercent = (freeHeap * 100) / heapSize;
+
+  // PSRAM stats
+  uint32_t psramSize = ESP.getPsramSize();
+  uint32_t freePsram = ESP.getFreePsram();
+  float psramSizeMB = psramSize / (1024.0 * 1024.0);
+  float freePsramKB = freePsram / 1024.0;
+
+  // Flash stats
+  uint32_t flashSize = ESP.getFlashChipSize();
+  uint32_t flashSpeed = ESP.getFlashChipSpeed() / 1000000;
+  uint32_t sketchSize = ESP.getSketchSize();
+  uint32_t freeSketchSpace = ESP.getFreeSketchSpace();
+  float flashSizeMB = flashSize / (1024.0 * 1024.0);
+  float sketchSizeKB = sketchSize / 1024.0;
+  float freeSketchSpaceKB = freeSketchSpace / 1024.0;
+
+  String payload = "{";
+  payload += "\"callsign\":\"" + dmr_callsign + "\",";
+  payload += "\"dmr_id\":" + String(dmr_id) + ",";
+  payload += "\"hostname\":\"" + device_hostname + "\",";
+
+  // Uptime object
+  payload += "\"uptime\":{";
+  payload += "\"seconds\":" + String(uptimeSeconds) + ",";
+  payload += "\"days\":" + String(days) + ",";
+  payload += "\"hours\":" + String(hours) + ",";
+  payload += "\"minutes\":" + String(minutes) + ",";
+  payload += "\"secondsRemaining\":" + String(seconds);
+  payload += "},";
+
+  // Chip object
+  payload += "\"chip\":{";
+  payload += "\"model\":\"" + String(ESP.getChipModel()) + "\",";
+  payload += "\"revision\":" + String(ESP.getChipRevision()) + ",";
+  payload += "\"cores\":" + String(ESP.getChipCores()) + ",";
+  payload += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz());
+  payload += "},";
+
+  // Memory object
+  payload += "\"memory\":{";
+  payload += "\"freeHeapKB\":" + String(freeHeapKB, 1) + ",";
+  payload += "\"freeHeapPercent\":" + String(freeHeapPercent) + ",";
+  payload += "\"minFreeHeapKB\":" + String(minFreeHeapKB, 1) + ",";
+  payload += "\"heapSizeKB\":" + String(heapSizeKB, 1) + ",";
+  payload += "\"psramSizeMB\":" + String(psramSizeMB, 0) + ",";
+  payload += "\"freePsramKB\":" + String(freePsramKB, 1);
+  payload += "},";
+
+  // Flash object
+  payload += "\"flash\":{";
+  payload += "\"sizeMB\":" + String(flashSizeMB, 0) + ",";
+  payload += "\"speedMHz\":" + String(flashSpeed) + ",";
+  payload += "\"sketchSizeKB\":" + String(sketchSizeKB, 1) + ",";
+  payload += "\"freeSketchSpaceKB\":" + String(freeSketchSpaceKB, 1);
+  payload += "},";
+
+  // Firmware object
+  payload += "\"firmware\":{";
+  payload += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
+  payload += "\"version\":\"" + String(FIRMWARE_VERSION) + "\",";
+  payload += "\"buildDate\":\"" + String(__DATE__) + " " + String(__TIME__) + "\"";
+  payload += "}";
+
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishModemStatus() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/modem/status";
+
+  // Parse modem firmware version string
+  // Example: "MMDVM_HS_Hat-v1.6.1 20231115_WPSD 14.7456MHz ADF7021 FW by CA6JAU, G4KLX, W0CHP. GitID #7e16099"
+  String hardware = "Unknown";
+  String version = "Unknown";
+  String buildDate = "Unknown";
+  String crystal = "Unknown";
+  String transceiver = "Unknown";
+  String author = "Unknown";
+  String gitId = "Unknown";
+
+  if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
+    String fwStr = modemFirmwareVersion;
+
+    // Extract hardware (before "-v" or first space)
+    int vPos = fwStr.indexOf("-v");
+    if (vPos > 0) {
+      hardware = fwStr.substring(0, vPos);
+      fwStr = fwStr.substring(vPos + 2); // Skip "-v"
+    } else {
+      int spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        hardware = fwStr.substring(0, spacePos);
+        fwStr = fwStr.substring(spacePos + 1);
+      }
+    }
+
+    // Extract version (digits and dots until space)
+    int spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      version = fwStr.substring(0, spacePos);
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract build date (8 digits, may have suffix like _WPSD)
+    spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      String dateStr = fwStr.substring(0, spacePos);
+
+      // Check if first 8 characters are digits (YYYYMMDD)
+      if (dateStr.length() >= 8) {
+        bool isValidDate = true;
+        for (int i = 0; i < 8; i++) {
+          if (!isdigit(dateStr.charAt(i))) {
+            isValidDate = false;
+            break;
+          }
+        }
+
+        if (isValidDate) {
+          // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+        }
+      }
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract crystal frequency (number followed by MHz)
+    int mhzPos = fwStr.indexOf("MHz");
+    if (mhzPos > 0) {
+      int startPos = 0;
+      for (int i = mhzPos - 1; i >= 0; i--) {
+        if (fwStr.charAt(i) == ' ') {
+          startPos = i + 1;
+          break;
+        }
+      }
+      crystal = fwStr.substring(startPos, mhzPos + 3);
+      fwStr = fwStr.substring(mhzPos + 3);
+    }
+
+    // Extract transceiver (word after MHz, before " FW")
+    fwStr.trim();
+    int fwPos = fwStr.indexOf(" FW");
+    if (fwPos > 0) {
+      // Get the first word (transceiver name)
+      spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        transceiver = fwStr.substring(0, spacePos);
+      } else {
+        // No space found, use everything before " FW"
+        transceiver = fwStr.substring(0, fwPos);
+      }
+      fwStr = fwStr.substring(fwPos + 3); // Skip " FW"
+    }
+
+    // Extract author (after "by " before " GitID")
+    int byPos = fwStr.indexOf("by ");
+    int gitPos = fwStr.indexOf(" GitID");
+    if (byPos >= 0 && gitPos > byPos) {
+      author = fwStr.substring(byPos + 3, gitPos);
+      author.trim();
+    }
+
+    // Extract Git ID (after "GitID ")
+    gitPos = fwStr.indexOf("GitID ");
+    if (gitPos >= 0) {
+      gitId = fwStr.substring(gitPos + 6);
+      gitId.trim();
+    }
+  }
+
+  // Build JSON payload (without rawVersion)
+  String payload = "{";
+  payload += "\"ready\":" + String(mmdvmReady ? "true" : "false") + ",";
+  payload += "\"type\":\"" + modem_type + "\",";
+  payload += "\"hardware\":\"" + hardware + "\",";
+  payload += "\"firmwareVersion\":\"" + version + "\",";
+  payload += "\"buildDate\":\"" + buildDate + "\",";
+  payload += "\"crystal\":\"" + crystal + "\",";
+  payload += "\"transceiver\":\"" + transceiver + "\",";
+  payload += "\"author\":\"" + author + "\",";
+  payload += "\"gitId\":\"" + gitId + "\"";
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishNetworkStatus() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/network/status";
+  String payload = "{";
+  payload += "\"dmr_logged_in\":" + String(dmrLoggedIn ? "true" : "false") + ",";
+  payload += "\"dmr_server\":\"" + dmr_server + "\",";
+  payload += "\"status\":\"" + dmrLoginStatus + "\",";
+  payload += "\"talkgroup\":" + String(currentTalkgroup);
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
+                              const String& name = "", const String& city = "", const String& country = "", bool isGroup = true) {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/slot" + String(slot) + "/activity";
+  String payload = "{";
+  payload += "\"slot\":" + String(slot) + ",";
+  payload += "\"src_id\":" + String(srcId) + ",";
+  payload += "\"dst_id\":" + String(dstId) + ",";
+  payload += "\"callsign\":\"" + callsign + "\",";
+
+  // Add name if available
+  if (name.length() > 0) {
+    payload += "\"name\":\"" + name + "\",";
+  }
+
+  // Add location info if available
+  if (city.length() > 0) {
+    payload += "\"city\":\"" + city + "\",";
+  }
+  if (country.length() > 0) {
+    payload += "\"country\":\"" + country + "\",";
+  }
+
+  // Add call type (group or private)
+  payload += "\"call_type\":\"" + String(isGroup ? "group" : "private") + "\",";
+
+  payload += "\"timestamp\":" + String(millis() / 1000);
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttLoop() {
+  if (!mqtt_enabled) return;
+
+  // Try to connect if not connected
+  if (!mqttConnected || !mqttClient.connected()) {
+    mqttConnected = false;
+    mqttConnect();
+    return;
+  }
+
+  // Handle MQTT client loop
+  mqttClient.loop();
+
+  // Periodic publishing
+  if (millis() - lastMqttPublish >= mqtt_publish_interval) {
+    lastMqttPublish = millis();
+
+    mqttPublishSystemInfo();
+    mqttPublishModemStatus();
+    mqttPublishNetworkStatus();
+  }
+}
+
 // ===== Configuration Load/Save =====
 void loadConfig() {
   preferences.begin("mmdvm", false);
@@ -2534,6 +2918,32 @@ void loadConfig() {
   modem_type = preferences.getString("modem_type", DEFAULT_MODEM_TYPE);
   logSerial("[MODEM] Modem type: " + modem_type);
 
+  // Load MQTT settings
+  mqtt_enabled = preferences.getBool("mqtt_enabled", MQTT_ENABLED);
+  mqtt_broker = preferences.getString("mqtt_broker", MQTT_BROKER);
+  mqtt_port = preferences.getUShort("mqtt_port", MQTT_PORT);
+  mqtt_username = preferences.getString("mqtt_user", MQTT_USERNAME);
+  mqtt_password = preferences.getString("mqtt_pass", MQTT_PASSWORD);
+
+  // Use callsign as default client ID if not configured
+  String defaultClientId = String(MQTT_CLIENT_ID);
+  if (defaultClientId.length() == 0) defaultClientId = dmr_callsign;
+  mqtt_client_id = preferences.getString("mqtt_client", defaultClientId);
+
+  // Use {hostname}/{callsign} as default topic prefix if not configured
+  String defaultPrefix = String(MQTT_TOPIC_PREFIX);
+  if (defaultPrefix.length() == 0) defaultPrefix = device_hostname + "/" + dmr_callsign;
+  mqtt_topic_prefix = preferences.getString("mqtt_prefix", defaultPrefix);
+
+  mqtt_publish_interval = preferences.getUInt("mqtt_interval", MQTT_PUBLISH_INTERVAL);
+
+  if (mqtt_enabled) {
+    logSerial("[MQTT] MQTT enabled - Broker: " + mqtt_broker + ":" + String(mqtt_port));
+    logSerial("[MQTT] Client ID: " + mqtt_client_id + " | Topic prefix: " + mqtt_topic_prefix);
+  } else {
+    logSerial("[MQTT] MQTT disabled");
+  }
+
   preferences.end();
 }
 
@@ -2603,6 +3013,16 @@ void saveConfig() {
   // Save modem type
   preferences.putString("modem_type", modem_type);
 
+  // Save MQTT settings
+  preferences.putBool("mqtt_enabled", mqtt_enabled);
+  preferences.putString("mqtt_broker", mqtt_broker);
+  preferences.putUShort("mqtt_port", mqtt_port);
+  preferences.putString("mqtt_user", mqtt_username);
+  preferences.putString("mqtt_pass", mqtt_password);
+  preferences.putString("mqtt_client", mqtt_client_id);
+  preferences.putString("mqtt_prefix", mqtt_topic_prefix);
+  preferences.putUInt("mqtt_interval", mqtt_publish_interval);
+
   preferences.end();
   logSerial("[SYSTEM] Configuration saved to storage");
 }
@@ -2646,6 +3066,8 @@ void setupWebServer() {
   server.on("/save-timezone", HTTP_POST, handleSaveTimezone);
   server.on("/save-username", HTTP_POST, handleSaveUsername);
   server.on("/save-password", HTTP_POST, handleSavePassword);
+  server.on("/save-mqtt-config", HTTP_POST, handleSaveMqttConfig);
+  server.on("/api/mqtt-monitor", handleMqttMonitor);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
