@@ -1,15 +1,15 @@
 [
     {
-        "id": "mqtt_dashboard_tab",
+        "id": "c31165d2ff338925",
         "type": "tab",
         "label": "ESP32 MMDVM - MQTT Dashboard",
         "disabled": false,
         "info": "# ESP32 MMDVM Hotspot - MQTT Monitoring Dashboard\n\nThis flow creates a real-time monitoring dashboard using MQTT pub/sub.\n\n## Prerequisites:\n\n**Install required packages:**\n```bash\ncd ~/.node-red\nnpm install node-red-dashboard\nnpm install node-red-contrib-ui-led\n```\n\nRestart Node-RED after installation.\n\n## Quick Start:\n\n1. **Configure MQTT Broker:**\n   - Edit the MQTT broker configuration node\n   - Set your broker address (e.g., localhost, 192.168.1.100)\n   - Set port (default: 1883)\n   - Add username/password if required\n\n2. **Set Topic Prefix:**\n   - Edit the \"Set Topic Prefix\" inject node\n   - Update the topic prefix to match your hotspot\n   - Default: esp32-mmdvm/PD2EMC\n   - Format: {hostname}/{callsign}\n\n3. **Access the Dashboard:**\n   - Navigate to `http://your-node-red-ip:1880/ui`\n   - Dashboard updates in real-time via MQTT\n\n## Dashboard Features:\n\n- **Real-time updates** via MQTT pub/sub (no polling!)\n- **System metrics** - Memory gauges, uptime, chip info\n- **WiFi status** - Connection state, SSID, IP, RSSI\n- **DMR Network** - Login status, server, talkgroup\n- **MMDVM Config** - Frequencies, color code, power\n- **Station Info** - Callsign, DMR ID, location\n- **Modem Hardware** - Hardware details, firmware version\n- **Slot Activity** - Real-time DMR transmissions with LEDs\n- **Memory history chart** - Track memory usage over time\n- **Availability indicator** - Online/offline status via LWT\n\n## MQTT Topics Subscribed:\n\n- `{prefix}/system/status` - System information\n- `{prefix}/hardware/modem` - Modem hardware details\n- `{prefix}/network/wifi` - WiFi connection status\n- `{prefix}/network/dmr` - DMR network status\n- `{prefix}/mmdvm/config` - MMDVM configuration\n- `{prefix}/station/info` - Station identification\n- `{prefix}/slot1/activity` - Slot 1 real-time activity\n- `{prefix}/slot2/activity` - Slot 2 real-time activity\n- `{prefix}/availability` - Online/offline (Last Will Testament)\n\n## Advantages over HTTP Polling:\n\n✓ Instant real-time updates (no polling delay)\n✓ Lower network overhead (push vs pull)\n✓ Event-driven slot activity notifications\n✓ Scales better for multiple monitors\n✓ Works great over internet (MQTT broker relay)\n\n## Customization:\n\nYou can adjust:\n- Gauge thresholds (edit gauge node settings)\n- Chart history length (edit chart node buffer size)\n- LED colors and behaviors\n- Dashboard layout and grouping"
     },
     {
-        "id": "mqtt_inject_prefix",
+        "id": "f5379a1ea3c1d106",
         "type": "inject",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Set Topic Prefix",
         "props": [
             {
@@ -27,14 +27,14 @@
         "y": 60,
         "wires": [
             [
-                "mqtt_save_prefix"
+                "13b218f5f19650b2"
             ]
         ]
     },
     {
-        "id": "mqtt_save_prefix",
+        "id": "13b218f5f19650b2",
         "type": "change",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Save to flow context",
         "rules": [
             {
@@ -57,9 +57,9 @@
         ]
     },
     {
-        "id": "mqtt_system_in",
+        "id": "a3e6decbf6d1e9e8",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "system/status",
         "topic": "esp32-mmdvm/PD2EMC/system/status",
         "qos": "0",
@@ -72,14 +72,14 @@
         "y": 140,
         "wires": [
             [
-                "mqtt_parse_system"
+                "e239a7ba4a89cf69"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_system",
+        "id": "e239a7ba4a89cf69",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse System Info",
         "func": "const data = msg.payload;\n\n// Station identification\nmsg.callsign = data.callsign;\nmsg.dmrId = data.dmr_id;\nmsg.hostname = data.hostname;\n\n// PSRAM percentage (working memory) - FREE percentage\nmsg.psramPercent = ((data.memory.freePsramKB / (data.memory.psramSizeMB * 1024)) * 100).toFixed(1);\n\n// Heap percentage - FREE percentage\nmsg.heapPercent = data.memory.freeHeapPercent;\n\n// Sketch usage percentage - USED percentage (inverse)\nconst totalSketch = data.flash.sketchSizeKB + data.flash.freeSketchSpaceKB;\nmsg.sketchPercent = ((data.flash.freeSketchSpaceKB / totalSketch) * 100).toFixed(1);\n\n// Uptime in human readable format\nconst uptime = data.uptime;\nlet uptimeStr = '';\nif (uptime.days > 0) uptimeStr += uptime.days + 'd ';\nif (uptime.hours > 0) uptimeStr += uptime.hours + 'h ';\nuptimeStr += uptime.minutes + 'm ' + uptime.secondsRemaining + 's';\nmsg.uptimeStr = uptimeStr;\nmsg.uptimeSeconds = uptime.seconds;\n\n// Chip info\nmsg.chipModel = data.chip.model;\nmsg.chipRevision = data.chip.revision;\nmsg.chipCores = data.chip.cores;\nmsg.cpuFreq = data.chip.cpuFreqMHz;\n\n// Memory details\nmsg.freeHeapKB = data.memory.freeHeapKB.toFixed(1);\nmsg.heapSizeKB = data.memory.heapSizeKB.toFixed(1);\nmsg.minFreeHeapKB = data.memory.minFreeHeapKB.toFixed(1);\nmsg.psramSizeMB = data.memory.psramSizeMB;\nmsg.freePsramKB = data.memory.freePsramKB.toFixed(1);\n\n// Flash info\nmsg.flashSizeMB = data.flash.sizeMB;\nmsg.flashSpeedMHz = data.flash.speedMHz;\nmsg.sketchSizeKB = data.flash.sketchSizeKB.toFixed(1);\nmsg.freeSketchSpaceKB = data.flash.freeSketchSpaceKB.toFixed(1);\n\n// Firmware version\nmsg.firmwareVersion = data.firmware.version;\nmsg.sdkVersion = data.firmware.sdkVersion;\nmsg.buildDate = data.firmware.buildDate;\n\nreturn msg;",
         "outputs": 1,
@@ -91,29 +91,29 @@
         "y": 140,
         "wires": [
             [
-                "ui_psram_gauge",
-                "ui_heap_gauge",
-                "ui_sketch_gauge",
-                "ui_uptime_text",
-                "ui_firmware_text",
-                "ui_chip_model_text",
-                "ui_chip_cores_text",
-                "ui_heap_details_text",
-                "ui_psram_details_text",
-                "ui_flash_size_text",
-                "ui_sketch_size_text",
-                "ui_sdk_version_text",
-                "ui_build_date_text",
-                "ui_callsign_text",
-                "ui_hostname_text",
-                "ui_memory_chart"
+                "5258fa281aefba6d",
+                "340710513485e483",
+                "e22b043ea05c0685",
+                "3b11a4f69cc7a8a0",
+                "19cb831df1846cf6",
+                "a099c80e04fb134b",
+                "7ad18e9b8ca9c8d7",
+                "fb57534fcac1fe13",
+                "929a276d762083fc",
+                "b3ceab692959e486",
+                "3d36738db4b783ae",
+                "84fc09770527d5c4",
+                "b3a8ed7cecd4ddc3",
+                "92f6266c99c8c5ce",
+                "e9d14ae0d0382849",
+                "e32e9abbbb600ecd"
             ]
         ]
     },
     {
-        "id": "mqtt_modem_in",
+        "id": "a66527b70f6d7889",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "hardware/modem",
         "topic": "esp32-mmdvm/PD2EMC/hardware/modem",
         "qos": "0",
@@ -126,14 +126,14 @@
         "y": 200,
         "wires": [
             [
-                "mqtt_parse_modem"
+                "bdb70142c8a042aa"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_modem",
+        "id": "bdb70142c8a042aa",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse Modem Info",
         "func": "const data = msg.payload;\n\nmsg.modemReady = data.ready;\nmsg.modemType = data.type;\nmsg.modemHardware = data.hardware;\nmsg.modemFirmware = data.firmwareVersion;\nmsg.modemBuildDate = data.buildDate;\nmsg.modemCrystal = data.crystal;\nmsg.modemTransceiver = data.transceiver;\nmsg.modemAuthor = data.author;\nmsg.modemGitId = data.gitId;\n\nreturn msg;",
         "outputs": 1,
@@ -145,22 +145,22 @@
         "y": 200,
         "wires": [
             [
-                "ui_modem_type_text",
-                "ui_modem_hardware_text",
-                "ui_modem_firmware_text",
-                "ui_modem_build_text",
-                "ui_modem_crystal_text",
-                "ui_modem_transceiver_text",
-                "ui_modem_author_text",
-                "ui_modem_git_text",
-                "0fbd7a7549e6c27e"
+                "311bde15af27beca",
+                "4e2f0ef80ca7d753",
+                "630e2af77734582b",
+                "bf5312bf037dab62",
+                "bdce6d2a07cdc2ce",
+                "5323c338942e261c",
+                "04a9fb63b8ec26dc",
+                "89bf2b4fa2b76a40",
+                "c32b29d919253958"
             ]
         ]
     },
     {
-        "id": "mqtt_wifi_in",
+        "id": "df40aa3166172ca3",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "network/wifi",
         "topic": "esp32-mmdvm/PD2EMC/network/wifi",
         "qos": "0",
@@ -173,14 +173,14 @@
         "y": 260,
         "wires": [
             [
-                "mqtt_parse_wifi"
+                "6b3004cd1c17baf9"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_wifi",
+        "id": "6b3004cd1c17baf9",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse WiFi Info",
         "func": "const data = msg.payload;\n\nmsg.wifiConnected = data.connected;\nmsg.wifiApMode = data.apMode;\nmsg.wifiSSID = data.ssid;\nmsg.wifiIP = data.ip;\nmsg.wifiRSSI = data.rssi;\nmsg.wifiMAC = data.mac;\n\n// Format connection status\nif (data.apMode) {\n    msg.wifiStatus = `AP Mode: ${data.ssid} (${data.ip})`;\n} else if (data.connected) {\n    msg.wifiStatus = `${data.ssid} (${data.ip}) - RSSI: ${data.rssi}dBm`;\n} else {\n    msg.wifiStatus = 'Disconnected';\n}\n\nreturn msg;",
         "outputs": 1,
@@ -192,19 +192,19 @@
         "y": 260,
         "wires": [
             [
-                "ui_wifi_status_text",
-                "ui_wifi_ssid_text",
-                "ui_wifi_ip_text",
-                "ui_wifi_rssi_text",
-                "ui_wifi_mac_text",
-                "3c59ff1cc2097cf4"
+                "6ba136e1cbde5109",
+                "3f96e3d8d6d068bb",
+                "cac71fb9c9582be0",
+                "3aa3b734c13cd916",
+                "e8c72308d293a9ed",
+                "44caa741902fea10"
             ]
         ]
     },
     {
-        "id": "mqtt_dmr_in",
+        "id": "826b525c1ff12553",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "network/dmr",
         "topic": "esp32-mmdvm/PD2EMC/network/dmr",
         "qos": "0",
@@ -217,14 +217,14 @@
         "y": 320,
         "wires": [
             [
-                "mqtt_parse_dmr"
+                "b33fc7f05af55131"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_dmr",
+        "id": "b33fc7f05af55131",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse DMR Network",
         "func": "const data = msg.payload;\n\nmsg.dmrLoggedIn = data.loggedIn;\nmsg.dmrStatus = data.status;\nmsg.dmrServer = data.server;\nmsg.dmrCallsign = data.callsign;\nmsg.dmrId = data.dmrId;\nmsg.dmrESSID = data.essid;\nmsg.dmrTalkgroup = data.currentTalkgroup;\nmsg.dmrColorCode = data.colorCode;\n\nreturn msg;",
         "outputs": 1,
@@ -236,21 +236,21 @@
         "y": 320,
         "wires": [
             [
-                "ui_dmr_status_text",
-                "ui_dmr_server_text",
-                "ui_dmr_callsign_text",
-                "ui_dmr_id_text",
-                "ui_dmr_essid_text",
-                "ui_dmr_talkgroup_text",
-                "ui_dmr_colorcode_text",
-                "1c6cb720652dfd92"
+                "fda9d1a1d454f925",
+                "070e904b7cbbf95b",
+                "c858392f98193914",
+                "48edb161c3e48dca",
+                "08b29036b5a55aed",
+                "d9188e1b119b9e3c",
+                "fd994026d455d70c",
+                "377d8e7b8bfbadf3"
             ]
         ]
     },
     {
-        "id": "mqtt_mmdvm_in",
+        "id": "e7dabf480250c32b",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "mmdvm/config",
         "topic": "esp32-mmdvm/PD2EMC/mmdvm/config",
         "qos": "0",
@@ -263,14 +263,14 @@
         "y": 380,
         "wires": [
             [
-                "mqtt_parse_mmdvm"
+                "7c73a701683721cc"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_mmdvm",
+        "id": "7c73a701683721cc",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse MMDVM Config",
         "func": "const data = msg.payload;\n\nmsg.mmdvmReady = data.ready;\nmsg.mmdvmRxFreq = data.rxFreq.toFixed(4) + ' MHz';\nmsg.mmdvmTxFreq = data.txFreq.toFixed(4) + ' MHz';\nmsg.mmdvmColorCode = data.colorCode;\nmsg.mmdvmPower = data.power + '%';\n\nreturn msg;",
         "outputs": 1,
@@ -282,18 +282,18 @@
         "y": 380,
         "wires": [
             [
-                "ui_mmdvm_rx_freq_text",
-                "ui_mmdvm_tx_freq_text",
-                "ui_mmdvm_colorcode_text",
-                "ui_mmdvm_power_text",
-                "a5283fdbcde9f496"
+                "4a2773ae2e3141f4",
+                "5af8f7aac7adc27b",
+                "5e06157c48a710bd",
+                "f564e485d5bf4847",
+                "8b21b5454d347ce6"
             ]
         ]
     },
     {
-        "id": "mqtt_station_in",
+        "id": "e3f16b51d3f8c9f6",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "station/info",
         "topic": "esp32-mmdvm/PD2EMC/station/info",
         "qos": "0",
@@ -306,14 +306,14 @@
         "y": 440,
         "wires": [
             [
-                "mqtt_parse_station"
+                "ae90b57ee3631189"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_station",
+        "id": "ae90b57ee3631189",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse Station Info",
         "func": "const data = msg.payload;\n\nmsg.stationCallsign = data.callsign;\nmsg.stationDmrId = data.dmrId;\nmsg.stationESSID = data.essid;\nmsg.stationLocation = data.location;\nmsg.stationIsDefault = data.isDefaultCallsign;\n\nreturn msg;",
         "outputs": 1,
@@ -325,18 +325,18 @@
         "y": 440,
         "wires": [
             [
-                "ui_station_callsign_text",
-                "ui_station_dmrid_text",
-                "ui_station_essid_text",
-                "ui_station_location_text",
-                "ec4d0b6035e43032"
+                "2a2cbb6504c9aced",
+                "e5f5641253eede72",
+                "063f2d61c7442baf",
+                "5c11e9575e2e32f0",
+                "e2ab1d735a687cfc"
             ]
         ]
     },
     {
-        "id": "mqtt_slot1_in",
+        "id": "6e843680356a4dc9",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "slot1/activity",
         "topic": "esp32-mmdvm/PD2EMC/slot1/activity",
         "qos": "0",
@@ -349,14 +349,14 @@
         "y": 500,
         "wires": [
             [
-                "mqtt_parse_slot1"
+                "18a6f89fb52b917d"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_slot1",
+        "id": "18a6f89fb52b917d",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse Slot 1 Activity",
         "func": "const data = msg.payload;\n\nif (data.active) {\n    msg.slot1Active = true;\n    msg.slot1Callsign = `${data.callsign} (${data.name || 'Unknown'})`;\n    msg.slot1DmrId = data.src_id;\n    msg.slot1Location = `${data.city || 'Unknown'}, ${data.country || 'Unknown'}`;\n    msg.slot1Target = `TG${data.dst_id} (${data.call_type})`;\n    msg.slot1Duration = `${data.duration}s`;\n    msg.slot1Timestamp = new Date(data.timestamp * 1000).toLocaleTimeString();\n    \n    // Store activity time to detect timeout\n    flow.set('slot1_last_activity', Date.now());\n} else {\n    // Check if we should show idle (3 second timeout)\n    const lastActivity = flow.get('slot1_last_activity') || 0;\n    if (Date.now() - lastActivity > 3000) {\n        msg.slot1Active = false;\n        msg.slot1Callsign = 'Idle';\n        msg.slot1DmrId = '-';\n        msg.slot1Location = '-';\n        msg.slot1Target = '-';\n        msg.slot1Duration = '-';\n        msg.slot1Timestamp = '-';\n    }\n}\n\nreturn msg;",
         "outputs": 1,
@@ -368,19 +368,19 @@
         "y": 500,
         "wires": [
             [
-                "ui_slot1_callsign_text",
-                "ui_slot1_dmrid_text",
-                "ui_slot1_location_text",
-                "ui_slot1_target_text",
-                "ui_slot1_duration_text",
-                "1f8475dea870cfd9"
+                "9bddbc7cd7fca423",
+                "c01dbeed6601ed37",
+                "6815c642f4ed64a5",
+                "4da038554d8aad31",
+                "7ec559e76a347bec",
+                "d94d1df517f264c1"
             ]
         ]
     },
     {
-        "id": "mqtt_slot2_in",
+        "id": "9b914df3b4d7e9b7",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "slot2/activity",
         "topic": "esp32-mmdvm/PD2EMC/slot2/activity",
         "qos": "0",
@@ -393,14 +393,14 @@
         "y": 560,
         "wires": [
             [
-                "mqtt_parse_slot2"
+                "59df737df735fc48"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_slot2",
+        "id": "59df737df735fc48",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse Slot 2 Activity",
         "func": "const data = msg.payload;\n\nif (data.active) {\n    msg.slot2Active = true;\n    msg.slot2Callsign = `${data.callsign} (${data.name || 'Unknown'})`;\n    msg.slot2DmrId = data.src_id;\n    msg.slot2Location = `${data.city || 'Unknown'}, ${data.country || 'Unknown'}`;\n    msg.slot2Target = `TG${data.dst_id} (${data.call_type})`;\n    msg.slot2Duration = `${data.duration}s`;\n    msg.slot2Timestamp = new Date(data.timestamp * 1000).toLocaleTimeString();\n    \n    // Store activity time to detect timeout\n    flow.set('slot2_last_activity', Date.now());\n} else {\n    // Check if we should show idle (3 second timeout)\n    const lastActivity = flow.get('slot2_last_activity') || 0;\n    if (Date.now() - lastActivity > 3000) {\n        msg.slot2Active = false;\n        msg.slot2Callsign = 'Idle';\n        msg.slot2DmrId = '-';\n        msg.slot2Location = '-';\n        msg.slot2Target = '-';\n        msg.slot2Duration = '-';\n        msg.slot2Timestamp = '-';\n    }\n}\n\nreturn msg;",
         "outputs": 1,
@@ -412,19 +412,19 @@
         "y": 560,
         "wires": [
             [
-                "ui_slot2_callsign_text",
-                "ui_slot2_dmrid_text",
-                "ui_slot2_location_text",
-                "ui_slot2_target_text",
-                "ui_slot2_duration_text",
-                "be3d7b6b0cb722fa"
+                "850f6f423b154da9",
+                "bf356b03b94f2ee2",
+                "3a245a198fa151cd",
+                "cdd1fe17f5c82fb8",
+                "6cacc340c12010ed",
+                "2906a96eee029e68"
             ]
         ]
     },
     {
-        "id": "mqtt_availability_in",
+        "id": "4470b5fe86fae2b4",
         "type": "mqtt in",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "availability (LWT)",
         "topic": "esp32-mmdvm/PD2EMC/availability",
         "qos": "0",
@@ -437,14 +437,14 @@
         "y": 620,
         "wires": [
             [
-                "mqtt_parse_availability"
+                "fa7bada796e89705"
             ]
         ]
     },
     {
-        "id": "mqtt_parse_availability",
+        "id": "fa7bada796e89705",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Parse Availability",
         "func": "msg.hotspotOnline = (msg.payload === 'online');\nreturn msg;",
         "outputs": 1,
@@ -456,14 +456,14 @@
         "y": 620,
         "wires": [
             [
-                "ui_availability_led"
+                "10d66c04a07b3767"
             ]
         ]
     },
     {
-        "id": "ui_psram_gauge",
+        "id": "5258fa281aefba6d",
         "type": "ui_gauge",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "PSRAM Working Memory",
         "group": "ui_group_system",
         "order": 1,
@@ -487,9 +487,9 @@
         "wires": []
     },
     {
-        "id": "ui_heap_gauge",
+        "id": "340710513485e483",
         "type": "ui_gauge",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Heap Memory",
         "group": "ui_group_system",
         "order": 2,
@@ -513,9 +513,9 @@
         "wires": []
     },
     {
-        "id": "ui_sketch_gauge",
+        "id": "e22b043ea05c0685",
         "type": "ui_gauge",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Sketch Space",
         "group": "ui_group_system",
         "order": 3,
@@ -539,17 +539,17 @@
         "wires": []
     },
     {
-        "id": "ui_memory_chart",
+        "id": "5af98f91e017f508",
         "type": "ui_chart",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Memory Chart",
         "group": "ui_group_system",
         "order": 4,
         "width": "12",
         "height": "4",
-        "label": "PSRAM Working Memory History",
+        "label": "Memory Usage History",
         "chartType": "line",
-        "legend": "false",
+        "legend": "true",
         "xformat": "HH:mm:ss",
         "interpolate": "linear",
         "nodata": "Waiting for data...",
@@ -563,7 +563,9 @@
         "useOneColor": false,
         "useUTC": false,
         "colors": [
-            "#1f77b4"
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c"
         ],
         "outputs": 1,
         "useDifferentColor": false,
@@ -574,9 +576,9 @@
         ]
     },
     {
-        "id": "ui_callsign_text",
+        "id": "92f6266c99c8c5ce",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 5,
         "width": "6",
@@ -590,9 +592,9 @@
         "wires": []
     },
     {
-        "id": "ui_hostname_text",
+        "id": "e9d14ae0d0382849",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 6,
         "width": "6",
@@ -606,9 +608,9 @@
         "wires": []
     },
     {
-        "id": "ui_uptime_text",
+        "id": "3b11a4f69cc7a8a0",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 7,
         "width": "12",
@@ -622,9 +624,9 @@
         "wires": []
     },
     {
-        "id": "ui_firmware_text",
+        "id": "19cb831df1846cf6",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 8,
         "width": "12",
@@ -638,9 +640,9 @@
         "wires": []
     },
     {
-        "id": "ui_chip_model_text",
+        "id": "a099c80e04fb134b",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 9,
         "width": "12",
@@ -654,9 +656,9 @@
         "wires": []
     },
     {
-        "id": "ui_chip_cores_text",
+        "id": "7ad18e9b8ca9c8d7",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 10,
         "width": "12",
@@ -670,9 +672,9 @@
         "wires": []
     },
     {
-        "id": "ui_heap_details_text",
+        "id": "fb57534fcac1fe13",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 11,
         "width": "12",
@@ -686,9 +688,9 @@
         "wires": []
     },
     {
-        "id": "ui_psram_details_text",
+        "id": "929a276d762083fc",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 12,
         "width": "12",
@@ -702,9 +704,9 @@
         "wires": []
     },
     {
-        "id": "ui_flash_size_text",
+        "id": "b3ceab692959e486",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 13,
         "width": "12",
@@ -718,9 +720,9 @@
         "wires": []
     },
     {
-        "id": "ui_sketch_size_text",
+        "id": "3d36738db4b783ae",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 14,
         "width": "12",
@@ -734,9 +736,9 @@
         "wires": []
     },
     {
-        "id": "ui_sdk_version_text",
+        "id": "84fc09770527d5c4",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 15,
         "width": "12",
@@ -750,9 +752,9 @@
         "wires": []
     },
     {
-        "id": "ui_build_date_text",
+        "id": "b3a8ed7cecd4ddc3",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_system",
         "order": 16,
         "width": "12",
@@ -766,9 +768,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_ready_led",
+        "id": "172f755c3636e3a4",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
         "group": "ui_group_modem",
         "width": "3",
@@ -797,9 +799,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_type_text",
+        "id": "311bde15af27beca",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 2,
         "width": "12",
@@ -813,9 +815,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_hardware_text",
+        "id": "4e2f0ef80ca7d753",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 3,
         "width": "12",
@@ -829,9 +831,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_firmware_text",
+        "id": "630e2af77734582b",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 4,
         "width": "12",
@@ -845,9 +847,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_build_text",
+        "id": "bf5312bf037dab62",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 5,
         "width": "12",
@@ -861,9 +863,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_transceiver_text",
+        "id": "5323c338942e261c",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 6,
         "width": "12",
@@ -877,9 +879,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_crystal_text",
+        "id": "bdce6d2a07cdc2ce",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 7,
         "width": "12",
@@ -893,9 +895,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_author_text",
+        "id": "04a9fb63b8ec26dc",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 8,
         "width": "12",
@@ -909,9 +911,9 @@
         "wires": []
     },
     {
-        "id": "ui_modem_git_text",
+        "id": "89bf2b4fa2b76a40",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_modem",
         "order": 9,
         "width": "12",
@@ -925,9 +927,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_connected_led",
+        "id": "e659e3eb9cf573b8",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
         "group": "ui_group_wifi",
         "width": "3",
@@ -953,9 +955,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_status_text",
+        "id": "6ba136e1cbde5109",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_wifi",
         "order": 2,
         "width": "12",
@@ -969,9 +971,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_ssid_text",
+        "id": "3f96e3d8d6d068bb",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_wifi",
         "order": 3,
         "width": "12",
@@ -985,9 +987,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_ip_text",
+        "id": "cac71fb9c9582be0",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_wifi",
         "order": 4,
         "width": "12",
@@ -1001,9 +1003,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_rssi_text",
+        "id": "3aa3b734c13cd916",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_wifi",
         "order": 5,
         "width": "12",
@@ -1017,9 +1019,9 @@
         "wires": []
     },
     {
-        "id": "ui_wifi_mac_text",
+        "id": "e8c72308d293a9ed",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_wifi",
         "order": 6,
         "width": "12",
@@ -1033,9 +1035,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_logged_in_led",
+        "id": "c44aa7d2943ea476",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
         "group": "ui_group_dmr",
         "width": "3",
@@ -1061,9 +1063,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_status_text",
+        "id": "fda9d1a1d454f925",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 2,
         "width": "12",
@@ -1077,9 +1079,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_server_text",
+        "id": "070e904b7cbbf95b",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 3,
         "width": "12",
@@ -1093,9 +1095,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_callsign_text",
+        "id": "c858392f98193914",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 4,
         "width": "12",
@@ -1109,9 +1111,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_id_text",
+        "id": "48edb161c3e48dca",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 5,
         "width": "12",
@@ -1125,9 +1127,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_essid_text",
+        "id": "08b29036b5a55aed",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 6,
         "width": "12",
@@ -1141,9 +1143,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_talkgroup_text",
+        "id": "d9188e1b119b9e3c",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 7,
         "width": "12",
@@ -1157,9 +1159,9 @@
         "wires": []
     },
     {
-        "id": "ui_dmr_colorcode_text",
+        "id": "fd994026d455d70c",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_dmr",
         "order": 8,
         "width": "12",
@@ -1173,9 +1175,9 @@
         "wires": []
     },
     {
-        "id": "ui_mmdvm_ready_led",
+        "id": "0f579b3c056b62ec",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
         "group": "ui_group_mmdvm",
         "width": "3",
@@ -1204,9 +1206,9 @@
         "wires": []
     },
     {
-        "id": "ui_mmdvm_rx_freq_text",
+        "id": "4a2773ae2e3141f4",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_mmdvm",
         "order": 2,
         "width": "12",
@@ -1220,9 +1222,9 @@
         "wires": []
     },
     {
-        "id": "ui_mmdvm_tx_freq_text",
+        "id": "5af8f7aac7adc27b",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_mmdvm",
         "order": 3,
         "width": "12",
@@ -1236,9 +1238,9 @@
         "wires": []
     },
     {
-        "id": "ui_mmdvm_colorcode_text",
+        "id": "5e06157c48a710bd",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_mmdvm",
         "order": 4,
         "width": "12",
@@ -1252,9 +1254,9 @@
         "wires": []
     },
     {
-        "id": "ui_mmdvm_power_text",
+        "id": "f564e485d5bf4847",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_mmdvm",
         "order": 5,
         "width": "12",
@@ -1268,9 +1270,9 @@
         "wires": []
     },
     {
-        "id": "ui_station_callsign_text",
+        "id": "2a2cbb6504c9aced",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_station",
         "order": 1,
         "width": "12",
@@ -1284,9 +1286,9 @@
         "wires": []
     },
     {
-        "id": "ui_station_dmrid_text",
+        "id": "e5f5641253eede72",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_station",
         "order": 2,
         "width": "12",
@@ -1300,9 +1302,9 @@
         "wires": []
     },
     {
-        "id": "ui_station_essid_text",
+        "id": "063f2d61c7442baf",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_station",
         "order": 3,
         "width": "12",
@@ -1316,9 +1318,9 @@
         "wires": []
     },
     {
-        "id": "ui_station_location_text",
+        "id": "5c11e9575e2e32f0",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "group": "ui_group_station",
         "order": 4,
         "width": "12",
@@ -1332,9 +1334,9 @@
         "wires": []
     },
     {
-        "id": "ui_station_default_led",
+        "id": "9f2bee2b9a58f9ee",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 5,
         "group": "ui_group_station",
         "width": "3",
@@ -1363,11 +1365,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_active_led",
+        "id": "ce1234acf4f2f110",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
-        "group": "ui_group_activity",
+        "group": "95475f336331c10e",
         "width": "2",
         "height": "1",
         "label": "Slot 1",
@@ -1394,10 +1396,10 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_callsign_text",
+        "id": "9bddbc7cd7fca423",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "group": "95475f336331c10e",
         "order": 2,
         "width": "12",
         "height": "1",
@@ -1410,10 +1412,10 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_dmrid_text",
+        "id": "c01dbeed6601ed37",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "group": "95475f336331c10e",
         "order": 3,
         "width": "12",
         "height": "1",
@@ -1426,10 +1428,10 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_location_text",
+        "id": "6815c642f4ed64a5",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "group": "95475f336331c10e",
         "order": 4,
         "width": "12",
         "height": "1",
@@ -1442,10 +1444,10 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_target_text",
+        "id": "4da038554d8aad31",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "group": "95475f336331c10e",
         "order": 5,
         "width": "12",
         "height": "1",
@@ -1458,10 +1460,10 @@
         "wires": []
     },
     {
-        "id": "ui_slot1_duration_text",
+        "id": "7ec559e76a347bec",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "group": "95475f336331c10e",
         "order": 6,
         "width": "12",
         "height": "1",
@@ -1474,11 +1476,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_active_led",
+        "id": "4126b3b60ba962bd",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
-        "order": 7,
-        "group": "ui_group_activity",
+        "z": "c31165d2ff338925",
+        "order": 1,
+        "group": "d1e11b8388988d5a",
         "width": "2",
         "height": "1",
         "label": "Slot 2",
@@ -1505,11 +1507,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_callsign_text",
+        "id": "850f6f423b154da9",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
-        "order": 8,
+        "z": "c31165d2ff338925",
+        "group": "d1e11b8388988d5a",
+        "order": 2,
         "width": "12",
         "height": "1",
         "name": "Slot 2 Callsign",
@@ -1521,11 +1523,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_dmrid_text",
+        "id": "bf356b03b94f2ee2",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
-        "order": 9,
+        "z": "c31165d2ff338925",
+        "group": "d1e11b8388988d5a",
+        "order": 3,
         "width": "12",
         "height": "1",
         "name": "Slot 2 DMR ID",
@@ -1537,11 +1539,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_location_text",
+        "id": "3a245a198fa151cd",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
-        "order": 10,
+        "z": "c31165d2ff338925",
+        "group": "d1e11b8388988d5a",
+        "order": 4,
         "width": "12",
         "height": "1",
         "name": "Slot 2 Location",
@@ -1553,11 +1555,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_target_text",
+        "id": "cdd1fe17f5c82fb8",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
-        "order": 11,
+        "z": "c31165d2ff338925",
+        "group": "d1e11b8388988d5a",
+        "order": 5,
         "width": "12",
         "height": "1",
         "name": "Slot 2 Target",
@@ -1569,11 +1571,11 @@
         "wires": []
     },
     {
-        "id": "ui_slot2_duration_text",
+        "id": "6cacc340c12010ed",
         "type": "ui_text",
-        "z": "mqtt_dashboard_tab",
-        "group": "ui_group_activity",
-        "order": 12,
+        "z": "c31165d2ff338925",
+        "group": "d1e11b8388988d5a",
+        "order": 6,
         "width": "12",
         "height": "1",
         "name": "Slot 2 Duration",
@@ -1585,9 +1587,9 @@
         "wires": []
     },
     {
-        "id": "ui_availability_led",
+        "id": "10d66c04a07b3767",
         "type": "ui_led",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "order": 1,
         "group": "ui_group_status",
         "width": "4",
@@ -1616,9 +1618,9 @@
         "wires": []
     },
     {
-        "id": "0fbd7a7549e6c27e",
+        "id": "c32b29d919253958",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.ready;\nreturn msg;",
         "outputs": 1,
@@ -1631,15 +1633,15 @@
         "y": 755,
         "wires": [
             [
-                "ui_modem_ready_led"
+                "172f755c3636e3a4"
             ]
         ],
         "l": false
     },
     {
-        "id": "3c59ff1cc2097cf4",
+        "id": "44caa741902fea10",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.connected;\nreturn msg;",
         "outputs": 1,
@@ -1652,15 +1654,15 @@
         "y": 1140,
         "wires": [
             [
-                "ui_wifi_connected_led"
+                "e659e3eb9cf573b8"
             ]
         ],
         "l": false
     },
     {
-        "id": "1c6cb720652dfd92",
+        "id": "377d8e7b8bfbadf3",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.loggedIn;\nreturn msg;",
         "outputs": 1,
@@ -1673,15 +1675,15 @@
         "y": 1400,
         "wires": [
             [
-                "ui_dmr_logged_in_led"
+                "c44aa7d2943ea476"
             ]
         ],
         "l": false
     },
     {
-        "id": "a5283fdbcde9f496",
+        "id": "8b21b5454d347ce6",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.ready;\nreturn msg;",
         "outputs": 1,
@@ -1694,15 +1696,15 @@
         "y": 1740,
         "wires": [
             [
-                "ui_mmdvm_ready_led"
+                "0f579b3c056b62ec"
             ]
         ],
         "l": false
     },
     {
-        "id": "ec4d0b6035e43032",
+        "id": "e2ab1d735a687cfc",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.isDefaultCallsign;\nreturn msg;",
         "outputs": 1,
@@ -1715,15 +1717,15 @@
         "y": 2120,
         "wires": [
             [
-                "ui_station_default_led"
+                "9f2bee2b9a58f9ee"
             ]
         ],
         "l": false
     },
     {
-        "id": "1f8475dea870cfd9",
+        "id": "d94d1df517f264c1",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.active;\nreturn msg;",
         "outputs": 1,
@@ -1736,15 +1738,15 @@
         "y": 2180,
         "wires": [
             [
-                "ui_slot1_active_led"
+                "ce1234acf4f2f110"
             ]
         ],
         "l": false
     },
     {
-        "id": "be3d7b6b0cb722fa",
+        "id": "2906a96eee029e68",
         "type": "function",
-        "z": "mqtt_dashboard_tab",
+        "z": "c31165d2ff338925",
         "name": "Slot 1",
         "func": "msg.payload = msg.payload.active;\nreturn msg;",
         "outputs": 1,
@@ -1757,7 +1759,34 @@
         "y": 2420,
         "wires": [
             [
-                "ui_slot2_active_led"
+                "4126b3b60ba962bd"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "e32e9abbbb600ecd",
+        "type": "function",
+        "z": "c31165d2ff338925",
+        "name": "Convert for Chart",
+        "func": "// Send three separate messages for the chart - one for each metric\nvar psramMsg = { payload: parseFloat(msg.psramPercent), topic: \"PSRAM Free\" };\nvar heapMsg = { payload: parseFloat(msg.heapPercent), topic: \"Heap Free\" };\nvar sketchMsg = { payload: parseFloat(msg.sketchPercent), topic: \"Sketch Free\" };\n\nreturn [psramMsg, heapMsg, sketchMsg];",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 550,
+        "y": 220,
+        "wires": [
+            [
+                "5af98f91e017f508"
+            ],
+            [
+                "5af98f91e017f508"
+            ],
+            [
+                "5af98f91e017f508"
             ]
         ],
         "l": false
@@ -1795,7 +1824,7 @@
         "type": "ui_group",
         "name": "System Information",
         "tab": "ui_tab_mqtt",
-        "order": 1,
+        "order": 3,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1805,7 +1834,7 @@
         "type": "ui_group",
         "name": "Modem Hardware",
         "tab": "ui_tab_mqtt",
-        "order": 2,
+        "order": 4,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1815,7 +1844,7 @@
         "type": "ui_group",
         "name": "WiFi Network",
         "tab": "ui_tab_mqtt",
-        "order": 3,
+        "order": 5,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1825,7 +1854,7 @@
         "type": "ui_group",
         "name": "DMR Network",
         "tab": "ui_tab_mqtt",
-        "order": 4,
+        "order": 6,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1835,7 +1864,7 @@
         "type": "ui_group",
         "name": "MMDVM Configuration",
         "tab": "ui_tab_mqtt",
-        "order": 5,
+        "order": 7,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1845,17 +1874,27 @@
         "type": "ui_group",
         "name": "Station Information",
         "tab": "ui_tab_mqtt",
-        "order": 6,
+        "order": 8,
         "disp": true,
         "width": "12",
         "collapse": false
     },
     {
-        "id": "ui_group_activity",
+        "id": "95475f336331c10e",
         "type": "ui_group",
-        "name": "DMR Activity",
+        "name": "DMR Activity - Slot 1",
         "tab": "ui_tab_mqtt",
-        "order": 7,
+        "order": 10,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "d1e11b8388988d5a",
+        "type": "ui_group",
+        "name": "DMR Activity - Slot 2",
+        "tab": "ui_tab_mqtt",
+        "order": 1,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1865,7 +1904,7 @@
         "type": "ui_group",
         "name": "Availability",
         "tab": "ui_tab_mqtt",
-        "order": 8,
+        "order": 9,
         "disp": true,
         "width": "12",
         "collapse": false
@@ -1880,7 +1919,7 @@
         "hidden": false
     },
     {
-        "id": "cfcda6f085e6b760",
+        "id": "467e8563960fffe1",
         "type": "global-config",
         "env": [],
         "modules": {
