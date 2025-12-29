@@ -2516,6 +2516,12 @@ bool mqttConnect() {
     String availTopic = mqtt_topic_prefix + "/availability";
     mqttClient.publish(availTopic.c_str(), "online", true);
 
+    // Publish initial status immediately upon connection
+    mqttPublishSystemInfo();
+    mqttPublishModemStatus();
+    mqttPublishNetworkStatus();
+    lastMqttPublish = millis();  // Reset timer so next publish happens after interval
+
     return true;
   } else {
     mqttConnected = false;
