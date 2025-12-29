@@ -513,6 +513,12 @@ void loadConfig();
 void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
+void mqttPublishSystemInfo();
+void mqttPublishHardwareModem();
+void mqttPublishNetworkWifi();
+void mqttPublishNetworkDMR();
+void mqttPublishMMDVMConfig();
+void mqttPublishStationInfo();
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
                               const String& name, const String& city, const String& country, bool isGroup,
                               bool active, uint32_t duration);
@@ -2522,8 +2528,11 @@ bool mqttConnect() {
 
     // Publish initial status immediately upon connection
     mqttPublishSystemInfo();
-    mqttPublishModemStatus();
-    mqttPublishNetworkStatus();
+    mqttPublishHardwareModem();
+    mqttPublishNetworkWifi();
+    mqttPublishNetworkDMR();
+    mqttPublishMMDVMConfig();
+    mqttPublishStationInfo();
     lastMqttPublish = millis();  // Reset timer so next publish happens after interval
 
     return true;
@@ -2625,10 +2634,10 @@ void mqttPublishSystemInfo() {
   mqttClient.publish(topic.c_str(), payload.c_str());
 }
 
-void mqttPublishModemStatus() {
+void mqttPublishHardwareModem() {
   if (!mqttConnected || !mqttClient.connected()) return;
 
-  String topic = mqtt_topic_prefix + "/modem/status";
+  String topic = mqtt_topic_prefix + "/hardware/modem";
 
   // Parse modem firmware version string
   // Example: "MMDVM_HS_Hat-v1.6.1 20231115_WPSD 14.7456MHz ADF7021 FW by CA6JAU, G4KLX, W0CHP. GitID #7e16099"
@@ -2747,15 +2756,65 @@ void mqttPublishModemStatus() {
   mqttClient.publish(topic.c_str(), payload.c_str());
 }
 
-void mqttPublishNetworkStatus() {
+void mqttPublishNetworkWifi() {
   if (!mqttConnected || !mqttClient.connected()) return;
 
-  String topic = mqtt_topic_prefix + "/network/status";
+  String topic = mqtt_topic_prefix + "/network/wifi";
   String payload = "{";
-  payload += "\"dmr_logged_in\":" + String(dmrLoggedIn ? "true" : "false") + ",";
-  payload += "\"dmr_server\":\"" + dmr_server + "\",";
+  payload += "\"connected\":" + String(wifiConnected ? "true" : "false") + ",";
+  payload += "\"apMode\":" + String(apMode ? "true" : "false") + ",";
+  payload += "\"ssid\":\"" + String(wifiConnected ? WiFi.SSID() : (apMode ? String(AP_SSID) : "")) + "\",";
+  payload += "\"ip\":\"" + (wifiConnected ? WiFi.localIP().toString() : (apMode ? WiFi.softAPIP().toString() : "")) + "\",";
+  payload += "\"rssi\":" + String(wifiConnected ? WiFi.RSSI() : 0) + ",";
+  payload += "\"mac\":\"" + WiFi.macAddress() + "\"";
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishNetworkDMR() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/network/dmr";
+  String payload = "{";
+  payload += "\"loggedIn\":" + String(dmrLoggedIn ? "true" : "false") + ",";
   payload += "\"status\":\"" + dmrLoginStatus + "\",";
-  payload += "\"talkgroup\":" + String(currentTalkgroup);
+  payload += "\"server\":\"" + dmr_server + "\",";
+  payload += "\"callsign\":\"" + dmr_callsign + "\",";
+  payload += "\"dmrId\":" + String(dmr_id) + ",";
+  payload += "\"essid\":" + String(dmr_essid) + ",";
+  payload += "\"currentTalkgroup\":" + String(currentTalkgroup) + ",";
+  payload += "\"colorCode\":" + String(dmr_color_code);
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishMMDVMConfig() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/mmdvm/config";
+  String payload = "{";
+  payload += "\"ready\":" + String(mmdvmReady ? "true" : "false") + ",";
+  payload += "\"rxFreq\":" + String(dmr_rx_freq / 1000000.0, 4) + ",";  // Convert Hz to MHz with 4 decimals
+  payload += "\"txFreq\":" + String(dmr_tx_freq / 1000000.0, 4) + ",";  // Convert Hz to MHz with 4 decimals
+  payload += "\"colorCode\":" + String(dmr_color_code) + ",";
+  payload += "\"power\":" + String(dmr_power);
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishStationInfo() {
+  if (!mqttConnected || !mqttClient.connected()) return;
+
+  String topic = mqtt_topic_prefix + "/station/info";
+  String payload = "{";
+  payload += "\"callsign\":\"" + dmr_callsign + "\",";
+  payload += "\"dmrId\":" + String(dmr_id) + ",";
+  payload += "\"essid\":" + String(dmr_essid) + ",";
+  payload += "\"location\":\"" + dmr_location + "\",";
+  payload += "\"isDefaultCallsign\":" + String((dmr_callsign == String(DMR_CALLSIGN)) ? "true" : "false");
   payload += "}";
 
   mqttClient.publish(topic.c_str(), payload.c_str());
@@ -2821,8 +2880,11 @@ void mqttLoop() {
     lastMqttPublish = millis();
 
     mqttPublishSystemInfo();
-    mqttPublishModemStatus();
-    mqttPublishNetworkStatus();
+    mqttPublishHardwareModem();
+    mqttPublishNetworkWifi();
+    mqttPublishNetworkDMR();
+    mqttPublishMMDVMConfig();
+    mqttPublishStationInfo();
   }
 }
 

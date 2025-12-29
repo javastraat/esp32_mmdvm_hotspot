@@ -687,18 +687,6 @@ void handleAdmin() {
   // Submit button
   html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save MQTT Config</button>";
   html += "</form>";
-
-  // MQTT Status Info
-  html += "<div style='margin-top:15px;padding:10px;background:var(--info-bg);border-radius:4px;font-size:0.9em;'>";
-  html += "<strong>Topics Published:</strong><br>";
-  html += "<span style='font-size:0.85em;color:var(--text-muted);'>Default prefix: <code>" + device_hostname + "/" + dmr_callsign + "</code></span><br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/system/status</code> - Detailed system info (uptime, chip, memory, flash, firmware)<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/modem/status</code> - Modem details (hardware, version, crystal, transceiver)<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/network/status</code> - DMR network status<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/slot1/activity</code> - Slot 1 (active, callsign, name, location, duration)<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/slot2/activity</code> - Slot 2 (active, callsign, name, location, duration)<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/availability</code> - Online/offline (LWT)<br>";
-  html += "</div>";
   html += "</div>";
 
   // Configuration Management Card

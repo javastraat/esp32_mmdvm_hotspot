@@ -99,7 +99,7 @@ Detailed system information including uptime, chip details, memory, flash, and f
 }
 ```
 
-#### `{prefix}/modem/status`
+#### `{prefix}/hardware/modem`
 
 Modem hardware and firmware information with parsed details.
 
@@ -118,19 +118,83 @@ Modem hardware and firmware information with parsed details.
 }
 ```
 
-#### `{prefix}/network/status`
+#### `{prefix}/network/wifi`
 
-DMR network connection status.
+WiFi connection status and information.
 
 **Example payload:**
 ```json
 {
-  "dmr_logged_in": true,
-  "dmr_server": "api.brandmeister.network",
-  "status": "Connected",
-  "talkgroup": 91
+  "connected": true,
+  "apMode": false,
+  "ssid": "MyNetwork",
+  "ip": "192.168.1.50",
+  "rssi": -45,
+  "mac": "AA:BB:CC:DD:EE:FF"
 }
 ```
+
+#### `{prefix}/network/dmr`
+
+DMR network connection status and configuration.
+
+**Example payload:**
+```json
+{
+  "loggedIn": true,
+  "status": "Connected",
+  "server": "api.brandmeister.network",
+  "callsign": "N0CALL",
+  "dmrId": 1234567,
+  "essid": 1,
+  "currentTalkgroup": 91,
+  "colorCode": 1
+}
+```
+
+#### `{prefix}/mmdvm/config`
+
+MMDVM operational configuration settings.
+
+**Example payload:**
+```json
+{
+  "ready": true,
+  "rxFreq": 434,
+  "txFreq": 434,
+  "colorCode": 1,
+  "power": 100
+}
+```
+
+**Field descriptions:**
+- `ready`: Modem ready status
+- `rxFreq`: Receive frequency in MHz
+- `txFreq`: Transmit frequency in MHz
+- `colorCode`: DMR color code (1-15)
+- `power`: RF output power (0-100%)
+
+#### `{prefix}/station/info`
+
+Station identification and configuration information.
+
+**Example payload:**
+```json
+{
+  "callsign": "N0CALL",
+  "dmrId": 1234567,
+  "essid": 1,
+  "location": "Home",
+  "isDefaultCallsign": false
+}
+```
+
+**Field descriptions:**
+- `callsign`: Station callsign
+- `dmrId`: DMR ID number
+- `essid`: DMR ESSID (hotspot identifier)
+- `location`: Station location description
+- `isDefaultCallsign`: True if using default config callsign (indicates unconfigured hotspot)
 
 ### Activity Topics (Event-Driven)
 
@@ -247,7 +311,7 @@ client.loop_forever()
 ### Connection Behavior
 
 - **Automatic Reconnection**: If connection to broker is lost, the hotspot automatically attempts to reconnect every 5 seconds
-- **Immediate Publishing**: Upon successful connection, the hotspot immediately publishes system/status, modem/status, and network/status
+- **Immediate Publishing**: Upon successful connection, the hotspot immediately publishes all status topics (system/status, hardware/modem, network/wifi, network/dmr, mmdvm/config, station/info)
 - **Buffer Size**: MQTT message buffer is set to 1024 bytes to accommodate the enhanced payloads
 
 ### Message Retention
@@ -303,8 +367,11 @@ The hotspot provides a JSON API endpoint for monitoring MQTT status:
   "state_description": "Connected",
   "topics": {
     "system": "esp32-mmdvm/PD2EMC/system/status",
-    "modem": "esp32-mmdvm/PD2EMC/modem/status",
-    "network": "esp32-mmdvm/PD2EMC/network/status",
+    "modem": "esp32-mmdvm/PD2EMC/hardware/modem",
+    "wifi": "esp32-mmdvm/PD2EMC/network/wifi",
+    "dmr": "esp32-mmdvm/PD2EMC/network/dmr",
+    "mmdvm": "esp32-mmdvm/PD2EMC/mmdvm/config",
+    "station": "esp32-mmdvm/PD2EMC/station/info",
     "slot1": "esp32-mmdvm/PD2EMC/slot1/activity",
     "slot2": "esp32-mmdvm/PD2EMC/slot2/activity",
     "availability": "esp32-mmdvm/PD2EMC/availability"
