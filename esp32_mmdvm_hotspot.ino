@@ -514,7 +514,8 @@ void saveConfig();
 void handleMMDVMSerial();
 void handleNetwork();
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                              const String& name, const String& city, const String& country, bool isGroup);
+                              const String& name, const String& city, const String& country, bool isGroup,
+                              bool active, uint32_t duration);
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
 void writeDMRStart(bool tx, String callsign = "");
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
@@ -1902,12 +1903,15 @@ void handleNetwork() {
 
             // Publish to MQTT when new transmission starts with all available info
             if (dmrActivity[activityIndex].srcCallsign.length() > 0) {
+              uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
               mqttPublishSlotActivity(slotNo, srcId, dstId,
                                      dmrActivity[activityIndex].srcCallsign,
                                      dmrActivity[activityIndex].srcName,
                                      dmrActivity[activityIndex].srcCity,
                                      dmrActivity[activityIndex].srcCountry,
-                                     isGroup);
+                                     isGroup,
+                                     true,  // Always true - we only publish during active transmissions
+                                     duration);
             }
 
             // Log with enhanced info if found
@@ -2758,31 +2762,40 @@ void mqttPublishNetworkStatus() {
 }
 
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                              const String& name = "", const String& city = "", const String& country = "", bool isGroup = true) {
+                              const String& name = "", const String& city = "", const String& country = "", bool isGroup = true,
+                              bool active = true, uint32_t duration = 0) {
   if (!mqttConnected || !mqttClient.connected()) return;
 
   String topic = mqtt_topic_prefix + "/slot" + String(slot) + "/activity";
   String payload = "{";
   payload += "\"slot\":" + String(slot) + ",";
-  payload += "\"src_id\":" + String(srcId) + ",";
-  payload += "\"dst_id\":" + String(dstId) + ",";
-  payload += "\"callsign\":\"" + callsign + "\",";
+  payload += "\"active\":" + String(active ? "true" : "false") + ",";
 
-  // Add name if available
-  if (name.length() > 0) {
-    payload += "\"name\":\"" + name + "\",";
-  }
+  // Only include detailed info if transmission is active
+  if (active) {
+    payload += "\"src_id\":" + String(srcId) + ",";
+    payload += "\"dst_id\":" + String(dstId) + ",";
+    payload += "\"callsign\":\"" + callsign + "\",";
 
-  // Add location info if available
-  if (city.length() > 0) {
-    payload += "\"city\":\"" + city + "\",";
-  }
-  if (country.length() > 0) {
-    payload += "\"country\":\"" + country + "\",";
-  }
+    // Add name if available
+    if (name.length() > 0) {
+      payload += "\"name\":\"" + name + "\",";
+    }
 
-  // Add call type (group or private)
-  payload += "\"call_type\":\"" + String(isGroup ? "group" : "private") + "\",";
+    // Add location info if available
+    if (city.length() > 0) {
+      payload += "\"city\":\"" + city + "\",";
+    }
+    if (country.length() > 0) {
+      payload += "\"country\":\"" + country + "\",";
+    }
+
+    // Add call type (group or private)
+    payload += "\"call_type\":\"" + String(isGroup ? "group" : "private") + "\",";
+
+    // Add duration
+    payload += "\"duration\":" + String(duration) + ",";
+  }
 
   payload += "\"timestamp\":" + String(millis() / 1000);
   payload += "}";

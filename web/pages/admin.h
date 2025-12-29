@@ -695,8 +695,8 @@ void handleAdmin() {
   html += "<code style='font-size:0.85em;'>{prefix}/system/status</code> - Detailed system info (uptime, chip, memory, flash, firmware)<br>";
   html += "<code style='font-size:0.85em;'>{prefix}/modem/status</code> - Modem details (hardware, version, crystal, transceiver)<br>";
   html += "<code style='font-size:0.85em;'>{prefix}/network/status</code> - DMR network status<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/slot1/activity</code> - Slot 1 (callsign, name, city, country)<br>";
-  html += "<code style='font-size:0.85em;'>{prefix}/slot2/activity</code> - Slot 2 (callsign, name, city, country)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/slot1/activity</code> - Slot 1 (active, callsign, name, location, duration)<br>";
+  html += "<code style='font-size:0.85em;'>{prefix}/slot2/activity</code> - Slot 2 (active, callsign, name, location, duration)<br>";
   html += "<code style='font-size:0.85em;'>{prefix}/availability</code> - Online/offline (LWT)<br>";
   html += "</div>";
   html += "</div>";
