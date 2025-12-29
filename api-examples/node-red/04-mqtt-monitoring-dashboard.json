@@ -52,7 +52,9 @@
         "reg": false,
         "x": 360,
         "y": 60,
-        "wires": [[]]
+        "wires": [
+            []
+        ]
     },
     {
         "id": "mqtt_system_in",
@@ -143,7 +145,6 @@
         "y": 200,
         "wires": [
             [
-                "ui_modem_ready_led",
                 "ui_modem_type_text",
                 "ui_modem_hardware_text",
                 "ui_modem_firmware_text",
@@ -151,7 +152,8 @@
                 "ui_modem_crystal_text",
                 "ui_modem_transceiver_text",
                 "ui_modem_author_text",
-                "ui_modem_git_text"
+                "ui_modem_git_text",
+                "0fbd7a7549e6c27e"
             ]
         ]
     },
@@ -190,12 +192,12 @@
         "y": 260,
         "wires": [
             [
-                "ui_wifi_connected_led",
                 "ui_wifi_status_text",
                 "ui_wifi_ssid_text",
                 "ui_wifi_ip_text",
                 "ui_wifi_rssi_text",
-                "ui_wifi_mac_text"
+                "ui_wifi_mac_text",
+                "3c59ff1cc2097cf4"
             ]
         ]
     },
@@ -234,14 +236,14 @@
         "y": 320,
         "wires": [
             [
-                "ui_dmr_logged_in_led",
                 "ui_dmr_status_text",
                 "ui_dmr_server_text",
                 "ui_dmr_callsign_text",
                 "ui_dmr_id_text",
                 "ui_dmr_essid_text",
                 "ui_dmr_talkgroup_text",
-                "ui_dmr_colorcode_text"
+                "ui_dmr_colorcode_text",
+                "1c6cb720652dfd92"
             ]
         ]
     },
@@ -280,11 +282,11 @@
         "y": 380,
         "wires": [
             [
-                "ui_mmdvm_ready_led",
                 "ui_mmdvm_rx_freq_text",
                 "ui_mmdvm_tx_freq_text",
                 "ui_mmdvm_colorcode_text",
-                "ui_mmdvm_power_text"
+                "ui_mmdvm_power_text",
+                "a5283fdbcde9f496"
             ]
         ]
     },
@@ -327,7 +329,7 @@
                 "ui_station_dmrid_text",
                 "ui_station_essid_text",
                 "ui_station_location_text",
-                "ui_station_default_led"
+                "ec4d0b6035e43032"
             ]
         ]
     },
@@ -366,12 +368,12 @@
         "y": 500,
         "wires": [
             [
-                "ui_slot1_active_led",
                 "ui_slot1_callsign_text",
                 "ui_slot1_dmrid_text",
                 "ui_slot1_location_text",
                 "ui_slot1_target_text",
-                "ui_slot1_duration_text"
+                "ui_slot1_duration_text",
+                "1f8475dea870cfd9"
             ]
         ]
     },
@@ -410,12 +412,12 @@
         "y": 560,
         "wires": [
             [
-                "ui_slot2_active_led",
                 "ui_slot2_callsign_text",
                 "ui_slot2_dmrid_text",
                 "ui_slot2_location_text",
                 "ui_slot2_target_text",
-                "ui_slot2_duration_text"
+                "ui_slot2_duration_text",
+                "be3d7b6b0cb722fa"
             ]
         ]
     },
@@ -567,7 +569,9 @@
         "useDifferentColor": false,
         "x": 620,
         "y": 220,
-        "wires": [[]]
+        "wires": [
+            []
+        ]
     },
     {
         "id": "ui_callsign_text",
@@ -785,8 +789,11 @@
             }
         ],
         "allowColorForValueInMessage": false,
-        "x": 630,
-        "y": 760,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "",
+        "x": 665,
+        "y": 755,
         "wires": []
     },
     {
@@ -1173,7 +1180,7 @@
         "group": "ui_group_mmdvm",
         "width": "3",
         "height": "1",
-        "label": "MMDVM Ready",
+        "label": "MMDVM Configured",
         "labelPlacement": "left",
         "labelAlignment": "left",
         "colorForValue": [
@@ -1189,6 +1196,9 @@
             }
         ],
         "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "",
         "x": 630,
         "y": 1740,
         "wires": []
@@ -1345,7 +1355,10 @@
             }
         ],
         "allowColorForValueInMessage": false,
-        "x": 620,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "",
+        "x": 665,
         "y": 2120,
         "wires": []
     },
@@ -1362,12 +1375,12 @@
         "labelAlignment": "left",
         "colorForValue": [
             {
-                "color": "#808080",
+                "color": "#00ff00",
                 "value": "false",
                 "valueType": "bool"
             },
             {
-                "color": "#00ff00",
+                "color": "#ff0000",
                 "value": "true",
                 "valueType": "bool"
             }
@@ -1375,7 +1388,8 @@
         "allowColorForValueInMessage": false,
         "shape": "circle",
         "showGlow": true,
-        "x": 610,
+        "name": "",
+        "x": 670,
         "y": 2180,
         "wires": []
     },
@@ -1472,12 +1486,12 @@
         "labelAlignment": "left",
         "colorForValue": [
             {
-                "color": "#808080",
+                "color": "#00ff00",
                 "value": "false",
                 "valueType": "bool"
             },
             {
-                "color": "#00ff00",
+                "color": "#ff0000",
                 "value": "true",
                 "valueType": "bool"
             }
@@ -1485,7 +1499,8 @@
         "allowColorForValueInMessage": false,
         "shape": "circle",
         "showGlow": true,
-        "x": 610,
+        "name": "",
+        "x": 675,
         "y": 2420,
         "wires": []
     },
@@ -1541,11 +1556,11 @@
         "id": "ui_slot2_target_text",
         "type": "ui_text",
         "z": "mqtt_dashboard_tab",
-        "name": "Slot 2 Target",
         "group": "ui_group_activity",
         "order": 11,
         "width": "12",
         "height": "1",
+        "name": "Slot 2 Target",
         "label": "Target:",
         "format": "{{msg.slot2Target}}",
         "layout": "row-spread",
@@ -1583,21 +1598,197 @@
         "colorForValue": [
             {
                 "color": "#ff0000",
-                "value": "false",
-                "valueType": "bool"
+                "value": "offline",
+                "valueType": "str"
             },
             {
                 "color": "#00ff00",
-                "value": "true",
-                "valueType": "bool"
+                "value": "online",
+                "valueType": "str"
             }
         ],
         "allowColorForValueInMessage": false,
         "shape": "circle",
         "showGlow": true,
+        "name": "",
         "x": 640,
         "y": 2680,
         "wires": []
+    },
+    {
+        "id": "0fbd7a7549e6c27e",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.ready;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 755,
+        "wires": [
+            [
+                "ui_modem_ready_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "3c59ff1cc2097cf4",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.connected;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 565,
+        "y": 1140,
+        "wires": [
+            [
+                "ui_wifi_connected_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "1c6cb720652dfd92",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.loggedIn;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 565,
+        "y": 1400,
+        "wires": [
+            [
+                "ui_dmr_logged_in_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "a5283fdbcde9f496",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.ready;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 555,
+        "y": 1740,
+        "wires": [
+            [
+                "ui_mmdvm_ready_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "ec4d0b6035e43032",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.isDefaultCallsign;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 575,
+        "y": 2120,
+        "wires": [
+            [
+                "ui_station_default_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "1f8475dea870cfd9",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.active;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 575,
+        "y": 2180,
+        "wires": [
+            [
+                "ui_slot1_active_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "be3d7b6b0cb722fa",
+        "type": "function",
+        "z": "mqtt_dashboard_tab",
+        "name": "Slot 1",
+        "func": "msg.payload = msg.payload.active;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 585,
+        "y": 2420,
+        "wires": [
+            [
+                "ui_slot2_active_led"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "mqtt_broker",
+        "type": "mqtt-broker",
+        "name": "MQTT Broker",
+        "broker": "192.168.2.26",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
     },
     {
         "id": "ui_group_system",
@@ -1689,30 +1880,12 @@
         "hidden": false
     },
     {
-        "id": "mqtt_broker",
-        "type": "mqtt-broker",
-        "name": "MQTT Broker",
-        "broker": "localhost",
-        "port": "1883",
-        "clientid": "",
-        "autoConnect": true,
-        "usetls": false,
-        "protocolVersion": "4",
-        "keepalive": "60",
-        "cleansession": true,
-        "birthTopic": "",
-        "birthQos": "0",
-        "birthPayload": "",
-        "birthMsg": {},
-        "closeTopic": "",
-        "closeQos": "0",
-        "closePayload": "",
-        "closeMsg": {},
-        "willTopic": "",
-        "willQos": "0",
-        "willPayload": "",
-        "willMsg": {},
-        "userProps": "",
-        "sessionExpiry": ""
+        "id": "cfcda6f085e6b760",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6",
+            "node-red-contrib-ui-led": "0.4.11"
+        }
     }
 ]
