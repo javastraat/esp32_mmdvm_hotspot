@@ -248,12 +248,16 @@ void handleRoot() {
       <h2>Option 2: Flash from URL</h2>
       <p>Download firmware from a URL (e.g., GitHub releases)</p>
       <form id='urlForm'>
-        <input type='text' id='urlInput' placeholder='https://github.com/user/repo/releases/download/v1.0/firmware.bin' required>
+        <select id='firmwareSelect' style='width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;'>
+          <option value=''>Select firmware version...</option>
+          <option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_hat_fw.bin'>Single MMDVM Modem v1.6.1</option>
+          <option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_dual_hat_fw.bin'>Dual MMDVM Modem v1.6.1</option>
+          <option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/generic_gpio_fw152.bin'>Single MMDVM Modem v1.5.2</option>
+          <option value='custom'>Enter custom URL...</option>
+        </select>
+        <input type='text' id='urlInput' placeholder='Enter custom firmware URL...' style='display: none; width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;'>
         <button type='submit' id='urlBtn'>Download & Flash</button>
       </form>
-      <p style='margin-top: 10px; font-size: 12px; color: #666;'>
-        Example: https://github.com/juribeparada/MMDVM_HS/releases/download/v1.6.1/mmdvm_hs_hat_fw.bin
-      </p>
     </div>
 
     <div class='card'>
@@ -290,6 +294,9 @@ void handleRoot() {
       logDiv.scrollTop = logDiv.scrollHeight;
     }
 
+    let lastStatus = '';
+    let lastProgress = 0;
+
     function updateStatus() {
       fetch('/status')
         .then(r => r.json())
@@ -298,20 +305,27 @@ void handleRoot() {
           document.getElementById('bootMode').textContent = data.inBootloader ? 'Active' : 'Inactive';
           document.getElementById('flashStat').textContent = data.flashStatus || 'Idle';
 
+          // Log status changes to activity log
+          if (data.flashStatus && data.flashStatus !== lastStatus && data.flashStatus !== 'Idle' && data.flashStatus !== '') {
+            let logType = 'info';
+            if (data.flashStatus.startsWith('ERROR')) {
+              logType = 'error';
+            } else if (data.flashStatus.includes('complete')) {
+              logType = 'success';
+            }
+            log(data.flashStatus, logType);
+            lastStatus = data.flashStatus;
+          }
+
           if (data.flashProgress > 0) {
             document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('progressBar').style.width = data.flashProgress + '%';
             document.getElementById('progressText').textContent = data.flashProgress + '%';
-
-            if (data.flashProgress >= 100) {
-              setTimeout(() => {
-                document.getElementById('progressContainer').style.display = 'none';
-              }, 3000);
-            }
-          }
-
-          if (data.lastLog) {
-            log(data.lastLog, data.logType || 'info');
+            lastProgress = data.flashProgress;
+          } else if (!data.flashInProgress && lastProgress === 100) {
+            // Keep showing 100% for completed flashes
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressText').textContent = '100%';
           }
         })
         .catch(e => console.error('Status update failed:', e));
@@ -350,10 +364,40 @@ void handleRoot() {
       });
     };
 
+    // Firmware select handler
+    document.getElementById('firmwareSelect').onchange = function() {
+      const select = document.getElementById('firmwareSelect');
+      const urlInput = document.getElementById('urlInput');
+
+      if (select.value === 'custom') {
+        urlInput.style.display = 'block';
+        urlInput.required = true;
+        urlInput.value = '';
+      } else if (select.value === '') {
+        urlInput.style.display = 'none';
+        urlInput.required = false;
+      } else {
+        urlInput.style.display = 'none';
+        urlInput.required = false;
+        urlInput.value = select.value;
+      }
+    };
+
     // URL download handler
     document.getElementById('urlForm').onsubmit = function(e) {
       e.preventDefault();
-      const url = document.getElementById('urlInput').value;
+      const select = document.getElementById('firmwareSelect');
+      const urlInput = document.getElementById('urlInput');
+      let url = '';
+
+      if (select.value === 'custom') {
+        url = urlInput.value;
+      } else if (select.value !== '') {
+        url = select.value;
+      } else {
+        log('Please select a firmware version', 'error');
+        return;
+      }
 
       log('Downloading from: ' + url);
       document.getElementById('urlBtn').disabled = true;
@@ -443,7 +487,7 @@ void handleUpload() {
 
     // Enter bootloader mode
     if (!inBootloaderMode) {
-      flashStatus = "Entering bootloader...";
+      flashStatus = "Entering bootloader mode...";
       flashProgress = 10;
       enterBootloader();
       delay(500);
@@ -456,7 +500,8 @@ void handleUpload() {
     }
 
     // Sync with bootloader
-    flashStatus = "Syncing with bootloader...";
+    flashStatus = "Syncing with STM32 bootloader...";
+    flashProgress = 12;
     Serial.println("[Upload] Syncing with bootloader...");
     if (!syncBootloader()) {
       flashStatus = "ERROR: Bootloader sync failed";
@@ -465,7 +510,7 @@ void handleUpload() {
     }
 
     // Erase flash
-    flashStatus = "Erasing flash...";
+    flashStatus = "Erasing STM32 flash memory...";
     flashProgress = 20;
     Serial.println("[Upload] Erasing flash...");
     if (!eraseFlashMemory()) {
@@ -477,7 +522,7 @@ void handleUpload() {
     // Initialize streaming state
     uploadAddress = FLASH_START_ADDR;
     flashInProgress = true;
-    flashStatus = "Writing firmware...";
+    flashStatus = "Writing firmware to STM32...";
     flashProgress = 30;
     Serial.println("[Upload] Starting write...");
   }
@@ -537,12 +582,14 @@ void handleUpload() {
     Serial.printf("[Upload] Complete! %d bytes written\n", uploadBytesWritten);
 
     // Exit bootloader
-    flashStatus = "Resetting modem...";
-    flashProgress = 95;
+    flashStatus = "Resetting modem to normal mode...";
+    flashProgress = 92;
     exitBootloader();
     delay(1000);
 
     // Read new version
+    flashStatus = "Verifying new firmware version...";
+    flashProgress = 95;
     readModemFirmwareVersion();
 
     flashStatus = "Flash complete! New version: " + modemFirmwareVersion;
@@ -559,20 +606,27 @@ void handleFlashURL() {
   }
 
   String url = server.arg("url");
-  flashStatus = "Downloading from URL...";
+
+  // Immediate response to start process
+  server.send(202, "text/plain", "Starting flash from URL...");
+
+  flashStatus = "Connecting to server...";
   flashProgress = 5;
   Serial.println("[URL] Starting download: " + url);
 
   HTTPClient http;
   http.begin(url);
   http.setTimeout(30000); // 30 second timeout
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS); // Follow GitHub redirects
 
+  flashStatus = "Downloading firmware...";
+  flashProgress = 8;
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
     // Enter bootloader mode
     if (!inBootloaderMode) {
-      flashStatus = "Entering bootloader...";
+      flashStatus = "Entering bootloader mode...";
       flashProgress = 10;
       enterBootloader();
       delay(500);
@@ -581,36 +635,34 @@ void handleFlashURL() {
     if (!inBootloaderMode) {
       flashStatus = "ERROR: Could not enter bootloader";
       Serial.println("[URL] " + flashStatus);
-      server.send(500, "text/plain", flashStatus);
       http.end();
       return;
     }
 
     // Sync with bootloader
-    flashStatus = "Syncing with bootloader...";
+    flashStatus = "Syncing with STM32 bootloader...";
+    flashProgress = 12;
     Serial.println("[URL] Syncing with bootloader...");
     if (!syncBootloader()) {
       flashStatus = "ERROR: Bootloader sync failed";
       Serial.println("[URL] " + flashStatus);
-      server.send(500, "text/plain", flashStatus);
       http.end();
       return;
     }
 
     // Erase flash
-    flashStatus = "Erasing flash...";
+    flashStatus = "Erasing STM32 flash memory...";
     flashProgress = 15;
     Serial.println("[URL] Erasing flash...");
     if (!eraseFlashMemory()) {
       flashStatus = "ERROR: Erase failed";
       Serial.println("[URL] " + flashStatus);
-      server.send(500, "text/plain", flashStatus);
       http.end();
       return;
     }
 
     // Stream and write directly to STM32
-    flashStatus = "Writing firmware...";
+    flashStatus = "Writing firmware to STM32...";
     flashProgress = 25;
     flashInProgress = true;
 
@@ -676,20 +728,20 @@ void handleFlashURL() {
     Serial.printf("[URL] Complete! %d bytes written\n", bytesWritten);
 
     // Exit bootloader
-    flashStatus = "Resetting modem...";
-    flashProgress = 95;
+    flashStatus = "Resetting modem to normal mode...";
+    flashProgress = 92;
     exitBootloader();
     delay(1000);
 
     // Read new version
+    flashStatus = "Verifying new firmware version...";
+    flashProgress = 95;
     readModemFirmwareVersion();
 
-    flashStatus = "Flash complete!";
+    flashStatus = "Flash complete! New version: " + modemFirmwareVersion;
     flashProgress = 100;
     flashInProgress = false;
     Serial.println("[URL] Flash complete!");
-
-    server.send(200, "text/plain", "Flash complete! " + String(bytesWritten) + " bytes written");
   } else {
     flashStatus = "ERROR: HTTP " + String(httpCode);
     Serial.println("[URL] " + flashStatus);
@@ -705,6 +757,7 @@ void handleStatus() {
   json += "\"inBootloader\":" + String(inBootloaderMode ? "true" : "false") + ",";
   json += "\"flashProgress\":" + String(flashProgress) + ",";
   json += "\"flashStatus\":\"" + flashStatus + "\",";
+  json += "\"flashInProgress\":" + String(flashInProgress ? "true" : "false") + ",";
   json += "\"lastLog\":\"\"";
   json += "}";
 
