@@ -240,6 +240,12 @@ void handleModemFlashStatus() {
   json += "\"progress\":" + String(modemFlashProgress) + ",";
   json += "\"status\":\"" + modemFlashStatus + "\"";
   json += "}";
+  
+  // Debug logging
+  if (modemFlashInProgress) {
+    logSerial("[Modem] Status polled: progress=" + String(modemFlashProgress) + "%, status=" + modemFlashStatus);
+  }
+  
   server.send(200, "application/json", json);
 }
 
@@ -252,6 +258,11 @@ void handleFlashModemUpload() {
     modemUploadBytesWritten = 0;
     modemUploadBufferPtr = 0;
     
+    // Set initial progress state
+    modemFlashInProgress = true;
+    modemFlashProgress = 5;
+    modemFlashStatus = "Entering bootloader mode...";
+    
     // Enter bootloader mode
     if (!modemInBootloaderMode) {
       modemEnterBootloader();
@@ -259,21 +270,36 @@ void handleFlashModemUpload() {
     }
     
     if (!modemInBootloaderMode) {
+      modemFlashInProgress = false;
+      modemFlashStatus = "ERROR: Could not enter bootloader";
       server.send(500, "text/plain", "ERROR: Could not enter bootloader");
       return;
     }
     
+    modemFlashProgress = 15;
+    modemFlashStatus = "Syncing with bootloader...";
+    
     // Sync with bootloader
     if (!modemSyncBootloader()) {
+      modemFlashInProgress = false;
+      modemFlashStatus = "ERROR: Bootloader sync failed";
       server.send(500, "text/plain", "ERROR: Bootloader sync failed");
       return;
     }
     
+    modemFlashProgress = 20;
+    modemFlashStatus = "Erasing flash memory...";
+    
     // Erase flash
     if (!modemEraseFlash()) {
+      modemFlashInProgress = false;
+      modemFlashStatus = "ERROR: Flash erase failed";
       server.send(500, "text/plain", "ERROR: Flash erase failed");
       return;
     }
+    
+    modemFlashProgress = 30;
+    modemFlashStatus = "Uploading and flashing...";
     
     // Initialize streaming state
     modemUploadAddress = FLASH_START_ADDR;
@@ -288,6 +314,8 @@ void handleFlashModemUpload() {
       if (modemUploadBufferPtr >= MAX_WRITE_SIZE) {
         if (!modemWriteMemory(modemUploadAddress, modemUploadBuffer, MAX_WRITE_SIZE)) {
           logSerial("[Modem] ERROR: Write failed at 0x" + String(modemUploadAddress, HEX));
+          modemFlashInProgress = false;
+          modemFlashStatus = "ERROR: Write failed";
           server.send(500, "text/plain", "ERROR: Write failed");
           return;
         }
@@ -295,6 +323,11 @@ void handleFlashModemUpload() {
         modemUploadAddress += MAX_WRITE_SIZE;
         modemUploadBytesWritten += MAX_WRITE_SIZE;
         modemUploadBufferPtr = 0;
+        
+        // Update progress (30% to 90% during write)
+        if (upload.totalSize > 0) {
+          modemFlashProgress = 30 + ((modemUploadBytesWritten * 60) / upload.totalSize);
+        }
         
         // Log progress every 4KB
         if (modemUploadBytesWritten % (16 * 256) == 0) {
@@ -309,11 +342,16 @@ void handleFlashModemUpload() {
       memset(modemUploadBuffer + modemUploadBufferPtr, 0xFF, MAX_WRITE_SIZE - modemUploadBufferPtr);
       if (!modemWriteMemory(modemUploadAddress, modemUploadBuffer, MAX_WRITE_SIZE)) {
         logSerial("[Modem] ERROR: Final write failed");
+        modemFlashInProgress = false;
+        modemFlashStatus = "ERROR: Final write failed";
         server.send(500, "text/plain", "ERROR: Final write failed");
         return;
       }
       modemUploadBytesWritten += modemUploadBufferPtr;
     }
+    
+    modemFlashProgress = 95;
+    modemFlashStatus = "Flash complete! Rebooting...";
     
     logSerial("[Modem] Upload complete! " + String(modemUploadBytesWritten) + " bytes written");
     
@@ -321,7 +359,24 @@ void handleFlashModemUpload() {
     server.send(200, "text/plain", "SUCCESS: Modem firmware flashed (" + String(modemUploadBytesWritten) + " bytes). ESP32 rebooting...");
     delay(100);  // Allow response to be sent
     
+    // Allow UI to poll at 95% a few times (1 second total)
+    for (int i = 0; i < 4; i++) {
+      server.handleClient();
+      delay(250);
+    }
+    
+    // Update to 100%
+    modemFlashProgress = 100;
+    modemFlashStatus = "Complete! Rebooting ESP32...";
+    
+    // Allow UI to poll at 100% a few times (1 second total)
+    for (int i = 0; i < 4; i++) {
+      server.handleClient();
+      delay(250);
+    }
+    
     // Exit bootloader (will reboot ESP32)
+    modemFlashInProgress = false;
     modemExitBootloader();
   }
   else if (upload.status == UPLOAD_FILE_ABORTED) {
@@ -389,6 +444,7 @@ void handleFlashModemURL() {
     
     modemFlashProgress = 20;
     modemFlashStatus = "Erasing flash memory...";
+    server.handleClient();  // Allow status poll
     
     // Erase flash
     if (!modemEraseFlash()) {
@@ -400,6 +456,7 @@ void handleFlashModemURL() {
     
     modemFlashProgress = 30;
     modemFlashStatus = "Downloading and flashing...";
+    server.handleClient();  // Allow status poll
     
     // Download and flash
     WiFiClient* stream = http.getStreamPtr();
@@ -444,8 +501,15 @@ void handleFlashModemURL() {
           if (bytesWritten % (16 * 256) == 0) {
             logSerial("[Modem] Progress: " + String(bytesWritten) + " bytes");
           }
+          
+          // Allow web server to handle status poll requests
+          server.handleClient();
         }
       }
+      
+      // Allow web server to handle status poll requests
+      server.handleClient();
+      yield();
       delay(1);
     }
     
@@ -469,7 +533,23 @@ void handleFlashModemURL() {
     
     http.end();
     
-    // Exit bootloader (will reboot ESP32)
+    // Allow UI to poll at 95% multiple times (1 second total)
+    for (int i = 0; i < 4; i++) {
+      server.handleClient();
+      delay(250);
+    }
+    
+    // Update to 100% so user sees completion
+    modemFlashProgress = 100;
+    modemFlashStatus = "Complete! Rebooting ESP32...";
+    
+    // Allow UI to poll at 100% a couple times (500ms)
+    for (int i = 0; i < 2; i++) {
+      server.handleClient();
+      delay(250);
+    }
+    
+    // Now mark as complete and exit bootloader (will reboot ESP32)
     modemFlashInProgress = false;
     modemExitBootloader();
     
