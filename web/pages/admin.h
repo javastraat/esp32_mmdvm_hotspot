@@ -754,6 +754,48 @@ void handleAdmin() {
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
 
+  // MMDVM Modem Flasher Card
+  html += "<div class='card'>";
+  html += "<h3>MMDVM Modem Firmware</h3>";
+  html += "<div><strong>Current Modem Version:</strong> <span id='modem-version'>" + modemFirmwareVersion + "</span></div>";
+  html += "<br>";
+  html += "<p>Flash firmware to your MMDVM modem (STM32):</p>";
+  
+  html += "<div style='margin: 20px 0; padding: 15px; background: var(--info-bg); border-left: 4px solid #007bff; border-radius: 4px;'>";
+  html += "<strong>Option 1: Upload Firmware File</strong><br>";
+  html += "<p style='margin: 10px 0; color: var(--text-color);'>Upload a .bin firmware file from your computer</p>";
+  html += "<form id='modem-upload-form' enctype='multipart/form-data' style='margin-top: 10px;'>";
+  html += "<input type='file' id='modem-file-input' accept='.bin' style='padding: 8px; margin: 5px 0;' />";
+  html += "<br><button type='submit' class='btn btn-warning' style='margin-top: 10px;'>Upload & Flash Modem</button>";
+  html += "</form>";
+  html += "</div>";
+  
+  html += "<div style='margin: 20px 0; padding: 15px; background: var(--info-bg); border-left: 4px solid #28a745; border-radius: 4px;'>";
+  html += "<strong>Option 2: Flash from URL</strong><br>";
+  html += "<p style='margin: 10px 0; color: var(--text-color);'>Download firmware from a URL (e.g., GitHub releases)</p>";
+  html += "<form id='modem-url-form' style='margin-top: 10px;'>";
+  html += "<select id='modem-firmware-select' style='width: 100%; padding: 8px; margin: 5px 0; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
+  html += "<option value=''>Select firmware version...</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_hat_fw.bin'>Single MMDVM Modem v1.6.1</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_dual_hat_fw.bin'>Dual MMDVM Modem v1.6.1</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/generic_gpio_fw152.bin'>Single MMDVM Modem v1.5.2</option>";
+  html += "<option value='custom'>Enter custom URL...</option>";
+  html += "</select>";
+  html += "<input type='text' id='modem-custom-url' placeholder='Enter custom firmware URL...' style='display: none; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);' />";
+  html += "<br><button type='submit' class='btn btn-success' style='margin-top: 10px;'>Download & Flash</button>";
+  html += "</form>";
+  html += "</div>";
+  
+  html += "<div id='modem-flash-progress' style='display:none; margin: 15px 0;'>";
+  html += "<div style='background: #e0e0e0; border-radius: 4px; height: 30px; position: relative;'>";
+  html += "<div id='modem-progress-bar' style='background: #4caf50; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;'></div>";
+  html += "<div id='modem-progress-text' style='position: absolute; width: 100%; text-align: center; line-height: 30px; color: #333; font-weight: bold;'>0%</div>";
+  html += "</div>";
+  html += "</div>";
+  
+  html += "<div id='modem-flash-status' style='margin-top: 10px; padding: 10px; display: none; border-radius: 4px;'></div>";
+  html += "</div>";
+
   html += "</div>"; // Close admin-grid
 
   // Warning message
@@ -1133,6 +1175,107 @@ void handleAdmin() {
   html += "      document.getElementById('latest-beta-version').innerHTML = '<span style=\"color: #dc3545;\">Error checking version</span>';";
   html += "    });";
   html += "}";
+  
+  // MMDVM Modem Flasher JavaScript Functions
+  html += "document.getElementById('modem-firmware-select').onchange = function() {";
+  html += "  var select = this;";
+  html += "  var customInput = document.getElementById('modem-custom-url');";
+  html += "  if (select.value === 'custom') {";
+  html += "    customInput.style.display = 'block';";
+  html += "    customInput.required = true;";
+  html += "  } else {";
+  html += "    customInput.style.display = 'none';";
+  html += "    customInput.required = false;";
+  html += "  }";
+  html += "};";
+  
+  html += "document.getElementById('modem-upload-form').onsubmit = function(e) {";
+  html += "  e.preventDefault();";
+  html += "  var fileInput = document.getElementById('modem-file-input');";
+  html += "  var file = fileInput.files[0];";
+  html += "  if (!file) {";
+  html += "    alert('Please select a firmware file');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (!file.name.endsWith('.bin')) {";
+  html += "    alert('Please select a valid .bin file');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (!confirm('Upload and flash modem firmware: ' + file.name + '?\\n\\nThis will update your MMDVM modem.')) {";
+  html += "    return;";
+  html += "  }";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('firmware', file);";
+  html += "  document.getElementById('modem-flash-progress').style.display = 'block';";
+  html += "  document.getElementById('modem-flash-status').style.display = 'block';";
+  html += "  document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #007bff;\">Uploading firmware...</div>';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var percent = Math.round((e.loaded / e.total) * 100);";
+  html += "      document.getElementById('modem-progress-bar').style.width = percent + '%';";
+  html += "      document.getElementById('modem-progress-text').textContent = percent + '%';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onload = function() {";
+  html += "    if (xhr.status === 200) {";
+  html += "      document.getElementById('modem-progress-bar').style.width = '100%';";
+  html += "      document.getElementById('modem-progress-text').textContent = '100%';";
+  html += "      document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #28a745; font-weight: bold;\">✓ ' + xhr.responseText + '<br>Page will reload in 10 seconds...</div>';";
+  html += "      setTimeout(() => { location.reload(); }, 10000);";
+  html += "    } else {";
+  html += "      document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #dc3545;\">✗ Error: ' + xhr.responseText + '</div>';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #dc3545;\">✗ Upload failed</div>';";
+  html += "  };";
+  html += "  xhr.open('POST', '/flash-modem-upload');";
+  html += "  xhr.send(formData);";
+  html += "};";
+  
+  html += "document.getElementById('modem-url-form').onsubmit = function(e) {";
+  html += "  e.preventDefault();";
+  html += "  var select = document.getElementById('modem-firmware-select');";
+  html += "  var customInput = document.getElementById('modem-custom-url');";
+  html += "  var url = select.value === 'custom' ? customInput.value : select.value;";
+  html += "  if (!url) {";
+  html += "    alert('Please select or enter a firmware URL');";
+  html += "    return;";
+  html += "  }";
+  html += "  var selectedText = select.value === 'custom' ? 'Custom URL' : select.options[select.selectedIndex].text;";
+  html += "  if (!confirm('Download and flash modem firmware from:\\n' + selectedText + '?\\n\\nThis will update your MMDVM modem.')) {";
+  html += "    return;";
+  html += "  }";
+  html += "  document.getElementById('modem-flash-progress').style.display = 'block';";
+  html += "  document.getElementById('modem-flash-status').style.display = 'block';";
+  html += "  document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #007bff;\">Downloading firmware...</div>';";
+  html += "  fetch('/flash-modem-url', {";
+  html += "    method: 'POST',";
+  html += "    headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "    body: 'url=' + encodeURIComponent(url)";
+  html += "  });";
+  html += "  var pollInterval = setInterval(function() {";
+  html += "    fetch('/modem-flash-status').then(r => r.json()).then(data => {";
+  html += "      if (data.progress > 0) {";
+  html += "        document.getElementById('modem-progress-bar').style.width = data.progress + '%';";
+  html += "        document.getElementById('modem-progress-text').textContent = data.progress + '%';";
+  html += "        document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #007bff;\">' + data.status + '</div>';";
+  html += "      }";
+  html += "      if (!data.inProgress && data.progress >= 95) {";
+  html += "        clearInterval(pollInterval);";
+  html += "        document.getElementById('modem-progress-bar').style.width = '100%';";
+  html += "        document.getElementById('modem-progress-text').textContent = '100%';";
+  html += "        document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #28a745; font-weight: bold;\">✓ Flash complete! ESP32 rebooting...<br>Page will reload in 10 seconds...</div>';";
+  html += "        setTimeout(() => { location.reload(); }, 10000);";
+  html += "      } else if (!data.inProgress && data.status.includes('ERROR')) {";
+  html += "        clearInterval(pollInterval);";
+  html += "        document.getElementById('modem-flash-status').innerHTML = '<div style=\"color: #dc3545;\">✗ ' + data.status + '</div>';";
+  html += "      }";
+  html += "    });";
+  html += "  }, 500);";
+  html += "};";
+  
   html += "window.onload = function() { checkLatestVersion(); checkLatestBetaVersion(); };";
   html += "</script>";
 

@@ -109,6 +109,10 @@
 #define MMDVM_RX_PIN 44          // ESP32 RX pin (receives data FROM MMDVM modem TX)
 #define MMDVM_TX_PIN 43          // ESP32 TX pin (sends data TO MMDVM modem RX)
 #define MMDVM_WAKEUP_PIN 13      // GPIO to keep MMDVM active (needs continuous UART TX)
+
+// STM32 Bootloader pins (for firmware flashing)
+#define MMDVM_BOOT0_PIN 4        // BOOT0 pin (HIGH = bootloader, LOW = normal)
+#define MMDVM_RESET_PIN 13       // RESET pin (LOW = reset, HIGH = run)
 //40 = green
 //41 = red
 //42 = blue

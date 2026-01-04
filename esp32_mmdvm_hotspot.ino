@@ -36,6 +36,7 @@
 #include "config.h"
 #include "webpages.h"
 #include "RGBLedController.h"
+#include "include/modem_flasher.h"
 
 // OLED Display Support (runtime enable/disable)
 #include <Wire.h>
@@ -3161,6 +3162,12 @@ void setupWebServer() {
   server.on(
     "/upload-firmware", HTTP_POST, []() {}, handleUploadFirmware);
   server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
+
+  // MMDVM Modem firmware flasher endpoints
+  server.on(
+    "/flash-modem-upload", HTTP_POST, []() {}, handleFlashModemUpload);
+  server.on("/flash-modem-url", HTTP_POST, handleFlashModemURL);
+  server.on("/modem-flash-status", handleModemFlashStatus);
 
   server.begin();
   logSerial("[SYSTEM] Web server started.");
