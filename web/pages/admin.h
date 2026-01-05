@@ -376,8 +376,11 @@ void handleAdmin() {
         }
 
         if (isValidDate) {
-          // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
-          buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+                    // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
+          //buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+ 
+          // Format YYYYMMDD to DD-MM-YYYY (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(6, 8) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(0, 4);
         }
       }
       fwStr = fwStr.substring(spacePos + 1);
@@ -2434,8 +2437,8 @@ void handleModemInformation() {
         }
 
         if (isValidDate) {
-          // Format YYYYMMDD to YYYY-MM-DD (ignore any suffix like _WPSD)
-          buildDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+          // Format YYYYMMDD to DD-MM-YYYY (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(6, 8) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(0, 4);
         }
       }
       fwStr = fwStr.substring(spacePos + 1);
