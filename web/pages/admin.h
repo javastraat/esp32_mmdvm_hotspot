@@ -764,8 +764,8 @@ void handleAdmin() {
   html += "<label for='modem-firmware-select' style='display: block; margin-bottom: 5px; font-weight: bold;'>Firmware Version:</label>";
   html += "<select id='modem-firmware-select' style='width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
   html += "<option value=''>Select firmware version...</option>";
-  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_hat_fw.bin'>Single MMDVM Modem v1.6.1 WOCHP</option>";
-  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_dual_hat_fw.bin'>Dual MMDVM Modem v1.6.1 WOCHP</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_hat_fw.bin'>Single MMDVM Modem v1.6.1</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_dual_hat_fw.bin'>Dual MMDVM Modem v1.6.1</option>";
   html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/generic_gpio_fw152.bin'>Single MMDVM Modem v1.5.2</option>";
   html += "<option value='custom'>Enter custom URL...</option>";
   html += "</select>";
