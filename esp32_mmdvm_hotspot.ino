@@ -33,9 +33,9 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <PubSubClient.h>
-#include "config.h"
-#include "webpages.h"
-#include "RGBLedController.h"
+#include "include/config.h"
+#include "include/webpages.h"
+#include "include/RGBLedController.h"
 #include "include/modem_flasher.h"
 
 // OLED Display Support (runtime enable/disable)

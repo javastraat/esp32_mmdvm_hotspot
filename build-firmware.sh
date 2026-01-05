@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-CONFIG_FILE="config.h"
+CONFIG_FILE="include/config.h"
 NORMAL_VERSION_SUFFIX="ESP32"
 BETA_VERSION_SUFFIX="ESP32_BETA"
 NO_PUSH=false  # Default: push to git
