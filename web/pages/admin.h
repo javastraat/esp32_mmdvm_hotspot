@@ -720,7 +720,7 @@ void handleAdmin() {
 
   // OTA Update Card
   html += "<div class='card'>";
-  html += "<h3>Firmware Updates</h3>";
+  html += "<h3>ESP32 Firmware</h3>";
   html += "<div><strong>Current Version:</strong> " + firmwareVersion + "</div>";
   html += "<div><strong>Build Date:</strong> " + String(__DATE__) + " " + String(__TIME__) + "</div>";
   html += "<br>";
@@ -745,12 +745,9 @@ void handleAdmin() {
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Online Update</a>";
-  html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>Upload File</a>";
+  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"firmware-file\").click()' class='btn btn-primary'>Upload File</a>";
   html += "</div>";
-  html += "<div id='upload-area' style='display:none; margin-top: 15px; padding: 15px; border: 2px dashed #007bff; border-radius: 6px; text-align: center;'>";
-  html += "<input type='file' id='firmware-file' accept='.bin' style='margin: 10px 0;' />";
-  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Upload Firmware</button>";
-  html += "</div>";
+  html += "<input type='file' id='firmware-file' accept='.bin' style='display: none;' />";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
 
@@ -1058,10 +1055,6 @@ void handleAdmin() {
   html += "    });";
   html += "  }";
   html += "}";
-  html += "function showFileUpload() {";
-  html += "  var uploadArea = document.getElementById('upload-area');";
-  html += "  uploadArea.style.display = uploadArea.style.display === 'none' ? 'block' : 'none';";
-  html += "}";
   html += "function uploadFirmware() {";
   html += "  var fileInput = document.getElementById('firmware-file');";
   html += "  var file = fileInput.files[0];";
@@ -1179,7 +1172,20 @@ void handleAdmin() {
   html += "    customInput.required = false;";
   html += "  }";
   html += "};";
-  
+
+  html += "document.getElementById('firmware-file').onchange = function(e) {";
+  html += "  var file = e.target.files[0];";
+  html += "  if (!file) {";
+  html += "    return;";
+  html += "  }";
+  html += "  if (!file.name.endsWith('.bin')) {";
+  html += "    alert('Please select a valid .bin firmware file');";
+  html += "    e.target.value = '';";
+  html += "    return;";
+  html += "  }";
+  html += "  uploadFirmware();";
+  html += "};";
+
   html += "document.getElementById('modem-file-input').onchange = function(e) {";
   html += "  var file = e.target.files[0];";
   html += "  if (!file) {";
