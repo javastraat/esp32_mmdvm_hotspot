@@ -27,7 +27,7 @@
 #define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
 // ===== Footer Links =====
-#define COPYRIGHT_TEXT "&copy; 2025 by PD2EMC & PD8JO"
+#define COPYRIGHT_TEXT "&copy; 2026 by PD2EMC & PD8JO"
 #define FOOTER_LINK1_URL "https://einstein.amsterdam"
 #define FOOTER_LINK1_TEXT "einstein.amsterdam"
 #define FOOTER_LINK2_URL "https://pd8jo.nl"
@@ -46,6 +46,13 @@
 #define ETH_INT_PIN 14
 #define ETH_RST_PIN -1
 #define ETH_ADDR 1
+
+// ===== MMDVM Pin Configuration =====
+#define MMDVM_SERIAL_BAUD 115200
+#define MMDVM_RX_PIN 44          // ESP32 RX from MMDVM TX
+#define MMDVM_TX_PIN 43          // ESP32 TX to MMDVM RX
+#define MMDVM_BOOT0_PIN 4        // BOOT0 pin for bootloader control
+#define MMDVM_RESET_PIN 13       // RESET pin for modem reset
 
 #endif
 

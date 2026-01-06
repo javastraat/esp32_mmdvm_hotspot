@@ -11,6 +11,7 @@ The factory setup firmware is a lightweight, minimal firmware designed to be fla
 - **Automatic WiFi Connection**: Attempts to connect to a default WiFi network or creates an Access Point
 - **WiFi Network Scanner**: Scan and select from available WiFi networks with signal strength indicators
 - **WiFi Credential Storage**: Saves WiFi credentials to NVS (Non-Volatile Storage) for persistence
+- **MMDVM Modem Firmware Flasher**: Flash MMDVM modem firmware online from GitHub or upload .bin files
 - **OTA Firmware Deployment**: Download and flash stable or beta MMDVM firmware directly from GitHub
 - **Manual Firmware Upload**: Upload custom firmware files (.bin) for offline deployment
 - **Dark/Light Theme**: Manual theme toggle with auto-detection and localStorage persistence
@@ -22,6 +23,37 @@ The factory setup firmware is a lightweight, minimal firmware designed to be fla
 2. **Factory Reset**: Recover devices that have configuration issues
 3. **Field Deployment**: Easy setup for ham radio operators without technical expertise
 4. **Development**: Quick deployment of firmware updates during development
+
+## Hardware Configuration
+
+### GPIO Pin Assignments for MMDVM Modem Flashing
+
+The factory setup can flash MMDVM modem firmware using these GPIO pins:
+
+```
+ESP32 GPIO    MMDVM Hat     Function
+----------    ---------     --------
+GPIO 43       → RX          ESP32 TX to MMDVM RX (Serial2 communication)
+GPIO 44       ← TX          ESP32 RX from MMDVM TX (Serial2 communication)
+GPIO 4        → BOOT0       Bootloader control (HIGH = bootloader mode)
+GPIO 13       → RESET       Modem reset control (LOW = reset, HIGH = run)
+```
+
+**Critical Notes:**
+- **GPIO 4 (BOOT0)**: Set HIGH to enter STM32 bootloader mode for flashing
+- **GPIO 13 (RESET)**: Toggles LOW→HIGH to reset the modem into bootloader
+- **Baud Rate**: 115200 with SERIAL_8E1 (even parity) for STM32 bootloader
+- **Voltage**: 3.3V only - DO NOT use 5V on MMDVM connections
+
+### Supported MMDVM Modem Types
+
+Compatible with STM32F1-based MMDVM modems:
+- MMDVM_HS_Hat (single and dual)
+- ZUMspot
+- JumboSPOT
+- Nano hotSPOT
+- D2RG MMDVM_HS
+- Other STM32F1-based MMDVM variants
 
 ## Configuration
 
@@ -79,11 +111,17 @@ esptool.py --chip esp32 --port /dev/ttyUSB0 write_flash 0x10000 factory-setup.bi
 1. **Power On**: ESP32 boots with factory firmware
 2. **Auto-Connect**: Connects to default WiFi from config.h
 3. **Access Web Interface**: Navigate to device IP (shown in serial output)
-4. **Deploy Firmware**:
+4. **Flash MMDVM Modem** (Optional but recommended):
+   - Scroll to "MMDVM Modem Firmware" section
+   - Select modem firmware version (e.g., MMDVM_HS v1.6.1)
+   - Click "Flash Modem from URL"
+   - Wait for flash to complete (30-60 seconds)
+   - ESP32 reboots automatically
+5. **Deploy ESP32 Firmware**:
    - Select firmware version (Stable or Beta)
    - Click "Download & Flash Firmware"
    - Wait for download and installation
-5. **Reboot**: Device restarts with full MMDVM firmware
+6. **Reboot**: Device restarts with full MMDVM firmware
 
 ### Scenario 2: Default WiFi Not Available (Access Point Mode)
 
@@ -97,11 +135,17 @@ esptool.py --chip esp32 --port /dev/ttyUSB0 write_flash 0x10000 factory-setup.bi
    - Enter WiFi password
    - Click "Connect to WiFi"
 6. **Auto-Redirect**: Page redirects to new IP address
-7. **Deploy Firmware**:
+7. **Flash MMDVM Modem** (Optional but recommended):
+   - Scroll to "MMDVM Modem Firmware" section
+   - Select modem firmware version
+   - Click "Flash Modem from URL"
+   - Wait for flash to complete
+   - ESP32 reboots automatically
+8. **Deploy ESP32 Firmware**:
    - Select firmware version (Stable or Beta)
    - Click "Download & Flash Firmware"
    - Wait for download and installation
-8. **Reboot**: Device restarts with full MMDVM firmware
+9. **Reboot**: Device restarts with full MMDVM firmware
 
 ### Scenario 3: Manual Firmware Upload (Offline)
 
@@ -135,7 +179,15 @@ The factory setup provides a clean, modern web interface with the following sect
 - Flash size
 - Free heap memory
 
-### Firmware Deployment Card
+### MMDVM Modem Firmware Card (NEW!)
+- Predefined firmware dropdown (MMDVM_HS v1.6.1, Dual, v1.5.2)
+- Custom URL option for alternative firmware
+- Online flash from GitHub URL
+- File upload for custom .bin firmware
+- Real-time progress bar during flashing
+- Automatic ESP32 reboot after completion
+
+### Firmware Deployment Card (ESP32)
 - Online firmware version checker (Stable & Beta)
 - Version selection dropdown
 - Online update button
@@ -246,10 +298,11 @@ Ready for OTA firmware update.
 
 ```
 factory-setup/
-├── factory-setup.ino    # Main sketch
-├── config.h             # Configuration settings
-├── webpages.h          # Web interface HTML/CSS/JS
-└── README.md           # This file
+├── factory-setup.ino         # Main sketch
+├── config.h                  # Configuration settings (shared with main firmware)
+├── webpages.h               # Web interface HTML/CSS/JS
+├── modem_flasher_factory.h  # MMDVM modem firmware flasher (STM32 bootloader)
+└── README.md                # This file
 ```
 
 ## Updating Factory Firmware

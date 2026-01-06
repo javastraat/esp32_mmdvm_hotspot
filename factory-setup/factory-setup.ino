@@ -20,6 +20,7 @@
 #endif
 #include "config.h"
 #include "webpages.h"
+#include "modem_flasher_factory.h"
 
 WebServer server(80);
 Preferences preferences;
@@ -285,6 +286,12 @@ void setup() {
   server.on("/download-update", HTTP_POST, handleDownloadUpdate);
   server.on("/upload-firmware", HTTP_POST, []() {}, handleUploadFirmware);
   server.on("/flash-firmware", HTTP_POST, handleFlashFirmware);
+
+  // MMDVM Modem Firmware Flasher routes
+  server.on("/flash-modem-status", handleModemFlashStatus);
+  server.on("/get-modem-version", handleGetModemVersion);
+  server.on("/flash-modem-url", HTTP_POST, handleFlashModemURL);
+  server.on("/flash-modem-upload", HTTP_POST, []() {}, handleFlashModemUpload);
 
   server.begin();
   Serial.println("\nWeb server started!");

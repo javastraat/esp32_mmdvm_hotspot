@@ -194,7 +194,7 @@
 #define ENABLE_WEBSERVER true                            // Enable web configuration interface
 #define WEB_USERNAME "admin"                             // Web interface username
 #define WEB_PASSWORD "pi-star"                           // Default web interface password
-#define COPYRIGHT_TEXT "&copy; 2025 by PD2EMC & PD8JO"  // Footer copyright text
+#define COPYRIGHT_TEXT "&copy; 2026 by PD2EMC & PD8JO"  // Footer copyright text
 
 // Footer Links Configuration
 #define FOOTER_LINK1_URL "https://einstein.amsterdam"                              // First footer link URL

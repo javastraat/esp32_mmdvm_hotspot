@@ -86,7 +86,7 @@ void handleRoot() {
     html += "<p><strong>Password:</strong> " + String(AP_PASSWORD) + "</p>";
     html += "<p><strong>IP Address:</strong> " + currentIP + "</p>";
     html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107; color: #000;'>";
-    html += "<strong>⚠️ No Internet Connection:</strong><br>";
+    html += "<strong>No Internet Connection:</strong><br>";
     html += "You are connected to the ESP32's access point, which has no internet access.<br>";
     html += "To download firmware, you must first configure WiFi settings below to connect this device to your network.";
     html += "</div>";
@@ -97,7 +97,7 @@ void handleRoot() {
     html += "<p><strong>Network:</strong> " + connectedSSID + "</p>";
     html += "<p><strong>IP Address:</strong> " + currentIP + "</p>";
     html += "<div class='info' style='background: #d4edda; border-left-color: #28a745; color: #000;'>";
-    html += "<strong>✓ Internet Connected:</strong> Ready to download and flash firmware.";
+    html += "<strong>Internet Connected:</strong> Ready to download and flash firmware.";
     html += "</div>";
   }
   html += "</div>";
@@ -110,7 +110,7 @@ void handleRoot() {
 
     // Scan Networks button
     html += "<div style='margin-bottom: 15px;'>";
-    html += "<button type='button' onclick='scanNetworks()' class='btn btn-primary' style='width: 100%;'>📡 Scan for Networks</button>";
+    html += "<button type='button' onclick='scanNetworks()' class='btn btn-primary' style='width: 100%;'>Scan for Networks</button>";
     html += "</div>";
 
     // Network list (hidden initially)
@@ -142,6 +142,41 @@ void handleRoot() {
   html += "<div><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()/1024.0, 1) + " KB</div>";
   html += "</div>";
 
+  // MMDVM Modem Firmware Card
+  html += "<div class='card'>";
+  html += "<h3>MMDVM Modem Firmware</h3>";
+  html += "<p>Flash firmware to your MMDVM modem (STM32-based boards like MMDVM_HS_Hat, ZUMspot, JumboSPOT)</p>";
+  html += "<br>";
+  html += "<div><strong>Current Modem Version:</strong> <span id='modem-version'>Detecting...</span></div>";
+  html += "<br>";
+  html += "<div class='info' style='background: #e7f3ff; border-left-color: #007bff; color: #000;'>";
+  html += "<strong>Why Flash Modem First?</strong><br>";
+  html += "• Verify modem hardware is working before proceeding<br>";
+  html += "• Update to latest modem firmware with bug fixes<br>";
+  html += "• Test MMDVM communication independently<br>";
+  html += "• One-time setup for new hardware assemblies";
+  html += "</div>";
+  html += "<div style='margin: 15px 0;'>";
+  html += "<label for='modem-firmware-select' style='display: block; margin-bottom: 5px; font-weight: bold;'>Select Modem Firmware:</label>";
+  html += "<select id='modem-firmware-select' style='width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_hat_fw.bin'>MMDVM_HS v1.6.1 (Single Hat) - Recommended</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/mmdvm_hs_dual_hat_fw.bin'>MMDVM_HS_Dual v1.6.1 (Dual Hat)</option>";
+  html += "<option value='https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/mmdvm/generic_gpio_fw152.bin'>MMDVM_HS v1.5.2 (Previous)</option>";
+  html += "<option value='custom'>Custom URL...</option>";
+  html += "</select>";
+  html += "</div>";
+  html += "<div id='modem-custom-url-area' style='display:none; margin-bottom: 15px;'>";
+  html += "<label style='display: block; margin-bottom: 5px; font-weight: bold;'>Custom Firmware URL:</label>";
+  html += "<input type='text' id='modem-custom-url' placeholder='https://github.com/.../firmware.bin' style='width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);' />";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<button onclick='flashModemFromURL()' class='btn btn-success' style='width: 100%;'>Flash Modem from URL</button>";
+  html += "<button onclick='document.getElementById(\"modem-firmware-file\").click()' class='btn btn-primary' style='width: 100%;'>Upload File</button>";
+  html += "</div>";
+  html += "<input type='file' id='modem-firmware-file' accept='.bin' style='display: none;' />";
+  html += "<div id='modem-status' style='margin-top: 15px; display: none;'></div>";
+  html += "</div>";
+
   // OTA Update Card
   html += "<div class='card'>";
   html += "<h3>Firmware Deployment</h3>";
@@ -167,12 +202,9 @@ void handleRoot() {
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='startOnlineUpdate()' class='btn btn-success'>Download & Flash Firmware</a>";
-  html += "<a href='javascript:void(0)' onclick='showFileUpload()' class='btn btn-primary'>Upload Custom Firmware</a>";
+  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"firmware-file\").click()' class='btn btn-primary'>Upload File</a>";
   html += "</div>";
-  html += "<div id='upload-area' style='display:none; margin-top: 15px; padding: 15px; border: 2px dashed #007bff; border-radius: 6px; text-align: center;'>";
-  html += "<input type='file' id='firmware-file' accept='.bin' style='margin: 10px 0;' />";
-  html += "<br><button onclick='uploadFirmware()' class='btn btn-warning'>Upload Firmware</button>";
-  html += "</div>";
+  html += "<input type='file' id='firmware-file' accept='.bin' style='display: none;' />";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
 
@@ -237,17 +269,11 @@ void handleRoot() {
   html += "  }";
   html += "}";
 
-  // Upload functions
-  html += "function showFileUpload() {";
-  html += "  var uploadArea = document.getElementById('upload-area');";
-  html += "  uploadArea.style.display = uploadArea.style.display === 'none' ? 'block' : 'none';";
-  html += "}";
-
+  // Upload function
   html += "function uploadFirmware() {";
   html += "  var fileInput = document.getElementById('firmware-file');";
   html += "  var file = fileInput.files[0];";
-  html += "  if (!file) { alert('Please select a firmware file (.bin)'); return; }";
-  html += "  if (!file.name.endsWith('.bin')) { alert('Please select a valid .bin firmware file'); return; }";
+  html += "  if (!file) return;";
   html += "  attemptUpload(file, 1, 3);";
   html += "}";
   html += "function attemptUpload(file, attempt, maxAttempts) {";
@@ -308,7 +334,8 @@ void handleRoot() {
   html += "function confirmFlash() {";
   html += "  document.getElementById('update-status').innerHTML = '<div style=\"color: #ffc107; font-size: 18px; font-weight: bold;\">FLASHING FIRMWARE... DO NOT POWER OFF!</div>';";
   html += "  fetch('/flash-firmware', {method: 'POST'}).then(() => {";
-  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">Firmware flashed successfully!<br><br>Device is rebooting...<br><br>The device will restart with the full MMDVM firmware.<br>You may need to reconnect to your WiFi network.</div>';";
+  html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">Firmware flashed successfully!<br><br>Device is rebooting...<br><br>Page will reload in 15 seconds.<br>The device will restart with the full MMDVM firmware.<br>You may need to reconnect to your WiFi network.</div>';";
+  html += "    setTimeout(function() { location.reload(); }, 15000);";
   html += "  });";
   html += "}";
 
@@ -328,8 +355,8 @@ void handleRoot() {
   html += "      html += '<div style=\"font-weight: bold; margin-bottom: 10px; color: var(--text-color);\">Found ' + networks.length + ' networks - Click to select:</div>';";
   html += "      networks.forEach(network => {";
   html += "        var signalStrength = network.rssi;";
-  html += "        var signalBars = signalStrength > -50 ? '📶' : signalStrength > -70 ? '📶' : '📶';";
-  html += "        var lockIcon = network.encryption !== 0 ? '🔒' : '🔓';";
+  html += "        var signalBars = signalStrength > -50 ? '▂▄▆█' : signalStrength > -70 ? '▂▄▆' : '▂▄';";
+  html += "        var lockIcon = network.encryption !== 0 ? '[LOCK]' : '[OPEN]';";
   html += "        html += '<div onclick=\"selectNetwork(\\'' + network.ssid + '\\')\" style=\"padding: 10px; margin: 5px 0; background: var(--hover-bg); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; transition: background 0.2s; color: var(--text-color);\" onmouseover=\"this.style.background=\\'var(--primary-color)\\'; this.style.color=\\'white\\'\" onmouseout=\"this.style.background=\\'var(--hover-bg)\\'; this.style.color=\\'var(--text-color)\\'\">';";
   html += "        html += '<strong>' + signalBars + ' ' + lockIcon + ' ' + network.ssid + '</strong><br>';";
   html += "        html += '<small>Signal: ' + network.rssi + ' dBm</small>';";
@@ -364,14 +391,14 @@ void handleRoot() {
   html += "    .then(data => {";
   html += "      if (data.includes('SUCCESS')) {";
   html += "        var newIP = data.split('IP:')[1]?.trim() || 'unknown';";
-  html += "        statusDiv.innerHTML = '<div style=\"color: #28a745; padding: 10px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;\"><strong>✓ WiFi Connected!</strong><br>New IP Address: ' + newIP + '<br><br>Redirecting to new IP address in 5 seconds...<br>If not redirected, navigate to: <a href=\"http://' + newIP + '\" style=\"color: #007bff;\">http://' + newIP + '</a></div>';";
+  html += "        statusDiv.innerHTML = '<div style=\"color: #28a745; padding: 10px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;\"><strong>WiFi Connected!</strong><br>New IP Address: ' + newIP + '<br><br>Redirecting to new IP address in 5 seconds...<br>If not redirected, navigate to: <a href=\"http://' + newIP + '\" style=\"color: #007bff;\">http://' + newIP + '</a></div>';";
   html += "        setTimeout(() => { window.location.href = 'http://' + newIP; }, 5000);";
   html += "      } else {";
-  html += "        statusDiv.innerHTML = '<div style=\"color: #dc3545; padding: 10px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;\"><strong>✗ Connection Failed</strong><br>' + data + '<br><br><button onclick=\"connectWiFi()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "        statusDiv.innerHTML = '<div style=\"color: #dc3545; padding: 10px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;\"><strong>Connection Failed</strong><br>' + data + '<br><br><button onclick=\"connectWiFi()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
   html += "      }";
   html += "    })";
   html += "    .catch(err => {";
-  html += "      statusDiv.innerHTML = '<div style=\"color: #dc3545; padding: 10px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;\"><strong>✗ Connection Error</strong><br>Failed to communicate with device<br><br><button onclick=\"connectWiFi()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "      statusDiv.innerHTML = '<div style=\"color: #dc3545; padding: 10px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;\"><strong>Connection Error</strong><br>Failed to communicate with device<br><br><button onclick=\"connectWiFi()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
   html += "    });";
   html += "}";
 
@@ -391,7 +418,179 @@ void handleRoot() {
   html += "  document.documentElement.setAttribute('data-theme', theme);";
   html += "  document.getElementById('theme-icon').textContent = theme === 'dark' ? '☀️' : '🌙';";
   html += "}";
-  html += "window.onload = function() { initTheme(); checkLatestVersion(); checkLatestBetaVersion(); };";
+
+  // MMDVM Modem Firmware Functions
+  html += "document.getElementById('modem-firmware-select').addEventListener('change', function() {";
+  html += "  var customArea = document.getElementById('modem-custom-url-area');";
+  html += "  customArea.style.display = this.value === 'custom' ? 'block' : 'none';";
+  html += "});";
+
+  html += "function flashModemFromURL() {";
+  html += "  var select = document.getElementById('modem-firmware-select');";
+  html += "  var url = select.value;";
+  html += "  if (url === 'custom') {";
+  html += "    url = document.getElementById('modem-custom-url').value;";
+  html += "    if (!url) {";
+  html += "      alert('Please enter a custom firmware URL');";
+  html += "      return;";
+  html += "    }";
+  html += "  }";
+  html += "  var firmwareName = select.options[select.selectedIndex].text;";
+  html += "  if (!confirm('Flash ' + firmwareName + ' to MMDVM modem?\\n\\nThis will:\\n• Enter STM32 bootloader mode\\n• Erase modem flash memory\\n• Flash new firmware\\n• Reboot ESP32\\n\\nEnsure modem is properly connected!')) return;";
+  html += "  document.getElementById('modem-status').style.display = 'block';";
+  html += "  document.getElementById('modem-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Starting modem flash...</strong></div>';";
+  html += "  fetch('/flash-modem-url', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'url=' + encodeURIComponent(url)})";
+  html += "    .then(response => response.text())";
+  html += "    .then(data => {";
+  html += "      if (data.includes('started')) {";
+  html += "        pollModemStatus();";
+  html += "      } else {";
+  html += "        document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>Error:</strong> ' + data + '</div>';";
+  html += "      }";
+  html += "    })";
+  html += "    .catch(err => {";
+  html += "      document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>Error:</strong> ' + err + '</div>';";
+  html += "    });";
+  html += "}";
+
+  html += "function uploadModemFirmware() {";
+  html += "  var fileInput = document.getElementById('modem-firmware-file');";
+  html += "  var file = fileInput.files[0];";
+  html += "  if (!file) return;";
+  html += "  attemptModemUpload(file, 1, 3);";
+  html += "}";
+
+  html += "function attemptModemUpload(file, attempt, maxAttempts) {";
+  html += "  document.getElementById('modem-status').style.display = 'block';";
+  html += "  var attemptText = attempt > 1 ? ' (Attempt ' + attempt + '/' + maxAttempts + ')' : '';";
+  html += "  document.getElementById('modem-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Uploading modem firmware...' + attemptText + '</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"modem-upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"modem-upload-progress-text\">0%</span></div></div><div id=\"modem-upload-progress-status\">Uploading ' + file.name + '...</div></div>';";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('firmware', file);";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  var uploadComplete = false;";
+  html += "  xhr.upload.addEventListener('progress', function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var percentComplete = Math.round((e.loaded / e.total) * 100);";
+  html += "      document.getElementById('modem-upload-progress-bar').style.width = percentComplete + '%';";
+  html += "      document.getElementById('modem-upload-progress-text').textContent = percentComplete + '%';";
+  html += "      document.getElementById('modem-upload-progress-status').textContent = 'Uploaded ' + Math.round(e.loaded/1024) + ' KB of ' + Math.round(e.total/1024) + ' KB';";
+  html += "      if (percentComplete === 100) {";
+  html += "        uploadComplete = true;";
+  html += "        document.getElementById('modem-upload-progress-status').textContent = 'Upload complete! Flashing modem...';";
+  html += "      }";
+  html += "    }";
+  html += "  });";
+  html += "  xhr.onload = function() {";
+  html += "    if (xhr.status === 200 && xhr.responseText.includes('SUCCESS')) {";
+  html += "      document.getElementById('modem-status').innerHTML = '<div style=\"color: #28a745; font-size: 18px; font-weight: bold;\">Upload Complete!</div>';";
+  html += "      setTimeout(() => {";
+  html += "        pollModemStatus();";
+  html += "      }, 500);";
+  html += "    } else {";
+  html += "      if (attempt < maxAttempts) {";
+  html += "        document.getElementById('modem-upload-progress-status').textContent = 'Upload failed, retrying in 2 seconds... (Attempt ' + (attempt + 1) + '/' + maxAttempts + ')';";
+  html += "        setTimeout(() => attemptModemUpload(file, attempt + 1, maxAttempts), 2000);";
+  html += "      } else {";
+  html += "        document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed after ' + maxAttempts + ' attempts</strong><br>' + xhr.responseText + '<br><br><button onclick=\"uploadModemFirmware()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "      }";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    if (uploadComplete) {";
+  html += "      document.getElementById('modem-status').innerHTML = '<div style=\"color: #28a745;\"><strong>Modem firmware flashing...</strong><br>ESP32 is rebooting...<br>Page will reload in 15 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 15000);";
+  html += "    } else if (attempt < maxAttempts) {";
+  html += "      document.getElementById('modem-upload-progress-status').textContent = 'Network error, retrying in 2 seconds... (Attempt ' + (attempt + 1) + '/' + maxAttempts + ')';";
+  html += "      setTimeout(() => attemptModemUpload(file, attempt + 1, maxAttempts), 2000);";
+  html += "    } else {";
+  html += "      document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload failed after ' + maxAttempts + ' attempts</strong><br>Network connection failed<br><br><button onclick=\"uploadModemFirmware()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.ontimeout = function() {";
+  html += "    if (attempt < maxAttempts) {";
+  html += "      document.getElementById('modem-upload-progress-status').textContent = 'Upload timeout, retrying in 2 seconds... (Attempt ' + (attempt + 1) + '/' + maxAttempts + ')';";
+  html += "      setTimeout(() => attemptModemUpload(file, attempt + 1, maxAttempts), 2000);";
+  html += "    } else {";
+  html += "      document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>ERROR: Upload timed out after ' + maxAttempts + ' attempts</strong><br>File too large or connection too slow<br><br><button onclick=\"uploadModemFirmware()\" style=\"padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;\">Try Again</button></div>';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.timeout = 30000;";
+  html += "  xhr.open('POST', '/flash-modem-upload');";
+  html += "  xhr.send(formData);";
+  html += "}";
+
+  html += "function pollModemStatus() {";
+  html += "  var pollInterval = setInterval(function() {";
+  html += "    fetch('/flash-modem-status')";
+  html += "      .then(response => response.json())";
+  html += "      .then(data => {";
+  html += "        var html = '<div style=\"color: #007bff;\"><strong>' + data.status + '</strong>';";
+  html += "        html += '<div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\">';";
+  html += "        html += '<div style=\"width: ' + data.progress + '%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\">';";
+  html += "        html += '<span>' + data.progress + '%</span></div></div></div>';";
+  html += "        document.getElementById('modem-status').innerHTML = html;";
+  html += "        if (!data.inProgress) {";
+  html += "          clearInterval(pollInterval);";
+  html += "          if (data.progress === 100) {";
+  html += "            document.getElementById('modem-status').innerHTML = '<div style=\"color: #28a745;\"><strong>Modem firmware flashed successfully!</strong><br>ESP32 is rebooting...<br>Page will reload in 15 seconds.</div>';";
+  html += "            setTimeout(function() { location.reload(); }, 15000);";
+  html += "          } else if (data.status.includes('ERROR')) {";
+  html += "            document.getElementById('modem-status').innerHTML = '<div style=\"color: #dc3545;\"><strong>Flash failed:</strong> ' + data.status + '</div>';";
+  html += "          }";
+  html += "        }";
+  html += "      })";
+  html += "      .catch(err => {";
+  html += "        clearInterval(pollInterval);";
+  html += "        document.getElementById('modem-status').innerHTML = '<div style=\"color: #28a745;\"><strong>Connection lost - ESP32 is rebooting...</strong><br>Page will reload in 15 seconds.</div>';";
+  html += "        setTimeout(function() { location.reload(); }, 15000);";
+  html += "      });";
+  html += "  }, 1000);";
+  html += "}";
+
+  // Get modem version function
+  html += "function getModemVersion() {";
+  html += "  fetch('/get-modem-version')";
+  html += "    .then(response => response.text())";
+  html += "    .then(version => {";
+  html += "      document.getElementById('modem-version').textContent = version;";
+  html += "    })";
+  html += "    .catch(err => {";
+  html += "      document.getElementById('modem-version').textContent = 'Detection failed';";
+  html += "    });";
+  html += "}";
+
+  // File input event listeners
+  html += "document.getElementById('firmware-file').addEventListener('change', function(e) {";
+  html += "  var file = e.target.files[0];";
+  html += "  if (!file) return;";
+  html += "  if (!file.name.endsWith('.bin')) {";
+  html += "    alert('Please select a valid .bin firmware file');";
+  html += "    e.target.value = '';";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('Upload and flash ESP32 firmware: ' + file.name + '?\\n\\nThis will replace the factory setup with full MMDVM firmware.\\nThe device will reboot after flashing.')) {";
+  html += "    uploadFirmware();";
+  html += "  } else {";
+  html += "    e.target.value = '';";
+  html += "  }";
+  html += "});";
+
+  html += "document.getElementById('modem-firmware-file').addEventListener('change', function(e) {";
+  html += "  var file = e.target.files[0];";
+  html += "  if (!file) return;";
+  html += "  if (!file.name.endsWith('.bin')) {";
+  html += "    alert('Please select a valid .bin file');";
+  html += "    e.target.value = '';";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('Upload and flash modem firmware: ' + file.name + '?\\n\\nThis will update your MMDVM modem.\\nThe ESP32 will reboot after flashing.')) {";
+  html += "    uploadModemFirmware();";
+  html += "  } else {";
+  html += "    e.target.value = '';";
+  html += "  }";
+  html += "});";
+
+  html += "window.onload = function() { initTheme(); checkLatestVersion(); checkLatestBetaVersion(); getModemVersion(); };";
   html += "</script>";
 
   html += getFooter();
