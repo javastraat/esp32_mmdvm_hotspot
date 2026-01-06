@@ -357,6 +357,7 @@ void handleWebClient(WiFiClient &client) {
           client.println(".card{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:5px}");
           client.println("button{padding:10px 20px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer}");
           client.println("button:hover{background:#0056b3}");
+          client.println("button:disabled{background:#cccccc;cursor:not-allowed;opacity:0.6}");
           client.println(".progress-container{margin:15px 0;display:none}");
           client.println(".progress-bar{width:100%;background:#f0f0f0;border-radius:5px;overflow:hidden}");
           client.println(".progress-fill{height:30px;background:#4CAF50;width:0%;transition:width 0.3s;line-height:30px;color:white;text-align:center;font-weight:bold}");
