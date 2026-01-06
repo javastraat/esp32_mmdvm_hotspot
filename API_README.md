@@ -1,0 +1,709 @@
+# ESP32 MMDVM Hotspot API Documentation
+
+## Overview
+
+This document describes all available HTTP API endpoints for the ESP32 MMDVM Hotspot web interface.
+
+**Base URL:** `http://<device-ip>/` or `http://esp32-mmdvm.local/`
+
+**Authentication:** Most endpoints require HTTP Basic Authentication with configured web username/password.
+
+**API Endpoints:** All JSON data endpoints use the `/api/` prefix for clear distinction between HTML pages and data endpoints.
+
+---
+
+## Web Pages (GET)
+
+### Main Pages
+
+#### `GET /`
+**Description:** Home page with live DMR activity and recent transmission history
+**Authentication:** Required
+**Response:** HTML page
+
+#### `GET /status`
+**Description:** System status page with WiFi, DMR network, and MMDVM hardware status
+**Authentication:** Required
+**Response:** HTML page
+
+#### `GET /serialmonitor`
+**Description:** Real-time MMDVM serial communication monitor
+**Authentication:** Required
+**Response:** HTML page
+
+#### `GET /wificonfig`
+**Description:** WiFi configuration page for managing network connections
+**Authentication:** Required
+**Response:** HTML page
+
+#### `GET /modeconfig`
+**Description:** Mode configuration page for DMR settings, modem type, and protocols
+**Authentication:** Required
+**Response:** HTML page
+
+#### `GET /admin`
+**Description:** Administration page for system management and maintenance
+**Authentication:** Required
+**Response:** HTML page
+
+---
+
+## Data Endpoints (GET)
+
+### System Status
+
+#### `GET /api/status`
+**Description:** Retrieve current system status information
+**Authentication:** Required
+**Response:** JSON object with system status data
+**Content-Type:** `application/json`
+**Used by:** Auto-refresh on status page
+
+**Response Format:**
+```json
+{
+  "wifi": {
+    "connected": true,
+    "apMode": false,
+    "ssid": "TechInc",
+    "ip": "192.168.2.217",
+    "rssi": -67,
+    "mac": "CC:BA:97:00:4C:A8"
+  },
+  "ethernet": {          // Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    "connected": true,
+    "ip": "192.168.1.100",
+    "mac": "AA:BB:CC:DD:EE:FF",
+    "linkSpeed": 100,
+    "fullDuplex": true,
+    "gateway": "192.168.1.1"
+  },
+  "sdCard": {            // Only present on LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+    "available": true,
+    "type": "SDHC",
+    "totalMB": 32000,
+    "usedMB": 1500,
+    "freeMB": 30500
+  },
+  "dmr": {
+    "loggedIn": true,
+    "status": "Connected",
+    "server": "2041.master.brandmeister.network",
+    "serverDisplay": "BM_2041_Netherlands",
+    "callsign": "PD2EMC",
+    "dmrId": 2041152,
+    "essid": 0,
+    "currentTalkgroup": 91
+  },
+  "mmdvm": {
+    "ready": true,
+    "rxFreq": 434.0000,
+    "txFreq": 434.0000,
+    "colorCode": 1,
+    "power": 10
+  },
+  "station": {
+    "callsign": "PD2EMC",
+    "isDefaultCallsign": false,
+    "dmrId": 2041152,
+    "essid": 0,
+    "location": "Amsterdam,NL"
+  }
+}
+```
+
+#### `GET /api/logs`
+**Description:** Retrieve serial log entries
+**Authentication:** Required
+**Response:** JSON object with log entries array
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "logs": [
+    "2025-01-15 12:34:56 - DMR Network connected",
+    "2025-01-15 12:35:01 - MMDVM Ready",
+    "2025-01-15 12:35:15 - RX: PD2EMC -> TG 91"
+  ]
+}
+```
+
+---
+
+### DMR Activity
+
+#### `GET /api/dmr-activity`
+**Description:** Get combined live DMR activity for both slots
+**Authentication:** Required
+**Response:** JSON object with activity data for both slots
+**Content-Type:** `application/json`
+**Update Rate:** Real-time (recommended polling: 1-2 seconds)
+
+**Response Format:**
+```json
+{
+  "slots": [
+    {
+      "slotNo": 1,
+      "active": true,
+      "srcId": 3025119,
+      "srcCallsign": "VE3XIO",
+      "srcName": "James",
+      "srcCity": "Oil Springs",
+      "srcCountry": "Canada",
+      "dstId": 91,
+      "isGroup": true,
+      "frameType": "VOICE_BURST",
+      "duration": 5
+    },
+    {
+      "slotNo": 2,
+      "active": false
+    }
+  ]
+}
+```
+
+#### `GET /api/dmr-slot1`
+**Description:** Get live DMR activity for Slot 1 only
+**Authentication:** Required
+**Response:** JSON object with Slot 1 activity data
+**Content-Type:** `application/json`
+**Note:** Only relevant for dual-slot modems
+
+**Response Format:**
+```json
+{
+  "slotNo": 1,
+  "active": true,
+  "srcId": 3025119,
+  "srcCallsign": "VE3XIO",
+  "srcName": "James",
+  "srcCity": "Oil Springs",
+  "srcCountry": "Canada",
+  "dstId": 91,
+  "isGroup": true,
+  "frameType": "VOICE_BURST",
+  "duration": 5
+}
+```
+
+#### `GET /api/dmr-slot2`
+**Description:** Get live DMR activity for Slot 2 only
+**Authentication:** Required
+**Response:** JSON object with Slot 2 activity data
+**Content-Type:** `application/json`
+
+**Response Format:** Same as `/api/dmr-slot1`
+
+#### `GET /api/dmr-history`
+**Description:** Get recent DMR transmission history (last 15 transmissions)
+**Authentication:** Required
+**Response:** JSON object with transmission history array
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "history": [
+    {
+      "timestamp": "12:34:56",
+      "srcId": 2041152,
+      "srcCallsign": "PD2EMC",
+      "srcName": "Einstein",
+      "srcLocation": "Amsterdam,NL",
+      "dstId": 91,
+      "isGroup": true,
+      "duration": 3,
+      "ber": 0,
+      "rssi": 120,
+      "slotNo": 2
+    }
+  ]
+}
+```
+
+#### `GET /api/rf-history`
+**Description:** Get local RF transmission history (last 15 transmissions)
+**Authentication:** Required
+**Response:** JSON object with local RF activity history
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "history": [
+    {
+      "secondsAgo": 45,
+      "srcId": 2041152,
+      "srcCallsign": "PD2EMC",
+      "dstId": 91,
+      "isGroup": true,
+      "duration": 2,
+      "slotNo": 2
+    }
+  ]
+}
+```
+
+#### `GET /api/system-status`
+**Description:** Get system status overview
+**Authentication:** Required
+**Response:** JSON object with system status information
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "network": {
+    "wifiConnected": true,
+    "apMode": false,
+    "ethConnected": false
+  },
+  "system": {
+    "mmdvmReady": true,
+    "dmrLoggedIn": true
+  },
+  "modes": {
+    "dmr": true,
+    "dstar": false,
+    "ysf": false,
+    "p25": false,
+    "nxdn": false,
+    "pocsag": false
+  }
+}
+```
+
+---
+
+### Hardware Information
+
+#### `GET /api/system-information`
+**Description:** Get detailed ESP32 system information for remote monitoring
+**Authentication:** Required
+**Response:** JSON object with system hardware and firmware details
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "uptime": {
+    "seconds": 3661,
+    "days": 0,
+    "hours": 1,
+    "minutes": 1,
+    "secondsRemaining": 1
+  },
+  "chip": {
+    "model": "ESP32-S3",
+    "revision": 1,
+    "cores": 2,
+    "cpuFreqMHz": 240
+  },
+  "memory": {
+    "freeHeapKB": 156.3,
+    "freeHeapPercent": 38,
+    "minFreeHeapKB": 142.8,
+    "heapSizeKB": 412.5,
+    "psramSizeMB": 8,
+    "freePsramKB": 7890.2
+  },
+  "flash": {
+    "sizeMB": 16,
+    "speedMHz": 80,
+    "sketchSizeKB": 1456.3,
+    "freeSketchSpaceKB": 2640.0
+  },
+  "firmware": {
+    "sdkVersion": "v4.4.6",
+    "version": "20251223_ESP32",
+    "buildDate": "Dec 23 2025 14:32:10"
+  }
+}
+```
+
+#### `GET /api/modem-information`
+**Description:** Get MMDVM modem firmware and hardware information for remote monitoring
+**Authentication:** Required
+**Response:** JSON object with parsed modem firmware details
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "rawVersion": "MMDVM_HS_Hat-v1.5.2 20201108 14.7456MHz ADF7021 FW by CA6JAU GitID #89daa20",
+  "hardware": "MMDVM_HS_Hat",
+  "firmwareVersion": "1.5.2",
+  "buildDate": "2020-11-08",
+  "crystal": "14.7456MHz",
+  "transceiver": "ADF7021",
+  "author": "CA6JAU",
+  "gitId": "#89daa20"
+}
+```
+
+---
+
+### Configuration
+
+#### `GET /api/wifiscan`
+**Description:** Scan for available WiFi networks
+**Authentication:** Required
+**Response:** JSON object with array of WiFi networks
+**Content-Type:** `application/json`
+
+**Response Format:**
+```json
+{
+  "networks": [
+    {
+      "ssid": "MyNetwork",
+      "rssi": -45,
+      "channel": 6,
+      "encryption": "Secured"
+    },
+    {
+      "ssid": "OpenNetwork",
+      "rssi": -67,
+      "channel": 11,
+      "encryption": "Open"
+    }
+  ]
+}
+```
+
+#### `GET /export-config`
+**Description:** Export complete configuration as text file
+**Authentication:** Required
+**Response:** Plain text configuration file in INI format
+**Sections:**
+- `[DMR_CONFIG]` - DMR settings
+- `[WIFI_CONFIG]` - WiFi networks
+- `[SYSTEM_CONFIG]` - System settings including modem type
+- `[MODE_CONFIG]` - Protocol modes
+
+#### `GET /showprefs`
+**Description:** Display all stored NVS preferences with values
+**Authentication:** Required
+**Response:** HTML page with categorized preferences:
+- DMR Configuration (15 items)
+- WiFi Networks (15 items)
+- System Settings (5 items, including modem_type)
+- Mode Configuration (6 items)
+- Web Interface (2 items)
+
+---
+
+## Configuration Endpoints (POST)
+
+### WiFi Configuration
+
+#### `POST /saveconfig`
+**Description:** Save WiFi network configurations (5 slots)
+**Authentication:** Required
+**Parameters:**
+- `wifi0_label` - Label for WiFi slot 0
+- `wifi0_ssid` - SSID for WiFi slot 0
+- `wifi0_pass` - Password for WiFi slot 0
+- (Same pattern for wifi1-wifi4)
+
+**Response:** Redirect to `/wificonfig`
+
+---
+
+### DMR Configuration
+
+#### `POST /savedmrconfig`
+**Description:** Save DMR configuration settings
+**Authentication:** Required
+**Parameters:**
+
+**General:**
+- `callsign` - DMR callsign
+- `dmr_id` - DMR ID (7 digits, 1000000-9999999)
+- `rx_freq` - RX frequency in Hz
+- `tx_freq` - TX frequency in Hz
+
+**Network:**
+- `server` - BrandMeister server address
+- `password` - Hotspot password
+- `essid` - ESSID suffix (0-99)
+- `mode_dmr` - Enable/disable DMR mode (checkbox, value=1)
+
+**Modem:**
+- `modem_type` - Modem hardware type (see modem types below)
+- `power` - Power level (0-99)
+- `color_code` - Color code (0-15)
+
+**Location:**
+- `latitude` - Latitude (decimal degrees)
+- `longitude` - Longitude (decimal degrees)
+- `height` - Antenna height in meters
+- `location` - Location description (max 20 chars)
+- `description` - Station description (max 19 chars)
+- `url` - Station URL (max 124 chars)
+
+**Response:** HTML confirmation page, device restarts after 5 seconds
+
+**Modem Types:**
+- `mmdvmhshat` - MMDVM_HS_Hat (DB9MAT & DF2ET) for Pi (GPIO)
+- `mmdvmhsdualhatgpio` - MMDVM_HS_Dual_Hat for Pi (GPIO)
+- `mmdvmhshat12` - MMDVM_HS_Hat for Pi (GPIO 1.2)
+- `mmdvmhsdualhat12` - MMDVM_HS_Dual_Hat for Pi (GPIO 1.2)
+- `hs_hat_ambe` - HS_HAT with AMBE chip
+- `hs_dual_hat_ambe` - HS_DUAL_HAT with AMBE chip
+- `nano_hotspot` - Nano hotSPOT (BI7JTA)
+- `nano_dv` - NanoDV (BI7JTA)
+- `d2rg_mmdvm_hs` - D2RG MMDVM_HS RPi Hat
+- `mmdvm_hs_dual_hat_14_7` - MMDVM_HS_Dual_Hat 14.7456 MHz
+- `hs_hat_sky` - HS_HAT with SkyBridge chip
+
+#### `POST /savemodes`
+**Description:** Save mode enable/disable settings
+**Authentication:** Required
+**Parameters:**
+- `mode_dmr` - Enable DMR mode (checkbox, value=1)
+
+**Response:** HTML confirmation page, device restarts after 3 seconds
+
+---
+
+### System Configuration
+
+#### `POST /save-hostname`
+**Description:** Save mDNS hostname
+**Authentication:** Required
+**Parameters:**
+- `hostname` - New hostname (alphanumeric and hyphens only)
+
+**Response:** JSON `{"success": true}` or error message
+**Note:** Device restarts to apply new hostname
+
+#### `POST /save-verbose`
+**Description:** Toggle verbose logging
+**Authentication:** Required
+**Parameters:**
+- `verbose` - Enable verbose logging (checkbox, value=1)
+
+**Response:** JSON `{"success": true}`
+
+#### `POST /save-timezone`
+**Description:** Save NTP timezone settings
+**Authentication:** Required
+**Parameters:**
+- `timezone_offset` - Timezone offset in seconds
+- `daylight_offset` - Daylight saving offset in seconds
+
+**Response:** JSON `{"success": true}`
+
+#### `POST /save-username`
+**Description:** Change web interface username
+**Authentication:** Required
+**Parameters:**
+- `username` - New username (min 3 characters)
+
+**Response:** JSON `{"success": true}` or error message
+
+#### `POST /save-password`
+**Description:** Change web interface password
+**Authentication:** Required
+**Parameters:**
+- `password` - New password (min 6 characters)
+
+**Response:** JSON `{"success": true}` or error message
+
+---
+
+### Configuration Import
+
+#### `POST /import-config`
+**Description:** Import configuration from file
+**Authentication:** Required
+**Content-Type:** `multipart/form-data`
+**Parameters:**
+- File upload with configuration in INI format
+
+**Response:** HTML confirmation page with import results
+**Note:** Device restarts after import to apply settings
+
+---
+
+## System Actions (POST)
+
+### Log Management
+
+#### `POST /clearlogs`
+**Description:** Clear serial monitor logs
+**Authentication:** Required
+**Response:** JSON `{"success": true}`
+
+---
+
+### System Control
+
+#### `POST /reboot`
+**Description:** Reboot the ESP32 device
+**Authentication:** Required
+**Response:** JSON `{"success": true, "message": "Rebooting..."}`
+**Note:** Device restarts immediately
+
+#### `POST /restart-services`
+**Description:** Restart DMR network services without rebooting
+**Authentication:** Required
+**Response:** JSON `{"success": true, "message": "Services restarting..."}`
+
+---
+
+### Configuration Reset
+
+#### `GET /resetconfig`
+**Description:** Show configuration reset confirmation page
+**Authentication:** Required
+**Response:** HTML confirmation page with warning
+
+#### `POST /confirmreset`
+**Description:** Execute complete NVS storage wipe
+**Authentication:** Required
+**Response:** HTML confirmation page
+**Note:** Wipes ALL stored preferences, device restarts to factory defaults
+
+---
+
+### Advanced Actions
+
+#### `POST /test-mmdvm`
+**Description:** Test MMDVM modem communication
+**Authentication:** Required
+**Response:** Plain text test results
+
+#### `POST /cleanup-prefs`
+**Description:** Clean up unused NVS preferences
+**Authentication:** Required
+**Response:** JSON with cleanup results
+
+---
+
+## Firmware Update
+
+#### `POST /download-update`
+**Description:** Download firmware from GitHub
+**Authentication:** Required
+**Parameters:**
+- `channel` - Update channel: `stable` or `beta`
+
+**Response:** JSON with download status and progress
+
+#### `POST /upload-firmware`
+**Description:** Upload firmware binary via web interface
+**Authentication:** Required
+**Content-Type:** `multipart/form-data`
+**Response:** JSON with upload progress
+
+#### `POST /flash-firmware`
+**Description:** Flash uploaded firmware to device
+**Authentication:** Required
+**Response:** JSON with flash status
+**Note:** Device restarts after successful flash
+
+---
+
+## Response Codes
+
+- `200 OK` - Request successful
+- `400 Bad Request` - Invalid parameters
+- `401 Unauthorized` - Authentication required or failed
+- `404 Not Found` - Endpoint does not exist
+- `500 Internal Server Error` - Server error
+
+---
+
+## Notes
+
+### Authentication
+All endpoints require HTTP Basic Authentication except for:
+- OTA update endpoints (use different authentication)
+
+### Rate Limiting
+- DMR activity endpoints: Poll every 1-2 seconds for real-time updates
+- Status endpoints: Poll every 5 seconds (default auto-refresh)
+- WiFi scan: Avoid frequent scans (takes 3-5 seconds)
+
+### CORS
+CORS is not enabled by default. Access from external domains requires same-origin policy.
+
+### Content Types
+- HTML pages: `text/html`
+- JSON responses: `application/json`
+- Config export: `text/plain`
+- Firmware upload: `multipart/form-data`
+
+---
+
+## Example Usage
+
+### curl Examples
+
+**Get DMR Activity:**
+```bash
+curl -u admin:pi-star http://esp32-mmdvm.local/dmr-activity
+```
+
+**Export Configuration:**
+```bash
+curl -u admin:pi-star http://esp32-mmdvm.local/export-config -o config.txt
+```
+
+**Save Hostname:**
+```bash
+curl -u admin:pi-star -X POST http://esp32-mmdvm.local/save-hostname \
+  -d "hostname=my-hotspot"
+```
+
+**Scan WiFi Networks:**
+```bash
+curl -u admin:pi-star http://esp32-mmdvm.local/wifiscan
+```
+
+**Reboot Device:**
+```bash
+curl -u admin:pi-star -X POST http://esp32-mmdvm.local/reboot
+```
+
+---
+
+## JavaScript Fetch Examples
+
+**Get DMR History:**
+```javascript
+fetch('/dmr-history', {
+  credentials: 'include'
+})
+  .then(response => response.text())
+  .then(html => {
+    document.getElementById('history').innerHTML = html;
+  });
+```
+
+**Save Verbose Logging:**
+```javascript
+fetch('/save-verbose', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: 'verbose=1',
+  credentials: 'include'
+})
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+---
+
+## Version
+
+**API Version:** 1.0
+**Firmware Version:** 20251204_ESP32_BETA
+**Last Updated:** December 5, 2025
