@@ -15,11 +15,11 @@ String getNavigation(String activePage) {
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " class='active'" : "") + ">Mode Config</a>";
   nav += "<a href='/admin'" + String(activePage == "admin" ? " class='active'" : "") + ">Admin</a>";
-  nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode' id='theme-btn'>Dark</button>";
+  nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode' id='theme-btn'>🌙</button>";
   nav += "<script>";
   nav += "var savedTheme = localStorage.getItem('theme') || 'light';";
   nav += "var themeBtn = document.getElementById('theme-btn');";
-  nav += "if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? 'Light' : 'Dark';";
+  nav += "if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';";
   nav += "</script>";
   nav += "<a href='javascript:void(0);' class='icon' onclick='toggleNav()'>&#9776;</a>";
   nav += "</div>";

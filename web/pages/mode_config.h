@@ -391,7 +391,7 @@ void handleDMRConfig() {
 
   html += getFooter();
   html += "</div></body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 }
 
 void handleSaveDMRConfig() {
@@ -465,7 +465,7 @@ void handleSaveDMRConfig() {
     html += getFooter();
     html += "</div></body></html>";
 
-    server.send(200, "text/html", html);
+    server.send(200, "text/html; charset=UTF-8", html);
 
     logSerial("DMR config saved - Callsign: " + dmr_callsign + ", ID: " + String(dmr_id));
     delay(5000);
@@ -517,7 +517,7 @@ void handleSaveModes() {
   html += getFooter();
   html += "</div></body></html>";
 
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 
   logSerial("Mode configuration updated - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF"));
   delay(3000);

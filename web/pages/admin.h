@@ -141,7 +141,7 @@ void handleResetConfig() {
   html += getFooter();
   html += "</div></body></html>";
 
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 }
 
 void handleConfirmReset() {
@@ -242,7 +242,7 @@ void handleConfirmReset() {
   html += getFooter();
   html += "</div></body></html>";
 
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 
   logSerial("Complete ESP32 storage reset completed - restarting...");
   delay(5000);
@@ -1300,7 +1300,7 @@ void handleAdmin() {
 
   html += getFooter();
   html += "</div></body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 }
 
 // Note: handleClearLogs() is defined in monitor.h
@@ -2322,7 +2322,7 @@ void handleShowPreferences() {
   html += "</script>";
   html += getFooter();
   html += "</div></body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
   logSerial("Preferences display requested by user");
 }
 

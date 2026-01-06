@@ -595,7 +595,7 @@ void handleRoot() {
 
   html += getFooter();
   html += "</div></body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 }
 
 #endif // WEBPAGES_H

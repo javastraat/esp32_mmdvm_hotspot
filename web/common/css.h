@@ -54,7 +54,7 @@ String getCommonCSS() {
   css += "  var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';";
   css += "  var themeButton = document.querySelector('.theme-toggle');";
   css += "  if (themeButton) {";
-  css += "    themeButton.textContent = currentTheme === 'dark' ? 'Light' : 'Dark';";
+  css += "    themeButton.textContent = currentTheme === 'dark' ? '☀️' : '🌙';";
   css += "  }";
   css += "}";
   css += "var savedTheme = localStorage.getItem('theme') || 'light';";

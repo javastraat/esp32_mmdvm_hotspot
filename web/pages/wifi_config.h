@@ -244,7 +244,7 @@ void handleConfig() {
   html += "</script>";
   html += getFooter();
   html += "</div></body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 }
 
 void handleSaveConfig() {
@@ -299,7 +299,7 @@ void handleSaveConfig() {
   html += getFooter();
   html += "</div></body></html>";
 
-  server.send(200, "text/html", html);
+  server.send(200, "text/html; charset=UTF-8", html);
 
   logSerial("WiFi network saved - Slot " + String(slot + 1) + ": " + wifiNetworks[slot].label + " (" + wifiNetworks[slot].ssid + ")");
 }
