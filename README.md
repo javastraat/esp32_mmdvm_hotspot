@@ -3,7 +3,7 @@
 A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration. 
 
 
-![Bootlogo](screenshots/bootlogo.png)
+![Logo](screenshots/esp32-mmdvm-logo.png)
 
 ## Table of Contents
 
