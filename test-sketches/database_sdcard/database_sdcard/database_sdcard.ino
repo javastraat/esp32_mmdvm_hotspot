@@ -13,6 +13,12 @@ TaskHandle_t blinkTaskHandle = NULL;
 volatile bool downloadActive = false;
 volatile bool downloadRequested = false;
 
+// Download progress tracking
+volatile int downloadProgress = 0;  // 0-100%
+volatile int downloadBytesTotal = 0;
+volatile int downloadBytesWritten = 0;
+String downloadStatus = "Idle";
+
 // SD card pins (adjust if your board uses different pins)
 #define SPI_MISO_PIN 9
 #define SPI_MOSI_PIN 11
@@ -268,14 +274,191 @@ void setup() {
   Serial.println(WiFi.localIP());
 }
 
+// Helper function to handle web client requests
+void handleWebClient(WiFiClient &client) {
+  String request = "";
+
+  while (client.connected()) {
+    if (client.available()) {
+      String line = client.readStringUntil('\n');
+      request += line + "\n";
+
+      if (line == "\r") {  // End of HTTP header
+        // Check request type
+        if (request.indexOf("GET / ") >= 0) {
+          // Send HTML page
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");
+          client.println();
+
+          client.println("<!DOCTYPE html><html><head>");
+          client.println("<title>SD Card Test</title>");
+          client.println("<style>body{font-family:Arial;margin:20px}");
+          client.println(".card{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:5px}");
+          client.println("button{padding:10px 20px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer}");
+          client.println("button:hover{background:#0056b3}");
+          client.println(".progress-container{margin:15px 0;display:none}");
+          client.println(".progress-bar{width:100%;background:#f0f0f0;border-radius:5px;overflow:hidden}");
+          client.println(".progress-fill{height:30px;background:#4CAF50;width:0%;transition:width 0.3s;line-height:30px;color:white;text-align:center;font-weight:bold}");
+          client.println(".status{padding:10px;background:#e3f2fd;border-radius:5px;margin:10px 0}</style>");
+          client.println("<script>");
+          client.println("var pollInterval;");
+          client.println("function startDownload(){");
+          client.println("  document.getElementById('progress-container').style.display='block';");
+          client.println("  document.getElementById('download-btn').disabled=true;");
+          client.println("  fetch('/download').then(()=>{");
+          client.println("    pollInterval=setInterval(updateStatus,500);");
+          client.println("  });");
+          client.println("}");
+          client.println("function updateStatus(){");
+          client.println("  fetch('/status').then(r=>r.json()).then(data=>{");
+          client.println("    console.log('Status:',data);");
+          client.println("    document.getElementById('progress-fill').style.width=data.progress+'%';");
+          client.println("    document.getElementById('progress-text').textContent=data.progress+'%';");
+          client.println("    var mb=(data.bytesWritten/1024/1024).toFixed(2)+' / '+(data.bytesTotal/1024/1024).toFixed(2)+' MB';");
+          client.println("    document.getElementById('bytes').textContent=mb;");
+          client.println("    document.getElementById('status-text').textContent=data.status;");
+          client.println("    if(!data.active && data.progress>=100){");
+          client.println("      clearInterval(pollInterval);");
+          client.println("      document.getElementById('download-btn').disabled=false;");
+          client.println("      setTimeout(()=>{location.reload(true);},2000);");
+          client.println("    }else if(!data.active && data.status.includes('ERROR')){");
+          client.println("      clearInterval(pollInterval);");
+          client.println("      document.getElementById('download-btn').disabled=false;");
+          client.println("    }");
+          client.println("  }).catch(e=>console.error('Fetch error:',e));");
+          client.println("}");
+          client.println("</script></head><body>");
+
+          client.println("<h1>SD Card Test Interface</h1>");
+
+          // Card 1: SD Card Status
+          client.println("<div class='card'><h2>SD Card Status</h2>");
+          client.print("<p>Card Type: ");
+          uint8_t cardType = SD.cardType();
+          client.print(cardType == CARD_SDHC ? "SDHC" : cardType == CARD_SD ? "SD" : "Unknown");
+          client.println("</p>");
+          client.print("<p>Card Size: ");
+          client.print((uint32_t)(SD.cardSize() / (1024 * 1024)));
+          client.println(" MB</p></div>");
+
+          // Card 2: File List
+          client.println("<div class='card'><h2>Files on SD Card</h2><pre>");
+          File root = SD.open("/");
+          listFilesHTML(root, 0, client);
+          root.close();
+          client.println("</pre></div>");
+
+          // Card 3: Download Button
+          client.println("<div class='card'><h2>Database Download</h2>");
+          client.print("<p>Database file exists: ");
+          client.println(SD.exists(destFile) ? "YES" : "NO");
+          client.println("</p>");
+          if (SD.exists(destFile)) {
+            File dbFile = SD.open(destFile);
+            if (dbFile) {
+              client.print("<p>File size: ");
+              client.print(dbFile.size());
+              client.println(" bytes</p>");
+              dbFile.close();
+            }
+          }
+          client.println("<button id='download-btn' onclick='startDownload()'>Download Database from GitHub</button>");
+          if (SD.exists(destFile)) {
+            client.println(" <button onclick=\"if(confirm('Delete database file?')) location.href='/delete'\" style=\"background:#dc3545\">Delete Database</button>");
+          }
+          client.println("<div id='progress-container' class='progress-container'>");
+          client.println("<div class='status'>Status: <span id='status-text'>Starting...</span></div>");
+          client.println("<div class='progress-bar'><div id='progress-fill' class='progress-fill'><span id='progress-text'>0%</span></div></div>");
+          client.println("<p id='bytes'>0 / 0 MB</p>");
+          client.println("</div>");
+          client.println("</div>");
+
+          client.println("</body></html>");
+        }
+        else if (request.indexOf("GET /status") >= 0) {
+          // Return JSON status for AJAX polling
+          String json = "{";
+          json += "\"active\":";
+          json += downloadActive ? "true" : "false";
+          json += ",\"progress\":";
+          json += String(downloadProgress);
+          json += ",\"bytesWritten\":";
+          json += String(downloadBytesWritten);
+          json += ",\"bytesTotal\":";
+          json += String(downloadBytesTotal);
+          json += ",\"status\":\"";
+          json += downloadStatus;
+          json += "\"}";
+
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");
+          client.print("Content-Length: ");
+          client.println(json.length());
+          client.println();
+          client.println(json);
+        }
+        else if (request.indexOf("GET /download") >= 0) {
+          // Trigger download
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/plain");
+          client.println("Connection: close");
+          client.println();
+          client.println("OK");
+
+          downloadRequested = true;
+        }
+        else if (request.indexOf("GET /delete") >= 0) {
+          // Delete database file
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");
+          client.println();
+          client.println("<html><body><h1>Delete Database</h1>");
+
+          if (SD.exists(destFile)) {
+            if (SD.remove(destFile)) {
+              client.println("<p style='color:green'>✓ Database file deleted successfully!</p>");
+              Serial.println("Database file deleted via web interface");
+            } else {
+              client.println("<p style='color:red'>✗ Failed to delete database file!</p>");
+              Serial.println("Failed to delete database file");
+            }
+          } else {
+            client.println("<p>Database file does not exist.</p>");
+          }
+
+          client.println("<p><a href='/'>Back to Status</a></p></body></html>");
+        }
+        break;
+      }
+    }
+  }
+
+  delay(1);
+  client.stop();
+}
+
 void performDownload() {
   Serial.println("=== Download requested ===");
+
+  downloadProgress = 0;
+  downloadBytesTotal = 0;
+  downloadBytesWritten = 0;
+  downloadStatus = "Connecting...";
 
   HTTPClient http;
   http.begin(fileURL);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
+    downloadBytesTotal = http.getSize();
+    Serial.print("Content-Length: ");
+    Serial.print(downloadBytesTotal);
+    Serial.println(" bytes");
+
     // Delete old file if exists
     if (SD.exists(destFile)) {
       SD.remove(destFile);
@@ -286,6 +469,8 @@ void performDownload() {
     if (!outFile) {
       Serial.println("FAILED: Couldn't create file on SD!");
       http.end();
+      downloadStatus = "ERROR: File open failed";
+      downloadRequested = false;
       return;
     }
     Serial.println("File opened successfully!");
@@ -294,8 +479,64 @@ void performDownload() {
     downloadActive = true;
     xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 1024, NULL, 1, &blinkTaskHandle, 1);
 
+    downloadStatus = "Downloading...";
     unsigned long downloadStart = millis();
-    int written = http.writeToStream(&outFile);
+
+    // Manual download with progress tracking
+    WiFiClient* stream = http.getStreamPtr();
+    uint8_t buffer[2048];  // Larger buffer for better speed
+    int totalWritten = 0;
+    int lastPercent = -1;
+
+    Serial.println("Starting download...");
+
+    while (http.connected() && (totalWritten < downloadBytesTotal || downloadBytesTotal == -1)) {
+      // Check for incoming web requests and handle status updates
+      WiFiClient statusClient = server.available();
+      if (statusClient) {
+        handleWebClient(statusClient);
+      }
+
+      size_t available = stream->available();
+
+      if (available) {
+        int bytesToRead = min((int)available, (int)sizeof(buffer));
+        if (downloadBytesTotal > 0) {
+          bytesToRead = min(bytesToRead, downloadBytesTotal - totalWritten);
+        }
+
+        int bytesRead = stream->readBytes(buffer, bytesToRead);
+
+        if (bytesRead > 0) {
+          size_t bytesWritten = outFile.write(buffer, bytesRead);
+          totalWritten += bytesWritten;
+          downloadBytesWritten = totalWritten;
+
+          // Update progress
+          int percent = 0;
+          if (downloadBytesTotal > 0) {
+            percent = (totalWritten * 100) / downloadBytesTotal;
+          }
+          downloadProgress = percent;
+
+          // Print progress every 10%
+          if (percent != lastPercent && percent % 10 == 0) {
+            Serial.printf("Progress: %d%% (%d / %d bytes)\n",
+                         percent, totalWritten, downloadBytesTotal);
+            lastPercent = percent;
+          }
+        }
+        yield();  // Let other tasks run
+      } else {
+        delay(1);
+      }
+
+      // Safety check - if we've read enough, break
+      if (downloadBytesTotal > 0 && totalWritten >= downloadBytesTotal) {
+        break;
+      }
+    }
+
     unsigned long downloadDuration = millis() - downloadStart;
 
     // Stop blinking LED
@@ -305,10 +546,34 @@ void performDownload() {
     }
 
     outFile.close();
-    Serial.printf("SUCCESS! Downloaded %d bytes in %lu ms\n", written, downloadDuration);
+
+    downloadBytesWritten = totalWritten;
+    downloadProgress = 100;
+    downloadStatus = "Download complete!";
+
+    Serial.printf("SUCCESS! Downloaded %d bytes in %lu ms\n", totalWritten, downloadDuration);
+
+    // Verify file was written
+    if (SD.exists(destFile)) {
+      File verifyFile = SD.open(destFile);
+      if (verifyFile) {
+        size_t fileSize = verifyFile.size();
+        Serial.print("Verified file size on SD: ");
+        Serial.print(fileSize);
+        Serial.println(" bytes");
+
+        if (fileSize == downloadBytesTotal) {
+          Serial.println("✓ File size matches!");
+        } else {
+          Serial.println("✗ WARNING: File size mismatch!");
+        }
+        verifyFile.close();
+      }
+    }
   } else {
     Serial.print("HTTP GET failed: ");
     Serial.println(http.errorToString(httpCode));
+    downloadStatus = "ERROR: HTTP " + String(httpCode);
   }
   http.end();
   downloadRequested = false;
@@ -323,88 +588,7 @@ void loop() {
   // Handle web server requests
   WiFiClient client = server.available();
   if (client) {
-    Serial.println("New client connected");
-    String request = "";
-
-    while (client.connected()) {
-      if (client.available()) {
-        String line = client.readStringUntil('\n');
-        request += line + "\n";
-
-        if (line == "\r") {  // End of HTTP header
-          // Check request type
-          if (request.indexOf("GET / ") >= 0) {
-            // Send HTML page
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/html");
-            client.println("Connection: close");
-            client.println();
-
-            client.println("<!DOCTYPE html><html><head>");
-            client.println("<title>SD Card Test</title>");
-            client.println("<style>body{font-family:Arial;margin:20px}");
-            client.println(".card{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:5px}");
-            client.println("button{padding:10px 20px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer}");
-            client.println("button:hover{background:#0056b3}</style></head><body>");
-
-            client.println("<h1>SD Card Test Interface</h1>");
-
-            // Card 1: SD Card Status
-            client.println("<div class='card'><h2>SD Card Status</h2>");
-            client.print("<p>Card Type: ");
-            uint8_t cardType = SD.cardType();
-            client.print(cardType == CARD_SDHC ? "SDHC" : cardType == CARD_SD ? "SD" : "Unknown");
-            client.println("</p>");
-            client.print("<p>Card Size: ");
-            client.print((uint32_t)(SD.cardSize() / (1024 * 1024)));
-            client.println(" MB</p></div>");
-
-            // Card 2: File List
-            client.println("<div class='card'><h2>Files on SD Card</h2><pre>");
-            File root = SD.open("/");
-            listFilesHTML(root, 0, client);
-            root.close();
-            client.println("</pre></div>");
-
-            // Card 3: Download Button
-            client.println("<div class='card'><h2>Database Download</h2>");
-            client.print("<p>Database file exists: ");
-            client.println(SD.exists(destFile) ? "YES" : "NO");
-            client.println("</p>");
-            if (SD.exists(destFile)) {
-              File dbFile = SD.open(destFile);
-              if (dbFile) {
-                client.print("<p>File size: ");
-                client.print(dbFile.size());
-                client.println(" bytes</p>");
-                dbFile.close();
-              }
-            }
-            client.println("<button onclick=\"location.href='/download'\">Download Database from GitHub</button>");
-            client.println("</div>");
-
-            client.println("</body></html>");
-          }
-          else if (request.indexOf("GET /download") >= 0) {
-            // Trigger download
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/html");
-            client.println("Connection: close");
-            client.println();
-            client.println("<html><body><h1>Download Started!</h1>");
-            client.println("<p>Check Serial Monitor for progress...</p>");
-            client.println("<p><a href='/'>Back to Status</a></p></body></html>");
-
-            downloadRequested = true;
-          }
-          break;
-        }
-      }
-    }
-
-    delay(1);
-    client.stop();
-    Serial.println("Client disconnected");
+    handleWebClient(client);
   }
 }
 
