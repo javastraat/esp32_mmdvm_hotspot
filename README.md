@@ -21,8 +21,14 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 - [DMR Network Support](#dmr-network-support)
 - [BrandMeister Server List](#brandmeister-server-list)
 
+**Integration & Automation**
+- [REST API](#rest-api)
+- [MQTT Integration](#mqtt-integration)
+- [API Examples](#api-examples)
+
 **Advanced Topics**
 - [Advanced Features](#advanced-features)
+- [MMDVM Firmware Flashing](#mmdvm-firmware-flashing)
 - [Hardware Configuration](#hardware-configuration)
 - [Network Configuration](#network-configuration)
 - [Troubleshooting](#troubleshooting)
@@ -37,8 +43,8 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 
 ## Project Status
 
-**Current Release:** Beta - December 12, 2025  
-**Firmware Version:** 20251212_ESP32_BETA
+**Current Release:** Beta - January 6, 2026
+**Firmware Version:** 20260106_ESP32_BETA
 
 ### Confirmed Working
 - **Network → RF Transmission** - Receive DMR from BrandMeister and transmit over RF (user verified!)
@@ -54,6 +60,9 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 - **Configuration Management** - Import/export, backup/restore
 - **OTA Updates** - GitHub download + file upload
 - **Debug Controls** - Toggle verbose logging (DEBUG_MMDVM, DEBUG_NETWORK)
+- **REST API** - Complete HTTP API for external integrations and monitoring
+- **MQTT Publishing** - Real-time status and activity publishing to MQTT brokers
+- **MMDVM Firmware Flasher** - Flash modem firmware online from GitHub or upload .bin files
 
 ### In Development
 - **RF → Network Path** - Receive DMR from radio and forward to network (RX path)
@@ -91,7 +100,7 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 - Any MMDVM with 14.7456MHz or 12.288MHz crystal
 
 ### Optional Components
-- **OLED Display:** SSD1306 128x64 I2C (real-time status)
+- **OLED Display:** SSD1306 128x64 I2C (real-time status with auto-blank, bootlogo, button control)
 - **RGB LED:** Visual TX/RX indicators (GPIO 40/41/42)
 
 ## Pin Configuration
@@ -268,8 +277,8 @@ Once connected to WiFi, access the web interface:
 When someone transmits on BrandMeister network:
 
 1. **Network Packet** - ESP32 receives DMRD packet from Brand Meister (UDP port 62031)
-2. **User Lookup** - RadioID.net API fetches callsign/name/location (cached for performance)
-3. **Activity Display** - Web interface and OLED show live transmission
+2. **User Lookup** - RadioID.net API fetches callsign/name/location with dual-cache system (500 entries each)
+3. **Activity Display** - Web interface and OLED show live transmission with full user details
 4. **DMR START Command** - ESP32 sends `CMD_DMR_START (0x1D)` to put modem in TX mode
 5. **Frame Transmission** - DMR frames sent to modem via `CMD_DMR_DATA2 (0x1A)` with 55ms delay
 6. **RF Output** - MMDVM modem transmits on configured frequency
@@ -667,6 +676,233 @@ The web interface includes 40+ servers worldwide:
 
 All servers use standard BrandMeister port 62031.
 
+## REST API
+
+The ESP32 MMDVM Hotspot provides a complete RESTful HTTP API for external integrations, custom dashboards, and automation systems.
+
+### API Overview
+
+**Base URL:** `http://<device-ip>/` or `http://esp32-mmdvm.local/`
+**Authentication:** HTTP Basic Authentication (default: admin / pi-star)
+**Content-Type:** `application/json` for all data endpoints
+
+### Key API Endpoints
+
+#### Status & Monitoring
+- **`GET /api/status`** - Complete system status (WiFi, DMR, MMDVM, Ethernet, SD card)
+- **`GET /api/system-information`** - ESP32 hardware details (uptime, memory, flash, CPU)
+- **`GET /api/modem-information`** - MMDVM modem firmware and hardware info
+- **`GET /api/logs`** - Serial monitor logs (last 50 entries)
+
+#### DMR Activity
+- **`GET /api/dmr-activity`** - Live DMR activity for both slots with user lookup
+- **`GET /api/dmr-slot1`** - Slot 1 activity only
+- **`GET /api/dmr-slot2`** - Slot 2 activity only
+- **`GET /api/dmr-history`** - Recent network DMR transmissions received from BrandMeister (last 15)
+- **`GET /api/rf-history`** - Local RF transmissions sent from hotspot to radio (last 15)
+- **`GET /api/system-status`** - System status overview
+
+**Note on History Endpoints:**
+- **`/api/dmr-history`** tracks incoming transmissions from the DMR network (Network → RF path)
+- **`/api/rf-history`** tracks outgoing transmissions from your hotspot to RF (RF → Network path, when implemented)
+- Both maintain separate circular buffers of 15 entries with timestamps and duration
+
+#### Configuration
+- **`GET /api/wifiscan`** - Scan for available WiFi networks
+- **`POST /savedmrconfig`** - Save DMR configuration
+- **`POST /saveconfig`** - Save WiFi network settings
+- **`GET /export-config`** - Export configuration as text file
+- **`POST /import-config`** - Import configuration from file
+
+### Example API Usage
+
+**curl Example - Get DMR Activity:**
+```bash
+curl -u admin:pi-star http://esp32-mmdvm.local/api/dmr-activity
+```
+
+**JavaScript Example:**
+```javascript
+fetch('/api/status', {
+  credentials: 'include'
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('DMR Status:', data.dmr.status);
+    console.log('WiFi RSSI:', data.wifi.rssi);
+  });
+```
+
+**Python Example:**
+```python
+import requests
+from requests.auth import HTTPBasicAuth
+
+response = requests.get(
+    'http://esp32-mmdvm.local/api/dmr-activity',
+    auth=HTTPBasicAuth('admin', 'pi-star')
+)
+data = response.json()
+print(f"Slot 1 Active: {data['slots'][0]['active']}")
+```
+
+### API Documentation
+
+Complete API documentation with all endpoints, parameters, response schemas, and examples:
+- **[API_README.md](API_README.md)** - Full HTTP API reference
+- **[api-examples/openapi/swagger.json](api-examples/openapi/swagger.json)** - OpenAPI 3.0 specification for Swagger/Postman
+
+## MQTT Integration
+
+Publish real-time hotspot status and DMR activity to MQTT brokers for integration with home automation systems, monitoring dashboards, and custom applications.
+
+### MQTT Features
+
+- **Real-time Publishing** - Live DMR activity on both slots
+- **Periodic Status Updates** - System, network, and modem status (configurable interval)
+- **Last Will Testament** - Online/offline availability tracking
+- **Retained Messages** - Availability topic retained for immediate subscriber feedback
+- **Auto-Reconnect** - Automatic reconnection on broker disconnect
+
+### Configuration
+
+Configure MQTT via the Admin page web interface:
+
+1. Navigate to Admin page → MQTT Configuration card
+2. Enable MQTT and configure:
+   - **Broker:** Hostname or IP (e.g., `192.168.1.100`, `broker.hivemq.com`)
+   - **Port:** Default 1883 (secure: 8883)
+   - **Username/Password:** Optional authentication
+   - **Client ID:** Default uses DMR callsign
+   - **Topic Prefix:** Default `{hostname}/{callsign}` (e.g., `esp32-mmdvm/PD2EMC`)
+   - **Publish Interval:** How often to publish status (default: 30 seconds)
+
+### MQTT Topics
+
+All topics use configured prefix (default: `{hostname}/{callsign}`):
+
+#### Status Topics (Published Periodically)
+- **`{prefix}/system/status`** - Complete system info (uptime, memory, CPU, firmware)
+- **`{prefix}/hardware/modem`** - MMDVM modem firmware and hardware details
+- **`{prefix}/network/wifi`** - WiFi connection status and signal strength
+- **`{prefix}/network/dmr`** - DMR network connection and talkgroup
+- **`{prefix}/mmdvm/config`** - MMDVM operational configuration (frequencies, power)
+- **`{prefix}/station/info`** - Station identification and location
+
+#### Activity Topics (Event-Driven)
+- **`{prefix}/slot1/activity`** - Real-time Slot 1 DMR transmissions
+- **`{prefix}/slot2/activity`** - Real-time Slot 2 DMR transmissions
+
+#### Availability Topic (Last Will Testament)
+- **`{prefix}/availability`** - `online` or `offline` (retained message)
+
+### MQTT Example Payloads
+
+**Slot Activity (Published during active transmissions):**
+```json
+{
+  "slot": 2,
+  "active": true,
+  "src_id": 2041152,
+  "dst_id": 91,
+  "callsign": "PD2EMC",
+  "name": "Einstein",
+  "city": "Amsterdam",
+  "country": "Netherlands",
+  "call_type": "group",
+  "duration": 4,
+  "timestamp": 2198
+}
+```
+
+**System Status (Published every 30 seconds):**
+```json
+{
+  "callsign": "PD2EMC",
+  "dmr_id": 2041152,
+  "hostname": "esp32-mmdvm",
+  "uptime": {"seconds": 2758, "days": 0, "hours": 0, "minutes": 45},
+  "chip": {"model": "ESP32-S3", "cores": 2, "cpuFreqMHz": 240},
+  "memory": {"freeHeapKB": 192.9, "freeHeapPercent": 63},
+  "firmware": {"version": "20260106_ESP32_BETA"}
+}
+```
+
+### MQTT Use Cases
+
+- **Home Assistant** - Monitor hotspot status, track DMR activity
+- **Node-RED Dashboards** - Real-time visualizations and alerts
+- **Grafana/InfluxDB** - Long-term metrics and analytics
+- **Mobile Apps** - Remote monitoring via MQTT clients
+- **Custom Notifications** - Alerts when specific callsigns are active
+- **IoT Integration** - Control lights, indicators based on DMR activity
+
+### MQTT Monitoring
+
+Monitor MQTT connection status via API endpoint:
+- **`GET /api/mqtt-monitor`** - Connection status, broker info, topic list
+
+### Documentation
+
+Complete MQTT documentation with configuration, topics, payloads, and integration examples:
+- **[MQTT_README.md](MQTT_README.md)** - Full MQTT integration guide
+
+## API Examples
+
+Ready-to-use integration examples and tools for monitoring and automating your hotspot.
+
+### Node-RED Flows
+
+Pre-built Node-RED flows for instant monitoring and integration:
+
+#### **01-basic-api-calls.json**
+Simple HTTP requests to test all API endpoints.
+- One-click testing of each endpoint
+- View JSON responses in debug panel
+- Perfect for learning the API
+
+#### **02-monitoring-dashboard.json**
+Complete real-time monitoring dashboard with auto-refresh.
+- Memory usage gauge and charts
+- System uptime display
+- DMR activity monitoring (both slots)
+- Network and modem status indicators
+- Access at: `http://your-node-red-ip:1880/ui`
+
+#### **03-advanced-examples.json**
+Advanced integrations including alerts and logging.
+- Memory alert system (< 20% threshold)
+- Callsign watchlist notifications
+- DMR history logger (CSV/database)
+- InfluxDB integration for time-series data
+- Telegram bot for remote queries
+
+#### **04-mqtt-monitoring-dashboard.json**
+MQTT-based monitoring dashboard.
+- Subscribe to all MQTT topics
+- Real-time activity visualization
+- Dashboard showing live DMR transmissions
+
+### OpenAPI Specification
+
+**`openapi/swagger.json`** - Complete OpenAPI 3.0 specification
+- Import into Postman, Insomnia, or Swagger UI
+- Generate API client code
+- Interactive API documentation
+
+### Quick Start
+
+1. **Import Flow:** Menu (☰) → Import → Select JSON file from `api-examples/node-red/`
+2. **Configure Auth:** Edit HTTP Request nodes → Set basic authentication
+3. **Set Base URL:** Update ESP32 address (e.g., `http://esp32-mmdvm.local`)
+4. **Deploy:** Click Deploy button and test
+
+### Documentation
+
+Complete examples, integration guides, and troubleshooting:
+- **[api-examples/README.md](api-examples/README.md)** - Full guide to all examples
+- **[API_README.md](API_README.md)** - Complete API reference
+
 ## Advanced Features
 
 ### Multi-Network WiFi Management
@@ -690,6 +926,22 @@ WiFiNetwork wifiNetworks[5];
 // - Web-based configuration with network scanner
 ```
 
+### DMR User Lookup & Caching System
+**RadioID.net API Integration:**
+- Real-time user information lookup (callsign, name, city, country)
+- Dual-cache architecture for optimal performance:
+  - **Enhanced Cache:** 500 entries with full user details (callsign|name|city|country format)
+  - **Legacy Cache:** 500 entries for backward compatibility
+- Special DMR system ID handling:
+  - Echo Test (9990)
+  - Disconnect (4000)
+  - Status (5000)
+  - Time (8045)
+  - Other system services
+- Automatic fallback to cache to minimize API calls
+- Configurable API timeout (3000ms default)
+- Alternative API support (RadioID.net, database.radioid.net, ham-digital.org)
+
 ### Configuration Storage System
 **ESP32 NVS Preferences:**
 - WiFi networks (primary + 5 backups)
@@ -704,7 +956,7 @@ WiFiNetwork wifiNetworks[5];
    - Automatic version checking via OTA_VERSION_URL
    - Secure HTTPS download from OTA_UPDATE_URL
    - Progress indication and error handling
-   
+
 2. **File Upload**
    - Web browser-based firmware upload
    - Direct .bin file flashing
@@ -715,6 +967,103 @@ WiFiNetwork wifiNetworks[5];
 - File size and format validation
 - Rollback capability on failed updates
 - Progress monitoring with status feedback
+
+## MMDVM Firmware Flashing
+
+Flash MMDVM modem firmware directly from the ESP32 web interface without needing a separate programmer or Pi-Star.
+
+### Features
+
+- **Online Flashing** - Download and flash firmware directly from GitHub URLs
+- **File Upload** - Upload and flash custom .bin firmware files
+- **Predefined Firmware** - Quick selection of common MMDVM_HS firmware versions
+- **Real-time Progress** - Visual progress bar and status updates
+- **Automatic Detection** - Modem version detection after successful flash
+- **Safe Hardware Control** - Proper STM32 bootloader entry/exit sequences
+
+### Supported Modem Types
+
+Compatible with STM32F1-based MMDVM modems:
+- MMDVM_HS_Hat (single and dual)
+- ZUMspot
+- JumboSPOT
+- Nano hotSPOT
+- D2RG MMDVM_HS
+- Other STM32F1-based MMDVM variants
+
+### How to Flash
+
+#### Option 1: Flash from GitHub URL
+1. Navigate to **Admin** page → **MMDVM Modem Firmware** card
+2. Select firmware from dropdown:
+   - **MMDVM_HS v1.6.1** (Single Hat) - Latest stable
+   - **MMDVM_HS_Dual v1.6.1** - For dual-hat modems
+   - **MMDVM_HS v1.5.2** (Single Hat) - Previous version
+   - **Custom URL** - Enter any GitHub firmware URL
+3. Click **"Flash from URL"**
+4. Wait for download and flash to complete (30-60 seconds)
+5. Modem will restart with new firmware
+
+#### Option 2: Flash from Local File
+1. Download MMDVM firmware .bin file to your computer
+   - From [MMDVM_HS Releases](https://github.com/juribeparada/MMDVM_HS/releases)
+2. Navigate to **Admin** page → **MMDVM Modem Firmware** card
+3. Click **"Choose File"** and select your .bin file
+4. Click **"Upload and Flash"**
+5. Wait for upload and flash to complete (30-60 seconds)
+6. Modem will restart with new firmware
+
+### Technical Details
+
+**Hardware Control:**
+- Uses GPIO 4 (BOOT0) and GPIO 13 (RESET) for bootloader control
+- Proper STM32 bootloader entry sequence
+- UART switches to 8E1 (even parity) for bootloader communication
+- Flash erase timeout: 60 seconds (typically 10-30 seconds)
+- Write operations: 256-byte chunks with checksums
+
+**STM32 Bootloader Protocol:**
+- SYNC command (0x7F) for bootloader detection
+- Extended Erase (0x44) for flash memory clearing
+- Write Memory (0x31) for firmware programming
+- ACK/NACK detection for error handling
+
+**Safety Features:**
+- Automatic bootloader exit on errors
+- Timeout detection for stuck operations
+- Progress tracking and status reporting
+- Modem communication test after flash
+
+### Predefined Firmware URLs
+
+Currently available in web interface:
+- **Single v1.6.1:** `https://github.com/juribeparada/MMDVM_HS/releases/download/v1.6.1/install_fw_stm32f1_hs.bin`
+- **Dual v1.6.1:** `https://github.com/juribeparada/MMDVM_HS/releases/download/v1.6.1/install_fw_stm32f1_hs_dual_hat.bin`
+- **Single v1.5.2:** `https://github.com/juribeparada/MMDVM_HS/releases/download/v1.5.2/install_fw_stm32f1_hs.bin`
+
+### Troubleshooting
+
+**Flash Failed or Timeout:**
+- Check GPIO connections (BOOT0=4, RESET=13)
+- Ensure modem has adequate power supply
+- Try again - sometimes bootloader sync takes multiple attempts
+- Check Serial Monitor for detailed error messages
+
+**Modem Not Responding After Flash:**
+- Power cycle the ESP32 completely
+- Verify correct firmware was selected for your modem type
+- Try reflashing with known-good firmware
+
+**Custom Firmware Not Working:**
+- Ensure .bin file is for STM32F1 platform
+- Verify firmware matches your modem hardware (single vs dual, crystal frequency)
+- Check file size is reasonable (typically 40-60KB)
+
+### Documentation
+
+Complete implementation details and technical documentation:
+- **[MODEM_FLASHER_IMPLEMENTATION.md](MODEM_FLASHER_IMPLEMENTATION.md)** - Technical implementation guide
+- **[include/modem_flasher.h](include/modem_flasher.h)** - Source code with STM32 bootloader protocol
 
 ## Hardware Configuration
 
@@ -798,6 +1147,76 @@ Edit the values in config.h to adjust brightness:
 - Lower numbers = dimmer (recommended for bright LEDs)
 - Higher numbers = brighter
 - Range: 0-255 (0=off, 255=full brightness)
+
+### OLED Display Features (Optional)
+
+**Hardware Support:**
+- 128x64 pixel SSD1306 I2C OLED display
+- I2C address: 0x3C or 0x3D (configurable)
+- Pins: GPIO 17 (SDA), GPIO 18 (SCL)
+
+**Display Content:**
+- Custom bootlogo with ESP32 logo animation on startup
+- Real-time DMR activity with dual-slot support
+- Network status icons (WiFi, Ethernet, RF antenna)
+- Station information (callsign, DMR ID, frequencies)
+- Color code and power level display
+- Current talkgroup and transmission status
+- Signal strength indicators
+- Activity-based display cycling for both slots
+
+**Auto-Blank Feature:**
+The OLED automatically blanks the screen to prevent burn-in and save power:
+
+**Configuration (config.h):**
+```cpp
+#define OLED_AUTO_BLANK_ENABLE true   // Enable automatic screen blanking
+#define OLED_BLANK_TIMEOUT 60000      // Blank after 60 seconds of inactivity (in milliseconds)
+                                      // Examples:
+                                      //   30000 = 30 seconds
+                                      //   60000 = 60 seconds (1 minute) - default
+                                      //  120000 = 120 seconds (2 minutes)
+                                      //  300000 = 300 seconds (5 minutes)
+                                      //       0 = Never auto-blank (always on)
+```
+
+**Auto-Wake Behavior:**
+- Display automatically wakes up when DMR activity occurs
+- Display stays on during active transmissions
+- Inactivity timer resets with each transmission
+- Blank timeout starts after last activity ends
+
+**Physical Button Control:**
+- **Button Pin:** GPIO 0 (configurable as `OLED_BUTTON_PIN`)
+- **Function:** Toggle OLED display on/off instantly
+- **Usage:** Press button to manually turn display on or off
+- **Override:** Button control works independently of auto-blank feature
+
+**Runtime Control via Web Interface:**
+- Navigate to **Admin** page → **OLED Display Configuration** card
+- **Enable/Disable:** Toggle OLED display on/off without reboot
+- **Auto-Blank Settings:** Configure timeout value via web interface
+- **Instant Apply:** Changes take effect immediately without restart
+
+**Display Icons:**
+The OLED uses custom 8x8 pixel icons for status indication:
+- WiFi icon (connected/disconnected)
+- Ethernet icon (connected/disconnected)
+- RF antenna icon (transmitting/receiving)
+- DMR slot indicators (Slot 1 / Slot 2)
+
+**Bootlogo Display:**
+- Custom watermark bitmap displayed on startup
+- ESP32 logo animation
+- Project branding and version information
+- Automatically transitions to status screen after boot
+
+**Technical Implementation:**
+- Display mutex prevents SPI bus conflicts
+- Optimized refresh rate for smooth updates
+- Low-power mode when blanked
+- I2C communication at standard speed
+- Compatible with Adafruit SSD1306 library
 
 ## Network Configuration
 
@@ -1093,17 +1512,21 @@ This project welcomes contributions from licensed amateur radio operators! Areas
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20251212_ESP32_BETA
+- **Version:** 20260106_ESP32_BETA
 - **License:** Amateur Radio Non-Commercial License (see License section)
 - **Authors:** PD2EMC & PD8JO
 - **Repository:** https://github.com/javastraat/esp32_mmdvm_hotspot
 - **Amateur Radio Only:** Valid license required for operation
 
-### Recent Updates (20251212_ESP32_BETA)
+### Recent Updates (20260106_ESP32_BETA)
+- **REST API Implementation:** Complete HTTP API with 20+ endpoints for monitoring and control
+- **MQTT Integration:** Real-time publishing of system status and DMR activity to MQTT brokers
+- **MMDVM Firmware Flasher:** Flash modem firmware online from GitHub or upload custom .bin files
+- **API Examples:** Ready-to-use Node-RED flows and OpenAPI specification
+- **Enhanced Monitoring:** System information, modem details, and DMR activity via JSON APIs
+- **Home Automation Ready:** MQTT topics for Home Assistant, Node-RED, Grafana integration
 - **Network → RF Transmission Working!** User-confirmed DMR audio reception on radio
 - **MMDVM Protocol Complete:** Full communication with MMDVM HS Hat at 115200 baud
-- **Debug Controls:** Toggle MMDVM and network verbose logging via config.h
-- **Clean Logging:** Keepalive messages hidden by default for production use
 
 ## Resources and Documentation
 
