@@ -19,6 +19,13 @@ volatile unsigned long downloadBytesTotal = 0;
 volatile unsigned long downloadBytesWritten = 0;
 String downloadStatus = "Idle";
 
+// DMR search globals
+volatile bool searchActive = false;
+volatile bool searchRequested = false;
+volatile unsigned long searchRadioId = 0;
+String searchResult = "";
+volatile int searchProgress = 0;
+
 // Update checking
 unsigned long remoteFileSize = 0;
 unsigned long localFileSize = 0;
@@ -330,6 +337,167 @@ bool checkForUpdate() {
   return updateAvailable;
 }
 
+// Function to perform DMR search
+void performDMRSearch() {
+  Serial.println("=== Starting DMR user search ===");
+  Serial.print("Searching for radio_id: ");
+  Serial.println(searchRadioId);
+
+  searchProgress = 0;
+  searchResult = "";
+
+  if (!SD.exists(destFile)) {
+    Serial.println("ERROR: Database file not found");
+    searchResult = "{\"error\":\"Database file not found\"}";
+    return;
+  }
+
+  File dbFile = SD.open(destFile);
+  if (!dbFile) {
+    Serial.println("ERROR: Failed to open database file");
+    searchResult = "{\"error\":\"Failed to open database file\"}";
+    return;
+  }
+
+  unsigned long fileSize = dbFile.size();
+  Serial.print("Database file size: ");
+  Serial.print(fileSize);
+  Serial.println(" bytes");
+
+  // Search for the radio_id in the JSON array
+  String searchPattern = "\"RADIO_ID\":" + String(searchRadioId);
+  bool found = false;
+
+  // Larger buffer for better performance
+  const int BUFFER_SIZE = 4096;
+  char buffer[BUFFER_SIZE];
+  String lineBuffer = "";
+  lineBuffer.reserve(500);  // Pre-allocate
+  int objStartPos = -1;
+  unsigned long bytesProcessed = 0;
+  unsigned long startTime = millis();
+
+  while (dbFile.available() && !found) {
+    int bytesRead = dbFile.read((uint8_t*)buffer, BUFFER_SIZE);
+    bytesProcessed += bytesRead;
+
+    // Update progress
+    searchProgress = (bytesProcessed * 100) / fileSize;
+
+    // Progress indicator every 2MB
+    if (bytesProcessed % 2000000 < BUFFER_SIZE) {
+      Serial.print("Processed: ");
+      Serial.print(bytesProcessed / 1024);
+      Serial.print(" KB (");
+      Serial.print(searchProgress);
+      Serial.println("%)");
+      yield();  // Allow other tasks to run
+    }
+
+    for (int i = 0; i < bytesRead && !found; i++) {
+      char c = buffer[i];
+
+      // Track object boundaries
+      if (c == '{') {
+        objStartPos = lineBuffer.length();
+        lineBuffer += c;
+      } else if (c == '}' && objStartPos != -1) {
+        lineBuffer += c;
+
+        // Check if this object contains our radio_id
+        if (lineBuffer.indexOf(searchPattern) != -1) {
+          Serial.println("Found matching record!");
+          Serial.println(lineBuffer);
+
+          // Parse the JSON object fields
+          String callsign = extractJSONField(lineBuffer, "CALLSIGN");
+          String city = extractJSONField(lineBuffer, "CITY");
+          String country = extractJSONField(lineBuffer, "COUNTRY");
+          String firstName = extractJSONField(lineBuffer, "FIRST_NAME");
+          String state = extractJSONField(lineBuffer, "STATE");
+
+          // Build response in the requested format
+          searchResult = "{\"results\":[{";
+          searchResult += "\"callsign\":\"" + callsign + "\",";
+          searchResult += "\"city\":\"" + city + "\",";
+          searchResult += "\"country\":\"" + country + "\",";
+          searchResult += "\"name\":\"" + firstName + "\",";
+          searchResult += "\"radio_id\":" + String(searchRadioId) + ",";
+          searchResult += "\"state\":";
+          if (state.length() > 0 && state != "null") {
+            searchResult += "\"" + state + "\"";
+          } else {
+            searchResult += "null";
+          }
+          searchResult += "}]}";
+
+          found = true;
+        }
+
+        // Clear buffer for next object
+        lineBuffer = "";
+        objStartPos = -1;
+      } else if (objStartPos != -1) {
+        // Building an object
+        lineBuffer += c;
+
+        // Prevent buffer overflow
+        if (lineBuffer.length() > 500) {
+          lineBuffer = "";
+          objStartPos = -1;
+        }
+      }
+    }
+  }
+
+  dbFile.close();
+
+  unsigned long searchTime = millis() - startTime;
+  Serial.print("Search completed in ");
+  Serial.print(searchTime);
+  Serial.println(" ms");
+
+  if (!found) {
+    Serial.println("No matching record found");
+    searchResult = "{\"results\":[]}";
+  }
+
+  searchProgress = 100;
+  Serial.println("=== DMR user search complete ===");
+}
+
+// Helper function to extract a field value from a JSON string
+String extractJSONField(String json, String fieldName) {
+  String searchStr = "\"" + fieldName + "\":";
+  int startPos = json.indexOf(searchStr);
+  if (startPos == -1) return "";
+
+  startPos += searchStr.length();
+
+  // Skip whitespace
+  while (startPos < json.length() && (json.charAt(startPos) == ' ' || json.charAt(startPos) == '\t')) {
+    startPos++;
+  }
+
+  // Check if it's a string value (starts with quote)
+  if (startPos < json.length() && json.charAt(startPos) == '"') {
+    startPos++; // Skip opening quote
+    int endPos = json.indexOf('"', startPos);
+    if (endPos != -1) {
+      return json.substring(startPos, endPos);
+    }
+  } else {
+    // It's a number or null
+    int endPos = startPos;
+    while (endPos < json.length() && json.charAt(endPos) != ',' && json.charAt(endPos) != '}') {
+      endPos++;
+    }
+    return json.substring(startPos, endPos);
+  }
+
+  return "";
+}
+
 // Helper function to handle web client requests
 void handleWebClient(WiFiClient &client) {
   String request = "";
@@ -341,7 +509,71 @@ void handleWebClient(WiFiClient &client) {
 
       if (line == "\r") {  // End of HTTP header
         // Check request type
-        if (request.indexOf("GET / ") >= 0) {
+        if (request.indexOf("GET /api/dmr/user/?id=") >= 0) {
+          // Extract radio_id from URL
+          int idPos = request.indexOf("id=");
+          if (idPos != -1) {
+            idPos += 3; // Skip "id="
+            int endPos = request.indexOf(' ', idPos);
+            if (endPos == -1) endPos = request.indexOf('&', idPos);
+            if (endPos == -1) endPos = request.indexOf('\r', idPos);
+
+            String radioIdStr = request.substring(idPos, endPos);
+            unsigned long radioId = radioIdStr.toInt();
+
+            Serial.print("API request for radio_id: ");
+            Serial.println(radioId);
+
+            // Perform synchronous search
+            searchRadioId = radioId;
+            performDMRSearch();
+
+            // Build complete response
+            String jsonResponse = "{\"searching\":false,\"progress\":100,\"result\":" + searchResult + "}";
+
+            // Send HTTP response with results
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            client.println("Access-Control-Allow-Origin: *");
+            client.print("Content-Length: ");
+            client.println(jsonResponse.length());
+            client.println();
+            client.println(jsonResponse);
+
+            // Clear result after sending
+            searchResult = "";
+          } else {
+            client.println("HTTP/1.1 400 Bad Request");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            client.println();
+            client.println("{\"error\":\"Missing id parameter\"}");
+          }
+        }
+        else if (request.indexOf("GET /api/dmr/status") >= 0) {
+          // Return current search status
+          String jsonResponse;
+          if (searchActive) {
+            jsonResponse = "{\"searching\":true,\"progress\":" + String(searchProgress) + "}";
+          } else if (searchResult.length() > 0) {
+            jsonResponse = "{\"searching\":false,\"progress\":100,\"result\":" + searchResult + "}";
+            // Clear the result after sending
+            searchResult = "";
+          } else {
+            jsonResponse = "{\"searching\":false,\"progress\":0}";
+          }
+
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");
+          client.println("Access-Control-Allow-Origin: *");
+          client.print("Content-Length: ");
+          client.println(jsonResponse.length());
+          client.println();
+          client.println(jsonResponse);
+        }
+        else if (request.indexOf("GET / ") >= 0) {
           // Check for updates before serving the page
           checkForUpdate();
 
