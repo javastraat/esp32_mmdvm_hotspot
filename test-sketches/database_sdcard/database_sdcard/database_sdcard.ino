@@ -15,9 +15,14 @@ volatile bool downloadRequested = false;
 
 // Download progress tracking
 volatile int downloadProgress = 0;  // 0-100%
-volatile int downloadBytesTotal = 0;
-volatile int downloadBytesWritten = 0;
+volatile unsigned long downloadBytesTotal = 0;
+volatile unsigned long downloadBytesWritten = 0;
 String downloadStatus = "Idle";
+
+// Update checking
+unsigned long remoteFileSize = 0;
+unsigned long localFileSize = 0;
+bool updateAvailable = false;
 
 // SD card pins (adjust if your board uses different pins)
 #define SPI_MISO_PIN 9
@@ -274,6 +279,57 @@ void setup() {
   Serial.println(WiFi.localIP());
 }
 
+// Function to check if an update is available
+bool checkForUpdate() {
+  Serial.println("=== Checking for updates ===");
+
+  // Get local file size
+  localFileSize = 0;
+  if (SD.exists(destFile)) {
+    File localFile = SD.open(destFile);
+    if (localFile) {
+      localFileSize = localFile.size();
+      localFile.close();
+      Serial.print("Local file size: ");
+      Serial.print(localFileSize);
+      Serial.println(" bytes");
+    }
+  } else {
+    Serial.println("Local file does not exist - update available!");
+    updateAvailable = true;
+    return true;
+  }
+
+  // Get remote file size using HEAD request
+  HTTPClient http;
+  http.begin(fileURL);
+  int httpCode = http.sendRequest("HEAD");
+
+  if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND) {
+    remoteFileSize = http.getSize();
+    Serial.print("Remote file size: ");
+    Serial.print(remoteFileSize);
+    Serial.println(" bytes");
+
+    // Compare sizes
+    if (remoteFileSize != localFileSize) {
+      Serial.println("Update available! File sizes differ.");
+      updateAvailable = true;
+    } else {
+      Serial.println("No update needed. Files are the same size.");
+      updateAvailable = false;
+    }
+  } else {
+    Serial.print("Failed to check remote file. HTTP code: ");
+    Serial.println(httpCode);
+    updateAvailable = false;
+  }
+
+  http.end();
+  Serial.println("=== Update check complete ===\n");
+  return updateAvailable;
+}
+
 // Helper function to handle web client requests
 void handleWebClient(WiFiClient &client) {
   String request = "";
@@ -286,6 +342,9 @@ void handleWebClient(WiFiClient &client) {
       if (line == "\r") {  // End of HTTP header
         // Check request type
         if (request.indexOf("GET / ") >= 0) {
+          // Check for updates before serving the page
+          checkForUpdate();
+
           // Send HTML page
           client.println("HTTP/1.1 200 OK");
           client.println("Content-Type: text/html");
@@ -352,19 +411,37 @@ void handleWebClient(WiFiClient &client) {
 
           // Card 3: Download Button
           client.println("<div class='card'><h2>Database Download</h2>");
-          client.print("<p>Database file exists: ");
+          client.print("<p>Local file exists: ");
           client.println(SD.exists(destFile) ? "YES" : "NO");
           client.println("</p>");
           if (SD.exists(destFile)) {
             File dbFile = SD.open(destFile);
             if (dbFile) {
-              client.print("<p>File size: ");
+              client.print("<p>Local file size: ");
               client.print(dbFile.size());
               client.println(" bytes</p>");
               dbFile.close();
             }
           }
-          client.println("<button id='download-btn' onclick='startDownload()'>Download Database from GitHub</button>");
+
+          // Show update status
+          if (remoteFileSize > 0) {
+            client.print("<p>Remote file size: ");
+            client.print(remoteFileSize);
+            client.println(" bytes</p>");
+
+            if (updateAvailable) {
+              client.println("<p style='color:#ff9800;font-weight:bold'>Update available!</p>");
+            } else {
+              client.println("<p style='color:#4CAF50;font-weight:bold'>Database is up to date</p>");
+            }
+          }
+
+          client.print("<button id='download-btn' onclick='startDownload()'");
+          if (updateAvailable) {
+            client.print(" style='background:#4CAF50'");  // Green if update available
+          }
+          client.println(">Download Database</button>");
           if (SD.exists(destFile)) {
             client.println(" <button onclick=\"if(confirm('Delete database file?')) location.href='/delete'\" style=\"background:#dc3545\">Delete Database</button>");
           }
@@ -410,27 +487,43 @@ void handleWebClient(WiFiClient &client) {
 
           downloadRequested = true;
         }
-        else if (request.indexOf("GET /delete") >= 0) {
-          // Delete database file
+        else if (request.indexOf("GET /check") >= 0) {
+          // Check for updates
           client.println("HTTP/1.1 200 OK");
           client.println("Content-Type: text/html");
           client.println("Connection: close");
           client.println();
-          client.println("<html><body><h1>Delete Database</h1>");
+          client.println("<html><body><h1>Checking for Updates...</h1>");
+          client.println("<p>Please wait...</p>");
+          client.println("<script>setTimeout(function(){window.location.href='/';}, 2000);</script>");
+          client.println("</body></html>");
+
+          // Perform the update check (will happen after response is sent)
+          client.stop();
+          checkForUpdate();
+          return;
+        }
+        else if (request.indexOf("GET /delete") >= 0) {
+          // Delete database file
+          bool deleteSuccess = false;
 
           if (SD.exists(destFile)) {
             if (SD.remove(destFile)) {
-              client.println("<p style='color:green'>✓ Database file deleted successfully!</p>");
+              deleteSuccess = true;
               Serial.println("Database file deleted via web interface");
             } else {
-              client.println("<p style='color:red'>✗ Failed to delete database file!</p>");
               Serial.println("Failed to delete database file");
             }
-          } else {
-            client.println("<p>Database file does not exist.</p>");
           }
 
-          client.println("<p><a href='/'>Back to Status</a></p></body></html>");
+          // Send response and redirect to main page
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");
+          client.println();
+          client.println("<html><body>");
+          client.println("<script>window.location.href='/';</script>");
+          client.println("</body></html>");
         }
         break;
       }
@@ -456,7 +549,7 @@ void performDownload() {
   if (httpCode == HTTP_CODE_OK) {
     downloadBytesTotal = http.getSize();
     Serial.print("Content-Length: ");
-    Serial.print(downloadBytesTotal);
+    Serial.print((unsigned long)downloadBytesTotal);
     Serial.println(" bytes");
 
     // Delete old file if exists
@@ -485,7 +578,7 @@ void performDownload() {
     // Manual download with progress tracking
     WiFiClient* stream = http.getStreamPtr();
     uint8_t buffer[2048];  // Larger buffer for better speed
-    int totalWritten = 0;
+    unsigned long totalWritten = 0;
     int lastPercent = -1;
 
     Serial.println("Starting download...");
@@ -502,7 +595,7 @@ void performDownload() {
       if (available) {
         int bytesToRead = min((int)available, (int)sizeof(buffer));
         if (downloadBytesTotal > 0) {
-          bytesToRead = min(bytesToRead, downloadBytesTotal - totalWritten);
+          bytesToRead = min(bytesToRead, (int)(downloadBytesTotal - totalWritten));
         }
 
         int bytesRead = stream->readBytes(buffer, bytesToRead);
@@ -512,16 +605,16 @@ void performDownload() {
           totalWritten += bytesWritten;
           downloadBytesWritten = totalWritten;
 
-          // Update progress
+          // Update progress - use long arithmetic to avoid overflow
           int percent = 0;
           if (downloadBytesTotal > 0) {
-            percent = (totalWritten * 100) / downloadBytesTotal;
+            percent = (int)((totalWritten * 100UL) / downloadBytesTotal);
           }
           downloadProgress = percent;
 
           // Print progress every 10%
           if (percent != lastPercent && percent % 10 == 0) {
-            Serial.printf("Progress: %d%% (%d / %d bytes)\n",
+            Serial.printf("Progress: %d%% (%lu / %lu bytes)\n",
                          percent, totalWritten, downloadBytesTotal);
             lastPercent = percent;
           }
@@ -551,7 +644,7 @@ void performDownload() {
     downloadProgress = 100;
     downloadStatus = "Download complete!";
 
-    Serial.printf("SUCCESS! Downloaded %d bytes in %lu ms\n", totalWritten, downloadDuration);
+    Serial.printf("SUCCESS! Downloaded %lu bytes in %lu ms\n", totalWritten, downloadDuration);
 
     // Verify file was written
     if (SD.exists(destFile)) {
@@ -563,9 +656,9 @@ void performDownload() {
         Serial.println(" bytes");
 
         if (fileSize == downloadBytesTotal) {
-          Serial.println("✓ File size matches!");
+          Serial.println("File size matches!");
         } else {
-          Serial.println("✗ WARNING: File size mismatch!");
+          Serial.println("WARNING: File size mismatch!");
         }
         verifyFile.close();
       }
