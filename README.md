@@ -47,7 +47,9 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 **Firmware Version:** 20260106_ESP32_BETA
 
 ### Confirmed Working
+- **Bidirectional DMR** - Full duplex operation: Network → RF and RF → Network transmission paths
 - **Network → RF Transmission** - Receive DMR from BrandMeister and transmit over RF (user verified!)
+- **RF → Network Transmission** - Receive DMR from radio and forward to BrandMeister network
 - **Full DMR Protocol** - BrandMeister network integration with SHA256 authentication
 - **MMDVM Communication** - Complete protocol implementation (115200 baud, GPIO 43/44/13)
 - **Real-time User Lookup** - RadioID.net API integration with callsign/name/location
@@ -65,8 +67,8 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 - **MMDVM Firmware Flasher** - Flash modem firmware online from GitHub or upload .bin files
 
 ### In Development
-- **RF → Network Path** - Receive DMR from radio and forward to network (RX path)
 - **RSSI Monitoring** - Signal strength reporting from modem
+- **Additional Digital Modes** - D-Star, YSF, P25, NXDN protocol implementations
 
 ### Planned Features
 - **D-Star** - D-Star network and protocol support
@@ -79,9 +81,10 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 
 ### Tested & Confirmed Working
 - **Board:** LILYGO T-ETH-Elite ESP32-S3 with MMDVM HS Hat
-- **MMDVM Firmware:** MMDVM_HS_Hat-v1.6.1 20231115_WPSD (14.7456MHz ADF7021)
-  - Firmware by: CA6JAU, G4KLX, W0CHP
-  - GitID: #7e16099
+- **MMDVM Firmware:** MMDVM_HS_Hat-v1.6.1 (14.7456MHz ADF7021)
+  - Build Date: 05-01-2025
+  - Firmware by: CA6JAU, G4KLX, PD2EMC
+  - GitID: #19e86eb
 - **Baud Rate:** 115200 (confirmed working)
 - **Antenna:** UHF/VHF (e.g., 70cm for 434MHz)
 
@@ -283,7 +286,7 @@ When someone transmits on BrandMeister network:
 5. **Frame Transmission** - DMR frames sent to modem via `CMD_DMR_DATA2 (0x1A)` with 55ms delay
 6. **RF Output** - MMDVM modem transmits on configured frequency
 7. **TX END** - After 500ms timeout, sends `CMD_DMR_START (0x00)` to exit TX mode
-8. **History Logging** - Transmission added to history with duration
+8. **History Logging** - Transmission added to DMR history with duration
 
 **Example Log:**
 ```
@@ -294,6 +297,25 @@ When someone transmits on BrandMeister network:
 [HISTORY] Adding to history: VU3LQE (4040888) -> TG91 Duration: 10s
 [SERVER] DMR: Slot2 Seq=1-129 4040888->TG91 [END]
 ```
+
+### RF → Network Transmission Path (Working!)
+When you transmit on your radio to the hotspot:
+
+1. **RF Reception** - MMDVM modem receives DMR signal from your radio
+2. **Frame Processing** - Modem sends `CMD_DMR_DATA2 (0x1A)` frames to ESP32 via UART
+3. **Slot Detection** - ESP32 identifies slot number (1 or 2) from frame data
+4. **Stream Tracking** - Maintains TX stream ID and sequence numbers for the transmission
+5. **Network Forwarding** - DMR frames encapsulated and sent to BrandMeister server (UDP port 62031)
+6. **RF History Logging** - Local transmission added to RF history with duration
+7. **Activity Display** - Web interface and OLED show your transmission in progress
+8. **Network Distribution** - BrandMeister forwards your transmission to talkgroup subscribers
+
+**Key Features:**
+- **Dual-slot support** - Handles both Slot 1 and Slot 2 transmissions independently
+- **Stream management** - Proper stream ID tracking prevents packet collision
+- **Sequence tracking** - Frame sequence numbers ensure correct packet ordering
+- **Automatic cleanup** - Stream state cleared after transmission completes
+- **History separation** - RF transmissions logged separately from network reception
 
 ### Critical Timing
 - **DMR Frame Timing:** 60ms between frames
@@ -1519,13 +1541,15 @@ This project welcomes contributions from licensed amateur radio operators! Areas
 - **Amateur Radio Only:** Valid license required for operation
 
 ### Recent Updates (20260106_ESP32_BETA)
+- **Full Duplex DMR Operation:** Bidirectional communication - both Network → RF and RF → Network paths working!
 - **REST API Implementation:** Complete HTTP API with 20+ endpoints for monitoring and control
 - **MQTT Integration:** Real-time publishing of system status and DMR activity to MQTT brokers
 - **MMDVM Firmware Flasher:** Flash modem firmware online from GitHub or upload custom .bin files
 - **API Examples:** Ready-to-use Node-RED flows and OpenAPI specification
 - **Enhanced Monitoring:** System information, modem details, and DMR activity via JSON APIs
 - **Home Automation Ready:** MQTT topics for Home Assistant, Node-RED, Grafana integration
-- **Network → RF Transmission Working!** User-confirmed DMR audio reception on radio
+- **Dual History Tracking:** Separate logging for network RX and local RF TX
+- **Stream Management:** Proper stream ID and sequence tracking for RF transmissions
 - **MMDVM Protocol Complete:** Full communication with MMDVM HS Hat at 115200 baud
 
 ## Resources and Documentation
