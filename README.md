@@ -1,7 +1,7 @@
 # ESP32 MMDVM Hotspot
 
 <p align="center">
-  <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo" height="400">
+  <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo" width="400">
 </p>
 <hr>
 
