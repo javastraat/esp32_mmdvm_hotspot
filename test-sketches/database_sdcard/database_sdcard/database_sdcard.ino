@@ -28,12 +28,12 @@ String downloadStatus = "Idle";
 const char* ssid     = "TechInc";
 const char* password = "itoldyoualready";
 
-//const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/database-beta/master/database.csv";
-const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/main/database.csv";
+const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.json";
+//const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/main/database.csv";
 
 //https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv
 const char* databaseDir = "/database";
-const char* destFile = "/database/database.csv";
+const char* destFile = "/database/database.json";
 
 
 SPIClass sdSPI(HSPI);
