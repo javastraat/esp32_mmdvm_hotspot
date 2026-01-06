@@ -1,9 +1,10 @@
 # ESP32 MMDVM Hotspot
 
-A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration. 
+<p align="center">
+  <img src="screenshots/esp32-mmdvm-logo.png" alt="ESP32 MMDVM Logo" width="400">
+</p>
 
-
-![Logo](screenshots/esp32-mmdvm-logo.png)
+A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration.
 
 ## Table of Contents
 
