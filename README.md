@@ -119,9 +119,8 @@ ESP32 GPIO    MMDVM Hat     Function
 ----------    ---------     --------
 GPIO 43       → RX          ESP32 TX to MMDVM RX (sends commands/data)
 GPIO 44       ← TX          ESP32 RX from MMDVM TX (receives responses)
-GPIO 13       → (Wakeup)    Keeps MMDVM active (requires UART activity)
-GPIO 12       ← (LED)       Status LED monitoring (read-only)
-GPIO 0        → PTT         Push-to-Talk Control
+GPIO 13       → Wakeup      Keeps MMDVM active (requires UART activity)
+GPIO 4        → BOOT0       Bootloader control for firmware flashing
 GPIO 38       → COS/LED     Carrier Detect LED
 3.3V          → VCC         Power Supply (3.3V only!)
 GND           → GND         Ground
@@ -129,6 +128,7 @@ GND           → GND         Ground
 
 **Critical Notes:**
 - **GPIO 13 Wakeup:** MMDVM requires continuous UART activity on this pin to stay active
+- **GPIO 4 BOOT0:** Used for entering STM32 bootloader mode during firmware flashing
 - **Baud Rate:** 115200 confirmed working (SERIAL_8N1)
 - **Timing:** UART .flush() after writes is critical for reliability
 - **Voltage:** 3.3V only - DO NOT use 5V
@@ -150,6 +150,13 @@ ESP32 GPIO    LED Color     Function
 GPIO 41       → Red         Status indicator
 GPIO 40       → Green       TX indicator
 GPIO 42       → Blue        RX indicator
+```
+
+### Button (Optional)
+```
+ESP32 GPIO    Function
+----------    --------
+GPIO 0        OLED Display Toggle (press to turn on/off)
 ```
 
 ## Quick Start
