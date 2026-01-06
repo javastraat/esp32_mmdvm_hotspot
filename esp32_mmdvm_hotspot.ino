@@ -1,25 +1,79 @@
 /*
- * ESP32 MMDVM Hotspot 
+ * ESP32 MMDVM Hotspot
  *
- * This code provides a basic framework for using an ESP32 with an MMDVM hat
- * to create a DMR hotspot similar to Pi-Star.
+ * A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface,
+ * and BrandMeister network integration. Full duplex operation with Network → RF and RF → Network paths.
  *
  * Hardware Requirements:
- * - ESP32 Development Board
- * - MMDVM Hat (compatible with ESP32 3.3V logic or use level shifters)
- * - Antenna and appropriate radio frontend
+ * - ESP32-S3 Development Board (LILYGO T-ETH-Elite recommended) or ESP32-WROOM-32/WROVER
+ * - MMDVM HS Hat (14.7456MHz ADF7021, confirmed working)
+ * - Antenna and appropriate radio frontend (UHF/VHF)
+ * - Optional: OLED Display (SSD1306 128x64 I2C)
+ * - Optional: RGB LED (GPIO 40/41/42)
  *
- * Connections:
- * - MMDVM RX -> ESP32 GPIO16 (RX2)
- * - MMDVM TX -> ESP32 GPIO17 (TX2)
- * - MMDVM PTT -> ESP32 GPIO4
- * - MMDVM COSLED -> ESP32 GPIO2
+ * Pin Connections (LILYGO T-ETH-Elite ESP32-S3):
+ * MMDVM Serial:
+ * - MMDVM RX <- ESP32 GPIO 43 (TX to MMDVM)
+ * - MMDVM TX -> ESP32 GPIO 44 (RX from MMDVM)
+ * - MMDVM WAKEUP <- ESP32 GPIO 13 (keeps modem active)
+ * - MMDVM BOOT0 <- ESP32 GPIO 4 (bootloader control for firmware flashing)
+ * - MMDVM COS/LED <- ESP32 GPIO 38 (carrier detect LED)
+ * - Baud Rate: 115200 (SERIAL_8N1)
  *
- * Libraries needed:
- * - WiFi (built-in)
- * - WiFiUDP (built-in)
- * - WebServer (built-in)
- * - ESPmDNS (built-in)
+ * OLED Display (I2C, optional):
+ * - SDA -> ESP32 GPIO 17
+ * - SCL -> ESP32 GPIO 18
+ * - I2C Address: 0x3C or 0x3D
+ *
+ * RGB LED (optional):
+ * - Red -> ESP32 GPIO 41
+ * - Green -> ESP32 GPIO 40
+ * - Blue -> ESP32 GPIO 42
+ *
+ * Button:
+ * - OLED Toggle -> ESP32 GPIO 0
+ *
+ * Libraries needed (ESP32 Arduino Core):
+ * Built-in ESP32 Libraries:
+ * - WiFi (WiFi network connectivity)
+ * - WiFiUdp (UDP communication for DMR network)
+ * - WebServer (Professional web interface)
+ * - ESPmDNS (Network discovery - esp32-mmdvm.local)
+ * - Preferences (Configuration storage with NVS)
+ * - HTTPClient (OTA firmware downloads from GitHub)
+ * - Update (OTA firmware flashing)
+ * - WiFiClientSecure (Secure HTTPS connections)
+ * - mbedtls/md.h (SHA256 cryptographic authentication)
+ * - nvs_flash (NVS partition management for factory reset)
+ * - time.h (NTP time synchronization)
+ * - PubSubClient (MQTT publishing for home automation)
+ * - Wire (I2C communication for OLED)
+ * - ETH/ETHClass2 (Ethernet support for T-ETH-Elite)
+ * - SPI (SD card support for T-ETH-Elite)
+ * - SD (SD card file system)
+ *
+ * External Libraries (install via Arduino Library Manager):
+ * - Adafruit GFX Library (for OLED display graphics)
+ * - Adafruit SSD1306 (for OLED display driver)
+ *
+ * Features:
+ * - Full duplex DMR operation (Network → RF and RF → Network)
+ * - BrandMeister network integration with SHA256 authentication
+ * - Real-time web interface with REST API (20+ endpoints)
+ * - MQTT publishing for home automation (Home Assistant, Node-RED, Grafana)
+ * - MMDVM firmware flasher (online from GitHub or file upload)
+ * - Multi-network WiFi with auto-failover (primary + 5 backup slots)
+ * - OLED display with auto-blank and bootlogo
+ * - RGB LED status indicators
+ * - Configuration management (import/export, backup/restore)
+ * - OTA ESP32 firmware updates
+ * - Dual history tracking (network RX and local RF TX)
+ * - User lookup with dual-cache system (RadioID.net API)
+ *
+ * Developed by PD2EMC & PD8JO
+ * Repository: https://github.com/javastraat/esp32_mmdvm_hotspot
+ * License: Amateur Radio Non-Commercial License
+ * For licensed amateur radio operators only
  */
 
 #include <WiFi.h>
