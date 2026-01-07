@@ -561,18 +561,15 @@ void handleWebClient(WiFiClient &client) {
             searchRadioId = radioId;
             performDMRSearch();
 
-            // Build complete response
-            String jsonResponse = "{\"searching\":false,\"progress\":100,\"result\":" + searchResult + "}";
-
-            // Send HTTP response with results
+            // Send HTTP response with results (searchResult already contains the complete JSON)
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
             client.println("Connection: close");
             client.println("Access-Control-Allow-Origin: *");
             client.print("Content-Length: ");
-            client.println(jsonResponse.length());
+            client.println(searchResult.length());
             client.println();
-            client.println(jsonResponse);
+            client.println(searchResult);
 
             // Clear result after sending
             searchResult = "";
@@ -654,6 +651,32 @@ void handleWebClient(WiFiClient &client) {
           client.println("    }");
           client.println("  }).catch(e=>console.error('Fetch error:',e));");
           client.println("}");
+          client.println("function searchRadioId(){");
+          client.println("  var id=document.getElementById('search-id').value;");
+          client.println("  if(!id){alert('Please enter a Radio ID');return;}");
+          client.println("  document.getElementById('search-btn').disabled=true;");
+          client.println("  document.getElementById('search-result').innerHTML='<p>Searching...</p>';");
+          client.println("  fetch('/api/dmr/user/?id='+id).then(r=>r.json()).then(data=>{");
+          client.println("    document.getElementById('search-btn').disabled=false;");
+          client.println("    if(data.results && data.results.length>0){");
+          client.println("      var r=data.results[0];");
+          client.println("      var html='<table style=\"width:100%;border-collapse:collapse\">';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">Callsign:</td><td style=\"padding:5px;border:1px solid #ddd\">'+r.callsign+'</td></tr>';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">Name:</td><td style=\"padding:5px;border:1px solid #ddd\">'+r.name+'</td></tr>';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">City:</td><td style=\"padding:5px;border:1px solid #ddd\">'+r.city+'</td></tr>';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">State:</td><td style=\"padding:5px;border:1px solid #ddd\">'+(r.state||'N/A')+'</td></tr>';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">Country:</td><td style=\"padding:5px;border:1px solid #ddd\">'+r.country+'</td></tr>';");
+          client.println("      html+='<tr><td style=\"padding:5px;border:1px solid #ddd;font-weight:bold\">Radio ID:</td><td style=\"padding:5px;border:1px solid #ddd\">'+r.radio_id+'</td></tr>';");
+          client.println("      html+='</table>';");
+          client.println("      document.getElementById('search-result').innerHTML=html;");
+          client.println("    }else{");
+          client.println("      document.getElementById('search-result').innerHTML='<p style=\"color:#dc3545\">No results found for Radio ID: '+id+'</p>';");
+          client.println("    }");
+          client.println("  }).catch(e=>{");
+          client.println("    document.getElementById('search-btn').disabled=false;");
+          client.println("    document.getElementById('search-result').innerHTML='<p style=\"color:#dc3545\">Error: '+e.message+'</p>';");
+          client.println("  });");
+          client.println("}");
           client.println("</script></head><body>");
 
           client.println("<h1>SD Card Test Interface</h1>");
@@ -675,7 +698,41 @@ void handleWebClient(WiFiClient &client) {
           root.close();
           client.println("</pre></div>");
 
-          // Card 3: Download Button
+          // Card 3: Owner Info
+          client.println("<div class='card'><h2>Owner Information</h2>");
+          if (SD.exists("/owner.txt")) {
+            File ownerFile = SD.open("/owner.txt");
+            if (ownerFile) {
+              client.println("<pre style='margin:0;background:#f5f5f5;padding:10px;border-radius:3px'>");
+              while (ownerFile.available()) {
+                client.write(ownerFile.read());
+              }
+              ownerFile.close();
+              client.println("</pre>");
+            } else {
+              client.println("<p>Could not read owner.txt</p>");
+            }
+          } else {
+            client.println("<p>owner.txt not found</p>");
+          }
+          client.println("</div>");
+
+          // Card 4: DMR Database Search
+          client.println("<div class='card'><h2>DMR Database Search</h2>");
+          if (SD.exists(destFile)) {
+            client.println("<p>Search for DMR user by Radio ID:</p>");
+            client.println("<div style='margin:10px 0'>");
+            client.println("<input type='text' id='search-id' placeholder='Enter Radio ID' style='padding:8px;width:200px;border:1px solid #ddd;border-radius:3px'>");
+            client.println(" <button id='search-btn' onclick='searchRadioId()'>Search</button>");
+            client.println("</div>");
+            client.println("<div id='search-result' style='margin-top:15px'></div>");
+          } else {
+            client.println("<p style='color:#ff9800;font-weight:bold'>Database not available</p>");
+            client.println("<p>Please download the database first to enable search functionality.</p>");
+          }
+          client.println("</div>");
+
+          // Card 5: Download Button
           client.println("<div class='card'><h2>Database Download</h2>");
           client.print("<p>Local file exists: ");
           client.println(SD.exists(destFile) ? "YES" : "NO");
