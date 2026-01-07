@@ -1,3 +1,7 @@
+//
+// api lookup from csv thru ip/api/dmr/user/?id=2041126
+
+
 #include <WiFi.h>
 #include <SD.h>
 #include <SPI.h>
@@ -40,12 +44,12 @@ bool updateAvailable = false;
 const char* ssid     = "TechInc";
 const char* password = "itoldyoualready";
 
-const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.json";
-//const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/main/database.csv";
+//const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.json";
+const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/main/database.csv";
 
 //https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv
 const char* databaseDir = "/database";
-const char* destFile = "/database/database.json";
+const char* destFile = "/database/database.csv";
 
 
 SPIClass sdSPI(HSPI);
@@ -364,18 +368,18 @@ void performDMRSearch() {
   Serial.print(fileSize);
   Serial.println(" bytes");
 
-  // Search for the radio_id in the JSON array
-  String searchPattern = "\"RADIO_ID\":" + String(searchRadioId);
+  // Search for the radio_id in the CSV file
+  String searchStr = String(searchRadioId);
   bool found = false;
 
   // Larger buffer for better performance
   const int BUFFER_SIZE = 4096;
   char buffer[BUFFER_SIZE];
   String lineBuffer = "";
-  lineBuffer.reserve(500);  // Pre-allocate
-  int objStartPos = -1;
+  lineBuffer.reserve(256);  // Pre-allocate for typical CSV line
   unsigned long bytesProcessed = 0;
   unsigned long startTime = millis();
+  bool firstLine = true;  // Skip header line
 
   while (dbFile.available() && !found) {
     int bytesRead = dbFile.read((uint8_t*)buffer, BUFFER_SIZE);
@@ -397,55 +401,116 @@ void performDMRSearch() {
     for (int i = 0; i < bytesRead && !found; i++) {
       char c = buffer[i];
 
-      // Track object boundaries
-      if (c == '{') {
-        objStartPos = lineBuffer.length();
-        lineBuffer += c;
-      } else if (c == '}' && objStartPos != -1) {
-        lineBuffer += c;
+      // Skip carriage returns
+      if (c == '\r') continue;
 
-        // Check if this object contains our radio_id
-        if (lineBuffer.indexOf(searchPattern) != -1) {
-          Serial.println("Found matching record!");
-          Serial.println(lineBuffer);
-
-          // Parse the JSON object fields
-          String callsign = extractJSONField(lineBuffer, "CALLSIGN");
-          String city = extractJSONField(lineBuffer, "CITY");
-          String country = extractJSONField(lineBuffer, "COUNTRY");
-          String firstName = extractJSONField(lineBuffer, "FIRST_NAME");
-          String state = extractJSONField(lineBuffer, "STATE");
-
-          // Build response in the requested format
-          searchResult = "{\"results\":[{";
-          searchResult += "\"callsign\":\"" + callsign + "\",";
-          searchResult += "\"city\":\"" + city + "\",";
-          searchResult += "\"country\":\"" + country + "\",";
-          searchResult += "\"name\":\"" + firstName + "\",";
-          searchResult += "\"radio_id\":" + String(searchRadioId) + ",";
-          searchResult += "\"state\":";
-          if (state.length() > 0 && state != "null") {
-            searchResult += "\"" + state + "\"";
-          } else {
-            searchResult += "null";
-          }
-          searchResult += "}]}";
-
-          found = true;
-        }
-
-        // Clear buffer for next object
-        lineBuffer = "";
-        objStartPos = -1;
-      } else if (objStartPos != -1) {
-        // Building an object
-        lineBuffer += c;
-
-        // Prevent buffer overflow
-        if (lineBuffer.length() > 500) {
+      // Process line when we hit newline
+      if (c == '\n') {
+        if (firstLine) {
+          // Skip header line: RADIO_ID,CALLSIGN,FIRST_NAME,CITY,STATE,COUNTRY
+          firstLine = false;
           lineBuffer = "";
-          objStartPos = -1;
+          continue;
         }
+
+        if (lineBuffer.length() > 0) {
+          // Parse CSV line: RADIO_ID,CALLSIGN,FIRST_NAME,CITY,STATE,COUNTRY
+          int commaPos[5];  // Positions of the 5 commas
+          int commaCount = 0;
+
+          for (int j = 0; j < lineBuffer.length() && commaCount < 5; j++) {
+            if (lineBuffer.charAt(j) == ',') {
+              commaPos[commaCount++] = j;
+            }
+          }
+
+          // Extract RADIO_ID (first field)
+          if (commaCount >= 5) {
+            String radioId = lineBuffer.substring(0, commaPos[0]);
+
+            // Check if this is the radio_id we're looking for
+            if (radioId == searchStr) {
+              Serial.println("Found matching record!");
+              Serial.println(lineBuffer);
+
+              // Extract fields: RADIO_ID,CALLSIGN,FIRST_NAME,CITY,STATE,COUNTRY
+              String callsign = lineBuffer.substring(commaPos[0] + 1, commaPos[1]);
+              String firstName = lineBuffer.substring(commaPos[1] + 1, commaPos[2]);
+              String city = lineBuffer.substring(commaPos[2] + 1, commaPos[3]);
+              String state = lineBuffer.substring(commaPos[3] + 1, commaPos[4]);
+              String country = lineBuffer.substring(commaPos[4] + 1);
+
+              // Build response in the requested format
+              searchResult = "{\"results\":[{";
+              searchResult += "\"callsign\":\"" + callsign + "\",";
+              searchResult += "\"city\":\"" + city + "\",";
+              searchResult += "\"country\":\"" + country + "\",";
+              searchResult += "\"name\":\"" + firstName + "\",";
+              searchResult += "\"radio_id\":" + String(searchRadioId) + ",";
+              searchResult += "\"state\":";
+              if (state.length() > 0) {
+                searchResult += "\"" + state + "\"";
+              } else {
+                searchResult += "null";
+              }
+              searchResult += "}]}";
+
+              found = true;
+            }
+          }
+        }
+
+        lineBuffer = "";
+      } else {
+        lineBuffer += c;
+
+        // Prevent buffer overflow (CSV lines shouldn't be this long)
+        if (lineBuffer.length() > 400) {
+          lineBuffer = "";
+        }
+      }
+    }
+  }
+
+  // Check last line if file doesn't end with newline
+  if (!found && lineBuffer.length() > 0 && !firstLine) {
+    int commaPos[5];
+    int commaCount = 0;
+
+    for (int j = 0; j < lineBuffer.length() && commaCount < 5; j++) {
+      if (lineBuffer.charAt(j) == ',') {
+        commaPos[commaCount++] = j;
+      }
+    }
+
+    if (commaCount >= 5) {
+      String radioId = lineBuffer.substring(0, commaPos[0]);
+
+      if (radioId == searchStr) {
+        Serial.println("Found matching record!");
+        Serial.println(lineBuffer);
+
+        String callsign = lineBuffer.substring(commaPos[0] + 1, commaPos[1]);
+        String firstName = lineBuffer.substring(commaPos[1] + 1, commaPos[2]);
+        String city = lineBuffer.substring(commaPos[2] + 1, commaPos[3]);
+        String state = lineBuffer.substring(commaPos[3] + 1, commaPos[4]);
+        String country = lineBuffer.substring(commaPos[4] + 1);
+
+        searchResult = "{\"results\":[{";
+        searchResult += "\"callsign\":\"" + callsign + "\",";
+        searchResult += "\"city\":\"" + city + "\",";
+        searchResult += "\"country\":\"" + country + "\",";
+        searchResult += "\"name\":\"" + firstName + "\",";
+        searchResult += "\"radio_id\":" + String(searchRadioId) + ",";
+        searchResult += "\"state\":";
+        if (state.length() > 0) {
+          searchResult += "\"" + state + "\"";
+        } else {
+          searchResult += "null";
+        }
+        searchResult += "}]}";
+
+        found = true;
       }
     }
   }
@@ -464,38 +529,6 @@ void performDMRSearch() {
 
   searchProgress = 100;
   Serial.println("=== DMR user search complete ===");
-}
-
-// Helper function to extract a field value from a JSON string
-String extractJSONField(String json, String fieldName) {
-  String searchStr = "\"" + fieldName + "\":";
-  int startPos = json.indexOf(searchStr);
-  if (startPos == -1) return "";
-
-  startPos += searchStr.length();
-
-  // Skip whitespace
-  while (startPos < json.length() && (json.charAt(startPos) == ' ' || json.charAt(startPos) == '\t')) {
-    startPos++;
-  }
-
-  // Check if it's a string value (starts with quote)
-  if (startPos < json.length() && json.charAt(startPos) == '"') {
-    startPos++; // Skip opening quote
-    int endPos = json.indexOf('"', startPos);
-    if (endPos != -1) {
-      return json.substring(startPos, endPos);
-    }
-  } else {
-    // It's a number or null
-    int endPos = startPos;
-    while (endPos < json.length() && json.charAt(endPos) != ',' && json.charAt(endPos) != '}') {
-      endPos++;
-    }
-    return json.substring(startPos, endPos);
-  }
-
-  return "";
 }
 
 // Helper function to handle web client requests
