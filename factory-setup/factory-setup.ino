@@ -130,39 +130,107 @@ void setup() {
   savedPassword = preferences.getString("password", "");
   
   // Load and display ALL preferences that might be stored by main firmware
-  String callsign = preferences.getString("callsign", "");
-  String dmrId = preferences.getString("dmrId", "");
-  String colorCode = preferences.getString("colorCode", "");
-  String rxFreq = preferences.getString("rxFreq", "");
-  String txFreq = preferences.getString("txFreq", "");
-  String hotspotMode = preferences.getString("hotspotMode", "");
-  String location = preferences.getString("location", "");
-  String description = preferences.getString("description", "");
-  String url = preferences.getString("url", "");
-  
+  // NOTE: Must use the EXACT same keys as main firmware (esp32_mmdvm_hotspot.ino)
+  String callsign = preferences.getString("dmr_callsign", "");
+  unsigned int dmrId = preferences.getUInt("dmr_id", 0);
+  unsigned char colorCode = preferences.getUChar("dmr_cc", 0);
+  unsigned int rxFreq = preferences.getUInt("dmr_rx_freq", 0);
+  unsigned int txFreq = preferences.getUInt("dmr_tx_freq", 0);
+  unsigned char essid = preferences.getUChar("dmr_essid", 0);
+  String dmrServer = preferences.getString("dmr_server", "");
+  String location = preferences.getString("dmr_location", "");
+  String description = preferences.getString("dmr_desc", "");
+  String url = preferences.getString("dmr_url", "");
+  String hostname = preferences.getString("hostname", "");
+
   Serial.println("WiFi Settings:");
   Serial.println("  SSID: '" + savedSSID + "' (length: " + String(savedSSID.length()) + ")");
   Serial.println("  Password: '" + savedPassword + "' (length: " + String(savedPassword.length()) + ")");
-  
+  Serial.println("  Hostname: '" + hostname + "'");
+
   Serial.println("DMR/Radio Settings:");
   Serial.println("  Callsign: '" + callsign + "'");
-  Serial.println("  DMR ID: '" + dmrId + "'");
-  Serial.println("  Color Code: '" + colorCode + "'");
-  Serial.println("  RX Frequency: '" + rxFreq + "'");
-  Serial.println("  TX Frequency: '" + txFreq + "'");
-  Serial.println("  Hotspot Mode: '" + hotspotMode + "'");
+  Serial.println("  DMR ID: " + String(dmrId));
+  Serial.println("  DMR Server: '" + dmrServer + "'");
+  Serial.println("  Color Code: " + String(colorCode));
+  Serial.println("  RX Frequency: " + String(rxFreq) + " Hz");
+  Serial.println("  TX Frequency: " + String(txFreq) + " Hz");
+  Serial.println("  ESSID (Hotspot Mode): " + String(essid));
   Serial.println("  Location: '" + location + "'");
   Serial.println("  Description: '" + description + "'");
   Serial.println("  URL: '" + url + "'");
+
+  int totalPrefs = (savedSSID.length() > 0 ? 1 : 0) + (savedPassword.length() > 0 ? 1 : 0) +
+                   (callsign.length() > 0 ? 1 : 0) + (dmrId > 0 ? 1 : 0) +
+                   (colorCode > 0 ? 1 : 0) + (rxFreq > 0 ? 1 : 0) +
+                   (txFreq > 0 ? 1 : 0) + (essid > 0 ? 1 : 0) +
+                   (location.length() > 0 ? 1 : 0) + (description.length() > 0 ? 1 : 0) +
+                   (url.length() > 0 ? 1 : 0) + (hostname.length() > 0 ? 1 : 0) +
+                   (dmrServer.length() > 0 ? 1 : 0);
   
-  int totalPrefs = (savedSSID.length() > 0 ? 1 : 0) + (savedPassword.length() > 0 ? 1 : 0) + 
-                   (callsign.length() > 0 ? 1 : 0) + (dmrId.length() > 0 ? 1 : 0) + 
-                   (colorCode.length() > 0 ? 1 : 0) + (rxFreq.length() > 0 ? 1 : 0) + 
-                   (txFreq.length() > 0 ? 1 : 0) + (hotspotMode.length() > 0 ? 1 : 0) + 
-                   (location.length() > 0 ? 1 : 0) + (description.length() > 0 ? 1 : 0) + 
-                   (url.length() > 0 ? 1 : 0);
-  
-  Serial.println("Total stored preferences: " + String(totalPrefs));
+  // Count ALL preferences by checking all known keys
+  int actualCount = 0;
+
+  // DMR Settings (15 possible)
+  if (preferences.isKey("dmr_callsign")) actualCount++;
+  if (preferences.isKey("dmr_id")) actualCount++;
+  if (preferences.isKey("dmr_server")) actualCount++;
+  if (preferences.isKey("dmr_password")) actualCount++;
+  if (preferences.isKey("dmr_essid")) actualCount++;
+  if (preferences.isKey("dmr_rx_freq")) actualCount++;
+  if (preferences.isKey("dmr_tx_freq")) actualCount++;
+  if (preferences.isKey("dmr_power")) actualCount++;
+  if (preferences.isKey("dmr_cc")) actualCount++;
+  if (preferences.isKey("dmr_lat")) actualCount++;
+  if (preferences.isKey("dmr_lon")) actualCount++;
+  if (preferences.isKey("dmr_height")) actualCount++;
+  if (preferences.isKey("dmr_location")) actualCount++;
+  if (preferences.isKey("dmr_desc")) actualCount++;
+  if (preferences.isKey("dmr_url")) actualCount++;
+
+  // WiFi Networks (15 possible)
+  for (int i = 0; i < 5; i++) {
+    if (preferences.isKey(("wifi" + String(i) + "_label").c_str())) actualCount++;
+    if (preferences.isKey(("wifi" + String(i) + "_ssid").c_str())) actualCount++;
+    if (preferences.isKey(("wifi" + String(i) + "_pass").c_str())) actualCount++;
+  }
+
+  // System Settings (11 possible)
+  if (preferences.isKey("hostname")) actualCount++;
+  if (preferences.isKey("verbose_log")) actualCount++;
+  if (preferences.isKey("debug_serial")) actualCount++;
+  if (preferences.isKey("debug_mmdvm")) actualCount++;
+  if (preferences.isKey("debug_network")) actualCount++;
+  if (preferences.isKey("debug_dmr")) actualCount++;
+  if (preferences.isKey("debug_password")) actualCount++;
+  if (preferences.isKey("enable_oled")) actualCount++;
+  if (preferences.isKey("oled_autoblank")) actualCount++;
+  if (preferences.isKey("oled_blank_to")) actualCount++;
+  if (preferences.isKey("modem_type")) actualCount++;
+
+  // Mode Settings (6 possible)
+  if (preferences.isKey("mode_dmr")) actualCount++;
+  if (preferences.isKey("mode_dstar")) actualCount++;
+  if (preferences.isKey("mode_ysf")) actualCount++;
+  if (preferences.isKey("mode_p25")) actualCount++;
+  if (preferences.isKey("mode_nxdn")) actualCount++;
+  if (preferences.isKey("mode_pocsag")) actualCount++;
+
+  // Web Auth (2 possible)
+  if (preferences.isKey("web_username")) actualCount++;
+  if (preferences.isKey("web_password")) actualCount++;
+
+  // MQTT Settings (8 possible)
+  if (preferences.isKey("mqtt_enabled")) actualCount++;
+  if (preferences.isKey("mqtt_broker")) actualCount++;
+  if (preferences.isKey("mqtt_port")) actualCount++;
+  if (preferences.isKey("mqtt_user")) actualCount++;
+  if (preferences.isKey("mqtt_pass")) actualCount++;
+  if (preferences.isKey("mqtt_client")) actualCount++;
+  if (preferences.isKey("mqtt_prefix")) actualCount++;
+  if (preferences.isKey("mqtt_interval")) actualCount++;
+
+  Serial.println("Actual total stored preferences (by enumeration): " + String(actualCount));
   Serial.println("=== End preferences debug ===");
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -292,6 +360,9 @@ void setup() {
   server.on("/get-modem-version", handleGetModemVersion);
   server.on("/flash-modem-url", HTTP_POST, handleFlashModemURL);
   server.on("/flash-modem-upload", HTTP_POST, []() {}, handleFlashModemUpload);
+
+  // Settings management routes
+  server.on("/clear-all-settings", HTTP_POST, handleClearAllSettings);
 
   server.begin();
   Serial.println("\nWeb server started!");
@@ -492,4 +563,26 @@ void handleScanNetworks() {
 
   // Clean up
   WiFi.scanDelete();
+}
+
+void handleClearAllSettings() {
+  Serial.println("\n=== CLEARING ALL SETTINGS ===");
+  Serial.println("WARNING: Erasing all stored preferences from 'mmdvm' namespace!");
+
+  // Clear all preferences in the mmdvm namespace
+  bool success = preferences.clear();
+
+  if (success) {
+    Serial.println("SUCCESS: All preferences cleared!");
+    Serial.println("Namespace 'mmdvm' has been erased.");
+    Serial.println("Device will reboot in 3 seconds...");
+
+    server.send(200, "text/plain", "SUCCESS: All settings cleared! Device rebooting...");
+
+    delay(3000);
+    ESP.restart();
+  } else {
+    Serial.println("ERROR: Failed to clear preferences!");
+    server.send(500, "text/plain", "ERROR: Failed to clear preferences");
+  }
 }

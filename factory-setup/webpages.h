@@ -15,6 +15,130 @@ extern String currentIP;
 extern String savedSSID;
 extern String savedPassword;
 
+// Function to get stored preferences info
+String getStoredPreferencesInfo() {
+  String info = "";
+
+  // Read preferences (namespace is already open in main sketch)
+  // No need to call preferences.begin() again
+  String callsign = preferences.getString("dmr_callsign", "");
+  unsigned int dmrId = preferences.getUInt("dmr_id", 0);
+  String dmrServer = preferences.getString("dmr_server", "");
+  String hostname = preferences.getString("hostname", "");
+  unsigned int rxFreq = preferences.getUInt("dmr_rx_freq", 0);
+  unsigned int txFreq = preferences.getUInt("dmr_tx_freq", 0);
+  unsigned char colorCode = preferences.getUChar("dmr_cc", 0);
+
+  // Count ALL stored preferences by checking all known keys
+  int totalPrefs = 0;
+
+  // DMR Settings (15 possible)
+  if (preferences.isKey("dmr_callsign")) totalPrefs++;
+  if (preferences.isKey("dmr_id")) totalPrefs++;
+  if (preferences.isKey("dmr_server")) totalPrefs++;
+  if (preferences.isKey("dmr_password")) totalPrefs++;
+  if (preferences.isKey("dmr_essid")) totalPrefs++;
+  if (preferences.isKey("dmr_rx_freq")) totalPrefs++;
+  if (preferences.isKey("dmr_tx_freq")) totalPrefs++;
+  if (preferences.isKey("dmr_power")) totalPrefs++;
+  if (preferences.isKey("dmr_cc")) totalPrefs++;
+  if (preferences.isKey("dmr_lat")) totalPrefs++;
+  if (preferences.isKey("dmr_lon")) totalPrefs++;
+  if (preferences.isKey("dmr_height")) totalPrefs++;
+  if (preferences.isKey("dmr_location")) totalPrefs++;
+  if (preferences.isKey("dmr_desc")) totalPrefs++;
+  if (preferences.isKey("dmr_url")) totalPrefs++;
+
+  // WiFi Networks (15 possible - 5 networks × 3 fields)
+  for (int i = 0; i < 5; i++) {
+    if (preferences.isKey(("wifi" + String(i) + "_label").c_str())) totalPrefs++;
+    if (preferences.isKey(("wifi" + String(i) + "_ssid").c_str())) totalPrefs++;
+    if (preferences.isKey(("wifi" + String(i) + "_pass").c_str())) totalPrefs++;
+  }
+
+  // System Settings (11 possible)
+  if (preferences.isKey("hostname")) totalPrefs++;
+  if (preferences.isKey("verbose_log")) totalPrefs++;
+  if (preferences.isKey("debug_serial")) totalPrefs++;
+  if (preferences.isKey("debug_mmdvm")) totalPrefs++;
+  if (preferences.isKey("debug_network")) totalPrefs++;
+  if (preferences.isKey("debug_dmr")) totalPrefs++;
+  if (preferences.isKey("debug_password")) totalPrefs++;
+  if (preferences.isKey("enable_oled")) totalPrefs++;
+  if (preferences.isKey("oled_autoblank")) totalPrefs++;
+  if (preferences.isKey("oled_blank_to")) totalPrefs++;
+  if (preferences.isKey("modem_type")) totalPrefs++;
+
+  // Mode Settings (6 possible)
+  if (preferences.isKey("mode_dmr")) totalPrefs++;
+  if (preferences.isKey("mode_dstar")) totalPrefs++;
+  if (preferences.isKey("mode_ysf")) totalPrefs++;
+  if (preferences.isKey("mode_p25")) totalPrefs++;
+  if (preferences.isKey("mode_nxdn")) totalPrefs++;
+  if (preferences.isKey("mode_pocsag")) totalPrefs++;
+
+  // Web Auth (2 possible)
+  if (preferences.isKey("web_username")) totalPrefs++;
+  if (preferences.isKey("web_password")) totalPrefs++;
+
+  // MQTT Settings (8 possible)
+  if (preferences.isKey("mqtt_enabled")) totalPrefs++;
+  if (preferences.isKey("mqtt_broker")) totalPrefs++;
+  if (preferences.isKey("mqtt_port")) totalPrefs++;
+  if (preferences.isKey("mqtt_user")) totalPrefs++;
+  if (preferences.isKey("mqtt_pass")) totalPrefs++;
+  if (preferences.isKey("mqtt_client")) totalPrefs++;
+  if (preferences.isKey("mqtt_prefix")) totalPrefs++;
+  if (preferences.isKey("mqtt_interval")) totalPrefs++;
+
+  // Build HTML
+  info += "<div class='card'>";
+  info += "<h3>Stored Configuration</h3>";
+
+  if (totalPrefs == 0) {
+    info += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107; color: #000;'>";
+    info += "<strong>No Configuration Found</strong><br>";
+    info += "This device has not been configured yet. After flashing the main firmware, you can configure your DMR settings via the web interface.";
+    info += "</div>";
+  } else {
+    info += "<div style='margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;'>";
+    info += "<div class='status-badge badge-connected'>Configured</div>";
+    info += "<button onclick='clearAllSettings()' class='btn btn-danger' style='padding: 8px 16px; margin: 0;'>Clear All Settings</button>";
+    info += "</div>";
+
+    if (callsign.length() > 0) {
+      info += "<div style='margin: 10px 0;'><strong>Callsign:</strong> " + callsign + "</div>";
+    }
+    if (dmrId > 0) {
+      info += "<div style='margin: 10px 0;'><strong>DMR ID:</strong> " + String(dmrId) + "</div>";
+    }
+    if (dmrServer.length() > 0) {
+      info += "<div style='margin: 10px 0;'><strong>DMR Server:</strong> " + dmrServer + "</div>";
+    }
+    if (hostname.length() > 0) {
+      info += "<div style='margin: 10px 0;'><strong>Hostname:</strong> " + hostname + "</div>";
+    }
+    if (rxFreq > 0 && txFreq > 0) {
+      info += "<div style='margin: 10px 0;'><strong>Frequency:</strong> " + String(rxFreq / 1000000.0, 4) + " MHz (RX) / " + String(txFreq / 1000000.0, 4) + " MHz (TX)</div>";
+    }
+    if (colorCode > 0) {
+      info += "<div style='margin: 10px 0;'><strong>Color Code:</strong> " + String(colorCode) + "</div>";
+    }
+
+    info += "<div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);'>";
+    info += "<small><strong>Total Stored Settings:</strong> " + String(totalPrefs) + "</small>";
+    info += "</div>";
+
+    info += "<div class='info' style='background: #d4edda; border-left-color: #28a745; color: #000; margin-top: 15px;'>";
+    info += "<strong>Configuration Preserved:</strong> Your settings will be retained when you flash the main firmware.";
+    info += "</div>";
+  }
+
+  info += "</div>";
+
+  return info;
+}
+
 String getCSS() {
   String css = "<style>";
   css += ":root { --bg-color: #f5f5f5; --container-bg: #ffffff; --text-color: #333333; --border-color: #dddddd; --primary-color: #007bff; --primary-hover: #0056b3; --hover-bg: #f8f9fa; --input-bg: #ffffff; --info-bg: #e7f3ff; }";
@@ -37,6 +161,7 @@ String getCSS() {
   css += ".btn-success { background: #28a745; color: white; } .btn-success:hover { background: #218838; }";
   css += ".btn-primary { background: #007bff; color: white; } .btn-primary:hover { background: #0056b3; }";
   css += ".btn-warning { background: #ffc107; color: black; } .btn-warning:hover { background: #e0a800; }";
+  css += ".btn-danger { background: #dc3545; color: white; } .btn-danger:hover { background: #c82333; }";
   css += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
   css += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
   css += "footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.9em; color: var(--text-color); }";
@@ -101,6 +226,9 @@ void handleRoot() {
     html += "</div>";
   }
   html += "</div>";
+
+  // Stored Configuration Card
+  html += getStoredPreferencesInfo();
 
   // WiFi Configuration Card (only show in AP mode)
   if (apMode) {
@@ -589,6 +717,27 @@ void handleRoot() {
   html += "    e.target.value = '';";
   html += "  }";
   html += "});";
+
+  // Clear all settings function
+  html += "function clearAllSettings() {";
+  html += "  if (confirm('⚠️ WARNING: Clear ALL stored settings?\\n\\nThis will permanently delete:\\n• DMR configuration (callsign, ID, server)\\n• WiFi network credentials (all 5 networks)\\n• System settings\\n• MQTT settings\\n• Web authentication\\n• All other preferences\\n\\nTotal: 57 settings will be erased!\\n\\nThis action CANNOT be undone!\\n\\nAre you absolutely sure?')) {";
+  html += "    if (confirm('FINAL CONFIRMATION\\n\\nYou are about to erase ALL device configuration!\\n\\nClick OK to proceed or Cancel to abort.')) {";
+  html += "      fetch('/clear-all-settings', {method: 'POST'})";
+  html += "        .then(response => response.text())";
+  html += "        .then(data => {";
+  html += "          if (data.includes('SUCCESS')) {";
+  html += "            alert('✓ All settings cleared successfully!\\n\\nThe device will reboot in 3 seconds.');";
+  html += "            setTimeout(function() { location.reload(); }, 3000);";
+  html += "          } else {";
+  html += "            alert('❌ Error clearing settings:\\n' + data);";
+  html += "          }";
+  html += "        })";
+  html += "        .catch(err => {";
+  html += "          alert('❌ Network error: ' + err);";
+  html += "        });";
+  html += "    }";
+  html += "  }";
+  html += "}";
 
   html += "window.onload = function() { initTheme(); checkLatestVersion(); checkLatestBetaVersion(); getModemVersion(); };";
   html += "</script>";
