@@ -8,7 +8,7 @@
 #define FACTORY_CONFIG_H
 
 // ===== Factory Firmware Version =====
-#define FACTORY_VERSION "FACTORY_SETUP_v1.0"
+#define FACTORY_VERSION "20260108_ESP32_MMDVM_SETUP"
 
 // ===== Default WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Default WiFi SSID
