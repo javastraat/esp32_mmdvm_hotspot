@@ -697,28 +697,13 @@ void handleAdmin() {
   html += "<h3>Configuration Management</h3>";
   html += "<p>Manage system configuration:</p>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
-  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
-  html += "<a href='javascript:void(0)' onclick='showImportConfig()' class='btn btn-info'>Import Config</a>";
   html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
+  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
+  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"config-file\").click()' class='btn btn-info'>Import Config</a>";
+  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-warning'>Repair Preferences</a>";
+  html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
   html += "</div>";
-  html += "<div id='import-area' style='display: none; margin-top: 15px; padding: 15px; border: 2px dashed #17a2b8; border-radius: 5px; background: #f8f9fa;'>";
-  html += "<h4>Import Configuration</h4>";
-  html += "<p style='color: #dc3545;'>WARNING: This will overwrite existing settings!</p>";
-  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='margin-bottom: 10px;'>";
-  html += "<br><button onclick='importConfig()' class='btn btn-warning'>Import Configuration</button>";
-  html += "</div>";
-  html += "</div>";
-
-  // Maintenance Card
-  html += "<div class='card'>";
-  html += "<h3>Maintenance</h3>";
-  html += "<p>System maintenance tools:</p>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>Clear Logs</a>";
-  html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>Test MMDVM</a>";
-  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>Fix Corrupted Prefs</a>";
-  html += "</div>";
+  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display: none;'>";
   html += "</div>";
 
   // OTA Update Card
@@ -776,6 +761,7 @@ void handleAdmin() {
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='flashModemFromURL()' class='btn btn-success'>Download & Flash</a>";
   html += "<a href='javascript:void(0)' onclick='document.getElementById(\"modem-file-input\").click()' class='btn btn-primary'>Upload File</a>";
+  html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-info'>Test MMDVM</a>";
   html += "</div>";
   html += "<input type='file' id='modem-file-input' accept='.bin' style='display: none;' />";
   
@@ -985,21 +971,15 @@ void handleAdmin() {
   html += "    window.URL.revokeObjectURL(url);";
   html += "  });";
   html += "}";
-  html += "function showImportConfig() {";
-  html += "  var importArea = document.getElementById('import-area');";
-  html += "  importArea.style.display = importArea.style.display === 'none' ? 'block' : 'none';";
-  html += "}";
   html += "function importConfig() {";
   html += "  var fileInput = document.getElementById('config-file');";
   html += "  var file = fileInput.files[0];";
-  html += "  if (!file) {";
-  html += "    alert('Please select a configuration file');";
-  html += "    return;";
-  html += "  }";
-  html += "  if (confirm('WARNING: This will overwrite ALL current settings with the imported configuration.\\n\\nThis action cannot be undone. Continue?')) {";
+  html += "  if (!file) return;";
+  html += "  if (confirm('Import configuration from: ' + file.name + '?\\n\\nWARNING: This will overwrite ALL current settings!\\n\\nCurrent settings will be replaced with:\\n• DMR configuration\\n• WiFi networks\\n• System settings\\n• MQTT settings\\n• All preferences\\n\\nThis action CANNOT be undone!\\n\\nContinue?')) {";
   html += "    var formData = new FormData();";
   html += "    formData.append('config', file);";
   html += "    fetch('/import-config', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
+  html += "      fileInput.value = '';";
   html += "      if (data.includes('SUCCESS')) {";
   html += "        alert('Configuration imported successfully! System will reboot in 3 seconds.');";
   html += "        setTimeout(() => { window.location.href = '/'; }, 3000);";
@@ -1007,9 +987,12 @@ void handleAdmin() {
   html += "        alert('Import failed: ' + data);";
   html += "      }";
   html += "    }).catch(err => {";
+  html += "      fileInput.value = '';";
   html += "      alert('Configuration imported successfully! System is rebooting...');";
   html += "      setTimeout(() => { window.location.href = '/'; }, 5000);";
   html += "    });";
+  html += "  } else {";
+  html += "    fileInput.value = '';";
   html += "  }";
   html += "}";
   html += "function testMmdvm() {";
@@ -1017,11 +1000,15 @@ void handleAdmin() {
   html += "  fetch('/test-mmdvm', {method: 'POST'});";
   html += "}";
   html += "function cleanupPrefs() {";
-  html += "  if (confirm('This will clean up corrupted preferences and reload from config.h defaults. Continue?')) {";
-  html += "    fetch('/cleanup-prefs', {method: 'POST'}).then(() => {";
-  html += "      alert('Preferences cleaned up successfully! System will reboot.');";
-  html += "      setTimeout(() => { window.location.href = '/'; }, 3000);";
-  html += "    });";
+  html += "  if (confirm('Repair Preferences\\n\\nThis will check all 57 preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?')) {";
+  html += "    fetch('/cleanup-prefs', {method: 'POST'})";
+  html += "      .then(response => response.text())";
+  html += "      .then(data => {";
+  html += "        alert(data);";
+  html += "        if (data.includes('Repaired')) {";
+  html += "          setTimeout(() => { window.location.href = '/'; }, 3000);";
+  html += "        }";
+  html += "      });";
   html += "  }";
   html += "}";
   html += "function startOnlineUpdate() {";
@@ -1295,6 +1282,18 @@ void handleAdmin() {
   html += "  }, 500);";
   html += "}";
   
+  // Config file input event listener
+  html += "document.getElementById('config-file').addEventListener('change', function(e) {";
+  html += "  var file = e.target.files[0];";
+  html += "  if (!file) return;";
+  html += "  if (!file.name.match(/\\.(txt|cfg|conf)$/i)) {";
+  html += "    alert('Please select a valid configuration file (.txt, .cfg, or .conf)');";
+  html += "    e.target.value = '';";
+  html += "    return;";
+  html += "  }";
+  html += "  importConfig();";
+  html += "});";
+
   html += "window.onload = function() { checkLatestVersion(); checkLatestBetaVersion(); };";
   html += "</script>";
 
@@ -1306,59 +1305,315 @@ void handleAdmin() {
 // Note: handleClearLogs() is defined in monitor.h
 
 void handleCleanupPreferences() {
-  logSerial("Starting preference cleanup - removing corrupted entries...");
+  logSerial("=== PREFERENCE REPAIR STARTING ===");
+  logSerial("[REPAIR] Checking all 57 possible preference keys...");
 
-  // Close any existing preferences connection
+  int missingCount = 0;
+  int existingCount = 0;
+
+  // Reopen preferences in read-write mode
   preferences.end();
-
-  // Clear the entire mmdvm namespace to remove corruption
   preferences.begin("mmdvm", false);
-  preferences.clear();
+
+  // Check and add missing DMR Settings (15 possible)
+  if (!preferences.isKey("dmr_callsign")) {
+    preferences.putString("dmr_callsign", DMR_CALLSIGN);
+    logSerial("[REPAIR] Added: dmr_callsign");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_id")) {
+    preferences.putUInt("dmr_id", DMR_ID);
+    logSerial("[REPAIR] Added: dmr_id");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_server")) {
+    preferences.putString("dmr_server", DMR_SERVER);
+    logSerial("[REPAIR] Added: dmr_server");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_password")) {
+    preferences.putString("dmr_password", DMR_PASSWORD);
+    logSerial("[REPAIR] Added: dmr_password");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_essid")) {
+    preferences.putUChar("dmr_essid", 0);
+    logSerial("[REPAIR] Added: dmr_essid");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_rx_freq")) {
+    preferences.putUInt("dmr_rx_freq", 434000000);
+    logSerial("[REPAIR] Added: dmr_rx_freq");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_tx_freq")) {
+    preferences.putUInt("dmr_tx_freq", 434000000);
+    logSerial("[REPAIR] Added: dmr_tx_freq");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_power")) {
+    preferences.putUChar("dmr_power", 10);
+    logSerial("[REPAIR] Added: dmr_power");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_cc")) {
+    preferences.putUChar("dmr_cc", DMR_COLORCODE);
+    logSerial("[REPAIR] Added: dmr_cc");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_lat")) {
+    preferences.putFloat("dmr_lat", 0.0);
+    logSerial("[REPAIR] Added: dmr_lat");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_lon")) {
+    preferences.putFloat("dmr_lon", 0.0);
+    logSerial("[REPAIR] Added: dmr_lon");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_height")) {
+    preferences.putInt("dmr_height", 0);
+    logSerial("[REPAIR] Added: dmr_height");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_location")) {
+    preferences.putString("dmr_location", DMR_LOCATION);
+    logSerial("[REPAIR] Added: dmr_location");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_desc")) {
+    preferences.putString("dmr_desc", DMR_DESCRIPTION);
+    logSerial("[REPAIR] Added: dmr_desc");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("dmr_url")) {
+    preferences.putString("dmr_url", DMR_URL);
+    logSerial("[REPAIR] Added: dmr_url");
+    missingCount++;
+  } else existingCount++;
+
+  // Check WiFi Networks (15 possible)
+  String defaultLabels[] = {WIFI_SLOT1_LABEL, WIFI_SLOT2_LABEL, WIFI_SLOT3_LABEL, WIFI_SLOT4_LABEL, WIFI_SLOT5_LABEL};
+  for (int i = 0; i < 5; i++) {
+    String labelKey = "wifi" + String(i) + "_label";
+    String ssidKey = "wifi" + String(i) + "_ssid";
+    String passKey = "wifi" + String(i) + "_pass";
+
+    if (!preferences.isKey(labelKey.c_str())) {
+      preferences.putString(labelKey.c_str(), defaultLabels[i]);
+      logSerial("[REPAIR] Added: " + labelKey);
+      missingCount++;
+    } else existingCount++;
+
+    if (!preferences.isKey(ssidKey.c_str())) {
+      preferences.putString(ssidKey.c_str(), "");
+      logSerial("[REPAIR] Added: " + ssidKey);
+      missingCount++;
+    } else existingCount++;
+
+    if (!preferences.isKey(passKey.c_str())) {
+      preferences.putString(passKey.c_str(), "");
+      logSerial("[REPAIR] Added: " + passKey);
+      missingCount++;
+    } else existingCount++;
+  }
+
+  // Check System Settings (11 possible)
+  if (!preferences.isKey("hostname")) {
+    preferences.putString("hostname", MDNS_HOSTNAME);
+    logSerial("[REPAIR] Added: hostname");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("verbose_log")) {
+    preferences.putBool("verbose_log", false);
+    logSerial("[REPAIR] Added: verbose_log");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("debug_serial")) {
+    preferences.putBool("debug_serial", DEBUG_SERIAL);
+    logSerial("[REPAIR] Added: debug_serial");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("debug_mmdvm")) {
+    preferences.putBool("debug_mmdvm", DEBUG_MMDVM);
+    logSerial("[REPAIR] Added: debug_mmdvm");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("debug_network")) {
+    preferences.putBool("debug_network", DEBUG_NETWORK);
+    logSerial("[REPAIR] Added: debug_network");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("debug_dmr")) {
+    preferences.putBool("debug_dmr", DEBUG_DMR);
+    logSerial("[REPAIR] Added: debug_dmr");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("debug_password")) {
+    preferences.putBool("debug_password", DEBUG_PASSWORD);
+    logSerial("[REPAIR] Added: debug_password");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("enable_oled")) {
+    preferences.putBool("enable_oled", ENABLE_OLED);
+    logSerial("[REPAIR] Added: enable_oled");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("oled_autoblank")) {
+    preferences.putBool("oled_autoblank", false);
+    logSerial("[REPAIR] Added: oled_autoblank");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("oled_blank_to")) {
+    preferences.putULong("oled_blank_to", 60000);
+    logSerial("[REPAIR] Added: oled_blank_to");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("modem_type")) {
+    preferences.putString("modem_type", DEFAULT_MODEM_TYPE);
+    logSerial("[REPAIR] Added: modem_type");
+    missingCount++;
+  } else existingCount++;
+
+  // Check Mode Settings (6 possible)
+  if (!preferences.isKey("mode_dmr")) {
+    preferences.putBool("mode_dmr", DEFAULT_MODE_DMR);
+    logSerial("[REPAIR] Added: mode_dmr");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mode_dstar")) {
+    preferences.putBool("mode_dstar", DEFAULT_MODE_DSTAR);
+    logSerial("[REPAIR] Added: mode_dstar");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mode_ysf")) {
+    preferences.putBool("mode_ysf", DEFAULT_MODE_YSF);
+    logSerial("[REPAIR] Added: mode_ysf");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mode_p25")) {
+    preferences.putBool("mode_p25", DEFAULT_MODE_P25);
+    logSerial("[REPAIR] Added: mode_p25");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mode_nxdn")) {
+    preferences.putBool("mode_nxdn", DEFAULT_MODE_NXDN);
+    logSerial("[REPAIR] Added: mode_nxdn");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mode_pocsag")) {
+    preferences.putBool("mode_pocsag", DEFAULT_MODE_POCSAG);
+    logSerial("[REPAIR] Added: mode_pocsag");
+    missingCount++;
+  } else existingCount++;
+
+  // Check Web Auth (2 possible)
+  if (!preferences.isKey("web_username")) {
+    preferences.putString("web_username", WEB_USERNAME);
+    logSerial("[REPAIR] Added: web_username");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("web_password")) {
+    preferences.putString("web_password", WEB_PASSWORD);
+    logSerial("[REPAIR] Added: web_password");
+    missingCount++;
+  } else existingCount++;
+
+  // Check MQTT Settings (8 possible)
+  if (!preferences.isKey("mqtt_enabled")) {
+    preferences.putBool("mqtt_enabled", MQTT_ENABLED);
+    logSerial("[REPAIR] Added: mqtt_enabled");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_broker")) {
+    preferences.putString("mqtt_broker", MQTT_BROKER);
+    logSerial("[REPAIR] Added: mqtt_broker");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_port")) {
+    preferences.putUShort("mqtt_port", MQTT_PORT);
+    logSerial("[REPAIR] Added: mqtt_port");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_user")) {
+    preferences.putString("mqtt_user", MQTT_USERNAME);
+    logSerial("[REPAIR] Added: mqtt_user");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_pass")) {
+    preferences.putString("mqtt_pass", MQTT_PASSWORD);
+    logSerial("[REPAIR] Added: mqtt_pass");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_client")) {
+    preferences.putString("mqtt_client", MQTT_CLIENT_ID);
+    logSerial("[REPAIR] Added: mqtt_client");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_prefix")) {
+    preferences.putString("mqtt_prefix", MQTT_TOPIC_PREFIX);
+    logSerial("[REPAIR] Added: mqtt_prefix");
+    missingCount++;
+  } else existingCount++;
+
+  if (!preferences.isKey("mqtt_interval")) {
+    preferences.putUInt("mqtt_interval", MQTT_PUBLISH_INTERVAL);
+    logSerial("[REPAIR] Added: mqtt_interval");
+    missingCount++;
+  } else existingCount++;
+
   preferences.end();
 
-  logSerial("Cleared corrupted preferences namespace");
+  // Summary
+  logSerial("=== PREFERENCE REPAIR COMPLETE ===");
+  logSerial("[REPAIR] Existing: " + String(existingCount) + "/57, Added: " + String(missingCount) + "/57");
+  logSerial("[REPAIR] Total after repair: " + String(existingCount + missingCount) + "/57");
 
-  // Reload clean defaults from config.h and current variables
-  // Reset to config.h defaults
-  dmr_callsign = DMR_CALLSIGN;
-  dmr_id = DMR_ID;
-  dmr_server = DMR_SERVER;
-  dmr_password = DMR_PASSWORD;
-  dmr_essid = 0;
-  dmr_rx_freq = 434000000;
-  dmr_tx_freq = 434000000;
-  dmr_power = 10;
-  dmr_color_code = 1;
-  dmr_latitude = 0.0;
-  dmr_longitude = 0.0;
-  dmr_height = 0;
-  dmr_location = "ESP32 Hotspot";
-  dmr_description = "ESP32-MMDVM";
-  dmr_url = "";
-  // Clear all WiFi networks
-  for (int i = 0; i < 5; i++) {
-    wifiNetworks[i].label = (i == 0) ? "Home" : (i == 1) ? "Mobile" : (i == 2) ? "Work" : (i == 3) ? "Friends" : "Other";
-    wifiNetworks[i].ssid = "";
-    wifiNetworks[i].password = "";
+  if (missingCount == 0) {
+    logSerial("[REPAIR] All preferences intact - no repair needed!");
+    server.send(200, "text/plain", "All preferences intact! No repair needed. (" + String(existingCount) + "/57)");
+  } else {
+    logSerial("[REPAIR] Successfully repaired - rebooting...");
+    server.send(200, "text/plain", "Repaired " + String(missingCount) + " missing preferences! Rebooting...");
+    delay(1000);
+    ESP.restart();
   }
-  device_hostname = MDNS_HOSTNAME;
-  verbose_logging = false;
-  debug_serial = DEBUG_SERIAL;
-  debug_mmdvm = DEBUG_MMDVM;
-  debug_network = DEBUG_NETWORK;
-  debug_dmr = DEBUG_DMR;
-  debug_password = DEBUG_PASSWORD;
-  enable_oled = ENABLE_OLED;
-
-  // Save clean configuration
-  saveConfig();
-
-  logSerial("Preferences cleanup completed - clean defaults restored");
-  server.send(200, "text/plain", "Preferences cleaned up successfully");
-
-  // Reboot system to ensure clean state
-  delay(1000);
-  ESP.restart();
 }
 
 void handleDownloadUpdate() {
@@ -1972,9 +2227,67 @@ void handleImportConfig() {
 }
 
 void handleTestMmdvm() {
-  logSerial("MMDVM test initiated by user");
-  // Add MMDVM test logic here
-  server.send(200, "text/plain", "MMDVM test started");
+  logSerial("=== MMDVM Test Started ===");
+  logSerial("Testing MMDVM modem communication...");
+
+  // Send GET_VERSION command
+  logSerial("[TEST] Sending GET_VERSION command...");
+  uint8_t cmd[] = {0xE0, 0x03, 0x00};  // MMDVM_FRAME_START, length, CMD_GET_VERSION
+  Serial2.write(cmd, 3);
+  Serial2.flush();
+
+  // Wait for response
+  unsigned long startTime = millis();
+  bool gotResponse = false;
+  uint8_t rxBuffer[100];
+  int rxCount = 0;
+
+  while (millis() - startTime < 1000 && rxCount < 100) {  // 1 second timeout
+    if (Serial2.available()) {
+      rxBuffer[rxCount] = Serial2.read();
+      rxCount++;
+      gotResponse = true;
+    }
+    delay(10);
+  }
+
+  if (gotResponse && rxCount > 0) {
+    // Format response as hex string
+    String hexResponse = "[TEST] RX (" + String(rxCount) + " bytes): ";
+    for (int i = 0; i < rxCount; i++) {
+      if (rxBuffer[i] < 0x10) hexResponse += "0";
+      hexResponse += String(rxBuffer[i], HEX);
+      hexResponse += " ";
+    }
+    logSerial(hexResponse);
+
+    // Check if valid MMDVM frame
+    if (rxBuffer[0] == 0xE0) {
+      logSerial("[TEST] ✓ Valid MMDVM frame detected (starts with 0xE0)");
+
+      // Try to parse version if available
+      if (rxCount >= 3 && rxBuffer[2] == 0x00 && rxCount > 4) {
+        String version = "[TEST] Modem Version: ";
+        for (int i = 4; i < rxCount && rxBuffer[i] != 0x00; i++) {
+          if (rxBuffer[i] >= 32 && rxBuffer[i] < 127) {
+            version += (char)rxBuffer[i];
+          }
+        }
+        logSerial(version);
+      }
+
+      logSerial("[TEST] ✓ MMDVM communication test PASSED");
+    } else {
+      logSerial("[TEST] ✗ Invalid frame start byte (expected 0xE0, got 0x" + String(rxBuffer[0], HEX) + ")");
+      logSerial("[TEST] ✗ MMDVM communication test FAILED - Wrong baud rate or garbled data");
+    }
+  } else {
+    logSerial("[TEST] ✗ No response from MMDVM modem (timeout after 1 second)");
+    logSerial("[TEST] ✗ MMDVM communication test FAILED - Check connections");
+  }
+
+  logSerial("=== MMDVM Test Complete ===");
+  server.send(200, "text/plain", "MMDVM test completed - check Serial Monitor for results");
 }
 
 void handleShowPreferences() {
