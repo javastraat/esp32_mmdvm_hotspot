@@ -244,6 +244,7 @@ void setup() {
   if (SD.exists("/.Spotlight-V100")) { deleteRecursive("/.Spotlight-V100"); }
   if (SD.exists("/.fseventsd")) { deleteRecursive("/.fseventsd"); }
   if (SD.exists("/.Trashes")) { deleteRecursive("/.Trashes"); }
+  if (SD.exists("/database/database.json")) { deleteRecursive("/database/database.json"); }
   //if (SD.exists("/database")) { deleteRecursive("/database"); }
 
   // --- Write new owner.txt ---
