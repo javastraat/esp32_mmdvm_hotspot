@@ -3,3 +3,7 @@ thru echo audio back is chopped, maybe outgoing buffer
 
 brandmeister
 essid not working correctly, when other then none choosen, it connect with that ssid but also with none
+
+webinsterface
+split admin.h into seperate pages (file and handlers are getting bigger an bigger) 
+move handlers out of files into include

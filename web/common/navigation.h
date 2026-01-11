@@ -39,6 +39,22 @@ String getNavigation(String activePage) {
   nav += "  localStorage.setItem('theme', newTheme);";
   nav += "  updateThemeButton();";
   nav += "}";
+  nav += "function toggleDropdown(event) {";
+  nav += "  event.stopPropagation();";
+  nav += "  var dropdown = document.getElementById('adminDropdown');";
+  nav += "  dropdown.classList.toggle('show');";
+  nav += "}";
+  nav += "window.onclick = function(event) {";
+  nav += "  if (!event.target.matches('.dropbtn')) {";
+  nav += "    var dropdowns = document.getElementsByClassName('dropdown-content');";
+  nav += "    for (var i = 0; i < dropdowns.length; i++) {";
+  nav += "      var openDropdown = dropdowns[i];";
+  nav += "      if (openDropdown.classList.contains('show')) {";
+  nav += "        openDropdown.classList.remove('show');";
+  nav += "      }";
+  nav += "    }";
+  nav += "  }";
+  nav += "}";
   nav += "</script>";
   return nav;
 }
