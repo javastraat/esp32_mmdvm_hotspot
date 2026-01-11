@@ -3171,7 +3171,14 @@ void setupWebServer() {
   server.on("/serialmonitor", handleMonitor);
   server.on("/wificonfig", handleConfig);
   server.on("/modeconfig", handleDMRConfig);
-  server.on("/admin", handleAdmin);
+  
+  // Admin pages - direct endpoints (no routing needed)
+  server.on("/admin_system", handleAdminSystem);
+  server.on("/admin_settings", handleAdminSettings);
+  server.on("/admin_security", handleAdminSecurity);
+  server.on("/admin_network", handleAdminNetwork);
+  server.on("/admin_maintenance", handleAdminMaintenance);
+  server.on("/admin_all", handleAdminAll);
 
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);

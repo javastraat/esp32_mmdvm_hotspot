@@ -37,13 +37,28 @@ void handleAdminMaintenance() {
   html += "<h3>Configuration Management</h3>";
   html += "<p>Manage system configuration:</p>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
-  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
-  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"config-file\").click()' class='btn btn-info'>Import Config</a>";
-  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-warning'>Repair Preferences</a>";
   html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
+  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
+  html += "<a href='javascript:void(0)' onclick='showImportConfig()' class='btn btn-info'>Import Config</a>";
+  html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
   html += "</div>";
-  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display: none;'>";
+  html += "<div id='import-area' style='display: none; margin-top: 15px; padding: 15px; border: 2px dashed #17a2b8; border-radius: 5px; background: #f8f9fa;'>";
+  html += "<h4>Import Configuration</h4>";
+  html += "<p style='color: #dc3545;'>WARNING: This will overwrite existing settings!</p>";
+  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='margin-bottom: 10px;'>";
+  html += "<br><button onclick='importConfig()' class='btn btn-warning'>Import Configuration</button>";
+  html += "</div>";
+  html += "</div>";
+
+  // Maintenance Card
+  html += "<div class='card'>";
+  html += "<h3>Maintenance</h3>";
+  html += "<p>System maintenance tools:</p>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-warning'>Clear Logs</a>";
+  html += "<a href='javascript:void(0)' onclick='testMmdvm()' class='btn btn-primary'>Test MMDVM</a>";
+  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-danger'>Fix Corrupted Prefs</a>";
+  html += "</div>";
   html += "</div>";
 
   // OTA Update Card
@@ -138,6 +153,11 @@ void handleAdminMaintenance() {
   html += "  });";
   html += "}";
   
+  html += "function showImportConfig() {";
+  html += "  var importArea = document.getElementById('import-area');";
+  html += "  importArea.style.display = importArea.style.display === 'none' ? 'block' : 'none';";
+  html += "}";
+  
   html += "function importConfig() {";
   html += "  var fileInput = document.getElementById('config-file');";
   html += "  var file = fileInput.files[0];";
@@ -163,22 +183,30 @@ void handleAdminMaintenance() {
   html += "  }";
   html += "}";
   
-  html += "function cleanupPrefs() {";
-  html += "  if (confirm('Repair Preferences\\n\\nThis will check all 57 preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?')) {";
-  html += "    fetch('/cleanup-prefs', {method: 'POST'})";
-  html += "      .then(response => response.text())";
-  html += "      .then(data => {";
-  html += "        alert(data);";
-  html += "        if (data.includes('Repaired')) {";
-  html += "          setTimeout(() => { window.location.href = '/'; }, 3000);";
-  html += "        }";
-  html += "      });";
+  html += "function clearLogs() {";
+  html += "  if (confirm('Clear all system logs?')) {";
+  html += "    fetch('/clearlogs', {method: 'POST'}).then(() => {";
+  html += "      alert('Logs cleared successfully!');";
+  html += "    });";
   html += "  }";
   html += "}";
   
   html += "function testMmdvm() {";
   html += "  alert('MMDVM test started. Check the Serial Monitor for results.');";
   html += "  fetch('/test-mmdvm', {method: 'POST'});";
+  html += "}";
+  
+  html += "function cleanupPrefs() {";
+  html += "  if (confirm('Fix Corrupted Prefs\\n\\nThis will check all preference keys and repair any corrupted or missing values.\\n\\nContinue?')) {";
+  html += "    fetch('/cleanup-prefs', {method: 'POST'})";
+  html += "      .then(response => response.text())";
+  html += "      .then(data => {";
+  html += "        alert(data);";
+  html += "        if (data.includes('Repaired') || data.includes('Fixed')) {";
+  html += "          setTimeout(() => { window.location.href = '/'; }, 3000);";
+  html += "        }";
+  html += "      });";
+  html += "  }";
   html += "}";
   
   // ESP32 firmware update functions

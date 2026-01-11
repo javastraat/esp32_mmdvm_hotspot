@@ -41,6 +41,7 @@ String getAdminHeader(String pageTitle, String activePage) {
   
   html += getNavigation(activePage);
   html += "<div class='container'>";
+  html += "<h1>" + pageTitle + "</h1>";
   
   return html;
 }

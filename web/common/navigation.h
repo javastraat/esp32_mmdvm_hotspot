@@ -25,15 +25,15 @@ String getNavigation(String activePage) {
   nav += "<div class='dropdown'>";
   nav += "<button type='button' onclick='toggleDropdown(event); return false;' class='dropbtn" + String(isAdminActive ? " active" : "") + "'>Admin ▼</button>";
   nav += "<div class='dropdown-content' id='adminDropdown'>";
-  nav += "<a href='/admin?submenu=system'" + String(activePage == "admin-system" ? " style='background-color:var(--topnav-hover);'" : "") + ">System</a>";
-  nav += "<a href='/admin?submenu=settings'" + String(activePage == "admin-settings" ? " style='background-color:var(--topnav-hover);'" : "") + ">Settings</a>";
+  nav += "<a href='/admin_system'" + String(activePage == "admin-system" ? " style='background-color:var(--topnav-hover);'" : "") + ">System</a>";
+  nav += "<a href='/admin_settings'" + String(activePage == "admin-settings" ? " style='background-color:var(--topnav-hover);'" : "") + ">Settings</a>";
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " style='background-color:var(--topnav-hover);'" : "") + ">WiFi Config</a>";
   nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " style='background-color:var(--topnav-hover);'" : "") + ">Mode Config</a>";
-  nav += "<a href='/admin?submenu=network'" + String(activePage == "admin-network" ? " style='background-color:var(--topnav-hover);'" : "") + ">Network</a>";
-  nav += "<a href='/admin?submenu=security'" + String(activePage == "admin-security" ? " style='background-color:var(--topnav-hover); border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'" : "") + " style='border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'>Security</a>";
-  nav += "<a href='/admin?submenu=maintenance'" + String(activePage == "admin-maintenance" ? " style='background-color:var(--topnav-hover);'" : "") + ">Maintenance</a>";
+  nav += "<a href='/admin_network'" + String(activePage == "admin-network" ? " style='background-color:var(--topnav-hover);'" : "") + ">Network</a>";
+  nav += "<a href='/admin_security'" + String(activePage == "admin-security" ? " style='background-color:var(--topnav-hover); border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'" : "") + " style='border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'>Security</a>";
+  nav += "<a href='/admin_maintenance'" + String(activePage == "admin-maintenance" ? " style='background-color:var(--topnav-hover);'" : "") + ">Maintenance</a>";
   nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " style='background-color:var(--topnav-hover); border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'" : "") + " style='border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;'>Serial Monitor</a>";
-  nav += "<a href='/admin?submenu=all' style='border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;" + String(activePage == "admin-all" ? " background-color:var(--topnav-hover);" : "") + "'>All Sections</a>";
+  nav += "<a href='/admin_all' style='border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;" + String(activePage == "admin-all" ? " background-color:var(--topnav-hover);" : "") + "'>All Sections</a>";
   nav += "</div>";
   nav += "</div>";
   

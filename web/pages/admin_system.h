@@ -41,28 +41,19 @@ void handleAdminSystem() {
   unsigned long displaySecs = uptimeSecs % 60;
 
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Firmware Version:</span>";
-  html += "<span class='metric-value'>" + firmwareVersion + "</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Device Name:</span>";
-  html += "<span class='metric-value'>" + dmr_callsign + "</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
   html += "<span class='metric-label'>Uptime:</span>";
   html += "<span class='metric-value'>" + String(uptimeDays) + "d " + String(displayHours) + "h " + String(displayMins) + "m " + String(displaySecs) + "s</span>";
   html += "</div>";
-  html += "</div>";
-
-  // ESP32 Hardware Info Card
-  html += "<div class='card'>";
-  html += "<h3>ESP32 Hardware</h3>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Chip Model:</span>";
   html += "<span class='metric-value'>" + String(ESP.getChipModel()) + "</span>";
   html += "</div>";
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Cores:</span>";
+  html += "<span class='metric-label'>Chip Revision:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getChipRevision()) + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>CPU Cores:</span>";
   html += "<span class='metric-value'>" + String(ESP.getChipCores()) + "</span>";
   html += "</div>";
   html += "<div class='metric'>";
@@ -70,148 +61,203 @@ void handleAdminSystem() {
   html += "<span class='metric-value'>" + String(ESP.getCpuFreqMHz()) + " MHz</span>";
   html += "</div>";
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Flash Size:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getFlashChipSize() / 1048576.0, 2) + " MB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
   html += "<span class='metric-label'>Free Heap:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getFreeHeap() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Heap Size:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getHeapSize() / 1024.0, 2) + " KB</span>";
+  html += "<span class='metric-value'>" + String(ESP.getFreeHeap() / 1024.0, 1) + " KB (" + String(ESP.getFreeHeap() * 100 / ESP.getHeapSize()) + "%)</span>";
   html += "</div>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Min Free Heap:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getMinFreeHeap() / 1024.0, 2) + " KB</span>";
+  html += "<span class='metric-value'>" + String(ESP.getMinFreeHeap() / 1024.0, 1) + " KB</span>";
   html += "</div>";
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Max Alloc Heap:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getMaxAllocHeap() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>PSRAM Size:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getPsramSize() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Free PSRAM:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getFreePsram() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Min Free PSRAM:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getMinFreePsram() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Max Alloc PSRAM:</span>";
-  html += "<span class='metric-value'>" + String(ESP.getMaxAllocPsram() / 1024.0, 2) + " KB</span>";
-  html += "</div>";
-  html += "</div>";
-
-  // MMDVM Modem Info Card
-  html += "<div class='card'>";
-  html += "<h3>MMDVM Modem Information</h3>";
-  html += "<div class='metric'>";
-  html += "<span class='metric-label'>Status:</span>";
-  html += "<span class='metric-value'><strong style='color: " + String(mmdvmReady ? "var(--success-color)" : "var(--danger-color)") + ";'>" + String(mmdvmReady ? "Ready" : "Not Connected") + "</strong></span>";
+  html += "<span class='metric-label'>Heap Size:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getHeapSize() / 1024.0, 1) + " KB</span>";
   html += "</div>";
   
-  // Parse modem firmware version string for detailed info
+  // PSRAM info (if available)
+  if (ESP.getPsramSize() > 0) {
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>PSRAM Size:</span>";
+    html += "<span class='metric-value'>" + String(ESP.getPsramSize() / 1024 / 1024) + " MB</span>";
+    html += "</div>";
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>Free PSRAM:</span>";
+    html += "<span class='metric-value'>" + String(ESP.getFreePsram() / 1024.0, 1) + " KB</span>";
+    html += "</div>";
+  }
+  
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Flash Size:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Flash Speed:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getFlashChipSpeed() / 1000000) + " MHz</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Sketch Size:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getSketchSize() / 1024.0, 1) + " KB</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Free Sketch Space:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getFreeSketchSpace() / 1024.0, 1) + " KB</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>SDK Version:</span>";
+  html += "<span class='metric-value'>" + String(ESP.getSdkVersion()) + "</span>";
+  html += "</div>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Firmware Version:</span>";
-  html += "<span class='metric-value'>" + modemFirmwareVersion + "</span>";
+  html += "<span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span>";
   html += "</div>";
-  
-  // Parse modem firmware for details (format: "20201012 MMDVM_HS_HAT v1.5.2 12.2880MHz ADF7021 GitID #6e8f826")
-  if (modemFirmwareVersion.length() > 0) {
-    // Extract hardware type
-    int hwStart = modemFirmwareVersion.indexOf("MMDVM");
-    int hwEnd = modemFirmwareVersion.indexOf(" v", hwStart);
-    if (hwStart != -1 && hwEnd != -1) {
-      String hardware = modemFirmwareVersion.substring(hwStart, hwEnd);
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Hardware:</span>";
-      html += "<span class='metric-value'>" + hardware + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract version number
-    int verStart = modemFirmwareVersion.indexOf(" v");
-    int verEnd = modemFirmwareVersion.indexOf(" ", verStart + 2);
-    if (verStart != -1 && verEnd != -1) {
-      String version = modemFirmwareVersion.substring(verStart + 2, verEnd);
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Version:</span>";
-      html += "<span class='metric-value'>" + version + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract build date (YYYYMMDD at start)
-    if (modemFirmwareVersion.length() >= 8) {
-      String buildDate = modemFirmwareVersion.substring(0, 8);
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Build Date:</span>";
-      html += "<span class='metric-value'>" + buildDate + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract crystal frequency
-    int crystalStart = modemFirmwareVersion.indexOf("MHz");
-    if (crystalStart != -1) {
-      int crystalBegin = crystalStart;
-      while (crystalBegin > 0 && (isdigit(modemFirmwareVersion[crystalBegin - 1]) || modemFirmwareVersion[crystalBegin - 1] == '.')) {
-        crystalBegin--;
-      }
-      String crystal = modemFirmwareVersion.substring(crystalBegin, crystalStart + 3);
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Crystal:</span>";
-      html += "<span class='metric-value'>" + crystal + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract transceiver chip
-    int transceiverPos = modemFirmwareVersion.indexOf("ADF");
-    if (transceiverPos == -1) transceiverPos = modemFirmwareVersion.indexOf("SI");
-    if (transceiverPos != -1) {
-      int transceiverEnd = modemFirmwareVersion.indexOf(" ", transceiverPos);
-      String transceiver = modemFirmwareVersion.substring(transceiverPos, transceiverEnd != -1 ? transceiverEnd : modemFirmwareVersion.length());
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Transceiver:</span>";
-      html += "<span class='metric-value'>" + transceiver + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract author
-    int authorPos = modemFirmwareVersion.indexOf("(");
-    int authorEnd = modemFirmwareVersion.indexOf(")", authorPos);
-    if (authorPos != -1 && authorEnd != -1) {
-      String author = modemFirmwareVersion.substring(authorPos + 1, authorEnd);
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Author:</span>";
-      html += "<span class='metric-value'>" + author + "</span>";
-      html += "</div>";
-    }
-    
-    // Extract Git ID
-    int gitPos = modemFirmwareVersion.indexOf("GitID");
-    if (gitPos != -1) {
-      String gitId = modemFirmwareVersion.substring(gitPos + 6);
-      gitId.trim();
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Git ID:</span>";
-      html += "<span class='metric-value'>" + gitId + "</span>";
-      html += "</div>";
-    }
-  }
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Build Date:</span>";
+  html += "<span class='metric-value'>" + String(__DATE__) + " " + String(__TIME__) + "</span>";
+  html += "</div>";
   html += "</div>";
 
-  // System Control Buttons Card
+
+  // MMDVM Modem Info Card - Parse the firmware version string
+  html += "<div class='card'>";
+  html += "<h3>Modem Information</h3>";
+  
+  // Parse modem firmware version string
+  // Example: "MMDVM_HS_Hat-v1.5.2 20201108 14.7456MHz ADF7021 FW by CA6JAU GitID #89daa20"
+  String hardware = "Unknown";
+  String version = "Unknown";
+  String buildDate = "Unknown";
+  String crystal = "Unknown";
+  String transceiver = "Unknown";
+  String author = "Unknown";
+  String gitId = "Unknown";
+
+  if (modemFirmwareVersion != "Unknown" && modemFirmwareVersion.length() > 0) {
+    String fwStr = modemFirmwareVersion;
+
+    // Extract hardware (before "-v" or first space)
+    int vPos = fwStr.indexOf("-v");
+    if (vPos > 0) {
+      hardware = fwStr.substring(0, vPos);
+      fwStr = fwStr.substring(vPos + 2); // Skip "-v"
+    } else {
+      int spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        hardware = fwStr.substring(0, spacePos);
+        fwStr = fwStr.substring(spacePos + 1);
+      }
+    }
+
+    // Extract version (digits and dots until space)
+    int spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      version = fwStr.substring(0, spacePos);
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract build date (8 digits, may have suffix like _WPSD)
+    spacePos = fwStr.indexOf(' ');
+    if (spacePos > 0) {
+      String dateStr = fwStr.substring(0, spacePos);
+
+      // Check if first 8 characters are digits (YYYYMMDD)
+      if (dateStr.length() >= 8) {
+        bool isValidDate = true;
+        for (int i = 0; i < 8; i++) {
+          if (!isdigit(dateStr.charAt(i))) {
+            isValidDate = false;
+            break;
+          }
+        }
+
+        if (isValidDate) {
+          // Format YYYYMMDD to DD-MM-YYYY (ignore any suffix like _WPSD)
+          buildDate = dateStr.substring(6, 8) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(0, 4);
+        }
+      }
+      fwStr = fwStr.substring(spacePos + 1);
+    }
+
+    // Extract crystal frequency (number followed by MHz)
+    int mhzPos = fwStr.indexOf("MHz");
+    if (mhzPos > 0) {
+      int startPos = 0;
+      for (int i = mhzPos - 1; i >= 0; i--) {
+        if (fwStr.charAt(i) == ' ') {
+          startPos = i + 1;
+          break;
+        }
+      }
+      crystal = fwStr.substring(startPos, mhzPos + 3);
+      fwStr = fwStr.substring(mhzPos + 3);
+    }
+
+    // Extract transceiver (word after MHz, before " FW")
+    fwStr.trim();
+    int fwPos = fwStr.indexOf(" FW");
+    if (fwPos > 0) {
+      // Get the first word (transceiver name)
+      spacePos = fwStr.indexOf(' ');
+      if (spacePos > 0) {
+        transceiver = fwStr.substring(0, spacePos);
+      } else {
+        // No space found, use everything before " FW"
+        transceiver = fwStr.substring(0, fwPos);
+      }
+      fwStr = fwStr.substring(fwPos + 3); // Skip " FW"
+    }
+
+    // Extract author (after "by " before " GitID")
+    int byPos = fwStr.indexOf("by ");
+    int gitPos = fwStr.indexOf(" GitID");
+    if (byPos >= 0 && gitPos > byPos) {
+      author = fwStr.substring(byPos + 3, gitPos);
+      author.trim();
+    }
+
+    // Extract Git ID (after "GitID ")
+    gitPos = fwStr.indexOf("GitID ");
+    if (gitPos >= 0) {
+      gitId = fwStr.substring(gitPos + 6);
+      gitId.trim();
+    }
+  }
+
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Hardware:</span>";
+  html += "<span class='metric-value'>" + hardware + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Firmware Version:</span>";
+  html += "<span class='metric-value'>" + version + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Build Date:</span>";
+  html += "<span class='metric-value'>" + buildDate + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Crystal:</span>";
+  html += "<span class='metric-value'>" + crystal + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Transceiver:</span>";
+  html += "<span class='metric-value'>" + transceiver + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Author:</span>";
+  html += "<span class='metric-value'>" + author + "</span>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Git ID:</span>";
+  html += "<span class='metric-value'>" + gitId + "</span>";
+  html += "</div>";
+  html += "</div>";
+
+  // System Control Card
   html += "<div class='card'>";
   html += "<h3>System Control</h3>";
-  html += "<p>System control and management actions:</p>";
+  html += "<p>Control basic system functions:</p>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-danger'>Reboot System</a>";
-  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-warning'>Restart Services</a>";
-  html += "<a href='javascript:void(0)' onclick='clearLogs()' class='btn btn-info'>Clear Logs</a>";
+  html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>Reboot System</a>";
+  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-primary'>Restart Services</a>";
   html += "</div>";
   html += "</div>";
 
@@ -238,13 +284,6 @@ void handleAdminSystem() {
   html += "    fetch('/restart-services', {method: 'POST'}).then(() => {";
   html += "      alert('Services restarted successfully!');";
   html += "      setTimeout(() => { window.location.reload(); }, 2000);";
-  html += "    });";
-  html += "  }";
-  html += "}";
-  html += "function clearLogs() {";
-  html += "  if (confirm('Clear all system logs?')) {";
-  html += "    fetch('/clearlogs', {method: 'POST'}).then(() => {";
-  html += "      alert('Logs cleared successfully!');";
   html += "    });";
   html += "  }";
   html += "}";
