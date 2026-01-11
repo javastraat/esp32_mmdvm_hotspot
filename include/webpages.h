@@ -81,7 +81,7 @@ extern void saveConfig();
 #include "web/pages/admin_security.h"
 #include "web/pages/admin_network.h"
 #include "web/pages/admin_maintenance.h"
-#include "web/pages/admin_all.h"
+//#include "web/pages/admin_all.h"
 
 // Backend handler functions for admin pages
 #include "handlers/admin/system_handlers.h"

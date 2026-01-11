@@ -3178,7 +3178,7 @@ void setupWebServer() {
   server.on("/admin_security", handleAdminSecurity);
   server.on("/admin_network", handleAdminNetwork);
   server.on("/admin_maintenance", handleAdminMaintenance);
-  server.on("/admin_all", handleAdminAll);
+  //server.on("/admin_all", handleAdmin);
 
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
