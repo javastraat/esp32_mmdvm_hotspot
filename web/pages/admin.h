@@ -100,8 +100,8 @@ extern String getFooter();
 void handleAdmin() {
   if (!checkAuthentication()) return;
 
-  // Get submenu parameter from URL
-  String submenu = "";
+  // Get submenu parameter from URL, default to "system"
+  String submenu = "system";  // Default to system page
   if (server.hasArg("submenu")) {
     submenu = server.arg("submenu");
   }
@@ -131,75 +131,41 @@ void handleAdmin() {
   html += ".action-buttons { text-align: center; margin: 15px 0; }";
   html += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
   html += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
-  html += ".menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".menu-card { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }";
-  html += ".menu-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }";
-  html += ".menu-card h3 { margin: 0 0 10px 0; }";
-  html += ".menu-card p { color: #666; font-size: 0.9em; }";
   html += "</style></head><body>";
-  html += getNavigation("admin");
+  
+  // Determine active page for navigation highlighting
+  String activePage = "admin";
+  if (submenu == "system") activePage = "admin-system";
+  else if (submenu == "settings") activePage = "admin-settings";
+  else if (submenu == "security") activePage = "admin-security";
+  else if (submenu == "network") activePage = "admin-network";
+  else if (submenu == "maintenance") activePage = "admin-maintenance";
+  else if (submenu == "all") activePage = "admin-all";
+  
+  html += getNavigation(activePage);
   html += "<div class='container'>";
   
-  // Show submenu selector or submenu content
-  if (submenu == "") {
-    // Main menu - show category buttons
+  // Show submenu title
+  if (submenu == "system") {
     html += "<h1>System Administration</h1>";
-    html += "<p>Select a category to manage:</p>";
-    html += "<div class='menu-grid'>";
-    
-    html += "<a href='/admin?submenu=system' style='text-decoration: none; color: inherit;'>";
-    html += "<div class='menu-card'>";
-    html += "<h3>System</h3>";
-    html += "<p>System & modem information, control functions</p>";
-    html += "</div></a>";
-    
-    html += "<a href='/admin?submenu=settings' style='text-decoration: none; color: inherit;'>";
-    html += "<div class='menu-card'>";
-    html += "<h3>Settings</h3>";
-    html += "<p>Hostname, debug, OLED, timezone configuration</p>";
-    html += "</div></a>";
-    
-    html += "<a href='/admin?submenu=security' style='text-decoration: none; color: inherit;'>";
-    html += "<div class='menu-card'>";
-    html += "<h3>Security</h3>";
-    html += "<p>Web username and password management</p>";
-    html += "</div></a>";
-    
-    html += "<a href='/admin?submenu=network' style='text-decoration: none; color: inherit;'>";
-    html += "<div class='menu-card'>";
-    html += "<h3>Network</h3>";
-    html += "<p>MQTT configuration and settings</p>";
-    html += "</div></a>";
-    
-    html += "<a href='/admin?submenu=maintenance' style='text-decoration: none; color: inherit;'>";
-    html += "<div class='menu-card'>";
-    html += "<h3>Maintenance</h3>";
-    html += "<p>Configuration, firmware updates, modem flashing</p>";
-    html += "</div></a>";
-    
-    html += "</div>";
-  } else {
-    // Submenu view - show back button and title
-    html += "<div style='margin-bottom: 20px;'>";
-    html += "<a href='/admin' class='btn btn-primary'>Back to Admin Menu</a>";
-    html += "</div>";
-    
-    if (submenu == "system") {
-      html += "<h1>System</h1>";
-    } else if (submenu == "settings") {
-      html += "<h1>Settings</h1>";
-    } else if (submenu == "security") {
-      html += "<h1>Security</h1>";
-    } else if (submenu == "network") {
-      html += "<h1>Network</h1>";
-    } else if (submenu == "maintenance") {
-      html += "<h1>Maintenance</h1>";
-    }
-    
-    html += "<div class='admin-grid'>";
+  } else if (submenu == "settings") {
+    html += "<h1>Settings</h1>";
+  } else if (submenu == "security") {
+    html += "<h1>Security</h1>";
+  } else if (submenu == "network") {
+    html += "<h1>Network</h1>";
+  } else if (submenu == "maintenance") {
+    html += "<h1>Maintenance</h1>";
+  } else if (submenu == "all") {
+    html += "<h1>All Admin Sections</h1>";
+    html += "<p style='color: var(--text-secondary); margin-bottom: 20px;'>Complete overview of all administration settings for debugging and review</p>";
+  }
+  
+  html += "<div class='admin-grid'>";
     
     // SYSTEM SUBMENU
-    if (submenu == "system") {
+    if (submenu == "system" || submenu == "all") {
+      if (submenu == "all") html += "<h2 style='grid-column: 1 / -1; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;'>System</h2>";
       // System Information Card
       html += "<div class='card'>";
       html += "<h3>System Information</h3>";
@@ -368,7 +334,8 @@ void handleAdmin() {
     }
     
     // SETTINGS SUBMENU
-    if (submenu == "settings") {
+    if (submenu == "settings" || submenu == "all") {
+      if (submenu == "all") html += "<h2 style='grid-column: 1 / -1; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-top: 30px;'>Settings</h2>";
       // Hostname Configuration Card
       html += "<div class='card'>";
       html += "<h3>Hostname Configuration</h3>";
@@ -514,7 +481,8 @@ void handleAdmin() {
     }
     
     // SECURITY SUBMENU
-    if (submenu == "security") {
+    if (submenu == "security" || submenu == "all") {
+      if (submenu == "all") html += "<h2 style='grid-column: 1 / -1; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-top: 30px;'>Security</h2>";
       // Web Username Card
       html += "<div class='card'>";
       html += "<h3>Web Username</h3>";
@@ -567,7 +535,8 @@ void handleAdmin() {
     }
     
     // NETWORK SUBMENU
-    if (submenu == "network") {
+    if (submenu == "network" || submenu == "all") {
+      if (submenu == "all") html += "<h2 style='grid-column: 1 / -1; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-top: 30px;'>Network</h2>";
       // MQTT Configuration Card
       html += "<div class='card'>";
       html += "<h3>MQTT Configuration</h3>";
@@ -619,7 +588,8 @@ void handleAdmin() {
     }
     
     // MAINTENANCE SUBMENU
-    if (submenu == "maintenance") {
+    if (submenu == "maintenance" || submenu == "all") {
+      if (submenu == "all") html += "<h2 style='grid-column: 1 / -1; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-top: 30px;'>Maintenance</h2>";
       // Configuration Management Card
       html += "<div class='card'>";
       html += "<h3>Configuration Management</h3>";
@@ -705,7 +675,6 @@ void handleAdmin() {
     }
 
     html += "</div>"; // Close admin-grid
-  }
 
   // Warning message (only show in submenus)
   if (submenu != "") {

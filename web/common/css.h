@@ -12,7 +12,8 @@ String getCommonCSS() {
   css += ":root { --bg-color: #f0f0f0; --container-bg: white; --text-color: #333; --border-color: #dee2e6; --card-bg: #f8f9fa; --info-bg: #e7f3ff; --topnav-bg: #333; --topnav-text: #f2f2f2; --topnav-hover: #ddd; --topnav-hover-text: black; --link-color: #007bff; --link-hover-color: #0056b3; }";
   css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #ffffff; --border-color: #555; --card-bg: #3a3a3a; --info-bg: #1e3a5f; --topnav-bg: #000; --topnav-text: #f2f2f2; --topnav-hover: #444; --topnav-hover-text: #ffffff; --link-color: #4da6ff; --link-hover-color: #66b3ff; }";
   css += "body { font-family: Arial, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }";
-  css += ".topnav { background-color: var(--topnav-bg); overflow: hidden; }";
+  css += ".topnav { background-color: var(--topnav-bg); overflow: visible; }";
+  css += ".topnav::after { content: ''; display: table; clear: both; }";
   css += ".topnav a { float: left; display: block; color: var(--topnav-text); text-align: center; padding: 14px 20px; text-decoration: none; }";
   css += ".topnav a:hover { background-color: var(--topnav-hover); color: var(--topnav-hover-text); }";
   css += ".topnav a.active { background-color: #007bff; color: white; }";
@@ -22,10 +23,10 @@ String getCommonCSS() {
   css += ".dropdown { float: left; overflow: visible; position: relative; }";
   css += ".dropdown .dropbtn { background-color: inherit; font-size: 16px; border: none; outline: none; color: var(--topnav-text); padding: 14px 20px; font-family: inherit; margin: 0; display: block; text-align: center; text-decoration: none; cursor: pointer; }";
   css += ".dropdown:hover .dropbtn, .dropbtn.active { background-color: var(--topnav-hover); color: var(--topnav-hover-text); }";
-  css += ".dropdown-content { display: none; position: absolute; background-color: var(--topnav-bg); min-width: 200px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1000; }";
+  css += ".dropdown-content { display: none !important; position: absolute; background-color: var(--topnav-bg); min-width: 200px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1000; }";
   css += ".dropdown-content a { float: none; color: var(--topnav-text); padding: 12px 16px; text-decoration: none; display: block; text-align: left; }";
   css += ".dropdown-content a:hover { background-color: var(--topnav-hover); color: var(--topnav-hover-text); }";
-  css += ".dropdown-content.show { display: block; }";
+  css += ".dropdown-content.show { display: block !important; }";
   css += "@media screen and (max-width: 600px) {";
   css += "  .topnav a:not(:first-child), .dropdown .dropbtn {display: none;}";
   css += "  .topnav a.icon {float: right; display: block;}";
