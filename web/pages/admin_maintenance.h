@@ -7,7 +7,25 @@
 #define WEB_PAGES_ADMIN_MAINTENANCE_H
 
 #include <Arduino.h>
-#include "admin_common.h"
+#include "../common/css.h"
+#include "../common/navigation.h"
+#include "../common/utils.h"
+
+// Forward declarations of handler functions
+void handleResetConfig();
+void handleConfirmReset();
+void handleCancelReset();
+void handleExportConfig();
+void handleImportConfig();
+void handleShowPreferences();
+void handleClearLogs();
+void handleTestMmdvm();
+void handleCleanupPrefs();
+void handleCheckUpdate();
+void handleOTAUpdate();
+void handleUploadFirmware();
+void handleModemFlash();
+void handleModemUpload();
 
 // Forward declarations
 extern String firmwareVersion;
@@ -24,10 +42,30 @@ extern String modemFirmwareVersion;
 void handleAdminMaintenance() {
   if (!checkAuthentication()) return;
 
-  String html;
-  html.reserve(20000);
-  
-  html = getAdminHeader("Maintenance", "admin");
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>Maintenance - " + dmr_callsign + "</title>";
+  html += getCommonCSS();
+  html += "<style>";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += "@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; text-decoration: none; }";
+  html += ".btn-primary { background: #007bff; color: white; }";
+  html += ".btn-primary:hover { background: #0056b3; }";
+  html += ".btn-success { background: #28a745; color: white; }";
+  html += ".btn-success:hover { background: #218838; }";
+  html += ".btn-warning { background: #ffc107; color: black; }";
+  html += ".btn-warning:hover { background: #e0a800; }";
+  html += ".btn-danger { background: #dc3545; color: white; }";
+  html += ".btn-danger:hover { background: #c82333; }";
+  html += ".btn-info { background: #17a2b8; color: white; }";
+  html += ".btn-info:hover { background: #138496; }";
+  html += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
+  html += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
+  html += "</style></head><body>";
+  html += getNavigation("admin");
+  html += "<div class='container'>";
+  html += "<h1>Maintenance</h1>";
 
   // Start admin grid container
   html += "<div class='admin-grid'>";
@@ -39,15 +77,10 @@ void handleAdminMaintenance() {
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
   html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
-  html += "<a href='javascript:void(0)' onclick='showImportConfig()' class='btn btn-info'>Import Config</a>";
+  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"config-file\").click()' class='btn btn-info'>Import Config</a>";
   html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
   html += "</div>";
-  html += "<div id='import-area' style='display: none; margin-top: 15px; padding: 15px; border: 2px dashed #17a2b8; border-radius: 5px; background: #f8f9fa;'>";
-  html += "<h4>Import Configuration</h4>";
-  html += "<p style='color: #dc3545;'>WARNING: This will overwrite existing settings!</p>";
-  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='margin-bottom: 10px;'>";
-  html += "<br><button onclick='importConfig()' class='btn btn-warning'>Import Configuration</button>";
-  html += "</div>";
+  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display: none;'>";
   html += "</div>";
 
   // Maintenance Card
@@ -151,11 +184,6 @@ void handleAdminMaintenance() {
   html += "    a.click();";
   html += "    window.URL.revokeObjectURL(url);";
   html += "  });";
-  html += "}";
-  
-  html += "function showImportConfig() {";
-  html += "  var importArea = document.getElementById('import-area');";
-  html += "  importArea.style.display = importArea.style.display === 'none' ? 'block' : 'none';";
   html += "}";
   
   html += "function importConfig() {";
@@ -497,7 +525,9 @@ void handleAdminMaintenance() {
   html += "window.onload = function() { checkLatestVersion(); checkLatestBetaVersion(); };";
   html += "</script>";
 
-  html += getAdminFooter();
+  html += "</div>";  // Close container
+  html += getFooter();
+  html += "</body></html>";
   server.send(200, "text/html; charset=UTF-8", html);
 }
 

@@ -7,7 +7,15 @@
 #define WEB_PAGES_ADMIN_SETTINGS_H
 
 #include <Arduino.h>
-#include "admin_common.h"
+#include "../common/css.h"
+#include "../common/navigation.h"
+#include "../common/utils.h"
+
+// Forward declarations of handler functions
+void handleSaveHostname();
+void handleSaveDebugSettings();
+void handleSaveOLEDSettings();
+void handleSaveTimezone();
 
 // Forward declarations
 extern String device_hostname;
@@ -26,10 +34,22 @@ extern long ntp_daylight_offset;
 void handleAdminSettings() {
   if (!checkAuthentication()) return;
 
-  String html;
-  html.reserve(15000);
-  
-  html = getAdminHeader("Settings", "admin");
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>Admin Settings - " + dmr_callsign + "</title>";
+  html += getCommonCSS();
+  html += "<style>";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += "@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  html += ".metric-label { font-weight: bold; color: var(--text-color); }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; text-align: center; }";
+  html += ".btn-success { background: #28a745; color: white; }";
+  html += ".btn-success:hover { background: #218838; }";
+  html += "</style></head><body>";
+  html += getNavigation("admin");
+  html += "<div class='container'>";
+  html += "<h1>Admin Settings</h1>";
 
   // Start admin grid container
   html += "<div class='admin-grid'>";
@@ -70,24 +90,24 @@ void handleAdminSettings() {
   html += "<input type='checkbox' id='debug-mmdvm' " + String(debug_mmdvm ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
   html += "<span><strong>MMDVM Protocol</strong> - TX frame debug (verbose)</span>";
   html += "</label>";
-  
+
   // DEBUG_NETWORK
   html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
   html += "<input type='checkbox' id='debug-network' " + String(debug_network ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
   html += "<span><strong>Network Debug</strong> - Keepalive messages (verbose)</span>";
   html += "</label>";
-  
+
   // DEBUG_DMR
   html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
   html += "<input type='checkbox' id='debug-dmr' " + String(debug_dmr ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
   html += "<span><strong>DMR Protocol</strong> - DMR packet details (reserved)</span>";
   html += "</label>";
-  
+
   // DEBUG_PASSWORD
   html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;'>";
   html += "<input type='checkbox' id='debug-password' " + String(debug_password ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
   html += "<span><strong>Password Debug</strong> - Show password length/last4 chars</span>";
-  html += "</label>";
+  html += "</label;";
   
   html += "</div>";
   html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save Debug Settings</button>";
@@ -250,7 +270,9 @@ void handleAdminSettings() {
   html += "}";
   html += "</script>";
 
-  html += getAdminFooter();
+  html += "</div>";  // Close container
+  html += getFooter();
+  html += "</body></html>";
   server.send(200, "text/html; charset=UTF-8", html);
 }
 

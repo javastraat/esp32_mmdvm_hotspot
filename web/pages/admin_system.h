@@ -7,7 +7,13 @@
 #define WEB_PAGES_ADMIN_SYSTEM_H
 
 #include <Arduino.h>
-#include "admin_common.h"
+#include "../common/css.h"
+#include "../common/navigation.h"
+#include "../common/utils.h"
+
+// Forward declarations of handler functions
+void handleReboot();
+void handleRestartServices();
 
 // Forward declarations of external variables
 extern String dmr_callsign;
@@ -18,10 +24,32 @@ extern bool mmdvmReady;
 void handleAdminSystem() {
   if (!checkAuthentication()) return;
 
-  String html;
-  html.reserve(15000);
-  
-  html = getAdminHeader("System Info", "admin");
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>System Info - " + dmr_callsign + "</title>";
+  html += getCommonCSS();
+  html += "<style>";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += "@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  html += ".metric:last-child { border-bottom: none; }";
+  html += ".metric-label { font-weight: bold; color: var(--text-color); }";
+  html += ".metric-value { color: var(--text-color); }";
+  html += ".uptime { color: #007bff; font-weight: bold; }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
+  html += ".btn-primary { background: #007bff; color: white; }";
+  html += ".btn-primary:hover { background: #0056b3; }";
+  html += ".btn-success { background: #28a745; color: white; }";
+  html += ".btn-success:hover { background: #218838; }";
+  html += ".btn-warning { background: #ffc107; color: black; }";
+  html += ".btn-warning:hover { background: #e0a800; }";
+  html += ".btn-danger { background: #dc3545; color: white; }";
+  html += ".btn-danger:hover { background: #c82333; }";
+  html += ".action-buttons { text-align: center; margin: 15px 0; }";
+  html += "</style></head><body>";
+  html += getNavigation("admin");
+  html += "<div class='container'>";
+  html += "<h1>System Info</h1>";
 
   // Start admin grid container
   html += "<div class='admin-grid'>";
@@ -289,7 +317,9 @@ void handleAdminSystem() {
   html += "}";
   html += "</script>";
 
-  html += getAdminFooter();
+  html += "</div>";  // Close container
+  html += getFooter();
+  html += "</body></html>";
   server.send(200, "text/html; charset=UTF-8", html);
 }
 

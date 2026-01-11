@@ -52,7 +52,8 @@ const char* publicPages[] = {
   "/api/dmr-slot2",     // DMR Slot 2 data
   "/api/dmr-history",   // DMR history data
   "/api/rf-history",    // RF history data
-  "/api/system-status"  // System status data
+  "/api/system-status" // System status data
+    
 };
 
 // Check if current URI is a public page

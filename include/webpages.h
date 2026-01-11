@@ -75,15 +75,13 @@ extern void saveConfig();
 #include "web/pages/mode_config.h"
 
 // Admin page handlers (modular - direct endpoints)
-#include "web/pages/admin_common.h"
 #include "web/pages/admin_system.h"
 #include "web/pages/admin_settings.h"
 #include "web/pages/admin_security.h"
 #include "web/pages/admin_network.h"
 #include "web/pages/admin_maintenance.h"
-//#include "web/pages/admin_all.h"
 
-// Backend handler functions for admin pages
+// Backend handler functions for admin pages (included after pages for forward declarations)
 #include "handlers/admin/system_handlers.h"
 #include "handlers/admin/settings_handlers.h"
 #include "handlers/admin/security_handlers.h"
