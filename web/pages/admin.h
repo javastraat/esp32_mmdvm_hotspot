@@ -83,12 +83,6 @@ extern String getCommonCSS();
 extern String getNavigation(String activePage);
 extern String getFooter();
 
-#include "handlers/admin/system_handlers.h"
-#include "handlers/admin/settings_handlers.h"
-#include "handlers/admin/security_handlers.h"
-#include "handlers/admin/network_handlers.h"
-#include "handlers/admin/maintenance_handlers.h"
-
 // Constants already defined in config.h
 #define SERIAL_LOG_SIZE 50
 
