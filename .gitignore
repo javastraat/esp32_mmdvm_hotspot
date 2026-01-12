@@ -1,10 +1,10 @@
 .DS_Store
-MMDVMHost/
-MMDVMHost/*
-MMDVMHost/.DS_Store
-MMDVM_HS/
-MMDVM_HS/*
-MMDVM_HS/.DS_Store
+/MMDVMHost/
+/MMDVMHost/*
+/MMDVMHost/.DS_Store
+/MMDVM_HS/
+/MMDVM_HS/*
+/MMDVM_HS/.DS_Store
 /sharkrf/
 /sharkrf/*
 /sharkrf/.DS_Store
