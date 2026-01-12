@@ -1,5 +1,3 @@
 mmdvm
 thru echo audio back is chopped, maybe outgoing buffer
 
-brandmeister
-essid not working correctly, when other then none choosen, it connect with that ssid but also with none
