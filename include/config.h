@@ -52,6 +52,17 @@
 #define DMR_DESCRIPTION "ESP32-MMDVM"  // Default description
 #define DMR_URL ""                     // Default URL (empty)
 
+// ===== SharkRF Network Configuration =====
+// SharkRF IP Connector Protocol settings
+#define SHARKRF_SERVER "192.168.2.188"            // SharkRF server IP/hostname (default: localhost for testing)
+#define SHARKRF_PORT 65100                    // SharkRF server port (default: 65100)
+#define SHARKRF_PASSWORD "itoldyoualready"           // SharkRF server password
+#define SHARKRF_PROTOCOL "DMR"                // Protocol to use over SharkRF: DMR, DSTAR, YSF, C4FM, NXDN, P25
+#define SHARKRF_HW_MANUFACTURER "ESP32"       // Hardware manufacturer string
+#define SHARKRF_HW_MODEL "MMDVM-HS"           // Hardware model string
+#define SHARKRF_LOCATION "ESP32 Hotspot"      // SharkRF location description
+#define SHARKRF_DESCRIPTION "ESP32-MMDVM"     // SharkRF description
+
 // ===== Hardware Pin Configuration =====
 // Pin definitions based on board type
 #if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
@@ -247,6 +258,7 @@
 #define DEFAULT_MODE_P25 false     // P25 mode (not yet implemented)
 #define DEFAULT_MODE_NXDN false    // NXDN mode (not yet implemented)
 #define DEFAULT_MODE_POCSAG false  // POCSAG paging mode (not yet implemented)
+#define DEFAULT_MODE_SHARKRF false // SharkRF IP Connector mode (DMR/DSTAR/YSF/C4FM/NXDN/P25 over SharkRF protocol)
 
 // ===== Modem Hardware Type =====
 // Default modem type - can be changed via web interface
