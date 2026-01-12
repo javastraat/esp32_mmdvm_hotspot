@@ -1,3 +1,9 @@
-mmdvm
-sharkrf settings in ui, and ping alive, after rf to network connection is lost
+mmdvm sharkrf
+sharkrf settings in mode config new card with all options
+show sharkrf in mode config active modes
+export,import and show prefs in admin
+main show sharkrf buttons
+status page sharkrf card 
+ping alive ? after rf to network connection is lost to server
+
 
