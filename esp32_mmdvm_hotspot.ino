@@ -92,6 +92,13 @@
 #include "include/RGBLedController.h"
 #include "include/modem_flasher.h"
 
+// DMR Decoder Library
+#include "include/dmr/DMRLC.cpp"
+#include "include/dmr/DMRBPTC.cpp"
+#include "include/dmr/DMRRS.cpp"
+#include "include/dmr/DMRFullLC.cpp"
+#include "include/dmr/DMRDecoder.cpp"
+
 // OLED Display Support (runtime enable/disable)
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -2272,13 +2279,26 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
   // DMR sync patterns (MS sourced, simplex hotspot mode)
   const uint8_t MS_DATA_SYNC[] = { 0x0D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x70 };
   const uint8_t MS_AUDIO_SYNC[] = { 0x07, 0xF7, 0xD5, 0xDD, 0x57, 0xDF, 0xD0 };
+  // Observed variant from actual radio (with color code or timing offset)
+  const uint8_t MS_DATA_SYNC_ALT[] = { 0x6D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x7E };
 
   // Extract the 33-byte DMR frame (modemData[1..33])
   const uint8_t* dmrFrame = &modemData[1];
 
   // Check sync pattern at bytes 13-19 of the DMR frame (bytes 14-20 in modemData)
-  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0);
+  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0) ||
+                    (memcmp(&dmrFrame[13], MS_DATA_SYNC_ALT, 7) == 0);
   bool isAudioSync = (memcmp(&dmrFrame[13], MS_AUDIO_SYNC, 7) == 0);
+
+  // Debug: print actual sync pattern on first frame of new transmission
+  if (debug_dmr && (millis() - lastTxTime > 1000)) {
+    String syncHex = "Sync[13-19]: ";
+    for (int i = 13; i < 20; i++) {
+      if (dmrFrame[i] < 0x10) syncHex += "0";
+      syncHex += String(dmrFrame[i], HEX) + " ";
+    }
+    logSerial("[DEBUG] " + syncHex + "isDataSync=" + String(isDataSync) + " isAudioSync=" + String(isAudioSync));
+  }
 
   // Determine data type from sync pattern
   uint8_t dataType = 0;
@@ -2320,16 +2340,39 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
     currentRFTx[slotIndex].startSeq = 0;
     currentRFTx[slotIndex].lastSeq = 0;
 
+    // Try to extract destination TG from LC (Link Control) data
+    if (isDataSync) {
+      if (debug_dmr) {
+        logSerial("[DEBUG] Data sync detected, calling DMRDecoder::extractLCInfo()");
+      }
+      DMRDecoder::LCInfo lcInfo = DMRDecoder::extractLCInfo(dmrFrame, debug_dmr);
+      if (lcInfo.valid) {
+        if (debug_dmr) {
+          logSerial("[DEBUG] LC decode SUCCESS! dstId=" + String(lcInfo.dstId));
+        }
+        currentRFTx[slotIndex].dstId = lcInfo.dstId;
+        currentRFTx[slotIndex].isGroup = lcInfo.isGroup;
+      } else {
+        if (debug_dmr) {
+          logSerial("[DEBUG] LC decode FAILED - dstId will remain 0");
+        }
+      }
+    } else {
+      if (debug_dmr) {
+        logSerial("[DEBUG] Not a data sync frame, skipping LC extraction");
+      }
+    }
+
     // Log [START] similar to network RX format
     String frameTypeStr = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
-    logSerial("[DMR] [RF->NET] Slot" + String(slot) + " Seq=" + String(txSequence) + " " + String(dmr_id) + "->TG0 [START] Type=" + frameTypeStr);
+    logSerial("[DMR] [RF->NET] Slot" + String(slot) + " Seq=" + String(txSequence) + " " + String(dmr_id) + "->TG" + String(currentRFTx[slotIndex].dstId) + " [START] Type=" + frameTypeStr);
 
     // Also update Live DMR Activity display (so RF TX shows in real-time on web UI and OLED)
     dmrActivity[slotIndex].active = true;
     dmrActivity[slotIndex].srcId = dmr_id;
-    dmrActivity[slotIndex].dstId = 0;  // Will be extracted from LC if available
+    dmrActivity[slotIndex].dstId = currentRFTx[slotIndex].dstId;  // Use extracted TG
     dmrActivity[slotIndex].srcCallsign = dmr_callsign;
-    dmrActivity[slotIndex].isGroup = true;
+    dmrActivity[slotIndex].isGroup = currentRFTx[slotIndex].isGroup;
     dmrActivity[slotIndex].frameType = isDataSync ? "VOICE_LC_HDR" : (isAudioSync ? "VOICE_SYNC" : "VOICE");
     dmrActivity[slotIndex].startTime = currentTime;
     dmrActivity[slotIndex].lastUpdate = currentTime;
