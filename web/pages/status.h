@@ -43,6 +43,13 @@ extern uint32_t dmr_tx_freq;
 extern uint8_t dmr_color_code;
 extern uint8_t dmr_power;
 extern String dmr_location;
+extern bool mode_sharkrf_enabled;
+extern bool srfLoggedIn;
+extern String sharkrf_server;
+extern int sharkrf_port;
+extern String sharkrf_protocol;
+extern String sharkrf_location;
+extern String sharkrf_description;
 
 // Forward declaration
 String getStatusContent();
@@ -133,6 +140,24 @@ void handleStatus() {
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Current Talkgroup:</span><span class=\"metric-value\">None</span></div>';";
   html += "  }";
   html += "  html += '</div>';";
+  // SharkRF Status Card (only show if SharkRF mode is enabled)
+  html += "  if (data.sharkrf && data.sharkrf.enabled) {";
+  html += "    html += '<div class=\"card\"><h3>SharkRF Network Status</h3>';";
+  html += "    let srfClass = data.sharkrf.loggedIn ? 'connected' : 'disconnected';";
+  html += "    let srfStatus = data.sharkrf.loggedIn ? 'Connected' : 'Disconnected';";
+  html += "    html += '<div class=\"status ' + srfClass + '\">Status: ' + srfStatus + '</div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Server:</span><span class=\"metric-value\">' + data.sharkrf.server + ':' + data.sharkrf.port + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Protocol:</span><span class=\"metric-value\">' + data.sharkrf.protocol + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Callsign:</span><span class=\"metric-value\">' + data.dmr.callsign + '</span></div>';";
+  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.dmr.dmrId + '</span></div>';";
+  html += "    if (data.sharkrf.location && data.sharkrf.location.length > 0) {";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Location:</span><span class=\"metric-value\">' + data.sharkrf.location + '</span></div>';";
+  html += "    }";
+  html += "    if (data.sharkrf.description && data.sharkrf.description.length > 0) {";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Description:</span><span class=\"metric-value\">' + data.sharkrf.description + '</span></div>';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "  }";
   // MMDVM Hardware Status Card
   html += "  html += '<div class=\"card\"><h3>MMDVM Hardware Status</h3>';";
   html += "  let mmdvmClass = data.mmdvm.ready ? 'connected' : 'disconnected';";
@@ -271,6 +296,26 @@ String getStatusContent() {
   }
   html += "</div>";
 
+  // SharkRF Status Card (only show if SharkRF mode is enabled)
+  if (mode_sharkrf_enabled) {
+    html += "<div class='card'>";
+    html += "<h3>SharkRF Network Status</h3>";
+    String srfStatusClass = srfLoggedIn ? "connected" : "disconnected";
+    String srfStatusText = srfLoggedIn ? "Connected" : "Disconnected";
+    html += "<div class='status " + srfStatusClass + "'>Status: " + srfStatusText + "</div>";
+    html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + sharkrf_server + ":" + String(sharkrf_port) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Protocol:</span><span class='metric-value'>" + sharkrf_protocol + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
+    if (sharkrf_location.length() > 0) {
+      html += "<div class='metric'><span class='metric-label'>Location:</span><span class='metric-value'>" + sharkrf_location + "</span></div>";
+    }
+    if (sharkrf_description.length() > 0) {
+      html += "<div class='metric'><span class='metric-label'>Description:</span><span class='metric-value'>" + sharkrf_description + "</span></div>";
+    }
+    html += "</div>";
+  }
+
   // MMDVM Hardware Status Card
   html += "<div class='card'>";
   html += "<h3>MMDVM Hardware Status</h3>";
@@ -358,6 +403,17 @@ void handleStatusData() {
   json += "\"dmrId\":" + String(dmr_id) + ",";
   json += "\"essid\":" + String(dmr_essid) + ",";
   json += "\"currentTalkgroup\":" + String(currentTalkgroup);
+  json += "},";
+
+  // SharkRF Network Status
+  json += "\"sharkrf\":{";
+  json += "\"enabled\":" + String(mode_sharkrf_enabled ? "true" : "false") + ",";
+  json += "\"loggedIn\":" + String(srfLoggedIn ? "true" : "false") + ",";
+  json += "\"server\":\"" + sharkrf_server + "\",";
+  json += "\"port\":" + String(sharkrf_port) + ",";
+  json += "\"protocol\":\"" + sharkrf_protocol + "\",";
+  json += "\"location\":\"" + sharkrf_location + "\",";
+  json += "\"description\":\"" + sharkrf_description + "\"";
   json += "},";
 
   // MMDVM Hardware Status

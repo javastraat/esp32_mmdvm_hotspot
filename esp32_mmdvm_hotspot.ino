@@ -183,8 +183,11 @@ uint32_t srfSequenceNumber = 0;
 uint32_t srfCallSessionId = 0;
 unsigned long lastSRFPing = 0;
 unsigned long lastSRFPacket = 0;
+unsigned long lastSRFToRFPacket = 0;
 const unsigned long SRF_PING_INTERVAL = 5000;  // 5 seconds
 const unsigned long SRF_TIMEOUT = 30000;       // 30 seconds
+const unsigned long SRF_TO_RF_MIN_INTERVAL = 60;  // 60ms minimum between packets (DMR voice frame timing)
+unsigned int srfToRFDropped = 0;  // Counter for dropped packets
 
 // Hostname setting
 String device_hostname = MDNS_HOSTNAME;
@@ -2383,11 +2386,21 @@ void connectToSharkRF() {
   logSerial("[SharkRF] Connecting to SharkRF server...");
   logSerial("[SharkRF] Server: " + sharkrf_server + ":" + String(sharkrf_port));
   logSerial("[SharkRF] Protocol: " + sharkrf_protocol);
-  logSerial("[SharkRF] Callsign: " + dmr_callsign + " ID: " + String(dmr_id));
+
+  // Combine DMR ID + ESSID for SharkRF login (e.g., 2041152 + 15 = 204115215)
+  uint32_t sharkrf_id = dmr_id;
+  if (dmr_essid > 0) {
+    // Concatenate as string then convert to number to preserve all digits
+    String combined = String(dmr_id) + String(dmr_essid);
+    sharkrf_id = combined.toInt();
+    logSerial("[SharkRF] Callsign: " + dmr_callsign + " ID: " + String(dmr_id) + " ESSID: " + String(dmr_essid) + " (Combined: " + String(sharkrf_id) + ")");
+  } else {
+    logSerial("[SharkRF] Callsign: " + dmr_callsign + " ID: " + String(dmr_id));
+  }
 
   // Send login packet
   uint8_t loginPacket[512];
-  size_t loginSize = SharkRFProtocol::buildLoginPacket(loginPacket, dmr_id);
+  size_t loginSize = SharkRFProtocol::buildLoginPacket(loginPacket, sharkrf_id);
 
   udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
   udp.write(loginPacket, loginSize);
@@ -2440,7 +2453,7 @@ void sendSRFPing() {
   udp.endPacket();
 
   lastSRFPing = millis();
-  logSerialVerbose("[SharkRF] Ping sent");
+  logSerial("[SharkRF] Ping sent (keepalive)");  // Changed to always log pings for debugging
 }
 
 void handleSRFPacket(const uint8_t* buffer, size_t length) {
@@ -2489,7 +2502,7 @@ void handleSRFPacket(const uint8_t* buffer, size_t length) {
       break;
 
     case SRF_PACKET_TYPE_PONG:
-      logSerialVerbose("[SharkRF] Pong received");
+      logSerial("[SharkRF] Pong received (server alive)");  // Changed to always log pongs for debugging
       break;
 
     case SRF_PACKET_TYPE_DATA_DMR:
@@ -2513,6 +2526,9 @@ void handleSRFPacket(const uint8_t* buffer, size_t length) {
 }
 
 void handleSRFDMRData(const SRF_Data_DMR* dmrPacket) {
+  // Update last packet timestamp to prevent connection timeout
+  lastSRFPacket = millis();
+
   // Extract DMR frame and metadata from SharkRF packet
   uint8_t dmrFrame[33];
   uint32_t src_id, dst_id;
@@ -2523,6 +2539,17 @@ void handleSRFDMRData(const SRF_Data_DMR* dmrPacket) {
     logSerial("[SharkRF] Failed to extract DMR frame");
     return;
   }
+
+  // Rate limiting: Check if enough time has passed since last packet
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastSRFToRFPacket < SRF_TO_RF_MIN_INTERVAL) {
+    srfToRFDropped++;
+    if (srfToRFDropped % 10 == 0) {  // Log every 10th dropped packet
+      logSerial("[SharkRF→RF] Rate limiting: dropped " + String(srfToRFDropped) + " packets to prevent modem overflow");
+    }
+    return;  // Drop this packet to prevent modem buffer overflow
+  }
+  lastSRFToRFPacket = currentMillis;
 
   // Log incoming transmission
   logSerial("[SharkRF→RF] Slot" + String(slot) + " " + String(src_id) + "→" +
@@ -2552,6 +2579,19 @@ void handleSRFDMRData(const SRF_Data_DMR* dmrPacket) {
     int pipe1 = userInfo.indexOf('|');
     if (pipe1 > 0) {
       dmrActivity[slotIndex].srcCallsign = userInfo.substring(0, pipe1);
+      int pipe2 = userInfo.indexOf('|', pipe1 + 1);
+      if (pipe2 > 0) {
+        dmrActivity[slotIndex].srcName = userInfo.substring(pipe1 + 1, pipe2);
+        int pipe3 = userInfo.indexOf('|', pipe2 + 1);
+        if (pipe3 > 0) {
+          dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
+          dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe3 + 1);
+        } else {
+          dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1);
+        }
+      } else {
+        dmrActivity[slotIndex].srcName = userInfo.substring(pipe1 + 1);
+      }
     }
   }
 }

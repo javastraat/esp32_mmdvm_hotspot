@@ -38,6 +38,15 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
+extern bool mode_sharkrf_enabled;
+extern String sharkrf_server;
+extern int sharkrf_port;
+extern String sharkrf_password;
+extern String sharkrf_protocol;
+extern String sharkrf_hw_manufacturer;
+extern String sharkrf_hw_model;
+extern String sharkrf_location;
+extern String sharkrf_description;
 extern String modem_type;
 extern void logSerial(String message);
 extern void saveConfig();
@@ -80,6 +89,13 @@ void handleDMRConfig() {
   html += "<div class='status " + dmrStatusClass + "' style='margin: 0; padding: 6px 12px;'>" + String(mode_dmr_enabled ? "Enabled" : "Disabled") + "</div>";
   html += "</div>";
 
+  // SharkRF Mode - with status badge
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>SharkRF:</span>";
+  String sharkrfStatusClass = mode_sharkrf_enabled ? "connected" : "disconnected";
+  html += "<div class='status " + sharkrfStatusClass + "' style='margin: 0; padding: 6px 12px;'>" + String(mode_sharkrf_enabled ? "Enabled" : "Disabled") + "</div>";
+  html += "</div>";
+
   // Other modes - Read-only status (not yet implemented)
   html += "<div class='metric' style='opacity: 0.6;'>";
   html += "<span class='metric-label'>D-Star:</span>";
@@ -107,7 +123,7 @@ void handleDMRConfig() {
   html += "</div>";
 
   html += "<div class='info' style='margin-top: 15px; font-size: 0.9em;'>";
-  html += "<strong>Note:</strong> Enable or disable modes in the BrandMeister Settings card below. Changes require device restart.";
+  html += "<strong>Note:</strong> Enable or disable DMR mode in the BrandMeister Settings card below, or SharkRF mode in the SharkRF Settings card. Changes require device restart.";
   html += "</div>";
   html += "</div>";
 
@@ -353,6 +369,74 @@ void handleDMRConfig() {
   html += "</form>";
   html += "</div>";
 
+  // SharkRF Settings Card
+  html += "<div class='card'>";
+  html += "<h3>SharkRF IP Connector Settings</h3>";
+  html += "<form action='/savedmrconfig' method='POST'>";
+
+  // SharkRF Enable/Disable
+  html += "<label style='display: flex; align-items: center; margin-bottom: 15px;'>";
+  html += "<input type='checkbox' name='mode_sharkrf' value='1' " + String(mode_sharkrf_enabled ? "checked" : "") + " style='width: auto; margin-right: 10px;'>";
+  html += "<span style='font-weight: bold;'>Enable SharkRF Mode</span>";
+  html += "</label>";
+
+  html += "<label>Server IP/Hostname:</label>";
+  html += "<input type='text' name='sharkrf_server' value='" + sharkrf_server + "' placeholder='192.168.1.1 or hostname'>";
+
+  html += "<label>Port:</label>";
+  html += "<input type='number' name='sharkrf_port' value='" + String(sharkrf_port) + "' min='1' max='65535' placeholder='65100'>";
+
+  html += "<label>Password:</label>";
+  html += "<div class='password-container'>";
+  html += "<input type='password' id='sharkrfPasswordInput' name='sharkrf_password' value='" + sharkrf_password + "' placeholder='SharkRF password'>";
+  html += "<span class='toggle-password' onclick='toggleSharkRFPassword()'>&#128065;</span>";
+  html += "</div>";
+
+  html += "<label>Protocol:</label>";
+  html += "<select name='sharkrf_protocol'>";
+  html += "<option value='DMR'" + String(sharkrf_protocol == "DMR" ? " selected" : "") + ">DMR</option>";
+  html += "<option value='DSTAR'" + String(sharkrf_protocol == "DSTAR" ? " selected" : "") + ">D-Star</option>";
+  html += "<option value='YSF'" + String(sharkrf_protocol == "YSF" ? " selected" : "") + ">YSF/Fusion</option>";
+  html += "<option value='C4FM'" + String(sharkrf_protocol == "C4FM" ? " selected" : "") + ">C4FM</option>";
+  html += "<option value='NXDN'" + String(sharkrf_protocol == "NXDN" ? " selected" : "") + ">NXDN</option>";
+  html += "<option value='P25'" + String(sharkrf_protocol == "P25" ? " selected" : "") + ">P25</option>";
+  html += "</select>";
+
+  html += "<label>Hardware Manufacturer:</label>";
+  html += "<input type='text' name='sharkrf_hw_manufacturer' value='" + sharkrf_hw_manufacturer + "' maxlength='50' placeholder='ESP32'>";
+
+  html += "<label>Hardware Model:</label>";
+  html += "<input type='text' name='sharkrf_hw_model' value='" + sharkrf_hw_model + "' maxlength='50' placeholder='MMDVM-HS'>";
+
+  html += "<label>Location Description:</label>";
+  html += "<input type='text' name='sharkrf_location' value='" + sharkrf_location + "' maxlength='100' placeholder='ESP32 Hotspot'>";
+
+  html += "<label>Description:</label>";
+  html += "<input type='text' name='sharkrf_description' value='" + sharkrf_description + "' maxlength='100' placeholder='ESP32-MMDVM'>";
+
+  // Hidden fields to preserve other settings
+  html += "<input type='hidden' name='callsign' value='" + dmr_callsign + "'>";
+  html += "<input type='hidden' name='dmr_id' value='" + String(dmr_id) + "'>";
+  html += "<input type='hidden' name='essid' value='" + String(dmr_essid) + "'>";
+  html += "<input type='hidden' name='server' value='" + dmr_server + "'>";
+  html += "<input type='hidden' name='password' value='" + dmr_password + "'>";
+  html += "<input type='hidden' name='rx_freq' value='" + String(dmr_rx_freq) + "'>";
+  html += "<input type='hidden' name='tx_freq' value='" + String(dmr_tx_freq) + "'>";
+  html += "<input type='hidden' name='power' value='" + String(dmr_power) + "'>";
+  html += "<input type='hidden' name='color_code' value='" + String(dmr_color_code) + "'>";
+  html += "<input type='hidden' name='modem_type' value='" + modem_type + "'>";
+  html += "<input type='hidden' name='latitude' value='" + String(dmr_latitude, 6) + "'>";
+  html += "<input type='hidden' name='longitude' value='" + String(dmr_longitude, 6) + "'>";
+  html += "<input type='hidden' name='height' value='" + String(dmr_height) + "'>";
+  html += "<input type='hidden' name='location' value='" + dmr_location + "'>";
+  html += "<input type='hidden' name='description' value='" + dmr_description + "'>";
+  html += "<input type='hidden' name='url' value='" + dmr_url + "'>";
+  if (mode_dmr_enabled) html += "<input type='hidden' name='mode_dmr' value='1'>";
+
+  html += "<input type='submit' value='Save SharkRF Settings'>";
+  html += "</form>";
+  html += "</div>";
+
   // JavaScript for server dropdown and password toggle
   html += "<script>";
   html += "function updateServerField() {";
@@ -368,6 +452,17 @@ void handleDMRConfig() {
   html += "function togglePassword() {";
   html += "  var input = document.getElementById('passwordInput');";
   html += "  var icon = document.querySelector('.toggle-password');";
+  html += "  if (input.type === 'password') {";
+  html += "    input.type = 'text';";
+  html += "    icon.innerHTML = '&#128065;&#65039;';";
+  html += "  } else {";
+  html += "    input.type = 'password';";
+  html += "    icon.innerHTML = '&#128065;';";
+  html += "  }";
+  html += "}";
+  html += "function toggleSharkRFPassword() {";
+  html += "  var input = document.getElementById('sharkrfPasswordInput');";
+  html += "  var icon = event.target;";
   html += "  if (input.type === 'password') {";
   html += "    input.type = 'text';";
   html += "    icon.innerHTML = '&#128065;&#65039;';";
@@ -421,6 +516,17 @@ void handleSaveDMRConfig() {
     if (server.hasArg("description")) dmr_description = server.arg("description");
     if (server.hasArg("url")) dmr_url = server.arg("url");
     if (server.hasArg("modem_type")) modem_type = server.arg("modem_type");
+
+    // SharkRF settings
+    if (server.hasArg("mode_sharkrf")) mode_sharkrf_enabled = server.hasArg("mode_sharkrf");
+    if (server.hasArg("sharkrf_server")) sharkrf_server = server.arg("sharkrf_server");
+    if (server.hasArg("sharkrf_port")) sharkrf_port = server.arg("sharkrf_port").toInt();
+    if (server.hasArg("sharkrf_password")) sharkrf_password = server.arg("sharkrf_password");
+    if (server.hasArg("sharkrf_protocol")) sharkrf_protocol = server.arg("sharkrf_protocol");
+    if (server.hasArg("sharkrf_hw_manufacturer")) sharkrf_hw_manufacturer = server.arg("sharkrf_hw_manufacturer");
+    if (server.hasArg("sharkrf_hw_model")) sharkrf_hw_model = server.arg("sharkrf_hw_model");
+    if (server.hasArg("sharkrf_location")) sharkrf_location = server.arg("sharkrf_location");
+    if (server.hasArg("sharkrf_description")) sharkrf_description = server.arg("sharkrf_description");
 
     // Validate DMR ID
     if (dmr_id < 1000000 || dmr_id > 9999999) {
@@ -480,6 +586,7 @@ void handleSaveModes() {
 
   // Update mode settings from form
   mode_dmr_enabled = server.hasArg("mode_dmr");
+  mode_sharkrf_enabled = server.hasArg("mode_sharkrf");
   // Other modes are read-only for now (coming soon)
 
   // Save to preferences
@@ -510,6 +617,7 @@ void handleSaveModes() {
   html += "<div class='mode-status'>P25: <span style='color: var(--text-muted);'>Coming Soon</span></div>";
   html += "<div class='mode-status'>NXDN: <span style='color: var(--text-muted);'>Coming Soon</span></div>";
   html += "<div class='mode-status'>POCSAG: <span style='color: var(--text-muted);'>Coming Soon</span></div>";
+  html += "<div class='mode-status'>SharkRF: <strong style='color: " + String(mode_sharkrf_enabled ? "#28a745" : "#dc3545") + ";'>" + String(mode_sharkrf_enabled ? "ENABLED" : "DISABLED") + "</strong></div>";
   html += "</div>";
   html += "<p><strong>Restarting device in 3 seconds to activate new configuration...</strong></p>";
   html += "<p><a href='/modeconfig'>Return to Mode Config</a></p>";
