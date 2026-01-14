@@ -1719,7 +1719,7 @@ void processMMDVMFrame() {
 #if ENABLE_RGB_LED
           rgbLed.setStatus(RGBLedStatus::TRANSMITTING);
 #endif
-          //delay(50); // remove short outgoing dmr to network delay to improve performance
+          //delay(50); // remove short outgoing rf to network delay to improve performance
           // Restore previous LED state (WiFi status)
           digitalWrite(COS_LED_PIN, previousLedState ? HIGH : LOW);
 #if ENABLE_RGB_LED
