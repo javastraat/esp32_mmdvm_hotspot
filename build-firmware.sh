@@ -61,15 +61,21 @@ update_version() {
     # Comment out the non-matching version and uncomment/update the matching one
     if [[ "$version_string" == *"BETA"* ]]; then
         # Building beta version
+        # 1. Comment out normal (ends with _ESP32" but NOT _ESP32_BETA")
+        # 2. Uncomment and update BETA version
         sed -i.tmp \
-            -e 's|^#define FIRMWARE_VERSION.*ESP32".*|//#define FIRMWARE_VERSION "'"$version_string"'"  // Update version as needed|' \
-            -e 's|^//#define FIRMWARE_VERSION.*BETA".*|#define FIRMWARE_VERSION "'"$version_string"'"  // Update version as needed|' \
+            -e '/^#define FIRMWARE_VERSION.*_ESP32" /s/^#define/\/\/#define/' \
+            -e '/FIRMWARE_VERSION.*_ESP32_BETA"/s/^\/\///' \
+            -e '/FIRMWARE_VERSION.*_ESP32_BETA"/s/"[^"]*"/"'"$version_string"'"/' \
             "$CONFIG_FILE"
     else
         # Building normal version
+        # 1. Uncomment and update normal ESP32 version (ends with _ESP32" not _ESP32_BETA")
+        # 2. Comment out BETA version
         sed -i.tmp \
-            -e 's|^//#define FIRMWARE_VERSION.*ESP32".*|#define FIRMWARE_VERSION "'"$version_string"'"  // Update version as needed|' \
-            -e 's|^#define FIRMWARE_VERSION.*BETA".*|//#define FIRMWARE_VERSION "'"$version_string"'"  // Update version as needed|' \
+            -e '/FIRMWARE_VERSION.*_ESP32" /s/^\/\///' \
+            -e '/FIRMWARE_VERSION.*_ESP32" /s/"[^"]*"/"'"$version_string"'"/' \
+            -e '/^#define FIRMWARE_VERSION.*_ESP32_BETA" /s/^#define/\/\/#define/' \
             "$CONFIG_FILE"
     fi
 
