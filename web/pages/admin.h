@@ -63,15 +63,6 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
-extern bool mode_sharkrf_enabled;
-extern String sharkrf_server;
-extern int sharkrf_port;
-extern String sharkrf_password;
-extern String sharkrf_protocol;
-extern String sharkrf_hw_manufacturer;
-extern String sharkrf_hw_model;
-extern String sharkrf_location;
-extern String sharkrf_description;
 extern String modem_type;
 extern bool mqtt_enabled;
 extern String mqtt_broker;
@@ -123,9 +114,7 @@ void handleResetConfig() {
   html += "<strong>EXTREME WARNING!</strong><br>";
   html += "This will completely erase ALL ESP32 flash storage including:<br>";
   html += "- DMR configuration (callsign, ID, server, ESSID, frequencies)<br>";
-  html += "- SharkRF configuration (server, port, protocol, all settings)<br>";
   html += "- All WiFi credentials (primary and alternate)<br>";
-  html += "- MQTT configuration<br>";
   html += "- Location and RF settings<br>";
   html += "- ALL stored preferences in ANY namespace<br>";
   html += "- Complete NVS (Non-Volatile Storage) partition<br>";
@@ -220,7 +209,7 @@ void handleConfirmReset() {
   html += "- All ESP32 Preferences namespaces<br>";
   html += "- Complete NVS (Non-Volatile Storage) partition<br>";
   html += "- WiFi credentials stored by ESP32 WiFi library<br>";
-  html += "- All DMR, SharkRF, MQTT, and system settings<br>";
+  html += "- All DMR and system settings<br>";
   html += "- Any other stored configuration data<br>";
   html += "</div>";
   html += "<div class='spinner' id='spinner'></div>";
@@ -1011,7 +1000,7 @@ void handleAdmin() {
   html += "  fetch('/test-mmdvm', {method: 'POST'});";
   html += "}";
   html += "function cleanupPrefs() {";
-  html += "  if (confirm('Repair Preferences\\n\\nThis will check all 66 preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?')) {";
+  html += "  if (confirm('Repair Preferences\\n\\nThis will check all 57 preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?')) {";
   html += "    fetch('/cleanup-prefs', {method: 'POST'})";
   html += "      .then(response => response.text())";
   html += "      .then(data => {";
@@ -1547,61 +1536,6 @@ void handleCleanupPreferences() {
     missingCount++;
   } else existingCount++;
 
-  if (!preferences.isKey("mode_sharkrf")) {
-    preferences.putBool("mode_sharkrf", DEFAULT_MODE_SHARKRF);
-    logSerial("[REPAIR] Added: mode_sharkrf");
-    missingCount++;
-  } else existingCount++;
-
-  // Check SharkRF Settings (8 possible)
-  if (!preferences.isKey("srf_server")) {
-    preferences.putString("srf_server", SHARKRF_SERVER);
-    logSerial("[REPAIR] Added: srf_server");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_port")) {
-    preferences.putInt("srf_port", SHARKRF_PORT);
-    logSerial("[REPAIR] Added: srf_port");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_password")) {
-    preferences.putString("srf_password", SHARKRF_PASSWORD);
-    logSerial("[REPAIR] Added: srf_password");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_protocol")) {
-    preferences.putString("srf_protocol", SHARKRF_PROTOCOL);
-    logSerial("[REPAIR] Added: srf_protocol");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_hw_mfg")) {
-    preferences.putString("srf_hw_mfg", SHARKRF_HW_MANUFACTURER);
-    logSerial("[REPAIR] Added: srf_hw_mfg");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_hw_model")) {
-    preferences.putString("srf_hw_model", SHARKRF_HW_MODEL);
-    logSerial("[REPAIR] Added: srf_hw_model");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_location")) {
-    preferences.putString("srf_location", SHARKRF_LOCATION);
-    logSerial("[REPAIR] Added: srf_location");
-    missingCount++;
-  } else existingCount++;
-
-  if (!preferences.isKey("srf_desc")) {
-    preferences.putString("srf_desc", SHARKRF_DESCRIPTION);
-    logSerial("[REPAIR] Added: srf_desc");
-    missingCount++;
-  } else existingCount++;
-
   // Check Web Auth (2 possible)
   if (!preferences.isKey("web_username")) {
     preferences.putString("web_username", WEB_USERNAME);
@@ -1668,12 +1602,12 @@ void handleCleanupPreferences() {
 
   // Summary
   logSerial("=== PREFERENCE REPAIR COMPLETE ===");
-  logSerial("[REPAIR] Existing: " + String(existingCount) + "/66, Added: " + String(missingCount) + "/66");
-  logSerial("[REPAIR] Total after repair: " + String(existingCount + missingCount) + "/66");
+  logSerial("[REPAIR] Existing: " + String(existingCount) + "/57, Added: " + String(missingCount) + "/57");
+  logSerial("[REPAIR] Total after repair: " + String(existingCount + missingCount) + "/57");
 
   if (missingCount == 0) {
     logSerial("[REPAIR] All preferences intact - no repair needed!");
-    server.send(200, "text/plain", "All preferences intact! No repair needed. (" + String(existingCount) + "/66)");
+    server.send(200, "text/plain", "All preferences intact! No repair needed. (" + String(existingCount) + "/57)");
   } else {
     logSerial("[REPAIR] Successfully repaired - rebooting...");
     server.send(200, "text/plain", "Repaired " + String(missingCount) + " missing preferences! Rebooting...");
@@ -2167,18 +2101,6 @@ void handleExportConfig() {
   config += "MODE_P25=" + String(mode_p25_enabled ? "1" : "0") + "\n";
   config += "MODE_NXDN=" + String(mode_nxdn_enabled ? "1" : "0") + "\n";
   config += "MODE_POCSAG=" + String(mode_pocsag_enabled ? "1" : "0") + "\n";
-  config += "MODE_SHARKRF=" + String(mode_sharkrf_enabled ? "1" : "0") + "\n";
-
-  // SharkRF Configuration
-  config += "\n[SHARKRF_CONFIG]\n";
-  config += "SHARKRF_SERVER=" + sharkrf_server + "\n";
-  config += "SHARKRF_PORT=" + String(sharkrf_port) + "\n";
-  config += "SHARKRF_PASSWORD=" + sharkrf_password + "\n";
-  config += "SHARKRF_PROTOCOL=" + sharkrf_protocol + "\n";
-  config += "SHARKRF_HW_MANUFACTURER=" + sharkrf_hw_manufacturer + "\n";
-  config += "SHARKRF_HW_MODEL=" + sharkrf_hw_model + "\n";
-  config += "SHARKRF_LOCATION=" + sharkrf_location + "\n";
-  config += "SHARKRF_DESCRIPTION=" + sharkrf_description + "\n";
 
   // MQTT Configuration
   config += "\n[MQTT_CONFIG]\n";
@@ -2273,15 +2195,6 @@ void handleImportConfig() {
           else if (key == "MODE_P25") mode_p25_enabled = (value == "1");
           else if (key == "MODE_NXDN") mode_nxdn_enabled = (value == "1");
           else if (key == "MODE_POCSAG") mode_pocsag_enabled = (value == "1");
-          else if (key == "MODE_SHARKRF") mode_sharkrf_enabled = (value == "1");
-          else if (key == "SHARKRF_SERVER") sharkrf_server = value;
-          else if (key == "SHARKRF_PORT") sharkrf_port = value.toInt();
-          else if (key == "SHARKRF_PASSWORD") sharkrf_password = value;
-          else if (key == "SHARKRF_PROTOCOL") sharkrf_protocol = value;
-          else if (key == "SHARKRF_HW_MANUFACTURER") sharkrf_hw_manufacturer = value;
-          else if (key == "SHARKRF_HW_MODEL") sharkrf_hw_model = value;
-          else if (key == "SHARKRF_LOCATION") sharkrf_location = value;
-          else if (key == "SHARKRF_DESCRIPTION") sharkrf_description = value;
           else if (key == "MQTT_ENABLED") mqtt_enabled = (value == "1");
           else if (key == "MQTT_BROKER") mqtt_broker = value;
           else if (key == "MQTT_PORT") mqtt_port = value.toInt();
@@ -2443,12 +2356,7 @@ void handleShowPreferences() {
   };
 
   const char* modeKeys[] = {
-    "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag", "mode_sharkrf"
-  };
-
-  const char* sharkrfKeys[] = {
-    "srf_server", "srf_port", "srf_password", "srf_protocol",
-    "srf_hw_mfg", "srf_hw_model", "srf_location", "srf_desc"
+    "mode_dmr", "mode_dstar", "mode_ysf", "mode_p25", "mode_nxdn", "mode_pocsag"
   };
 
   const char* webKeys[] = {
@@ -2465,7 +2373,6 @@ void handleShowPreferences() {
     {"WiFi Networks", wifiKeys, sizeof(wifiKeys) / sizeof(wifiKeys[0])},
     {"System Settings", systemKeys, sizeof(systemKeys) / sizeof(systemKeys[0])},
     {"Mode Configuration", modeKeys, sizeof(modeKeys) / sizeof(modeKeys[0])},
-    {"SharkRF Configuration", sharkrfKeys, sizeof(sharkrfKeys) / sizeof(sharkrfKeys[0])},
     {"Web Interface", webKeys, sizeof(webKeys) / sizeof(webKeys[0])},
     {"MQTT Configuration", mqttKeys, sizeof(mqttKeys) / sizeof(mqttKeys[0])}
   };
@@ -2569,15 +2476,6 @@ void handleShowPreferences() {
             value = String(ushortVal);
             type = "UShort";
             keySize = 2;
-          }
-        }
-        else if (keyName == "srf_port") {
-          // SharkRF port (Int)
-          int32_t intVal = preferences.getInt(keyName.c_str(), 0);
-          if (intVal > 0 || preferences.isKey(keyName.c_str())) {
-            value = String(intVal);
-            type = "Int32";
-            keySize = 4;
           }
         }
         else if (keyName == "mqtt_interval") {

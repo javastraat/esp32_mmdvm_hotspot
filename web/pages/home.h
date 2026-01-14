@@ -35,9 +35,6 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
-extern bool mode_sharkrf_enabled;
-extern bool srfLoggedIn;
-extern String sharkrf_protocol;
 
 // DMR Activity structure
 struct DMRActivity {
@@ -569,15 +566,6 @@ String getSystemStatusHTML() {
     html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> DMR Network</span>";
   }
 
-  // SharkRF Network
-  if (mode_sharkrf_enabled) {
-    if (srfLoggedIn) {
-      html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> SharkRF Network</span>";
-    } else {
-      html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> SharkRF Network</span>";
-    }
-  }
-
   html += "</div></div>";
 
   // Modes Section
@@ -651,17 +639,6 @@ String getSystemStatusHTML() {
     html += "POCSAG (N/A)</span>";
   }
 
-  // SharkRF Mode - with toggle switch
-  if (mode_sharkrf_enabled) {
-    html += "<span class='mode-badge mode-on'>";
-    html += "<span class='toggle-switch toggle-switch-on'><span class='toggle-knob toggle-knob-on'></span></span>";
-    html += "SharkRF-" + sharkrf_protocol + " ON</span>";
-  } else {
-    html += "<span class='mode-badge mode-off'>";
-    html += "<span class='toggle-switch toggle-switch-off'><span class='toggle-knob toggle-knob-off'></span></span>";
-    html += "SharkRF OFF</span>";
-  }
-
   html += "</div></div>";
 
   return html;
@@ -682,8 +659,7 @@ void handleSystemStatus() {
   // System status
   json += "\"system\":{";
   json += "\"mmdvmReady\":" + String(mmdvmReady ? "true" : "false") + ",";
-  json += "\"dmrLoggedIn\":" + String(dmrLoggedIn ? "true" : "false") + ",";
-  json += "\"srfLoggedIn\":" + String(srfLoggedIn ? "true" : "false");
+  json += "\"dmrLoggedIn\":" + String(dmrLoggedIn ? "true" : "false");
   json += "},";
 
   // Digital modes
@@ -693,9 +669,7 @@ void handleSystemStatus() {
   json += "\"ysf\":" + String(mode_ysf_enabled ? "true" : "false") + ",";
   json += "\"p25\":" + String(mode_p25_enabled ? "true" : "false") + ",";
   json += "\"nxdn\":" + String(mode_nxdn_enabled ? "true" : "false") + ",";
-  json += "\"pocsag\":" + String(mode_pocsag_enabled ? "true" : "false") + ",";
-  json += "\"sharkrf\":" + String(mode_sharkrf_enabled ? "true" : "false") + ",";
-  json += "\"sharkrfProtocol\":\"" + sharkrf_protocol + "\"";
+  json += "\"pocsag\":" + String(mode_pocsag_enabled ? "true" : "false");
   json += "}";
 
   json += "}";
@@ -873,21 +847,9 @@ void handleRoot() {
   html += "  } else {";
   html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> DMR Network</span>';";
   html += "  }";
-  html += "  if (data.modes.sharkrf) {";
-  html += "    if (data.system.srfLoggedIn) {";
-  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> SharkRF Network</span>';";
-  html += "    } else {";
-  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> SharkRF Network</span>';";
-  html += "    }";
-  html += "  }";
   html += "  html += '</div></div>';";
   html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Digital Modes</div><div class=\"status-badges\">';";
   html += "  html += data.modes.dmr ? '<span class=\"mode-badge mode-on\"><span class=\"toggle-switch toggle-switch-on\"><span class=\"toggle-knob toggle-knob-on\"></span></span>DMR ON</span>' : '<span class=\"mode-badge mode-off\"><span class=\"toggle-switch toggle-switch-off\"><span class=\"toggle-knob toggle-knob-off\"></span></span>DMR OFF</span>';";
-  html += "  if (data.modes.sharkrf) {";
-  html += "    html += '<span class=\"mode-badge mode-on\"><span class=\"toggle-switch toggle-switch-on\"><span class=\"toggle-knob toggle-knob-on\"></span></span>SharkRF-' + data.modes.sharkrfProtocol + ' ON</span>';";
-  html += "  } else {";
-  html += "    html += '<span class=\"mode-badge mode-off\"><span class=\"toggle-switch toggle-switch-off\"><span class=\"toggle-knob toggle-knob-off\"></span></span>SharkRF OFF</span>';";
-  html += "  }";
   html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>D-Star (N/A)</span>';";
   html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>YSF (N/A)</span>';";
   html += "  html += '<span class=\"mode-badge mode-disabled\"><span class=\"toggle-switch toggle-switch-disabled\"><span class=\"toggle-knob toggle-knob-off\"></span></span>P25 (N/A)</span>';";

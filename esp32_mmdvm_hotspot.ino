@@ -99,10 +99,6 @@
 #include "include/dmr/DMRFullLC.cpp"
 #include "include/dmr/DMRDecoder.cpp"
 
-// SharkRF IP Connector Protocol
-#include "include/sharkrf/SharkRFPacket.h"
-#include "include/sharkrf/SharkRFProtocol.cpp"
-
 // OLED Display Support (runtime enable/disable)
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -163,31 +159,6 @@ int dmr_height = 0;                // Height in meters
 String dmr_location = DMR_LOCATION;
 String dmr_description = DMR_DESCRIPTION;
 String dmr_url = DMR_URL;
-
-// SharkRF Network Settings
-String sharkrf_server = SHARKRF_SERVER;
-int sharkrf_port = SHARKRF_PORT;
-String sharkrf_password = SHARKRF_PASSWORD;
-String sharkrf_protocol = SHARKRF_PROTOCOL;  // DMR, DSTAR, YSF, C4FM, NXDN, P25
-String sharkrf_hw_manufacturer = SHARKRF_HW_MANUFACTURER;
-String sharkrf_hw_model = SHARKRF_HW_MODEL;
-String sharkrf_location = SHARKRF_LOCATION;
-String sharkrf_description = SHARKRF_DESCRIPTION;
-
-// SharkRF Connection State
-SRF_State srfState = SRF_State::DISCONNECTED;
-bool srfLoggedIn = false;
-String srfLoginStatus = "Not Connected";
-uint8_t srfToken[SRF_TOKEN_LENGTH] = {0};
-uint32_t srfSequenceNumber = 0;
-uint32_t srfCallSessionId = 0;
-unsigned long lastSRFPing = 0;
-unsigned long lastSRFPacket = 0;
-unsigned long lastSRFToRFPacket = 0;
-const unsigned long SRF_PING_INTERVAL = 5000;  // 5 seconds
-const unsigned long SRF_TIMEOUT = 30000;       // 30 seconds
-const unsigned long SRF_TO_RF_MIN_INTERVAL = 60;  // 60ms minimum between packets (DMR voice frame timing)
-unsigned int srfToRFDropped = 0;  // Counter for dropped packets
 
 // Hostname setting
 String device_hostname = MDNS_HOSTNAME;
@@ -564,7 +535,6 @@ bool mode_ysf_enabled = DEFAULT_MODE_YSF;
 bool mode_p25_enabled = DEFAULT_MODE_P25;
 bool mode_nxdn_enabled = DEFAULT_MODE_NXDN;
 bool mode_pocsag_enabled = DEFAULT_MODE_POCSAG;
-bool mode_sharkrf_enabled = DEFAULT_MODE_SHARKRF;
 
 // Modem Type Selection
 String modem_type = DEFAULT_MODEM_TYPE;
@@ -624,14 +594,6 @@ void sendDMRKeepalive();
 void connectToDMRNetwork();
 void sendDMRAuth();
 void sendDMRConfig();
-void connectToSharkRF();
-void sendSRFAuth();
-void sendSRFConfig();
-void sendSRFPing();
-void handleSRFPacket(const uint8_t* buffer, size_t length);
-void handleSRFDMRData(const SRF_Data_DMR* dmrPacket);
-int buildSRFDMRPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDataLen, uint8_t slot);
-int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDataLen, uint8_t slot);
 void logSerial(String message);
 void logSerialVerbose(String message);
 String lookupCallsign(uint32_t dmrId);
@@ -643,7 +605,6 @@ String getCachedUserInfo(uint32_t dmrId);
 void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
-void mqttLoop();
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 // Helper functions for status page
@@ -862,14 +823,8 @@ void setup() {
 
   // Connect to Networks (based on enabled modes)
   if (wifiConnected) {
-    // SharkRF Network Connection
-    if (mode_sharkrf_enabled) {
-#if ENABLE_OLED
-      updateBootStatus("Connecting SharkRF...");
-#endif
-      connectToSharkRF();
-    } else if (mode_dmr_enabled) {
-      // DMR Network Connection (BrandMeister)
+    // DMR Network Connection
+    if (mode_dmr_enabled) {
 #if ENABLE_OLED
       updateBootStatus("Connecting DMR...");
 #endif
@@ -1143,21 +1098,8 @@ void loop() {
       }
     }
 
-    // Send keepalive packets based on active mode
-    if (mode_sharkrf_enabled && srfLoggedIn) {
-      // SharkRF ping every 5 seconds
-      if (currentMillis - lastSRFPing >= SRF_PING_INTERVAL) {
-        sendSRFPing();
-      }
-      // Check for SharkRF timeout (30 seconds)
-      if (currentMillis - lastSRFPacket >= SRF_TIMEOUT) {
-        logSerial("[SharkRF] Connection timeout - reconnecting...");
-        srfLoggedIn = false;
-        srfState = SRF_State::DISCONNECTED;
-        connectToSharkRF();
-      }
-    } else if (mode_dmr_enabled && dmrLoggedIn) {
-      // BrandMeister keepalive
+    // Send keepalive packets only if DMR mode is enabled and connected
+    if (mode_dmr_enabled && dmrLoggedIn) {
       if (currentMillis - lastKeepalive >= NETWORK_KEEPALIVE_INTERVAL) {
         sendDMRKeepalive();
         lastKeepalive = currentMillis;
@@ -1482,15 +1424,6 @@ void setupMMDVM() {
   if (mode_p25_enabled) modeEnables |= 0x08;
   if (mode_nxdn_enabled) modeEnables |= 0x10;
   if (mode_pocsag_enabled) modeEnables |= 0x20;
-
-  // SharkRF mode enables underlying modem protocol
-  if (mode_sharkrf_enabled) {
-    if (sharkrf_protocol == "DMR") modeEnables |= 0x02;
-    else if (sharkrf_protocol == "DSTAR") modeEnables |= 0x01;
-    else if (sharkrf_protocol == "YSF" || sharkrf_protocol == "C4FM") modeEnables |= 0x04;
-    else if (sharkrf_protocol == "P25") modeEnables |= 0x08;
-    else if (sharkrf_protocol == "NXDN") modeEnables |= 0x10;
-  }
   config[1] = modeEnables;
 
   // Byte 2: TX delay (0-50)
@@ -1504,14 +1437,6 @@ void setupMMDVM() {
   else if (mode_p25_enabled) modemState = 0x04;     // P25
   else if (mode_nxdn_enabled) modemState = 0x05;    // NXDN
   else if (mode_pocsag_enabled) modemState = 0x07;  // POCSAG
-  else if (mode_sharkrf_enabled) {
-    // SharkRF sets modem mode based on selected protocol
-    if (sharkrf_protocol == "DMR") modemState = 0x02;
-    else if (sharkrf_protocol == "DSTAR") modemState = 0x01;
-    else if (sharkrf_protocol == "YSF" || sharkrf_protocol == "C4FM") modemState = 0x03;
-    else if (sharkrf_protocol == "P25") modemState = 0x04;
-    else if (sharkrf_protocol == "NXDN") modemState = 0x05;
-  }
   config[3] = modemState;
 
   // Byte 4: RX level
@@ -1543,14 +1468,7 @@ void setupMMDVM() {
   else if (modemState == 0x05) modeStr = "NXDN";
   else if (modemState == 0x07) modeStr = "POCSAG";
 
-  if (mode_sharkrf_enabled) {
-    modeStr = "SharkRF-" + sharkrf_protocol;
-  }
-
-  logSerial("[MODEM] Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF") + " SharkRF: " + String(mode_sharkrf_enabled ? "ON" : "OFF"));
-  if (mode_sharkrf_enabled) {
-    logSerial("[MODE] SharkRF protocol: " + sharkrf_protocol + " -> Server: " + sharkrf_server + ":" + String(sharkrf_port));
-  }
+  logSerial("[MODEM] Mode enables - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
   logSerial("[MODEM] Config byte[1] (mode enables): 0x" + String(modeEnables, HEX) + " byte[3] (state): 0x" + String(modemState, HEX));
   logSerial("[MODEM] Setting modem configuration (Mode: " + modeStr + ", Color Code: " + String(dmr_color_code) + ")...");
   sendMMDVMCommand(CMD_SET_CONFIG, config, 23);
@@ -1754,66 +1672,45 @@ void processMMDVMFrame() {
         }
 
         if (wifiConnected) {
-          // Route to appropriate network based on mode
-          if (mode_sharkrf_enabled && sharkrf_protocol == "DMR") {
-            // ===== SharkRF Mode =====
-            if (!srfLoggedIn) {
-              logSerial("[SharkRF] WARNING: Data from radio but NOT logged into SharkRF server! State: " + String((int)srfState));
+          // Check if we're actually connected to DMR network
+          if (!dmrLoggedIn) {
+            logSerial("[DMR] WARNING: Data from radio but NOT logged into DMR network! State: " + String((int)dmrState));
+          }
+
+          // Build proper DMRD packet from modem data
+          // rxBuffer[3..n] contains the modem data (34 bytes: 1 control + 33 DMR frame)
+          uint8_t dmrdPacket[55];  // DMRD packet is always 55 bytes
+          int packetLen = buildDMRDPacket(dmrdPacket, &rxBuffer[3], dataLen, slot);
+
+          if (packetLen > 0) {
+            // Send DMRD packet to network
+            int udpBeginResult = udp.beginPacket(dmr_server.c_str(), dmr_port);
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP beginPacket result: " + String(udpBeginResult));
+              logSerial("[DEBUG] Sending to: " + dmr_server + ":" + String(dmr_port));
+              logSerial("[DEBUG] Built DMRD packet: " + String(packetLen) + " bytes");
             }
 
-            // Build SharkRF DMR packet
-            uint8_t srfPacket[512];
-            int packetLen = buildSRFDMRPacket(srfPacket, &rxBuffer[3], dataLen, slot);
-
-            if (packetLen > 0 && srfLoggedIn) {
-              udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
-              udp.write(srfPacket, packetLen);
-              udp.endPacket();
-
-              if (debug_dmr) {
-                logSerial("[SharkRF] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes sent (seq=" + String(srfSequenceNumber - 1) + ")");
-              }
-            }
-          } else if (mode_dmr_enabled) {
-            // ===== BrandMeister Mode =====
-            if (!dmrLoggedIn) {
-              logSerial("[DMR] WARNING: Data from radio but NOT logged into DMR network! State: " + String((int)dmrState));
+            size_t bytesWritten = udp.write(dmrdPacket, packetLen);
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP write: " + String(bytesWritten) + " bytes written");
             }
 
-            // Build proper DMRD packet from modem data
-            uint8_t dmrdPacket[55];  // DMRD packet is always 55 bytes
-            int packetLen = buildDMRDPacket(dmrdPacket, &rxBuffer[3], dataLen, slot);
+            int udpEndResult = udp.endPacket();
+            if (debug_dmr) {
+              logSerial("[DEBUG] UDP endPacket result: " + String(udpEndResult));
+            }
 
-            if (packetLen > 0) {
-              // Send DMRD packet to network
-              int udpBeginResult = udp.beginPacket(dmr_server.c_str(), dmr_port);
+            if (udpEndResult == 1) {
+              // Only log individual packets in debug mode
               if (debug_dmr) {
-                logSerial("[DEBUG] UDP beginPacket result: " + String(udpBeginResult));
-                logSerial("[DEBUG] Sending to: " + dmr_server + ":" + String(dmr_port));
-                logSerial("[DEBUG] Built DMRD packet: " + String(packetLen) + " bytes");
-              }
-
-              size_t bytesWritten = udp.write(dmrdPacket, packetLen);
-              if (debug_dmr) {
-                logSerial("[DEBUG] UDP write: " + String(bytesWritten) + " bytes written");
-              }
-
-              int udpEndResult = udp.endPacket();
-              if (debug_dmr) {
-                logSerial("[DEBUG] UDP endPacket result: " + String(udpEndResult));
-              }
-
-              if (udpEndResult == 1) {
-                // Only log individual packets in debug mode
-                if (debug_dmr) {
-                  logSerial("[DMR] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes DMRD packet sent to network (seq=" + String(dmrdPacket[4]) + ")");
-                }
-              } else {
-                logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
+                logSerial("[DMR] TX Slot" + String(slot) + ": " + String(packetLen) + " bytes DMRD packet sent to network (seq=" + String(dmrdPacket[4]) + ")");
               }
             } else {
-              logSerial("[DMR] ERROR: Failed to build DMRD packet!");
+              logSerial("[DMR] ERROR: Failed to send to network! UDP result: " + String(udpEndResult));
             }
+          } else {
+            logSerial("[DMR] ERROR: Failed to build DMRD packet!");
           }
 
           // Flash COS LED briefly, then restore previous state
@@ -1847,12 +1744,6 @@ void handleNetwork() {
     int len = udp.read(packet, sizeof(packet));
 
     if (len > 0) {
-      // Check if this is a SharkRF packet (starts with "SRFIPC")
-      if (mode_sharkrf_enabled && len >= 8 && memcmp(packet, SRF_MAGIC_STR, SRF_MAGIC_LENGTH) == 0) {
-        handleSRFPacket(packet, len);
-        return;
-      }
-
       // Check if this is a keepalive packet first (for conditional logging)
       bool isKeepalive = (memcmp(packet, "MSTPONG", 7) == 0 && len >= 7);
       bool isDMRData = (memcmp(packet, "DMRD", 4) == 0 && len >= 55);
@@ -2373,284 +2264,6 @@ void sendDMRKeepalive() {
   udp.endPacket();
 
   logSerialVerbose("Keepalive sent");
-}
-
-// ===== SharkRF Network Functions =====
-
-void connectToSharkRF() {
-  srfLoginStatus = "Connecting...";
-  srfLoggedIn = false;
-  srfState = SRF_State::WAITING_TOKEN;
-  lastSRFPacket = millis();
-
-  logSerial("[SharkRF] Connecting to SharkRF server...");
-  logSerial("[SharkRF] Server: " + sharkrf_server + ":" + String(sharkrf_port));
-  logSerial("[SharkRF] Protocol: " + sharkrf_protocol);
-
-  // Combine DMR ID + ESSID for SharkRF login (e.g., 2041152 + 15 = 204115215)
-  uint32_t sharkrf_id = dmr_id;
-  if (dmr_essid > 0) {
-    // Concatenate as string then convert to number to preserve all digits
-    String combined = String(dmr_id) + String(dmr_essid);
-    sharkrf_id = combined.toInt();
-    logSerial("[SharkRF] Callsign: " + dmr_callsign + " ID: " + String(dmr_id) + " ESSID: " + String(dmr_essid) + " (Combined: " + String(sharkrf_id) + ")");
-  } else {
-    logSerial("[SharkRF] Callsign: " + dmr_callsign + " ID: " + String(dmr_id));
-  }
-
-  // Send login packet
-  uint8_t loginPacket[512];
-  size_t loginSize = SharkRFProtocol::buildLoginPacket(loginPacket, sharkrf_id);
-
-  udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
-  udp.write(loginPacket, loginSize);
-  udp.endPacket();
-
-  logSerial("[SharkRF] Login packet sent (" + String(loginSize) + " bytes)");
-}
-
-void sendSRFAuth() {
-  // Send auth packet with HMAC
-  uint8_t authPacket[512];
-  size_t authSize = SharkRFProtocol::buildAuthPacket(authPacket, srfToken, sharkrf_password.c_str());
-
-  udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
-  udp.write(authPacket, authSize);
-  udp.endPacket();
-
-  logSerial("[SharkRF] Auth packet sent (" + String(authSize) + " bytes)");
-  srfState = SRF_State::WAITING_ACK;
-}
-
-void sendSRFConfig() {
-  // Send config packet
-  uint8_t configPacket[512];
-  size_t configSize = SharkRFProtocol::buildConfigPacket(
-    configPacket, srfToken, sharkrf_password.c_str(),
-    dmr_callsign.c_str(),
-    sharkrf_hw_manufacturer.c_str(),
-    sharkrf_hw_model.c_str(),
-    FIRMWARE_VERSION,
-    dmr_rx_freq, dmr_tx_freq, dmr_power,
-    sharkrf_location.c_str(),
-    sharkrf_description.c_str()
-  );
-
-  udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
-  udp.write(configPacket, configSize);
-  udp.endPacket();
-
-  logSerial("[SharkRF] Config packet sent (" + String(configSize) + " bytes)");
-}
-
-void sendSRFPing() {
-  // Send ping/keepalive
-  uint8_t pingPacket[512];
-  size_t pingSize = SharkRFProtocol::buildPingPacket(pingPacket, srfToken, sharkrf_password.c_str());
-
-  udp.beginPacket(sharkrf_server.c_str(), sharkrf_port);
-  udp.write(pingPacket, pingSize);
-  udp.endPacket();
-
-  lastSRFPing = millis();
-  logSerial("[SharkRF] Ping sent (keepalive)");  // Changed to always log pings for debugging
-}
-
-void handleSRFPacket(const uint8_t* buffer, size_t length) {
-  SRF_Packet packet;
-  if (!SharkRFProtocol::parsePacket(buffer, length, &packet)) {
-    logSerial("[SharkRF] Invalid packet received");
-    return;
-  }
-
-  lastSRFPacket = millis();
-
-  switch (packet.header.packet_type) {
-    case SRF_PACKET_TYPE_TOKEN:
-      logSerial("[SharkRF] Token received");
-      memcpy(srfToken, packet.payload.token.token, SRF_TOKEN_LENGTH);
-      sendSRFAuth();
-      break;
-
-    case SRF_PACKET_TYPE_ACK:
-      logSerial("[SharkRF] ACK received - result: " + String(packet.payload.ack.result));
-      if (packet.payload.ack.result == SRF_ACK_RESULT_AUTH) {
-        srfLoggedIn = true;
-        srfState = SRF_State::CONNECTED;
-        srfLoginStatus = "Connected";
-        srfSequenceNumber = 0;
-        logSerial("[SharkRF] Successfully authenticated!");
-
-        // Send config after successful auth
-        sendSRFConfig();
-      } else if (packet.payload.ack.result == SRF_ACK_RESULT_CONFIG) {
-        logSerial("[SharkRF] Config accepted");
-      }
-      break;
-
-    case SRF_PACKET_TYPE_NAK:
-      logSerial("[SharkRF] NAK received - result: " + String(packet.payload.nak.result));
-      if (packet.payload.nak.result == SRF_NAK_INVALID_HMAC) {
-        srfLoginStatus = "Auth Failed - Invalid Password";
-      } else if (packet.payload.nak.result == SRF_NAK_SERVER_FULL) {
-        srfLoginStatus = "Server Full";
-      } else {
-        srfLoginStatus = "Auth Failed";
-      }
-      srfState = SRF_State::ERROR;
-      srfLoggedIn = false;
-      break;
-
-    case SRF_PACKET_TYPE_PONG:
-      logSerial("[SharkRF] Pong received (server alive)");  // Changed to always log pongs for debugging
-      break;
-
-    case SRF_PACKET_TYPE_DATA_DMR:
-      // Handle incoming DMR data from network
-      if (srfLoggedIn && sharkrf_protocol == "DMR") {
-        handleSRFDMRData(&packet.payload.data_dmr);
-      }
-      break;
-
-    case SRF_PACKET_TYPE_CLOSE:
-      logSerial("[SharkRF] Server closed connection");
-      srfState = SRF_State::DISCONNECTED;
-      srfLoggedIn = false;
-      srfLoginStatus = "Disconnected";
-      break;
-
-    default:
-      logSerial("[SharkRF] Unknown packet type: 0x" + String(packet.header.packet_type, HEX));
-      break;
-  }
-}
-
-void handleSRFDMRData(const SRF_Data_DMR* dmrPacket) {
-  // Update last packet timestamp to prevent connection timeout
-  lastSRFPacket = millis();
-
-  // Extract DMR frame and metadata from SharkRF packet
-  uint8_t dmrFrame[33];
-  uint32_t src_id, dst_id;
-  bool is_group;
-  uint8_t slot;
-
-  if (!SharkRFProtocol::extractDMRFrame(dmrPacket, dmrFrame, &src_id, &dst_id, &is_group, &slot)) {
-    logSerial("[SharkRF] Failed to extract DMR frame");
-    return;
-  }
-
-  // Rate limiting: Check if enough time has passed since last packet
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastSRFToRFPacket < SRF_TO_RF_MIN_INTERVAL) {
-    srfToRFDropped++;
-    if (srfToRFDropped % 10 == 0) {  // Log every 10th dropped packet
-      logSerial("[SharkRF→RF] Rate limiting: dropped " + String(srfToRFDropped) + " packets to prevent modem overflow");
-    }
-    return;  // Drop this packet to prevent modem buffer overflow
-  }
-  lastSRFToRFPacket = currentMillis;
-
-  // Log incoming transmission
-  logSerial("[SharkRF→RF] Slot" + String(slot) + " " + String(src_id) + "→" +
-            (is_group ? "TG" : "ID") + String(dst_id));
-
-  // Build MMDVM DMR packet (34 bytes: sequence + 33-byte frame)
-  uint8_t mmdvmPacket[34];
-  mmdvmPacket[0] = 0x00;  // Sequence (will be managed by modem)
-  memcpy(&mmdvmPacket[1], dmrFrame, 33);
-
-  // Send to modem for RF transmission
-  sendMMDVMCommand(CMD_DMR_DATA2, mmdvmPacket, 34);
-
-  // Update activity display
-  int slotIndex = slot - 1;
-  dmrActivity[slotIndex].active = true;
-  dmrActivity[slotIndex].srcId = src_id;
-  dmrActivity[slotIndex].dstId = dst_id;
-  dmrActivity[slotIndex].isGroup = is_group;
-  dmrActivity[slotIndex].slotNo = slot;
-  dmrActivity[slotIndex].startTime = millis();
-  dmrActivity[slotIndex].lastUpdate = millis();
-
-  // Lookup user info
-  String userInfo = lookupUserInfo(src_id);
-  if (userInfo.length() > 0) {
-    int pipe1 = userInfo.indexOf('|');
-    if (pipe1 > 0) {
-      dmrActivity[slotIndex].srcCallsign = userInfo.substring(0, pipe1);
-      int pipe2 = userInfo.indexOf('|', pipe1 + 1);
-      if (pipe2 > 0) {
-        dmrActivity[slotIndex].srcName = userInfo.substring(pipe1 + 1, pipe2);
-        int pipe3 = userInfo.indexOf('|', pipe2 + 1);
-        if (pipe3 > 0) {
-          dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
-          dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe3 + 1);
-        } else {
-          dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1);
-        }
-      } else {
-        dmrActivity[slotIndex].srcName = userInfo.substring(pipe1 + 1);
-      }
-    }
-  }
-}
-
-// ===== Build SharkRF DMR Packet for Transmission =====
-int buildSRFDMRPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDataLen, uint8_t slot) {
-  if (modemDataLen < 34) {
-    logSerial("[ERROR] buildSRFDMRPacket: modem data too short (" + String(modemDataLen) + " bytes)");
-    return 0;
-  }
-
-  // Extract 33-byte DMR frame
-  const uint8_t* dmrFrame = &modemData[1];
-
-  // Check if this is a new transmission (voice header)
-  const uint8_t MS_DATA_SYNC[] = { 0x0D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x70 };
-  const uint8_t MS_DATA_SYNC_ALT[] = { 0x6D, 0x5D, 0x7F, 0x77, 0xFD, 0x75, 0x7E };
-  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0) ||
-                    (memcmp(&dmrFrame[13], MS_DATA_SYNC_ALT, 7) == 0);
-
-  // Generate new call session ID on voice header
-  if (isDataSync && (millis() - lastTxTime > 1000)) {
-    srfCallSessionId = random(1, 0xFFFFFFFE);
-  }
-  lastTxTime = millis();
-
-  // Extract LC info if available
-  uint32_t dst_id = 0;
-  bool is_group = true;
-  if (isDataSync) {
-    DMRDecoder::LCInfo lcInfo = DMRDecoder::extractLCInfo(dmrFrame, false);
-    if (lcInfo.valid) {
-      dst_id = lcInfo.dstId;
-      is_group = lcInfo.isGroup;
-    }
-  }
-
-  // Determine slot type from sync pattern
-  uint8_t slot_type = SRF_DMR_SLOT_TYPE_VOICE_DATA_A;  // Default
-  if (isDataSync) {
-    slot_type = SRF_DMR_SLOT_TYPE_VOICE_LC_HEADER;
-  }
-
-  // Build SharkRF DMR packet
-  size_t packetSize = SharkRFProtocol::buildDMRDataPacket(
-    output, srfToken, sharkrf_password.c_str(),
-    srfSequenceNumber++,
-    srfCallSessionId,
-    dst_id,
-    dmr_id,
-    is_group,
-    slot - 1,  // Convert slot 1/2 to 0/1
-    dmr_color_code,
-    slot_type,
-    -80,  // RSSI (dummy value)
-    dmrFrame
-  );
-
-  return packetSize;
 }
 
 // ===== Build DMRD Packet for Transmission =====
@@ -3404,22 +3017,6 @@ void loadConfig() {
     logSerial("[SYSTEM] ESSID: " + String(dmr_essid));
   }
 
-  // Load SharkRF config
-  if (preferences.isKey("srf_server")) {
-    sharkrf_server = preferences.getString("srf_server", SHARKRF_SERVER);
-    sharkrf_port = preferences.getInt("srf_port", SHARKRF_PORT);
-    sharkrf_password = preferences.getString("srf_password", SHARKRF_PASSWORD);
-    sharkrf_protocol = preferences.getString("srf_protocol", SHARKRF_PROTOCOL);
-    sharkrf_hw_manufacturer = preferences.getString("srf_hw_mfg", SHARKRF_HW_MANUFACTURER);
-    sharkrf_hw_model = preferences.getString("srf_hw_model", SHARKRF_HW_MODEL);
-    sharkrf_location = preferences.getString("srf_location", SHARKRF_LOCATION);
-    sharkrf_description = preferences.getString("srf_desc", SHARKRF_DESCRIPTION);
-
-    logSerial("[SYSTEM] Loaded SharkRF config from storage");
-    logSerial("[SYSTEM] Server: " + sharkrf_server + ":" + String(sharkrf_port));
-    logSerial("[SYSTEM] Protocol: " + sharkrf_protocol);
-  }
-
   // Load WiFi alternate settings
   // Load alternate WiFi networks
   for (int i = 0; i < 5; i++) {
@@ -3494,8 +3091,7 @@ void loadConfig() {
   mode_p25_enabled = preferences.getBool("mode_p25", DEFAULT_MODE_P25);
   mode_nxdn_enabled = preferences.getBool("mode_nxdn", DEFAULT_MODE_NXDN);
   mode_pocsag_enabled = preferences.getBool("mode_pocsag", DEFAULT_MODE_POCSAG);
-  mode_sharkrf_enabled = preferences.getBool("mode_sharkrf", DEFAULT_MODE_SHARKRF);
-  logSerial("[SYSTEM] Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF") + " | SharkRF: " + String(mode_sharkrf_enabled ? "ON" : "OFF"));
+  logSerial("[SYSTEM] Mode status - DMR: " + String(mode_dmr_enabled ? "ON" : "OFF") + " | D-Star: " + String(mode_dstar_enabled ? "ON" : "OFF") + " | YSF: " + String(mode_ysf_enabled ? "ON" : "OFF") + " | P25: " + String(mode_p25_enabled ? "ON" : "OFF") + " | NXDN: " + String(mode_nxdn_enabled ? "ON" : "OFF") + " | POCSAG: " + String(mode_pocsag_enabled ? "ON" : "OFF"));
 
   // Load modem type
   modem_type = preferences.getString("modem_type", DEFAULT_MODEM_TYPE);
@@ -3592,17 +3188,6 @@ void saveConfig() {
   preferences.putBool("mode_p25", mode_p25_enabled);
   preferences.putBool("mode_nxdn", mode_nxdn_enabled);
   preferences.putBool("mode_pocsag", mode_pocsag_enabled);
-  preferences.putBool("mode_sharkrf", mode_sharkrf_enabled);
-
-  // Save SharkRF config
-  preferences.putString("srf_server", sharkrf_server);
-  preferences.putInt("srf_port", sharkrf_port);
-  preferences.putString("srf_password", sharkrf_password);
-  preferences.putString("srf_protocol", sharkrf_protocol);
-  preferences.putString("srf_hw_mfg", sharkrf_hw_manufacturer);
-  preferences.putString("srf_hw_model", sharkrf_hw_model);
-  preferences.putString("srf_location", sharkrf_location);
-  preferences.putString("srf_desc", sharkrf_description);
 
   // Save modem type
   preferences.putString("modem_type", modem_type);
