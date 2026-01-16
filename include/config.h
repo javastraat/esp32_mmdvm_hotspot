@@ -9,10 +9,10 @@
 
 // ===== Firmware Version =====
 /*
-#define FIRMWARE_VERSION "20260114_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20260115_ESP32_BETA"  // Update version as needed
 */
-//#define FIRMWARE_VERSION "20260114_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20260114_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20260115_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20260115_ESP32_BETA"  // Update version as needed
 
 // 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board

@@ -1,3 +1,2 @@
 mmdvm
-thru echo audio back is chopped, maybe outgoing buffer
 

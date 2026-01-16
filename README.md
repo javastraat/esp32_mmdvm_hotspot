@@ -48,8 +48,8 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 
 ## Project Status
 
-**Current Release:** Beta - January 6, 2026
-**Firmware Version:** 20260106_ESP32_BETA
+<!-- **Current Release:** Beta - January 6, 2026
+**Firmware Version:** 20260106_ESP32_BETA -->
 
 ### Confirmed Working
 - **Bidirectional DMR** - Full duplex operation: Network → RF and RF → Network transmission paths
