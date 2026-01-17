@@ -44,12 +44,13 @@ bool updateAvailable = false;
 const char* ssid     = "TechInc";
 const char* password = "itoldyoualready";
 
-//const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.json";
-const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv";
+const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.csv";
+//const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv";
+//https://github.com/DMR-Database/dmr-database-appdata/raw/refs/heads/main/radioid.csv
 
 //https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv
 const char* databaseDir = "/database";
-const char* destFile = "/database/database.csv";
+const char* destFile = "/database/radioid.csv";
 
 
 SPIClass sdSPI(HSPI);
