@@ -1,2 +1,7 @@
 mmdvm
 
+radioid_data
+hamvoip_data
+dapnet_data
+rptrs_data
+nxdn_data
