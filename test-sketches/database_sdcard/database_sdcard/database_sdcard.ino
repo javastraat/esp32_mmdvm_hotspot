@@ -1,5 +1,5 @@
 //
-// api lookup from csv thru ip/api/dmr/user/?id=2041126
+// api lookup from csv thru ip/api/dmr/user/?id=1234567 or sqlite ip/api/sqlite/search?field=radioid&value=1234567
 
 
 #include <WiFi.h>
@@ -59,31 +59,26 @@ volatile bool sqliteSearchActive = false;
 #define SPI_MOSI_PIN 11
 #define SPI_SCLK_PIN 10
 #define SD_CS_PIN 12
-
+// End SD card pins
+//
+// WiFi credentials
 const char* ssid     = "TechInc";
 const char* password = "itoldyoualready";
-
+// End WiFi credentials
+//
+// Database file paths and URLs
+// Database directory
 const char* databaseDir = "/database";
-
+// Database csv file info
 const char* destFile = "/database/radioid.csv";
 const char* fileURL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.csv";
-
+// Database sqlite file info
 const char* destFile_db = "/database/esp32_database.db";
-//server
+// Server file URL for sqlite database
 //const char* fileURL_db = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radio_database.db";
-//local
+// Local server for testing
 const char* fileURL_db = "http://192.168.2.173/dmr-database/esp32_database.db";
-
-
-//old
-//const char* destFile = "/database/database.csv";
-//const char* fileURL = "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv";
-
-//https://github.com/DMR-Database/dmr-database-appdata/raw/refs/heads/main/radioid.csv
-
-//https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/database.csv
-//const char* destFile = "/database/database.csv";
-
+// End database file info
 
 SPIClass sdSPI(HSPI);
 

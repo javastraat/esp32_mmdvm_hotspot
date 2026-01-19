@@ -31,13 +31,13 @@ Look up a DMR user by Radio ID from the CSV file.
 
 **Example:**
 ```
-GET /api/dmr/user/?id=2041126
+GET /api/dmr/user/?id=1234567
 ```
 
 **Response:**
 ```json
 {
-  "radio_id": 123456,
+  "radio_id": 1234567,
   "callsign": "N0CALL",
   "name": "John",
   "city": "Amsterdam",
@@ -96,7 +96,7 @@ GET /api/sqlite/search?field=radio_id&value=204*
 {
   "results": [
     {
-      "radio_id": 123456,
+      "radio_id": 1234567,
       "callsign": "N0CALL",
       "first_name": "John",
       "city": "Amsterdam",
