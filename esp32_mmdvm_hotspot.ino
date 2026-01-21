@@ -727,27 +727,6 @@ void setup() {
     } else {
       logSerial("[SD] No owner.txt file found on SD card");
     }
-
-    // Test: List root directory contents at boot (before Ethernet init)
-    logSerial("[SD] ---- Files on SD Card (at boot) ----");
-    File root = SD.open("/");
-    if (root) {
-      while (true) {
-        File entry = root.openNextFile();
-        if (!entry) break;
-        if (entry.isDirectory()) {
-          logSerial("[SD]   " + String(entry.name()) + "/");
-        } else {
-          logSerial("[SD]   " + String(entry.name()) + " (" + String(entry.size()) + " bytes)");
-        }
-        entry.close();
-      }
-      root.close();
-    } else {
-      logSerial("[SD] ERROR: Could not open root directory!");
-    }
-    logSerial("[SD] ---------------------------------");
-
   } else {
     sdCardAvailable = false;
     logSerial("[SD] SD Card initialization failed (card not present or error)");
@@ -756,7 +735,7 @@ void setup() {
 #endif
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM1
+#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
   if (enable_oled) {
     updateBootStatus("Init Ethernet...");
   }
@@ -3287,11 +3266,6 @@ void setupWebServer() {
   server.on("/flash-modem-url", HTTP_POST, handleFlashModemURL);
   server.on("/modem-flash-status", handleModemFlashStatus);
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  // SD Card Database Management routes
-  registerSDCardRoutes();
-#endif
-
   server.begin();
   logSerial("[SYSTEM] Web server started.");
 }
@@ -3650,29 +3624,6 @@ uint64_t getSDUsedBytes() {
 
 uint8_t getSDCardType() {
   return sdCardAvailable ? sdCardType : 0;  // Return cached value
-}
-
-// Prepare SD card for file operations after Ethernet may have interfered
-// Returns true if SD card is ready for use
-bool prepareSDCard() {
-  if (!sdCardAvailable) return false;
-
-  // Reinitialize the SPI bus for SD card
-  sdSPI.end();
-  delay(10);
-  sdSPI.begin(SD_SCLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
-
-  // Reinitialize SD card
-  SD.end();
-  delay(10);
-
-  if (SD.begin(SD_CS_PIN, sdSPI)) {
-    sdCardType = SD.cardType();
-    return true;
-  }
-
-  logSerial("[SD] Warning: SD card reinit failed in prepareSDCard()");
-  return false;
 }
 #endif
 

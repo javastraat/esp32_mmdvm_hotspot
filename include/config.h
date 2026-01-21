@@ -16,7 +16,7 @@
 
 // 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
-#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
@@ -164,12 +164,7 @@
 #define NTP_DAYLIGHT_OFFSET 0         // Daylight saving offset in seconds (0 = no DST, 3600 = 1 hour DST)
 
 // ===== DMR User Database API Settings =====
-#if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM) // More memory available
-//#define DMR_API_URL "http://127.0.0.1/api/sqlite/search?field=radioid&value=1234567" // Local SQLite API endpoint
 #define DMR_API_URL "https://radioid.net/api/dmr/user/?id="  // RadioID.net API endpoint
-#else
-#define DMR_API_URL "https://radioid.net/api/dmr/user/?id="  // RadioID.net API endpoint
-#endif
 // Alternative APIs:
 // #define DMR_API_URL "https://database.radioid.net/api/dmr/user/?id="  // Alternative RadioID mirror
 // #define DMR_API_URL "https://ham-digital.org/api/dmr/user/?id="       // Ham-Digital.org API

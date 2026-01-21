@@ -74,8 +74,5 @@ extern void saveConfig();
 #include "web/pages/wifi_config.h"
 #include "web/pages/mode_config.h"
 #include "web/pages/admin.h"
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-#include "web/pages/sdcard.h"
-#endif
 
 #endif  // WEBPAGES_H

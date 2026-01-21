@@ -33,9 +33,6 @@ String getNavigation(String activePage) {
   nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " class='active'" : "") + ">Mode Config</a>";
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-  nav += "<a href='/sdcard'" + String(activePage == "sdcard" ? " class='active'" : "") + ">SD Card Database</a>";
-#endif
   nav += "</div>";
   nav += "</div>";
   nav += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle Dark/Light Mode' id='theme-btn'>🌙</button>";
