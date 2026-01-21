@@ -1036,6 +1036,15 @@ void sdPerformDownload() {
   sdDownloadStatus = "Connecting...";
   sdDownloadActive = true;
 
+  // CRITICAL: Reinitialize SD card in this task context to avoid SPI conflicts
+  if (!prepareSDCard()) {
+    logSerial("[SD] ERROR: Failed to reinitialize SD card");
+    sdDownloadStatus = "ERROR: SD card reinit failed";
+    sdDownloadActive = false;
+    return;
+  }
+  delay(100);  // Let SD card settle
+
   // Ensure database directory exists
   if (!SD.exists(SD_DATABASE_DIR)) {
     SD.mkdir(SD_DATABASE_DIR);
@@ -1150,6 +1159,15 @@ void sdPerformDownloadDB() {
   sdDownloadBytesWrittenDB = 0;
   sdDownloadStatusDB = "Connecting...";
   sdDownloadActiveDB = true;
+
+  // CRITICAL: Reinitialize SD card in this task context to avoid SPI conflicts
+  if (!prepareSDCard()) {
+    logSerial("[SD] ERROR: Failed to reinitialize SD card for DB");
+    sdDownloadStatusDB = "ERROR: SD card reinit failed";
+    sdDownloadActiveDB = false;
+    return;
+  }
+  delay(100);  // Let SD card settle
 
   // Ensure database directory exists
   if (!SD.exists(SD_DATABASE_DIR)) {
