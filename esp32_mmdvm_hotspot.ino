@@ -106,16 +106,17 @@
 //#include <sqlite3.h>
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-#include <sqlite3.h>
+
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 #include <ETHClass2.h>  //Is to use the modified ETHClass
 #define ETH ETH2
 #else
 #include <ETH.h>
 #endif
-static bool eth_connected = false;
+bool eth_connected = false;
 #include <SPI.h>
 #include <SD.h>
+#include <sqlite3.h>
 #endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // SD Card pins are defined in config.h
@@ -959,10 +960,7 @@ void loop() {
     bool hasWifi = wifiConnected;
     bool hasEth = false;
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-    bool hasEth = false;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
     hasEth = eth_connected;
-#endif
 #endif
 
     int maxCycle = 1;  // Default: 2 states (network + callsign)

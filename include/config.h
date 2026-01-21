@@ -16,7 +16,7 @@
 
 // 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
-//#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 // ===== WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Your WiFi SSID
