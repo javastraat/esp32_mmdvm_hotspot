@@ -1092,8 +1092,11 @@ void sdPerformDownload() {
         int bytesRead = stream->readBytes(buffer, bytesToRead);
 
         if (bytesRead > 0) {
-          outFile.write(buffer, bytesRead);
-          totalWritten += bytesRead;
+          size_t bytesWritten = outFile.write(buffer, bytesRead);
+          if (bytesWritten != bytesRead) {
+            logSerial("[SD] Warning: Write mismatch! Read=" + String(bytesRead) + " Written=" + String(bytesWritten));
+          }
+          totalWritten += bytesWritten;
           sdDownloadBytesWritten = totalWritten;
 
           if (sdDownloadBytesTotal > 0) {
@@ -1204,8 +1207,11 @@ void sdPerformDownloadDB() {
         int bytesRead = stream->readBytes(buffer, bytesToRead);
 
         if (bytesRead > 0) {
-          outFile.write(buffer, bytesRead);
-          totalWritten += bytesRead;
+          size_t bytesWritten = outFile.write(buffer, bytesRead);
+          if (bytesWritten != bytesRead) {
+            logSerial("[SD] Warning: DB Write mismatch! Read=" + String(bytesRead) + " Written=" + String(bytesWritten));
+          }
+          totalWritten += bytesWritten;
           sdDownloadBytesWrittenDB = totalWritten;
 
           if (sdDownloadBytesTotalDB > 0) {
