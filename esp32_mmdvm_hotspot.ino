@@ -117,12 +117,13 @@ bool eth_connected = false;
 #include <SPI.h>
 #include <SD.h>
 #include <sqlite3.h>
-#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-
 // SD Card pins are defined in config.h
 SPIClass sdSPI(HSPI);  // Use HSPI for SD card
 bool sdCardAvailable = false;
 uint8_t sdCardType = 0;  // Cached SD card type
+
+#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+
 
 // ESP32-S3 USB Serial configuration
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
