@@ -103,8 +103,10 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+//#include <sqlite3.h>
 
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#include <sqlite3.h>
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 #include <ETHClass2.h>  //Is to use the modified ETHClass
 #define ETH ETH2
