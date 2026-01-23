@@ -556,7 +556,7 @@ String getSystemStatusHTML() {
       html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT Disconnected</span>";
     }
   } else {
-    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT OFF</span>";
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT Disabled</span>";
   }
 
   html += "</div></div>";
@@ -577,9 +577,9 @@ String getSystemStatusHTML() {
   // SD Card Status
 #if USE_SD_CARD
   if (sdCardAvailable) {
-    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> SD Card</span>";
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> SD Card Ready</span>";
   } else {
-    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> SD Card</span>";
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> SD Card Not Ready</span>";
   }
 #endif
 
@@ -892,12 +892,12 @@ void handleRoot() {
   html += "  }";
   html += "  if (data.network.mqttEnabled) {";
   html += "    if (data.network.mqttConnected) {";
-  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MQTT ON</span>';";
+  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MQTT Connected</span>';";
   html += "    } else {";
-  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT ON</span>';";
+  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT Disconnected</span>';";
   html += "    }";
   html += "  } else {";
-  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT OFF</span>';";
+  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT Disabled</span>';";
   html += "  }";
   html += "  html += '</div></div>';";
   html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Hardware Status</div><div class=\"status-badges\">';";
@@ -908,9 +908,9 @@ void handleRoot() {
   html += "  }";
   html += "  if (USE_SD_CARD) {";
   html += "    if (data.sdCard.available) {";
-  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> SD Card</span>';";
+  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> SD Card Ready</span>';";
   html += "    } else {";
-  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> SD Card</span>';";
+  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> SD Card Not Ready</span>';";
   html += "    }";
   html += "  }";
   html += "  html += '</div></div>';";
