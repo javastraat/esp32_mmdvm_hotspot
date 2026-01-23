@@ -551,9 +551,9 @@ String getSystemStatusHTML() {
   // MQTT Status - Always show, ON/OFF based on mqtt_enabled, color based on mqttConnected
   if (mqtt_enabled) {
     if (mqttConnected) {
-      html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> MQTT ON</span>";
+      html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> MQTT Connected</span>";
     } else {
-      html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT ON</span>";
+      html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT Disconnected</span>";
     }
   } else {
     html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT OFF</span>";
