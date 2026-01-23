@@ -132,7 +132,7 @@ bool eth_connected = false;
 SPIClass sdSPI(HSPI);  // Use HSPI for SD card
 bool sdCardAvailable = false;
 uint8_t sdCardType = 0;  // Cached SD card type
-#endif // USE_SD_CARD
+#endif                   // USE_SD_CARD
 
 // ESP32-S3 USB Serial configuration
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
@@ -596,8 +596,8 @@ void mqttPublishNetworkDMR();
 void mqttPublishMMDVMConfig();
 void mqttPublishStationInfo();
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                              const String& name, const String& city, const String& country, bool isGroup,
-                              bool active, uint32_t duration);
+                             const String& name, const String& city, const String& country, bool isGroup,
+                             bool active, uint32_t duration);
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
 void writeDMRStart(bool tx, String callsign = "");
 void sendFrequency(uint32_t rxFreq, uint32_t txFreq, uint8_t rfPower);
@@ -1990,13 +1990,13 @@ void handleNetwork() {
             if (dmrActivity[activityIndex].srcCallsign.length() > 0) {
               uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
               mqttPublishSlotActivity(slotNo, srcId, dstId,
-                                     dmrActivity[activityIndex].srcCallsign,
-                                     dmrActivity[activityIndex].srcName,
-                                     dmrActivity[activityIndex].srcCity,
-                                     dmrActivity[activityIndex].srcCountry,
-                                     isGroup,
-                                     true,  // Always true - we only publish during active transmissions
-                                     duration);
+                                      dmrActivity[activityIndex].srcCallsign,
+                                      dmrActivity[activityIndex].srcName,
+                                      dmrActivity[activityIndex].srcCity,
+                                      dmrActivity[activityIndex].srcCountry,
+                                      isGroup,
+                                      true,  // Always true - we only publish during active transmissions
+                                      duration);
             }
 
             // Log with enhanced info if found
@@ -2303,8 +2303,7 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
   const uint8_t* dmrFrame = &modemData[1];
 
   // Check sync pattern at bytes 13-19 of the DMR frame (bytes 14-20 in modemData)
-  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0) ||
-                    (memcmp(&dmrFrame[13], MS_DATA_SYNC_ALT, 7) == 0);
+  bool isDataSync = (memcmp(&dmrFrame[13], MS_DATA_SYNC, 7) == 0) || (memcmp(&dmrFrame[13], MS_DATA_SYNC_ALT, 7) == 0);
   bool isAudioSync = (memcmp(&dmrFrame[13], MS_AUDIO_SYNC, 7) == 0);
 
   // Debug: print actual sync pattern on first frame of new transmission
@@ -2625,11 +2624,11 @@ bool mqttConnect() {
     // Set Last Will Testament (LWT) - notify when device goes offline
     String lwtTopic = mqtt_topic_prefix + "/availability";
     connected = mqttClient.connect(mqtt_client_id.c_str(), mqtt_username.c_str(),
-                                    mqtt_password.c_str(), lwtTopic.c_str(), 0, true, "offline");
+                                   mqtt_password.c_str(), lwtTopic.c_str(), 0, true, "offline");
   } else {
     String lwtTopic = mqtt_topic_prefix + "/availability";
     connected = mqttClient.connect(mqtt_client_id.c_str(), NULL, NULL,
-                                    lwtTopic.c_str(), 0, true, "offline");
+                                   lwtTopic.c_str(), 0, true, "offline");
   }
 
   if (connected) {
@@ -2771,7 +2770,7 @@ void mqttPublishHardwareModem() {
     int vPos = fwStr.indexOf("-v");
     if (vPos > 0) {
       hardware = fwStr.substring(0, vPos);
-      fwStr = fwStr.substring(vPos + 2); // Skip "-v"
+      fwStr = fwStr.substring(vPos + 2);  // Skip "-v"
     } else {
       int spacePos = fwStr.indexOf(' ');
       if (spacePos > 0) {
@@ -2836,7 +2835,7 @@ void mqttPublishHardwareModem() {
         // No space found, use everything before " FW"
         transceiver = fwStr.substring(0, fwPos);
       }
-      fwStr = fwStr.substring(fwPos + 3); // Skip " FW"
+      fwStr = fwStr.substring(fwPos + 3);  // Skip " FW"
     }
 
     // Extract author (after "by " before " GitID")
@@ -2936,8 +2935,8 @@ void mqttPublishStationInfo() {
 }
 
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                              const String& name = "", const String& city = "", const String& country = "", bool isGroup = true,
-                              bool active = true, uint32_t duration = 0) {
+                             const String& name = "", const String& city = "", const String& country = "", bool isGroup = true,
+                             bool active = true, uint32_t duration = 0) {
   if (!mqttConnected || !mqttClient.connected()) return;
 
   String topic = mqtt_topic_prefix + "/slot" + String(slot) + "/activity";

@@ -40,6 +40,13 @@ extern uint64_t getSDUsedBytes();
 extern uint8_t getSDCardType();
 #endif
 
+extern bool mqtt_enabled;
+extern bool mqttConnected;
+extern String mqtt_broker;
+extern uint16_t mqtt_port;
+extern String mqtt_username;
+extern String mqtt_topic_prefix;
+
 extern String dmr_server;
 extern uint32_t dmr_id;
 extern uint8_t dmr_essid;
@@ -107,21 +114,15 @@ void handleStatus() {
   html += "    }";
   html += "    html += '</div>';";
   html += "  }";
-  // SD Card Status (if available)
-  html += "  if (data.sdCard) {";
-  html += "    html += '<div class=\"card\"><h3>SD Card Status</h3>';";
-  html += "    if (data.sdCard.available) {";
-  html += "      html += '<div class=\"status connected\">Status: Available</div>';";
-  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.sdCard.type + '</span></div>';";
-  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Total Size:</span><span class=\"metric-value\">' + data.sdCard.totalMB + ' MB</span></div>';";
-  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Used:</span><span class=\"metric-value\">' + data.sdCard.usedMB + ' MB</span></div>';";
-  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Free:</span><span class=\"metric-value\">' + data.sdCard.freeMB + ' MB</span></div>';";
-  html += "    } else {";
-  html += "      html += '<div class=\"status disconnected\">Status: Not Available</div>';";
-  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Info:</span><span class=\"metric-value\">No card inserted</span></div>';";
-  html += "    }";
-  html += "    html += '</div>';";
-  html += "  }";
+  // MMDVM Hardware Status Card
+  html += "  html += '<div class=\"card\"><h3>MMDVM Hardware Status</h3>';";
+  html += "  let mmdvmClass = data.mmdvm.ready ? 'connected' : 'disconnected';";
+  html += "  html += '<div class=\"status ' + mmdvmClass + '\">Status: ' + (data.mmdvm.ready ? 'Ready' : 'Not Ready') + '</div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">RX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.rxFreq).toFixed(4) + ' MHz</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">TX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.txFreq).toFixed(4) + ' MHz</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Color Code:</span><span class=\"metric-value\">' + data.mmdvm.colorCode + '</span></div>';";
+  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Power Level:</span><span class=\"metric-value\">' + data.mmdvm.power + '</span></div>';";
+  html += "  html += '</div>';";
   // DMR Network Status Card
   html += "  html += '<div class=\"card\"><h3>DMR Network Status</h3>';";
   html += "  let dmrClass = data.dmr.loggedIn ? 'connected' : 'disconnected';";
@@ -138,15 +139,6 @@ void handleStatus() {
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Current Talkgroup:</span><span class=\"metric-value\">None</span></div>';";
   html += "  }";
   html += "  html += '</div>';";
-  // MMDVM Hardware Status Card
-  html += "  html += '<div class=\"card\"><h3>MMDVM Hardware Status</h3>';";
-  html += "  let mmdvmClass = data.mmdvm.ready ? 'connected' : 'disconnected';";
-  html += "  html += '<div class=\"status ' + mmdvmClass + '\">Status: ' + (data.mmdvm.ready ? 'Ready' : 'Not Ready') + '</div>';";
-  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">RX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.rxFreq).toFixed(4) + ' MHz</span></div>';";
-  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">TX Frequency:</span><span class=\"metric-value\">' + parseFloat(data.mmdvm.txFreq).toFixed(4) + ' MHz</span></div>';";
-  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Color Code:</span><span class=\"metric-value\">' + data.mmdvm.colorCode + '</span></div>';";
-  html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Power Level:</span><span class=\"metric-value\">' + data.mmdvm.power + '</span></div>';";
-  html += "  html += '</div>';";
   // Station Information Card
   html += "  html += '<div class=\"card\"><h3>Station Information</h3>';";
   html += "  let callsignClass = data.station.isDefaultCallsign ? 'disconnected' : 'connected';";
@@ -156,6 +148,37 @@ void handleStatus() {
   html += "  html += '<div class=\"metric\"><span class=\"metric-label\">ESSID:</span><span class=\"metric-value\">' + (data.station.essid === 0 ? 'None' : data.station.essid) + '</span></div>';";
   html += "  html += '<div class=\"metric\"><span class=\"metric-label\">Location:</span><span class=\"metric-value\">' + data.station.location + '</span></div>';";
   html += "  html += '</div>';";
+  // MQTT Status Card
+  html += "  if (data.mqtt) {";
+  html += "    html += '<div class=\"card\"><h3>MQTT Status</h3>';";
+  html += "    if (data.mqtt.enabled) {";
+  html += "      let mqttClass = data.mqtt.connected ? 'connected' : 'disconnected';";
+  html += "      html += '<div class=\"status ' + mqttClass + '\">Status: ' + (data.mqtt.connected ? 'Connected' : 'Disconnected') + '</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Broker:</span><span class=\"metric-value\">' + (data.mqtt.broker || 'Not configured') + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Port:</span><span class=\"metric-value\">' + data.mqtt.port + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Username:</span><span class=\"metric-value\">' + (data.mqtt.username || 'None') + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Topic Prefix:</span><span class=\"metric-value\">' + (data.mqtt.topicPrefix || 'Default') + '</span></div>';";
+  html += "    } else {";
+  html += "      html += '<div class=\"status disconnected\">Status: Disabled</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Info:</span><span class=\"metric-value\">Enable in Settings/MQTT</span></div>';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "  }";
+  // SD Card Status (if available)
+  html += "  if (data.sdCard) {";
+  html += "    html += '<div class=\"card\"><h3>SD Card Status</h3>';";
+  html += "    if (data.sdCard.available) {";
+  html += "      html += '<div class=\"status connected\">Status: Available</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.sdCard.type + '</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Total Size:</span><span class=\"metric-value\">' + data.sdCard.totalMB + ' MB</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Used:</span><span class=\"metric-value\">' + data.sdCard.usedMB + ' MB</span></div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Free:</span><span class=\"metric-value\">' + data.sdCard.freeMB + ' MB</span></div>';";
+  html += "    } else {";
+  html += "      html += '<div class=\"status disconnected\">Status: Not Available</div>';";
+  html += "      html += '<div class=\"metric\"><span class=\"metric-label\">Info:</span><span class=\"metric-value\">No card inserted</span></div>';";
+  html += "    }";
+  html += "    html += '</div>';";
+  html += "  }";
   html += "  html += '</div>';";
   html += "  document.getElementById('status-content').innerHTML = html;";
   html += "}";
@@ -236,6 +259,65 @@ String getStatusContent() {
   }
   html += "</div>";
 #endif
+
+  // MMDVM Hardware Status Card
+  html += "<div class='card'>";
+  html += "<h3>MMDVM Hardware Status</h3>";
+  String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
+  html += "<div class='status " + mmdvmClass + "'>Status: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
+  html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 4) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 4) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Power Level:</span><span class='metric-value'>" + String(dmr_power) + "</span></div>";
+  html += "</div>";
+
+  // DMR Network Status Card
+  html += "<div class='card'>";
+  html += "<h3>DMR Network Status</h3>";
+  String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
+  html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
+  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + getServerDisplayName(dmr_server) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
+  if (dmr_essid > 0) {
+    html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + String(dmr_essid) + "</span></div>";
+  }
+  if (currentTalkgroup > 0) {
+    html += "<div class='metric'><span class='metric-label'>Current Talkgroup:</span><span class='metric-value'>TG " + String(currentTalkgroup) + "</span></div>";
+  } else {
+    html += "<div class='metric'><span class='metric-label'>Current Talkgroup:</span><span class='metric-value'>None</span></div>";
+  }
+  html += "</div>";
+
+  // Station Information Card
+  html += "<div class='card'>";
+  html += "<h3>Station Information</h3>";
+  // Show callsign status - green if configured, red if still default N0CALL
+  bool isDefaultCallsign = (dmr_callsign == "N0CALL");
+  String callsignStatusClass = isDefaultCallsign ? "disconnected" : "connected";
+  String callsignStatusText = isDefaultCallsign ? "Callsign: N0CALL (Not Configured)" : "Callsign: " + dmr_callsign;
+  html += "<div class='status " + callsignStatusClass + "'>" + callsignStatusText + "</div>";
+  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? String("None") : String(dmr_essid)) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Location:</span><span class='metric-value'>" + dmr_location + "</span></div>";
+  html += "</div>";
+
+  // MQTT Status Card
+  html += "<div class='card'>";
+  html += "<h3>MQTT Status</h3>";
+  if (mqtt_enabled) {
+    String mqttClass = mqttConnected ? "connected" : "disconnected";
+    html += "<div class='status " + mqttClass + "'>Status: " + (mqttConnected ? "Connected" : "Disconnected") + "</div>";
+    html += "<div class='metric'><span class='metric-label'>Broker:</span><span class='metric-value'>" + (mqtt_broker.length() > 0 ? mqtt_broker : "Not configured") + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Port:</span><span class='metric-value'>" + String(mqtt_port) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Username:</span><span class='metric-value'>" + (mqtt_username.length() > 0 ? mqtt_username : "None") + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Topic Prefix:</span><span class='metric-value'>" + (mqtt_topic_prefix.length() > 0 ? mqtt_topic_prefix : "Default") + "</span></div>";
+  } else {
+    html += "<div class='status disconnected'>Status: Disabled</div>";
+    html += "<div class='metric'><span class='metric-label'>Info:</span><span class='metric-value'>Enable in Admin panel</span></div>";
+  }
+  html += "</div>";
+
 #if USE_SD_CARD
   // SD Card Status Card
   html += "<div class='card'>";
@@ -258,49 +340,6 @@ String getStatusContent() {
   }
   html += "</div>";
 #endif
-
-  // DMR Status Card
-  html += "<div class='card'>";
-  html += "<h3>DMR Network Status</h3>";
-  String bmStatusClass = dmrLoggedIn ? "connected" : "disconnected";
-  html += "<div class='status " + bmStatusClass + "'>Status: " + dmrLoginStatus + "</div>";
-  html += "<div class='metric'><span class='metric-label'>Server:</span><span class='metric-value'>" + getServerDisplayName(dmr_server) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span class='metric-value'>" + dmr_callsign + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
-  if (dmr_essid > 0) {
-    html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + String(dmr_essid) + "</span></div>";
-  }
-  if (currentTalkgroup > 0) {
-    html += "<div class='metric'><span class='metric-label'>Current Talkgroup:</span><span class='metric-value'>TG " + String(currentTalkgroup) + "</span></div>";
-  } else {
-    html += "<div class='metric'><span class='metric-label'>Current Talkgroup:</span><span class='metric-value'>None</span></div>";
-  }
-  html += "</div>";
-
-  // MMDVM Hardware Status Card
-  html += "<div class='card'>";
-  html += "<h3>MMDVM Hardware Status</h3>";
-  String mmdvmClass = mmdvmReady ? "connected" : "disconnected";
-  html += "<div class='status " + mmdvmClass + "'>Status: " + (mmdvmReady ? "Ready" : "Not Ready") + "</div>";
-  html += "<div class='metric'><span class='metric-label'>RX Frequency:</span><span class='metric-value'>" + String(dmr_rx_freq/1000000.0, 4) + " MHz</span></div>";
-  html += "<div class='metric'><span class='metric-label'>TX Frequency:</span><span class='metric-value'>" + String(dmr_tx_freq/1000000.0, 4) + " MHz</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Color Code:</span><span class='metric-value'>" + String(dmr_color_code) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Power Level:</span><span class='metric-value'>" + String(dmr_power) + "</span></div>";
-  html += "</div>";
-
-  // Station Information Card
-  html += "<div class='card'>";
-  html += "<h3>Station Information</h3>";
-  // Show callsign status - green if configured, red if still default N0CALL
-  bool isDefaultCallsign = (dmr_callsign == "N0CALL");
-  String callsignStatusClass = isDefaultCallsign ? "disconnected" : "connected";
-  String callsignStatusText = isDefaultCallsign ? "Callsign: N0CALL (Not Configured)" : "Callsign: " + dmr_callsign;
-  html += "<div class='status " + callsignStatusClass + "'>" + callsignStatusText + "</div>";
-  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span class='metric-value'>" + String(dmr_id) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>ESSID:</span><span class='metric-value'>" + (dmr_essid == 0 ? String("None") : String(dmr_essid)) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Location:</span><span class='metric-value'>" + dmr_location + "</span></div>";
-  html += "</div>";
-
   html += "</div>"; // Close status-grid
   return html;
 }
@@ -354,6 +393,16 @@ void handleStatusData() {
   }
   json += "},";
 #endif
+
+  // MQTT Status
+  json += "\"mqtt\":{";
+  json += "\"enabled\":" + String(mqtt_enabled ? "true" : "false") + ",";
+  json += "\"connected\":" + String(mqttConnected ? "true" : "false") + ",";
+  json += "\"broker\":\"" + mqtt_broker + "\",";
+  json += "\"port\":" + String(mqtt_port) + ",";
+  json += "\"username\":\"" + mqtt_username + "\",";
+  json += "\"topicPrefix\":\"" + mqtt_topic_prefix + "\"";
+  json += "},";
 
   // DMR Network Status
   json += "\"dmr\":{";

@@ -35,6 +35,9 @@ extern bool mode_ysf_enabled;
 extern bool mode_p25_enabled;
 extern bool mode_nxdn_enabled;
 extern bool mode_pocsag_enabled;
+extern bool sdCardAvailable;
+extern bool mqtt_enabled;
+extern bool mqttConnected;
 
 // DMR Activity structure
 struct DMRActivity {
@@ -545,11 +548,22 @@ String getSystemStatusHTML() {
   }
 #endif
 
+  // MQTT Status - Always show, ON/OFF based on mqtt_enabled, color based on mqttConnected
+  if (mqtt_enabled) {
+    if (mqttConnected) {
+      html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> MQTT ON</span>";
+    } else {
+      html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT ON</span>";
+    }
+  } else {
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MQTT OFF</span>";
+  }
+
   html += "</div></div>";
 
-  // System Status Section
+  // Hardware Status Section
   html += "<div class='status-section'>";
-  html += "<div class='status-section-title'>System Status</div>";
+  html += "<div class='status-section-title'>Hardware Status</div>";
   html += "<div class='status-badges'>";
 
   // MMDVM Hardware
@@ -558,6 +572,30 @@ String getSystemStatusHTML() {
   } else {
     html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MMDVM Not Ready</span>";
   }
+
+
+  // SD Card Status
+#if USE_SD_CARD
+  if (sdCardAvailable) {
+    html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> SD Card</span>";
+  } else {
+    html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> SD Card</span>";
+  }
+#endif
+
+  html += "</div></div>";
+
+  // Network Status Section
+  html += "<div class='status-section'>";
+  html += "<div class='status-section-title'>Network Status</div>";
+  html += "<div class='status-badges'>";
+
+  // // MMDVM Hardware
+  // if (mmdvmReady) {
+  //   html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> MMDVM Ready</span>";
+  // } else {
+  //   html += "<span class='status-badge badge-inactive'><span class='status-dot dot-red'></span> MMDVM Not Ready</span>";
+  // }
 
   // DMR Network
   if (dmrLoggedIn) {
@@ -654,6 +692,17 @@ void handleSystemStatus() {
 #if USE_ETHERNET
   json += ",\"ethConnected\":" + String(eth_connected ? "true" : "false");
 #endif
+  json += ",\"mqttEnabled\":" + String(mqtt_enabled ? "true" : "false");
+  json += ",\"mqttConnected\":" + String(mqttConnected ? "true" : "false");
+  json += "},";
+
+  // SD Card status
+  json += "\"sdCard\":{";
+#if USE_SD_CARD
+  json += "\"available\":" + String(sdCardAvailable ? "true" : "false");
+#else
+  json += "\"available\":false";
+#endif
   json += "},";
 
   // System status
@@ -725,6 +774,12 @@ void handleRoot() {
   html += "@media (max-width: 768px) { .history-title-bar { flex-direction: column; align-items: flex-start; gap: 10px; } .filter-controls { align-self: stretch; width: 100%; } .filter-controls label { flex-shrink: 0; } .filter-controls select { flex: 1; min-width: 0; } .history-header, .history-row { grid-template-columns: 60px 1fr 80px 50px; } .col-slot { display: none; } }";
   html += "</style>";
   html += "<script>";
+  // Configuration constants
+#if USE_SD_CARD
+  html += "const USE_SD_CARD = true;";
+#else
+  html += "const USE_SD_CARD = false;";
+#endif
   // Render functions for JSON data
   html += "function renderDMRSlot(data) {";
   html += "  let html = '';";
@@ -835,13 +890,36 @@ void handleRoot() {
   html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> Ethernet</span>';";
   html += "    }";
   html += "  }";
+  html += "  if (data.network.mqttEnabled) {";
+  html += "    if (data.network.mqttConnected) {";
+  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MQTT ON</span>';";
+  html += "    } else {";
+  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT ON</span>';";
+  html += "    }";
+  html += "  } else {";
+  html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MQTT OFF</span>';";
+  html += "  }";
   html += "  html += '</div></div>';";
-  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">System Status</div><div class=\"status-badges\">';";
+  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Hardware Status</div><div class=\"status-badges\">';";
   html += "  if (data.system.mmdvmReady) {";
   html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MMDVM Ready</span>';";
   html += "  } else {";
   html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MMDVM Not Ready</span>';";
   html += "  }";
+  html += "  if (USE_SD_CARD) {";
+  html += "    if (data.sdCard.available) {";
+  html += "      html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> SD Card</span>';";
+  html += "    } else {";
+  html += "      html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> SD Card</span>';";
+  html += "    }";
+  html += "  }";
+  html += "  html += '</div></div>';";
+  html += "  html += '<div class=\"status-section\"><div class=\"status-section-title\">Network Status</div><div class=\"status-badges\">';";
+  // html += "  if (data.system.mmdvmReady) {";
+  // html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> MMDVM Ready</span>';";
+  // html += "  } else {";
+  // html += "    html += '<span class=\"status-badge badge-inactive\"><span class=\"status-dot dot-red\"></span> MMDVM Not Ready</span>';";
+  // html += "  }";
   html += "  if (data.system.dmrLoggedIn) {";
   html += "    html += '<span class=\"status-badge badge-active\"><span class=\"status-dot dot-green\"></span> DMR Network</span>';";
   html += "  } else {";
@@ -1026,7 +1104,7 @@ void handleRoot() {
   html += ".mode-off { background: #f8d7da; color: #721c24; border-color: #dc3545; }";
   html += ".mode-disabled { background: #e2e3e5; color: #6c757d; border-color: #6c757d; opacity: 0.6; }";
   html += ".status-section { margin: 10px 0; }";
-  html += ".status-section-title { font-weight: bold; margin: 10px 0 5px 0; color: #555; }";
+  html += ".status-section-title { font-weight: bold; margin: 10px 0 5px 0; color: var(--text-color); }";
   html += "</style>";
 
   // System Status Content - will be auto-refreshed
