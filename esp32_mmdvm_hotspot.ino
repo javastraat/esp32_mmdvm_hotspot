@@ -105,8 +105,7 @@
 #include <Adafruit_SSD1306.h>
 //#include <sqlite3.h>
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-
+#if USE_ETHERNET
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 #include <ETHClass2.h>  //Is to use the modified ETHClass
 #define ETH ETH2
@@ -114,6 +113,18 @@
 #include <ETH.h>
 #endif
 bool eth_connected = false;
+// #include <SPI.h>
+// #include <SD.h>
+// #include <sqlite3.h>
+// // SD Card pins are defined in config.h
+// SPIClass sdSPI(HSPI);  // Use HSPI for SD card
+// bool sdCardAvailable = false;
+// uint8_t sdCardType = 0;  // Cached SD card type
+
+#endif  // USE_ETHERNET
+
+//SD Card Includes
+#if USE_SD_CARD
 #include <SPI.h>
 #include <SD.h>
 #include <sqlite3.h>
@@ -121,12 +132,11 @@ bool eth_connected = false;
 SPIClass sdSPI(HSPI);  // Use HSPI for SD card
 bool sdCardAvailable = false;
 uint8_t sdCardType = 0;  // Cached SD card type
-
-#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
-
+#endif // USE_SD_CARD
 
 // ESP32-S3 USB Serial configuration
 #ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#if USE_ETHERNET
 #if ARDUINO_USB_MODE
 #warning "USB MODE is enabled - Serial will work via USB CDC"
 #endif
@@ -610,18 +620,24 @@ void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
 // Helper functions for status page
 String getEthIPAddress();
 String getEthMACAddress();
 int getEthLinkSpeed();
 bool getEthFullDuplex();
 String getEthGatewayIP();
+// uint64_t getSDCardSize();
+// uint64_t getSDUsedBytes();
+// uint8_t getSDCardType();
+#endif
+
+#if USE_SD_CARD
 uint64_t getSDCardSize();
 uint64_t getSDUsedBytes();
 uint8_t getSDCardType();
 #endif
-
 // Web handlers are defined in webpages.h
 
 void setup() {
@@ -680,7 +696,7 @@ void setup() {
   logSerial("[MODEM] MMDVM Serial initialized");
 
   // Initialize SD Card
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if (USE_SD_CARD)
   if (enable_oled) {
     updateBootStatus("Init SD Card...");
   }
@@ -736,7 +752,7 @@ void setup() {
 #endif
 
   // Setup Network (Ethernet with WiFi fallback, or WiFi only)
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   if (enable_oled) {
     updateBootStatus("Init Ethernet...");
   }
@@ -792,7 +808,7 @@ void setup() {
   // Initialize NTP Time
   // Check if we have any network connection
   bool hasNetwork = wifiConnected;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   hasNetwork = hasNetwork || eth_connected;
 #endif
 
@@ -885,7 +901,7 @@ void setup() {
     logSerial("[AP] Access Point Mode - Connect to: " + String(ap_ssid));
     logSerial("[AP] Web Interface: http://192.168.4.1");
   } else if (wifiConnected) {
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
     if (eth_connected) {
       logSerial("[ETH] Web Interface: http://" + ETH.localIP().toString());
     } else {
@@ -960,7 +976,7 @@ void loop() {
     // Determine max cycle value based on connections
     bool hasWifi = wifiConnected;
     bool hasEth = false;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
     hasEth = eth_connected;
 #endif
 
@@ -1204,7 +1220,7 @@ void setupAccessPoint() {
   apMode = true;
 }
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
 void WiFiEvent(arduino_event_id_t event) {
   switch (event) {
     case ARDUINO_EVENT_ETH_START:
@@ -1253,9 +1269,9 @@ void WiFiEvent(arduino_event_id_t event) {
       break;
   }
 }
-#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#endif  // USE_ETHERNET
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
 void setupEthernet() {
   logSerial("[ETH] Initializing Ethernet (LILYGO T-ETH-ELITE)...");
 
@@ -1282,7 +1298,7 @@ void setupEthernet() {
     delay(2000);
   }
 }
-#endif  // LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#endif  // USE_ETHERNET
 
 void setupMMDVM() {
   logSerial("[MODEM] Initializing MMDVM...");
@@ -2504,7 +2520,7 @@ void logSerialVerbose(String message) {
   }
 }
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_SD_CARD
 // ===== SD Card Helper Functions =====
 bool writeSDFile(const char* path, const char* data) {
   if (!sdCardAvailable) return false;
@@ -3593,7 +3609,7 @@ void addRFHistory(uint32_t srcId, String srcCallsign, uint32_t dstId, bool isGro
   rfHistoryIndex = (rfHistoryIndex + 1) % RF_HISTORY_SIZE;
 }
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
 // Helper functions for Ethernet/SD status display
 String getEthIPAddress() {
   return eth_connected ? ETH.localIP().toString() : "0.0.0.0";
@@ -3614,6 +3630,8 @@ bool getEthFullDuplex() {
 String getEthGatewayIP() {
   return eth_connected ? ETH.gatewayIP().toString() : "0.0.0.0";
 }
+#endif
+#if USE_SD_CARD
 
 uint64_t getSDCardSize() {
   return sdCardAvailable ? SD.cardSize() : 0;
@@ -3828,7 +3846,7 @@ void updateOLEDStatus() {
   int iconX = OLED_WIDTH - ICON_WIDTH;  // Start from right edge
 
   // Draw network icons - show both if both connected
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   if (eth_connected && wifiConnected) {
     // Both connected - show both icons
     display.drawBitmap(iconX, 0, icon_ethernet, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
@@ -3997,7 +4015,7 @@ void updateOLEDStatus() {
   // Determine what to show based on connections and cycle state
   bool hasWifi = wifiConnected;
   bool hasEth = false;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   hasEth = eth_connected;
 #endif
 
@@ -4009,7 +4027,7 @@ void updateOLEDStatus() {
     if (oledHeaderCycle == 0) {
       bottomLine = "WiFi: " + WiFi.localIP().toString();
     } else if (oledHeaderCycle == 1) {
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
       bottomLine = "ETH: " + ETH.localIP().toString();
 #endif
     } else {
@@ -4027,7 +4045,7 @@ void updateOLEDStatus() {
   } else if (hasEth) {
     // ETH only - alternate between 2 screens
     if (oledHeaderCycle % 2 == 0) {
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
       bottomLine = "ETH: " + ETH.localIP().toString();
 #endif
     } else {

@@ -26,7 +26,7 @@ extern uint32_t dmr_rx_freq;
 extern uint32_t dmr_tx_freq;
 extern uint8_t dmr_color_code;
 extern String modem_type;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
 extern bool eth_connected;
 #endif
 extern bool mode_dmr_enabled;
@@ -537,7 +537,7 @@ String getSystemStatusHTML() {
   }
 
   // Ethernet Status (only on supported hardware)
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   if (eth_connected) {
     html += "<span class='status-badge badge-active'><span class='status-dot dot-green'></span> Ethernet</span>";
   } else {
@@ -651,7 +651,7 @@ void handleSystemStatus() {
   json += "\"network\":{";
   json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
   json += "\"apMode\":" + String(apMode ? "true" : "false");
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   json += ",\"ethConnected\":" + String(eth_connected ? "true" : "false");
 #endif
   json += "},";

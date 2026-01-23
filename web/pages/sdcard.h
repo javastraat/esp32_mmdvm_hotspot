@@ -6,7 +6,7 @@
 #ifndef WEB_PAGES_SDCARD_H
 #define WEB_PAGES_SDCARD_H
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#ifdef USE_SD_CARD
 
 #include <Arduino.h>
 #include <WiFi.h>

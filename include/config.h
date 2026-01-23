@@ -9,10 +9,14 @@
 
 // ===== Firmware Version =====
 /*
-#define FIRMWARE_VERSION "20260121_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20260122_ESP32_BETA"  // Update version as needed
 */
-//#define FIRMWARE_VERSION "20260121_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20260121_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20260122_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20260122_ESP32_BETA"  // Update version as needed
+
+// Hardware Options
+#define USE_SD_CARD true  // Enable SD card support (true/false)
+#define USE_ETHERNET false  // Enable Ethernet support (true/false)
 
 // 
 // Define board type if you are using the LilyGo T-Ethernet Elite ESP32-S3 MMDVM board
@@ -57,12 +61,21 @@
 #define DMR_URL ""                     // Default URL (empty)
 
 // ===== Hardware Pin Configuration =====
-// Pin definitions based on board type
-#if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
 // GPIO Pins
 #define OLED_BUTTON_PIN 0        // Button to toggle OLED display on/off
 #define MMDVM_COS_LED_PIN 38  // Carrier detect LED
-#define STATUS_LED_PIN 38
+#define STATUS_LED_PIN 38     // Status LED (can be same as COS)
+// I2C Pins
+#define I2C_SDA_PIN 17
+#define I2C_SCL_PIN 18
+
+// Pin definitions based on board type
+#if USE_ETHERNET
+//#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
+// // GPIO Pins
+// #define OLED_BUTTON_PIN 0        // Button to toggle OLED display on/off
+// #define MMDVM_COS_LED_PIN 38  // Carrier detect LED
+// #define STATUS_LED_PIN 38
 // Network Pins
 #define ETH_MISO_PIN 47
 #define ETH_MOSI_PIN 21
@@ -75,25 +88,41 @@
 #define SPI_MISO_PIN 9
 #define SPI_MOSI_PIN 11
 #define SPI_SCLK_PIN 10
+// // SD Card Pins
+// #define SD_MISO_PIN SPI_MISO_PIN
+// #define SD_MOSI_PIN SPI_MOSI_PIN
+// #define SD_SCLK_PIN SPI_SCLK_PIN
+// #define SD_CS_PIN 12
+
+// // I2C Pins
+// #define I2C_SDA_PIN 17
+#define I2C_SCL_PIN 18
+
+//#else
+#endif
+
+// Define SD card pins (if used)
+#if USE_SD_CARD
+// SPI Pins
+#define SPI_MISO_PIN 9
+#define SPI_MOSI_PIN 11
+#define SPI_SCLK_PIN 10
 // SD Card Pins
 #define SD_MISO_PIN SPI_MISO_PIN
 #define SD_MOSI_PIN SPI_MOSI_PIN
 #define SD_SCLK_PIN SPI_SCLK_PIN
 #define SD_CS_PIN 12
-
-// I2C Pins
-#define I2C_SDA_PIN 17
-#define I2C_SCL_PIN 18
-
-#else
-// GPIO Pins
-#define OLED_BUTTON_PIN 0        // Button to toggle OLED display on/off
-#define MMDVM_COS_LED_PIN 38  // Carrier detect LED
-#define STATUS_LED_PIN 38     // Status LED (can be same as COS)
-// I2C Pins
-#define I2C_SDA_PIN 17
-#define I2C_SCL_PIN 18
-
+#endif
+//Define Ethernet pins (if used)
+#if USE_ETHERNET
+// Network Pins
+#define ETH_MISO_PIN 47
+#define ETH_MOSI_PIN 21
+#define ETH_SCLK_PIN 48
+#define ETH_CS_PIN 45
+#define ETH_INT_PIN 14
+#define ETH_RST_PIN -1
+#define ETH_ADDR 1
 #endif
 
 // RGB LED Settings

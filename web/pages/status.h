@@ -23,18 +23,23 @@ extern bool dmrLoggedIn;
 extern uint32_t currentTalkgroup;
 extern String dmrLoginStatus;
 extern String dmr_callsign;
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+
+#if USE_ETHERNET
 extern bool eth_connected;
-extern bool sdCardAvailable;
 extern String getEthIPAddress();
 extern String getEthMACAddress();
 extern int getEthLinkSpeed();
 extern bool getEthFullDuplex();
 extern String getEthGatewayIP();
+#endif
+
+#if USE_SD_CARD
+extern bool sdCardAvailable;
 extern uint64_t getSDCardSize();
 extern uint64_t getSDUsedBytes();
 extern uint8_t getSDCardType();
 #endif
+
 extern String dmr_server;
 extern uint32_t dmr_id;
 extern uint8_t dmr_essid;
@@ -214,7 +219,7 @@ String getStatusContent() {
   }
   html += "</div>";
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   // Ethernet Status Card
   html += "<div class='card'>";
   html += "<h3>Ethernet Status</h3>";
@@ -230,7 +235,8 @@ String getStatusContent() {
     html += "<div class='metric'><span class='metric-label'>Info:</span><span class='metric-value'>Cable unplugged or disabled</span></div>";
   }
   html += "</div>";
-
+#endif
+#if USE_SD_CARD
   // SD Card Status Card
   html += "<div class='card'>";
   html += "<h3>SD Card Status</h3>";
@@ -320,7 +326,7 @@ void handleStatusData() {
   }
   json += "},";
 
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+#if USE_ETHERNET
   // Ethernet Status
   json += "\"ethernet\":{";
   json += "\"connected\":" + String(eth_connected ? "true" : "false");
@@ -332,7 +338,8 @@ void handleStatusData() {
     json += ",\"gateway\":\"" + getEthGatewayIP() + "\"";
   }
   json += "},";
-
+#endif
+#if USE_SD_CARD
   // SD Card Status
   json += "\"sdCard\":{";
   json += "\"available\":" + String(sdCardAvailable ? "true" : "false");
