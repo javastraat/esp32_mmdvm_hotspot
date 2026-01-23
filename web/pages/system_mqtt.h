@@ -34,17 +34,20 @@ void handleSystemMqtt() {
   html += "<title>MQTT Configuration - ESP32 MMDVM</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color, #eee); }";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
   html += ".metric:last-child { border-bottom: none; }";
-  html += ".metric-label { font-weight: bold; color: var(--text-color, #555); }";
-  html += ".metric-value { color: var(--text-color, #333); }";
+  html += ".metric-label { font-weight: bold; color: #555; }";
+  html += ".metric-value { color: #333; }";
+  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
+  html += ".btn-success { background: #28a745; color: white; }";
+  html += ".btn-success:hover { background: #218838; }";
   html += "</style></head><body>";
   html += getNavigation("systemmqtt");
   html += "<div class='container'>";
   html += "<h1>MQTT Configuration</h1>";
 
-  html += "<div class='info-grid'>";
+  html += "<div class='admin-grid'>";
 
   // MQTT Configuration Card
   html += "<div class='card'>";
@@ -95,7 +98,7 @@ void handleSystemMqtt() {
   html += "</form>";
   html += "</div>";
 
-  html += "</div>"; // Close info-grid
+  html += "</div>"; // Close admin-grid
 
   // JavaScript
   html += "<script>";

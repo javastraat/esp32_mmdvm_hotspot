@@ -3235,6 +3235,7 @@ void setupWebServer() {
   server.on("/systeminfo", handleSystemInfo);
   server.on("/systemsettings", handleSystemSettings);
   server.on("/systemmqtt", handleSystemMqtt);
+  server.on("/systemadmin", handleSystemAdmin);
 
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);

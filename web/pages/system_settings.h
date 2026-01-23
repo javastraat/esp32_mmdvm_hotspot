@@ -17,6 +17,7 @@
 extern WebServer server;
 extern String web_username;
 extern String web_password;
+extern String device_hostname;
 extern bool verbose_logging;
 extern bool debug_serial;
 extern bool debug_mmdvm;
@@ -38,7 +39,7 @@ void handleSystemSettings() {
   html += "<title>System Settings - ESP32 MMDVM</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
   html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
   html += ".btn-info { background: #17a2b8; color: white; }";
   html += ".btn-info:hover { background: #138496; }";
@@ -49,7 +50,7 @@ void handleSystemSettings() {
   html += "<div class='container'>";
   html += "<h1>System Settings</h1>";
 
-  html += "<div class='settings-grid'>";
+  html += "<div class='admin-grid'>";
 
   // Web Username Card
   html += "<div class='card'>";
@@ -96,6 +97,27 @@ void handleSystemSettings() {
   html += "</div>";
   html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>Password must be at least 4 characters</p>";
   html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Change Password</button>";
+  html += "</form>";
+  html += "</div>";
+
+  // Hostname Configuration Card
+  html += "<div class='card'>";
+  html += "<h3>Hostname Configuration</h3>";
+  html += "<p>Set the network hostname for your device</p>";
+  html += "<div style='background:var(--info-bg);padding:10px;border-radius:4px;margin-bottom:15px;'>";
+  html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
+  html += "<span><strong>Current Hostname:</strong></span>";
+  html += "<span style='font-family:monospace;'>" + device_hostname + "</span>";
+  html += "</div>";
+  html += "<div style='margin-top:8px;font-size:0.85em;color:#666;'>";
+  html += "<strong>Access via:</strong> http://" + device_hostname + ".local";
+  html += "</div>";
+  html += "</div>";
+  html += "<form id='hostname-form' onsubmit='saveHostname(event)'>";
+  html += "<label>New Hostname:</label>";
+  html += "<input type='text' id='hostname-input' value='" + device_hostname + "' placeholder='e.g., mmdvm-hotspot' required style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;' pattern='[a-zA-Z0-9-]{1,32}'>";
+  html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>Use only letters, numbers, and hyphens (1-32 characters)</p>";
+  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Update Hostname</button>";
   html += "</form>";
   html += "</div>";
 
@@ -220,7 +242,7 @@ void handleSystemSettings() {
   html += "</form>";
   html += "</div>";
 
-  html += "</div>"; // Close settings-grid
+  html += "</div>"; // Close admin-grid
 
   // JavaScript functions
   html += "<script>";
@@ -274,6 +296,24 @@ void handleSystemSettings() {
   html += "      if (data.includes('SUCCESS')) {";
   html += "        alert('Password changed successfully! Please log in again with your new password.');";
   html += "        window.location.href = '/';";
+  html += "      } else {";
+  html += "        alert('Error: ' + data);";
+  html += "      }";
+  html += "    });";
+  html += "  }";
+  html += "}";
+  html += "function saveHostname(event) {";
+  html += "  event.preventDefault();";
+  html += "  var hostname = document.getElementById('hostname-input').value.trim();";
+  html += "  if (!hostname || !/^[a-zA-Z0-9-]{1,32}$/.test(hostname)) {";
+  html += "    alert('Invalid hostname. Use only letters, numbers, and hyphens (1-32 characters).');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (confirm('Change hostname to \"' + hostname + '\"?\\n\\nSystem will reboot and be accessible at:\\nhttp://' + hostname + '.local')) {";
+  html += "    fetch('/save-hostname', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'hostname=' + encodeURIComponent(hostname)}).then(response => response.text()).then(data => {";
+  html += "      if (data.includes('SUCCESS')) {";
+  html += "        alert('Hostname saved! System will reboot in 3 seconds.\\n\\nNew URL: http://' + hostname + '.local');";
+  html += "        setTimeout(() => { window.location.href = 'http://' + hostname + '.local'; }, 3000);";
   html += "      } else {";
   html += "        alert('Error: ' + data);";
   html += "      }";

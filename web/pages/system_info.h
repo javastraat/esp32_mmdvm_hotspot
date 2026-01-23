@@ -27,18 +27,18 @@ void handleSystemInfo() {
   html += "<title>System Info - ESP32 MMDVM</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color, #eee); }";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
   html += ".metric:last-child { border-bottom: none; }";
-  html += ".metric-label { font-weight: bold; color: var(--text-color, #555); }";
-  html += ".metric-value { color: var(--text-color, #333); }";
+  html += ".metric-label { font-weight: bold; color: #555; }";
+  html += ".metric-value { color: #333; }";
   html += ".uptime { color: #007bff; font-weight: bold; }";
   html += "</style></head><body>";
   html += getNavigation("systeminfo");
   html += "<div class='container'>";
   html += "<h1>System Information</h1>";
 
-  html += "<div class='info-grid'>";
+  html += "<div class='admin-grid'>";
 
   // System Information Card
   html += "<div class='card'>";
@@ -193,7 +193,7 @@ void handleSystemInfo() {
   html += "<div class='metric'><span class='metric-label'>Git ID:</span><span class='metric-value'>" + gitId + "</span></div>";
   html += "</div>";
 
-  html += "</div>"; // Close info-grid
+  html += "</div>"; // Close admin-grid
 
   html += getFooter();
   html += "</div>"; // Close container
