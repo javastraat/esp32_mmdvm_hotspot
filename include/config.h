@@ -9,10 +9,10 @@
 
 // ===== Firmware Version =====
 /*
-#define FIRMWARE_VERSION "20260122_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20260123_ESP32_BETA"  // Update version as needed
 */
-//#define FIRMWARE_VERSION "20260122_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20260122_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20260123_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20260123_ESP32_BETA"  // Update version as needed
 
 // Hardware Options
 #define USE_SD_CARD true  // Enable SD card support (true/false)

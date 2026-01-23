@@ -3232,6 +3232,9 @@ void setupWebServer() {
   server.on("/wificonfig", handleConfig);
   server.on("/modeconfig", handleDMRConfig);
   server.on("/admin", handleAdmin);
+  server.on("/systeminfo", handleSystemInfo);
+  server.on("/systemsettings", handleSystemSettings);
+  server.on("/systemmqtt", handleSystemMqtt);
 
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
