@@ -1616,7 +1616,7 @@ void handleCleanupPreferences() {
   }
 }
 
-// Note: handleDownloadUpdate, handleUploadFirmware, handleFlashFirmware moved to modem_flasher.h
+// Note: handleDownloadUpdate, handleUploadFirmware, handleFlashFirmware moved to firmware_flasher.h
 
 void handleSaveHostname() {
   if (!checkAuthentication()) return;
@@ -2117,7 +2117,7 @@ void handleImportConfig() {
   }
 }
 
-// Note: handleTestMmdvm moved to modem_flasher.h
+// Note: handleTestMmdvm moved to firmware_flasher.h
 
 void handleShowPreferences() {
   if (!checkAuthentication()) return;

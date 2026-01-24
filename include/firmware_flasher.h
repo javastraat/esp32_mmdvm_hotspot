@@ -1,13 +1,13 @@
 /*
- * modem_flasher.h - Firmware Flasher Functions
+ * firmware_flasher.h - Firmware Flasher Functions
  *
  * Contains handlers for:
  * - ESP32 OTA firmware updates (download, upload, flash)
  * - MMDVM Modem firmware flashing (STM32 bootloader protocol)
  */
 
-#ifndef MODEM_FLASHER_H
-#define MODEM_FLASHER_H
+#ifndef FIRMWARE_FLASHER_H
+#define FIRMWARE_FLASHER_H
 
 #include <Arduino.h>
 #include <WebServer.h>
@@ -742,4 +742,4 @@ void handleFlashModemURL() {
   }
 }
 
-#endif // MODEM_FLASHER_H
+#endif // FIRMWARE_FLASHER_H
