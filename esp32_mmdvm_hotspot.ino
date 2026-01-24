@@ -91,6 +91,9 @@
 #include "include/webpages.h"
 #include "include/RGBLedController.h"
 #include "include/firmware_flasher.h"
+#include "include/system_handlers.h"
+#include "include/mqtt_handlers.h"
+#include "include/settings_handlers.h"
 
 // DMR Decoder Library
 #include "include/dmr/DMRLC.cpp"
