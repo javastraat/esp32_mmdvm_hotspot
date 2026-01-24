@@ -78,5 +78,6 @@ extern void saveConfig();
 #include "web/pages/system_settings.h"
 #include "web/pages/system_mqtt.h"
 #include "web/pages/system_admin.h"
+#include "web/pages/system_firmware.h"
 
 #endif  // WEBPAGES_H

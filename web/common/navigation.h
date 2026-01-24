@@ -35,6 +35,7 @@ String getNavigation(String activePage) {
   nav += "<a href='/systemsettings'" + String(activePage == "systemsettings" ? " class='active'" : "") + ">Settings</a>";
   nav += "<a href='/systemmqtt'" + String(activePage == "systemmqtt" ? " class='active'" : "") + ">MQTT</a>";
   nav += "<a href='/systemadmin'" + String(activePage == "systemadmin" ? " class='active'" : "") + ">Admin</a>";
+  nav += "<a href='/systemfirmware'" + String(activePage == "systemfirmware" ? " class='active'" : "") + ">Firmware</a>";
   nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " class='active'" : "") + ">Mode Config</a>";
   nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
