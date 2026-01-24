@@ -1,7 +1,9 @@
 /*
- * modem_flasher.h - MMDVM Modem Firmware Flasher Functions
- * 
- * STM32 bootloader protocol implementation for flashing MMDVM modem firmware
+ * modem_flasher.h - Firmware Flasher Functions
+ *
+ * Contains handlers for:
+ * - ESP32 OTA firmware updates (download, upload, flash)
+ * - MMDVM Modem firmware flashing (STM32 bootloader protocol)
  */
 
 #ifndef MODEM_FLASHER_H
@@ -10,6 +12,7 @@
 #include <Arduino.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
+#include <Update.h>
 
 // External references
 extern WebServer server;
@@ -17,6 +20,7 @@ extern WebServer server;
 extern HardwareSerial MMDVMWakeup;
 extern bool mmdvmWakeupActive;
 extern void logSerial(String message);
+extern bool checkAuthentication();
 
 // STM32 Bootloader Protocol Constants
 #define STM32_SYNC_BYTE   0x7F
@@ -232,7 +236,184 @@ void modemExitBootloader() {
   ESP.restart();
 }
 
-// ===== Web Handler Functions =====
+// ===== ESP32 OTA Firmware Handlers =====
+
+void handleDownloadUpdate() {
+  // Get version parameter (default to stable if not specified)
+  String version = "stable";
+  if (server.hasArg("version")) {
+    version = server.arg("version");
+  }
+
+  // Select appropriate URL based on version
+  String downloadUrl;
+  if (version == "beta") {
+    downloadUrl = OTA_UPDATE_BETA_URL;
+    logSerial("Starting BETA firmware download from GitHub...");
+  } else if (version == "factory") {
+    downloadUrl = OTA_UPDATE_FACTORY_URL;
+    logSerial("Starting Factory Setup firmware download from GitHub...");
+  } else {
+    downloadUrl = OTA_UPDATE_URL;
+    logSerial("Starting stable firmware download from GitHub...");
+  }
+
+  HTTPClient http;
+  http.begin(downloadUrl);
+  http.setTimeout(OTA_TIMEOUT);
+
+  int httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    int contentLength = http.getSize();
+
+    if (contentLength > 0) {
+      logSerial("Firmware download successful, size: " + String(contentLength) + " bytes");
+
+      // Check if there's enough space
+      if (Update.begin(contentLength)) {
+        WiFiClient *client = http.getStreamPtr();
+        size_t written = Update.writeStream(*client);
+
+        if (written == contentLength) {
+          if (Update.end(true)) {
+            logSerial("Firmware downloaded and finalized successfully: " + String(contentLength) + " bytes");
+            server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
+          } else {
+            logSerial("Failed to finalize downloaded firmware - Error: " + String(Update.getError()));
+            server.send(500, "text/plain", "ERROR: Failed to finalize firmware - " + String(Update.getError()));
+          }
+        } else {
+          Update.abort();
+          logSerial("Download incomplete: " + String(written) + " of " + String(contentLength) + " bytes");
+          server.send(500, "text/plain", "ERROR: Download incomplete");
+        }
+      } else {
+        logSerial("Not enough space for firmware update");
+        server.send(500, "text/plain", "ERROR: Not enough space for update");
+      }
+    } else {
+      logSerial("Invalid firmware size from server");
+      server.send(500, "text/plain", "ERROR: Invalid firmware file");
+    }
+  } else {
+    logSerial("Failed to download firmware, HTTP code: " + String(httpCode));
+    server.send(500, "text/plain", "ERROR: Failed to download (HTTP " + String(httpCode) + ")");
+  }
+
+  http.end();
+}
+
+void handleUploadFirmware() {
+  if (!checkAuthentication()) return;
+
+  HTTPUpload& upload = server.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    logSerial("Starting firmware upload: " + upload.filename);
+
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      logSerial("Failed to begin OTA update");
+      return;
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      logSerial("OTA write failed");
+      Update.abort();
+      return;
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) {
+      logSerial("Firmware upload successful: " + String(upload.totalSize) + " bytes");
+      server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(upload.totalSize) + " bytes)");
+    } else {
+      logSerial("Upload failed: " + String(Update.getError()));
+      server.send(500, "text/plain", "ERROR: Upload failed - " + String(Update.getError()));
+    }
+  }
+}
+
+void handleFlashFirmware() {
+  logSerial("Starting firmware flash process...");
+
+  // Check if firmware was properly prepared by either download or upload method
+  if (Update.isFinished()) {
+    logSerial("Firmware flash completed successfully!");
+    server.send(200, "text/plain", "SUCCESS: Firmware flashed, rebooting...");
+
+    delay(2000);
+    ESP.restart();
+  } else {
+    logSerial("No firmware ready for flashing - Update.isFinished() = false");
+    server.send(400, "text/plain", "ERROR: No firmware prepared for flash");
+  }
+}
+
+void handleTestMmdvm() {
+  logSerial("=== MMDVM Test Started ===");
+  logSerial("Testing MMDVM modem communication...");
+
+  // Send GET_VERSION command
+  logSerial("[TEST] Sending GET_VERSION command...");
+  uint8_t cmd[] = {0xE0, 0x03, 0x00};  // MMDVM_FRAME_START, length, CMD_GET_VERSION
+  Serial2.write(cmd, 3);
+  Serial2.flush();
+
+  // Wait for response
+  unsigned long startTime = millis();
+  bool gotResponse = false;
+  uint8_t rxBuffer[100];
+  int rxCount = 0;
+
+  while (millis() - startTime < 1000 && rxCount < 100) {  // 1 second timeout
+    if (Serial2.available()) {
+      rxBuffer[rxCount] = Serial2.read();
+      rxCount++;
+      gotResponse = true;
+    }
+    delay(10);
+  }
+
+  if (gotResponse && rxCount > 0) {
+    // Format response as hex string
+    String hexResponse = "[TEST] RX (" + String(rxCount) + " bytes): ";
+    for (int i = 0; i < rxCount; i++) {
+      if (rxBuffer[i] < 0x10) hexResponse += "0";
+      hexResponse += String(rxBuffer[i], HEX);
+      hexResponse += " ";
+    }
+    logSerial(hexResponse);
+
+    // Check if valid MMDVM frame
+    if (rxBuffer[0] == 0xE0) {
+      logSerial("[TEST] Valid MMDVM frame detected (starts with 0xE0)");
+
+      // Try to parse version if available
+      if (rxCount >= 3 && rxBuffer[2] == 0x00 && rxCount > 4) {
+        String version = "[TEST] Modem Version: ";
+        for (int i = 4; i < rxCount && rxBuffer[i] != 0x00; i++) {
+          if (rxBuffer[i] >= 32 && rxBuffer[i] < 127) {
+            version += (char)rxBuffer[i];
+          }
+        }
+        logSerial(version);
+      }
+
+      logSerial("[TEST] MMDVM communication test PASSED");
+    } else {
+      logSerial("[TEST] Invalid frame start byte (expected 0xE0, got 0x" + String(rxBuffer[0], HEX) + ")");
+      logSerial("[TEST] MMDVM communication test FAILED - Wrong baud rate or garbled data");
+    }
+  } else {
+    logSerial("[TEST] No response from MMDVM modem (timeout after 1 second)");
+    logSerial("[TEST] MMDVM communication test FAILED - Check connections");
+  }
+
+  logSerial("=== MMDVM Test Complete ===");
+  server.send(200, "text/plain", "MMDVM test completed - check Serial Monitor for results");
+}
+
+// ===== MMDVM Modem Flash Handlers =====
 
 void handleModemFlashStatus() {
   String json = "{";
