@@ -12,10 +12,10 @@ String getNavigation(String activePage) {
   nav += ".dropdown { float: left; position: relative; }";
   nav += ".dropdown-content { display: none; position: fixed; background-color: var(--topnav-bg, #333); min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1000; }";
   nav += ".dropdown-content a { float: none !important; color: var(--topnav-text, white); padding: 12px 16px; text-decoration: none; display: block !important; text-align: left; }";
-  nav += ".dropdown-content a:hover { background-color: var(--topnav-hover, #575757); }";
+  nav += ".dropdown-content a:hover { background-color: var(--topnav-hover, #575757); color: var(--topnav-hover-text, black); }";
   nav += ".dropdown-content.show { display: block; }";
   nav += ".dropbtn { background-color: transparent; color: var(--topnav-text, white); padding: 14px 20px; font-size: inherit; border: none; cursor: pointer; font-family: inherit; }";
-  nav += ".dropbtn:hover { background-color: var(--topnav-hover, #575757); }";
+  nav += ".dropbtn:hover, .dropbtn:focus, .dropbtn:active { background-color: var(--topnav-hover, #575757); color: var(--topnav-hover-text, black); }";
   nav += "</style>";
   nav += "<div class='topnav' id='myTopnav'>";
   nav += "<a href='/'" + String(activePage == "main" ? " class='active'" : "") + ">Main</a>";
