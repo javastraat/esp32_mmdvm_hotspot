@@ -82,7 +82,7 @@ void downloadBlinkTask(void* param) {
     digitalWrite(STATUS_LED_PIN, LOW);
     vTaskDelay(200 / portTICK_PERIOD_MS);
   }
-  digitalWrite(STATUS_LED_PIN, LOW);  // Ensure LED is off at end
+  // Don't change LED state - let caller decide final state
   downloadBlinkTaskHandle = NULL;
   vTaskDelete(NULL);
 }
@@ -100,7 +100,7 @@ bool initSDCard() {
   // Ensure database directory exists
   if (!SD.exists(SDCARD_DATABASE_DIR)) {
     SD.mkdir(SDCARD_DATABASE_DIR);
-    logSerial("SD Card: Created /database directory");
+    logSerial("[SD] Created /database directory");
   }
 
   return true;
@@ -353,7 +353,7 @@ void handleDeleteCSV() {
   if (SD.exists(SDCARD_CSV_FILE)) {
     if (SD.remove(SDCARD_CSV_FILE)) {
       server.send(200, "application/json", "{\"success\":true,\"message\":\"CSV database deleted\"}");
-      logSerial("SD Card: CSV database deleted");
+      logSerial("[SD] CSV database deleted");
     } else {
       server.send(200, "application/json", "{\"success\":false,\"message\":\"Failed to delete CSV database\"}");
     }
@@ -374,7 +374,7 @@ void handleDeleteSQLite() {
   if (SD.exists(SDCARD_SQLITE_FILE)) {
     if (SD.remove(SDCARD_SQLITE_FILE)) {
       server.send(200, "application/json", "{\"success\":true,\"message\":\"SQLite database deleted\"}");
-      logSerial("SD Card: SQLite database deleted");
+      logSerial("[SD] SQLite database deleted");
     } else {
       server.send(200, "application/json", "{\"success\":false,\"message\":\"Failed to delete SQLite database\"}");
     }
@@ -427,7 +427,7 @@ void handleDeleteCustomPath() {
 
   // Verify deletion
   if (!SD.exists(path.c_str())) {
-    logSerial("SD Card: Deleted " + path);
+    logSerial("[SD] Deleted " + path);
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Successfully deleted: " + path + "\"}");
   } else {
     server.send(200, "application/json", "{\"success\":false,\"message\":\"Failed to delete path\"}");
@@ -680,7 +680,7 @@ void performCSVDownload() {
   if (!sdcard_csv_download_requested) return;
   sdcard_csv_download_requested = false;
 
-  logSerial("SD Card: Starting CSV download");
+  logSerial("[SD] Starting CSV download");
 
   sdcard_csv_download_progress = 0;
   sdcard_csv_bytes_total = 0;
@@ -694,6 +694,7 @@ void performCSVDownload() {
 
   if (httpCode == HTTP_CODE_OK) {
     sdcard_csv_bytes_total = http.getSize();
+    sdcard_csv_download_progress = 0;  // Initialize to 0%
 
     // Delete old file if exists
     if (SD.exists(SDCARD_CSV_FILE)) {
@@ -704,6 +705,7 @@ void performCSVDownload() {
     if (!outFile) {
       sdcard_csv_download_status = "ERROR: File open failed";
       sdcard_csv_download_active = false;
+      digitalWrite(STATUS_LED_PIN, LOW);  // LED OFF = error
       http.end();
       return;
     }
@@ -712,12 +714,13 @@ void performCSVDownload() {
     downloadLEDActive = true;
     xTaskCreatePinnedToCore(downloadBlinkTask, "DownloadBlink", 1024, NULL, 1, &downloadBlinkTaskHandle, 1);
 
-    sdcard_csv_download_status = "Downloading...";
+    sdcard_csv_download_status = "Download & Save...";
 
     WiFiClient* stream = http.getStreamPtr();
     uint8_t buffer[2048];
     unsigned long totalWritten = 0;
     int chunkCounter = 0;
+    int lastLoggedPercent = 0;  // Track last logged percentage
 
     while (http.connected() && (totalWritten < sdcard_csv_bytes_total || sdcard_csv_bytes_total == -1)) {
       size_t available = stream->available();
@@ -736,7 +739,13 @@ void performCSVDownload() {
           sdcard_csv_bytes_written = totalWritten;
 
           if (sdcard_csv_bytes_total > 0) {
-            sdcard_csv_download_progress = (int)((totalWritten * 100UL) / sdcard_csv_bytes_total);
+            sdcard_csv_download_progress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_csv_bytes_total);
+            
+            // Log progress every 10%
+            if (sdcard_csv_download_progress >= lastLoggedPercent + 10) {
+              lastLoggedPercent = (sdcard_csv_download_progress / 10) * 10;  // Round to nearest 10%
+              logSerial("[SD] CSV download progress " + String(lastLoggedPercent) + "% (" + String(totalWritten) + " / " + String(sdcard_csv_bytes_total) + " bytes)");
+            }
           }
           chunkCounter++;
         }
@@ -762,20 +771,22 @@ void performCSVDownload() {
 
     outFile.close();
     
-    // Stop LED blinking
+    // Stop LED blinking and set LED ON to indicate success
     downloadLEDActive = false;
     while (downloadBlinkTaskHandle != NULL) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
+    digitalWrite(STATUS_LED_PIN, HIGH);  // LED ON = success
     
     sdcard_csv_bytes_written = totalWritten;
     sdcard_csv_download_progress = 100;
     sdcard_csv_download_status = "Download complete!";
-    logSerial("SD Card: CSV download complete (" + String(totalWritten) + " bytes)");
+    logSerial("[SD] CSV download complete (" + String(totalWritten) + " bytes)");
     lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
   } else {
     sdcard_csv_download_status = "ERROR: HTTP " + String(httpCode);
-    logSerial("SD Card: CSV download failed - HTTP " + String(httpCode));
+    logSerial("[SD] CSV download failed - HTTP " + String(httpCode));
+    digitalWrite(STATUS_LED_PIN, LOW);  // LED OFF = error
   }
 
   http.end();
@@ -786,7 +797,7 @@ void performSQLiteDownload() {
   if (!sdcard_sqlite_download_requested) return;
   sdcard_sqlite_download_requested = false;
 
-  logSerial("SD Card: Starting SQLite download");
+  logSerial("[SD] Starting SQLite download");
 
   sdcard_sqlite_download_progress = 0;
   sdcard_sqlite_bytes_total = 0;
@@ -800,6 +811,7 @@ void performSQLiteDownload() {
 
   if (httpCode == HTTP_CODE_OK) {
     sdcard_sqlite_bytes_total = http.getSize();
+    sdcard_sqlite_download_progress = 0;  // Initialize to 0%
 
     // Delete old file if exists
     if (SD.exists(SDCARD_SQLITE_FILE)) {
@@ -810,6 +822,7 @@ void performSQLiteDownload() {
     if (!outFile) {
       sdcard_sqlite_download_status = "ERROR: File open failed";
       sdcard_sqlite_download_active = false;
+      digitalWrite(STATUS_LED_PIN, LOW);  // LED OFF = error
       http.end();
       return;
     }
@@ -818,12 +831,13 @@ void performSQLiteDownload() {
     downloadLEDActive = true;
     xTaskCreatePinnedToCore(downloadBlinkTask, "DownloadBlink", 1024, NULL, 1, &downloadBlinkTaskHandle, 1);
 
-    sdcard_sqlite_download_status = "Downloading...";
+    sdcard_sqlite_download_status = "Download & Save...";
 
     WiFiClient* stream = http.getStreamPtr();
     uint8_t buffer[2048];
     unsigned long totalWritten = 0;
     int chunkCounter = 0;
+    int lastLoggedPercent = 0;  // Track last logged percentage
 
     while (http.connected() && (totalWritten < sdcard_sqlite_bytes_total || sdcard_sqlite_bytes_total == -1)) {
       size_t available = stream->available();
@@ -842,7 +856,13 @@ void performSQLiteDownload() {
           sdcard_sqlite_bytes_written = totalWritten;
 
           if (sdcard_sqlite_bytes_total > 0) {
-            sdcard_sqlite_download_progress = (int)((totalWritten * 100UL) / sdcard_sqlite_bytes_total);
+            sdcard_sqlite_download_progress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_sqlite_bytes_total);
+            
+            // Log progress every 10%
+            if (sdcard_sqlite_download_progress >= lastLoggedPercent + 10) {
+              lastLoggedPercent = (sdcard_sqlite_download_progress / 10) * 10;  // Round to nearest 10%
+              logSerial("[SD] SQLite download progress " + String(lastLoggedPercent) + "% (" + String(totalWritten) + " / " + String(sdcard_sqlite_bytes_total) + " bytes)");
+            }
           }
           chunkCounter++;
         }
@@ -868,20 +888,22 @@ void performSQLiteDownload() {
 
     outFile.close();
     
-    // Stop LED blinking
+    // Stop LED blinking and set LED ON to indicate success
     downloadLEDActive = false;
     while (downloadBlinkTaskHandle != NULL) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
+    digitalWrite(STATUS_LED_PIN, HIGH);  // LED ON = success
     
     sdcard_sqlite_bytes_written = totalWritten;
     sdcard_sqlite_download_progress = 100;
     sdcard_sqlite_download_status = "Download complete!";
-    logSerial("SD Card: SQLite download complete (" + String(totalWritten) + " bytes)");
+    logSerial("[SD] SQLite download complete (" + String(totalWritten) + " bytes)");
     lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
   } else {
     sdcard_sqlite_download_status = "ERROR: HTTP " + String(httpCode);
-    logSerial("SD Card: SQLite download failed - HTTP " + String(httpCode));
+    logSerial("[SD] SQLite download failed - HTTP " + String(httpCode));
+    digitalWrite(STATUS_LED_PIN, LOW);  // LED OFF = error
   }
 
   http.end();

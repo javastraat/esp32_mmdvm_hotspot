@@ -45,8 +45,8 @@ void handleSystemSdcard() {
   html += ".action-buttons-vertical .btn { width: 100%; margin: 0; }";
   html += ".progress-container { margin: 15px 0; display: none; }";
   html += ".progress-bar { width: 100%; background: var(--border-color, #e9ecef); border-radius: 4px; height: 30px; position: relative; overflow: hidden; }";
-  html += ".progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34ce57); width: 0%; transition: width 0.3s; }";
-  html += ".progress-text { position: absolute; width: 100%; text-align: center; line-height: 30px; color: var(--text-color, #000); font-weight: bold; }";
+  html += ".progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34ce57); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; }";
+  html += ".progress-text { position: absolute; width: 100%; text-align: center; line-height: 30px; color: var(--text-color, #000); font-weight: bold; z-index: 1; top: 0; }";
   html += ".status-text { padding: 10px; background: var(--card-bg, #f8f9fa); border-radius: 4px; margin: 10px 0; color: var(--text-color); }";
   html += "input[type=text] { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";
   html += "select { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";

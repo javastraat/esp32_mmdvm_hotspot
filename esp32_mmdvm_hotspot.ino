@@ -3498,6 +3498,140 @@ void cacheCallsign(uint32_t dmrId, String callsign) {
   callsignCacheIndex = (callsignCacheIndex + 1) % DMR_CALLSIGN_CACHE_SIZE;
 }
 
+// Enhanced user info lookup via local sqlite database with remote API fallback
+#if SDCARD_SQLITE_SUPPORT
+String lookupUserInfoAPI(uint32_t dmrId) {
+  if (!wifiConnected) {
+    return "";
+  }
+
+  String userInfo = "";
+
+  // First try local SQLite database lookup (fast, no network required)
+  if (sdCardAvailable && SD.exists("/database/esp32_database.db")) {
+    sqlite3 *db = NULL;
+    String dbPath = "/sd/database/esp32_database.db";
+
+    int rc = sqlite3_open(dbPath.c_str(), &db);
+    if (rc == SQLITE_OK) {
+      String sql = "SELECT CALLSIGN, FIRST_NAME, CITY, COUNTRY FROM radioid WHERE RADIO_ID = " + String(dmrId) + " LIMIT 1;";
+
+      sqlite3_stmt *stmt;
+      rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
+
+      if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        String callsign = sqlite3_column_text(stmt, 0) ? String((const char*)sqlite3_column_text(stmt, 0)) : "";
+        String name = sqlite3_column_text(stmt, 1) ? String((const char*)sqlite3_column_text(stmt, 1)) : "";
+        String city = sqlite3_column_text(stmt, 2) ? String((const char*)sqlite3_column_text(stmt, 2)) : "";
+        String country = sqlite3_column_text(stmt, 3) ? String((const char*)sqlite3_column_text(stmt, 3)) : "";
+
+        if (callsign.length() > 0) {
+          userInfo = callsign;
+          if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
+            userInfo += "|" + name + "|" + city + "|" + country;
+          }
+          logSerial("[API] Local SQLite lookup for " + String(dmrId) + ": " + callsign);
+        }
+      }
+
+      sqlite3_finalize(stmt);
+      sqlite3_close(db);
+    }
+  }
+
+  // If local lookup succeeded, return the result
+  if (userInfo.length() > 0) {
+    return userInfo;
+  }
+
+  // Fallback to remote RadioID.net API
+  HTTPClient http;
+  String url = String(DMR_API_URL) + String(dmrId);
+
+  http.begin(url);
+  http.setTimeout(DMR_API_TIMEOUT);  // API timeout from config.h
+
+  int httpCode = http.GET();
+
+  if (httpCode == 200) {
+    String payload = http.getString();
+
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
+    // Parse multiple fields: callsign, name/fname, city, country
+    String callsign = "";
+    String name = "";
+    String city = "";
+    String country = "";
+
+    // Extract callsign
+    int csIndex = payload.indexOf("\"callsign\":\"");
+    if (csIndex > 0) {
+      csIndex += 12;  // Length of "callsign":"
+      int endIndex = payload.indexOf("\"", csIndex);
+      if (endIndex > csIndex) {
+        callsign = payload.substring(csIndex, endIndex);
+      }
+    }
+
+    // Extract name (prefer 'name' over 'fname')
+    int nameIndex = payload.indexOf("\"name\":\"");
+    if (nameIndex > 0) {
+      nameIndex += 8;  // Length of "name":"
+      int endIndex = payload.indexOf("\"", nameIndex);
+      if (endIndex > nameIndex) {
+        name = payload.substring(nameIndex, endIndex);
+        if (name == "null" || name.length() == 0) {
+          // Try fname if name is null/empty
+          int fnameIndex = payload.indexOf("\"fname\":\"");
+          if (fnameIndex > 0) {
+            fnameIndex += 9;  // Length of "fname":"
+            int fendIndex = payload.indexOf("\"", fnameIndex);
+            if (fendIndex > fnameIndex) {
+              name = payload.substring(fnameIndex, fendIndex);
+            }
+          }
+        }
+      }
+    }
+
+    // Extract city
+    int cityIndex = payload.indexOf("\"city\":\"");
+    if (cityIndex > 0) {
+      cityIndex += 8;  // Length of "city":"
+      int endIndex = payload.indexOf("\"", cityIndex);
+      if (endIndex > cityIndex) {
+        city = payload.substring(cityIndex, endIndex);
+        if (city == "null") city = "";
+      }
+    }
+
+    // Extract country
+    int countryIndex = payload.indexOf("\"country\":\"");
+    if (countryIndex > 0) {
+      countryIndex += 11;  // Length of "country":"
+      int endIndex = payload.indexOf("\"", countryIndex);
+      if (endIndex > countryIndex) {
+        country = payload.substring(countryIndex, endIndex);
+        if (country == "null") country = "";
+      }
+    }
+
+    // Build userInfo string: "callsign|name|city|country"
+    if (callsign.length() > 0) {
+      userInfo = callsign;
+      if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
+        userInfo += "|" + name + "|" + city + "|" + country;
+      }
+      logSerial("[API] Remote API lookup for " + String(dmrId) + ": " + callsign);
+    }
+  } else if (httpCode > 0) {
+    logSerial("[API] Remote API lookup failed: HTTP " + String(httpCode));
+  }
+
+  http.end();
+  return userInfo;
+}
+#else
 // Enhanced user info lookup via RadioID.net API
 String lookupUserInfoAPI(uint32_t dmrId) {
   if (!wifiConnected) {
@@ -3590,6 +3724,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   http.end();
   return userInfo;
 }
+#endif
 
 // Legacy callsign lookup via RadioID.net API
 String lookupCallsignAPI(uint32_t dmrId) {
