@@ -3304,6 +3304,7 @@ void setupWebServer() {
   server.on("/api/sdcard/info", handleSDCardInfo);
   server.on("/api/sdcard/files", handleSDCardFiles);
   server.on("/api/sdcard/owner", handleSDCardOwner);
+  server.on("/api/sdcard/writeowner", HTTP_POST, handleWriteOwner);
   server.on("/api/sdcard/download/csv", handleDownloadCSV);
   server.on("/api/sdcard/download/sqlite", handleDownloadSQLite);
   server.on("/api/sdcard/status/csv", handleCSVDownloadStatus);

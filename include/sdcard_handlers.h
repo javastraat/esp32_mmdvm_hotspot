@@ -19,6 +19,8 @@
 #include <HTTPClient.h>
 #include "config.h"
 
+#include <Preferences.h>
+
 #include <sqlite3.h>
 
 // #ifdef SDCARD_SQLITE_SUPPORT
@@ -280,6 +282,59 @@ void handleSDCardOwner() {
   ownerFile.close();
 
   server.send(200, "text/plain", content);
+}
+
+// Helper: escape string for JSON value (minimal escaping)
+static String jsonEscape(const String &s) {
+  String out;
+  out.reserve(s.length());
+  for (size_t i = 0; i < s.length(); i++) {
+    char c = s.charAt(i);
+    if (c == '\\') out += "\\\\";
+    else if (c == '"') out += "\\\"";
+    else if (c == '\n') out += "\\n";
+    else if (c == '\r') out += "\\r";
+    else out += c;
+  }
+  return out;
+}
+
+// POST /api/sdcard/writeowner - Write /owner.txt using saved callsign
+void handleWriteOwner() {
+  if (!checkAuthentication()) return;
+
+  if (!initSDCard()) {
+    server.send(200, "application/json", "{\"success\":false,\"message\":\"SD card not available\"}");
+    return;
+  }
+
+  extern Preferences preferences;
+  preferences.begin("mmdvm", false);
+  String callsign = preferences.getString("dmr_callsign", String(DMR_CALLSIGN));
+  preferences.end();
+
+  String content = "Property of " + callsign + "\n";
+  content += "This card contains ESP32 MMDVM Database and files\n";
+
+  if (SD.exists("/owner.txt")) {
+    SD.remove("/owner.txt");
+  }
+
+  File ownerFile = SD.open("/owner.txt", FILE_WRITE);
+  if (!ownerFile) {
+    server.send(200, "application/json", "{\"success\":false,\"message\":\"Failed to open owner.txt for writing\"}");
+    return;
+  }
+
+  ownerFile.print(content);
+  ownerFile.close();
+
+  logSerial("[SD] Wrote /owner.txt: " + content);
+
+  String escaped = jsonEscape(content);
+  String json = "{\"success\":true,\"message\":\"owner.txt written\",\"content\":\"" + escaped + "\"}";
+
+  server.send(200, "application/json", json);
 }
 
 // GET /api/sdcard/download/csv - Start CSV database download

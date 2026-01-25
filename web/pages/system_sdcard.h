@@ -107,6 +107,9 @@ void handleSystemSdcard() {
   html += "<div class='card'>";
   html += "<h3>Owner Information</h3>";
   html += "<div id='owner-info' class='owner-text'>Loading...</div>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<button id='save-owner-btn' class='btn btn-success' onclick='writeOwner()'>Save Owner</button>";
+  html += "</div>";
   html += "</div>";
 
   // Card 4: DMR Database Search (CSV)
@@ -255,6 +258,16 @@ void handleSystemSdcard() {
   html += "  fetch('/api/sdcard/owner').then(r=>r.text()).then(data=>{";
   html += "    document.getElementById('owner-info').textContent = data;";
   html += "  }).catch(e=>{ document.getElementById('owner-info').textContent = 'Could not read owner.txt'; });";
+  html += "}";
+
+  // Write owner.txt using saved callsign
+  html += "function writeOwner() {";
+  html += "  var btn = document.getElementById('save-owner-btn');";
+  html += "  btn.disabled = true;";
+  html += "  fetch('/api/sdcard/writeowner', { method: 'POST' }).then(r=>r.json()).then(data=>{";
+  html += "    if (data && data.success) { alert('owner.txt written'); } else { alert('Error: ' + (data ? data.message : 'Unknown')); }";
+  html += "    loadOwnerInfo(); refreshFileList(); btn.disabled = false;";
+  html += "  }).catch(e=>{ alert('Error writing owner.txt: ' + e.message); btn.disabled = false; });";
   html += "}";
 
   // CSV Database download
