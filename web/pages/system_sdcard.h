@@ -157,7 +157,7 @@ void handleSystemSdcard() {
   html += "<div id='csv-progress-container' class='progress-container'>";
   html += "<div class='status-text'>Status: <span id='csv-status-text'>Starting...</span></div>";
   html += "<div class='progress-bar'><div id='csv-progress-fill' class='progress-fill'></div><span id='csv-progress-text' class='progress-text'>0%</span></div>";
-  html += "<p id='csv-bytes'>0 / 0 MB</p>";
+  html += "<p id='csv-bytes'>0 / 0 bytes</p>";
   html += "</div>";
   html += "</div>";
 
@@ -173,7 +173,7 @@ void handleSystemSdcard() {
   html += "<div id='sqlite-progress-container' class='progress-container'>";
   html += "<div class='status-text'>Status: <span id='sqlite-status-text'>Starting...</span></div>";
   html += "<div class='progress-bar'><div id='sqlite-progress-fill' class='progress-fill'></div><span id='sqlite-progress-text' class='progress-text'>0%</span></div>";
-  html += "<p id='sqlite-bytes'>0 / 0 MB</p>";
+  html += "<p id='sqlite-bytes'>0 / 0 bytes</p>";
   html += "</div>";
   html += "</div>";
 
@@ -274,7 +274,7 @@ void handleSystemSdcard() {
   html += "  document.getElementById('download-csv-btn').disabled = true;";
   html += "  document.getElementById('csv-progress-fill').style.width = '0%';";
   html += "  document.getElementById('csv-progress-text').textContent = '0%';";
-  html += "  document.getElementById('csv-bytes').textContent = '0 / 0 MB';";
+  html += "  document.getElementById('csv-bytes').textContent = '0 / 0 bytes';";
   html += "  document.getElementById('csv-status-text').textContent = 'Starting...';";
   html += "  fetch('/api/sdcard/download/csv');";
   html += "  csvPollInterval = setInterval(updateCSVStatus, 500);";
@@ -283,8 +283,8 @@ void handleSystemSdcard() {
   html += "  fetch('/api/sdcard/status/csv').then(r=>r.json()).then(data=>{";
   html += "    document.getElementById('csv-progress-fill').style.width = data.progress + '%';";
   html += "    document.getElementById('csv-progress-text').textContent = data.progress + '%';";
-  html += "    var mb = (data.bytesWritten/1024/1024).toFixed(2) + ' / ' + (data.bytesTotal/1024/1024).toFixed(2) + ' MB';";
-  html += "    document.getElementById('csv-bytes').textContent = mb;";
+  html += "    var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
+  html += "    document.getElementById('csv-bytes').textContent = bytes;";
   html += "    document.getElementById('csv-status-text').textContent = data.status;";
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(csvPollInterval);";
@@ -304,7 +304,7 @@ void handleSystemSdcard() {
   html += "  document.getElementById('download-sqlite-btn').disabled = true;";
   html += "  document.getElementById('sqlite-progress-fill').style.width = '0%';";
   html += "  document.getElementById('sqlite-progress-text').textContent = '0%';";
-  html += "  document.getElementById('sqlite-bytes').textContent = '0 / 0 MB';";
+  html += "  document.getElementById('sqlite-bytes').textContent = '0 / 0 bytes';";
   html += "  document.getElementById('sqlite-status-text').textContent = 'Starting...';";
   html += "  fetch('/api/sdcard/download/sqlite');";
   html += "  sqlitePollInterval = setInterval(updateSQLiteStatus, 500);";
@@ -313,8 +313,8 @@ void handleSystemSdcard() {
   html += "  fetch('/api/sdcard/status/sqlite').then(r=>r.json()).then(data=>{";
   html += "    document.getElementById('sqlite-progress-fill').style.width = data.progress + '%';";
   html += "    document.getElementById('sqlite-progress-text').textContent = data.progress + '%';";
-  html += "    var mb = (data.bytesWritten/1024/1024).toFixed(2) + ' / ' + (data.bytesTotal/1024/1024).toFixed(2) + ' MB';";
-  html += "    document.getElementById('sqlite-bytes').textContent = mb;";
+  html += "    var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
+  html += "    document.getElementById('sqlite-bytes').textContent = bytes;";
   html += "    document.getElementById('sqlite-status-text').textContent = data.status;";
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(sqlitePollInterval);";

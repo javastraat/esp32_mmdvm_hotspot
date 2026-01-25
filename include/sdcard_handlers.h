@@ -721,8 +721,8 @@ void performCSVDownload() {
         }
       }
       
-      // Handle critical systems every 100 chunks or when no data available (less frequent to avoid starving DMR/MQTT)
-      if (chunkCounter >= 100 || !available) {
+      // Handle critical systems every 10 chunks or when no data available (more frequent to prevent DMR/MQTT timeouts)
+      if (chunkCounter >= 10 || !available) {
         yield();                    // Allow background tasks
         server.handleClient();      // Web status updates
         mqttLoop();                 // Keep MQTT alive
@@ -815,8 +815,8 @@ void performSQLiteDownload() {
         }
       }
       
-      // Handle critical systems every 100 chunks or when no data available (less frequent to avoid starving DMR/MQTT)
-      if (chunkCounter >= 100 || !available) {
+      // Handle critical systems every 10 chunks or when no data available (more frequent to prevent DMR/MQTT timeouts)
+      if (chunkCounter >= 10 || !available) {
         yield();                    // Allow background tasks
         server.handleClient();      // Web status updates
         mqttLoop();                 // Keep MQTT alive

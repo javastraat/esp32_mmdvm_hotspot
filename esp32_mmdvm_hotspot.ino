@@ -574,6 +574,10 @@ unsigned long oledBlankTimeout = OLED_BLANK_TIMEOUT;  // Timeout duration in mil
 unsigned long lastActivityTime = 0;                   // Timestamp of last activity (DMR, button press, etc.)
 bool oledBlankingActive = false;                      // Track if screen was auto-blanked (vs manually turned off)
 
+// ===== External Variables from sdcard_handlers.h =====
+extern volatile bool sdcard_csv_download_active;
+extern volatile bool sdcard_sqlite_download_active;
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -1118,6 +1122,17 @@ void loop() {
               updateOLEDStatus();  // Update display to show failure
             }
           }
+        }
+      }
+      // Auto-reconnect if disconnected and no download is active (NAK during download recovery)
+      else if (dmrState == DMR_STATE::DISCONNECTED && !sdcard_csv_download_active && !sdcard_sqlite_download_active) {
+        // Wait a bit before attempting reconnect to avoid spamming
+        static unsigned long lastReconnectAttempt = 0;
+        if (currentMillis - lastReconnectAttempt >= 5000) {  // 5 second delay between reconnect attempts
+          logSerial("[DMR] Download completed - attempting auto-reconnect to BrandMeister");
+          loginAttempts = 0;  // Reset retry counter for fresh start
+          connectToDMRNetwork();
+          lastReconnectAttempt = currentMillis;
         }
       }
     }
@@ -1805,9 +1820,15 @@ void handleNetwork() {
             default: stageMsg += "UNKNOWN";
           }
           logSerial("[DMR] " + stageMsg);
-          logSerial("[DMR] STOPPING - Please check configuration and reboot");
 
-          // Stop trying to prevent ban
+          // Check if NAK occurred during/after download - attempt auto-reconnect
+          if (sdcard_csv_download_active || sdcard_sqlite_download_active) {
+            logSerial("[DMR] NAK during download detected - will auto-reconnect after download completes");
+          } else {
+            logSerial("[DMR] STOPPING - Please check configuration and reboot");
+          }
+          
+          // Always set to disconnected state (reconnect logic in main loop will handle recovery)
           dmrState = DMR_STATE::DISCONNECTED;
         }
         // Check for login acknowledgment (RPTACK)
