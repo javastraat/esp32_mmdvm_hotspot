@@ -578,6 +578,10 @@ bool oledBlankingActive = false;                      // Track if screen was aut
 extern volatile bool sdcard_csv_download_active;
 extern volatile bool sdcard_sqlite_download_active;
 
+// Track recent download completion for NAK detection (within 10 seconds)
+unsigned long lastDownloadCompletionTime = 0;
+#define DOWNLOAD_NAK_WINDOW 10000  // 10 seconds window after download to consider NAK as download-related
+
 // ===== Function Prototypes =====
 void setupWiFi();
 void setupAccessPoint();
@@ -1126,13 +1130,19 @@ void loop() {
       }
       // Auto-reconnect if disconnected and no download is active (NAK during download recovery)
       else if (dmrState == DMR_STATE::DISCONNECTED && !sdcard_csv_download_active && !sdcard_sqlite_download_active) {
-        // Wait a bit before attempting reconnect to avoid spamming
-        static unsigned long lastReconnectAttempt = 0;
-        if (currentMillis - lastReconnectAttempt >= 5000) {  // 5 second delay between reconnect attempts
-          logSerial("[DMR] Download completed - attempting auto-reconnect to BrandMeister");
-          loginAttempts = 0;  // Reset retry counter for fresh start
-          connectToDMRNetwork();
-          lastReconnectAttempt = currentMillis;
+        // Check if this was a download-related disconnect
+        bool wasDownloadRelated = (lastDownloadCompletionTime > 0 && (currentMillis - lastDownloadCompletionTime < DOWNLOAD_NAK_WINDOW));
+        
+        if (wasDownloadRelated) {
+          // Wait a bit before attempting reconnect to avoid spamming
+          static unsigned long lastReconnectAttempt = 0;
+          if (currentMillis - lastReconnectAttempt >= 5000) {  // 5 second delay between reconnect attempts
+            logSerial("[DMR] Auto-reconnecting to BrandMeister after download...");
+            loginAttempts = 0;  // Reset retry counter for fresh start
+            connectToDMRNetwork();
+            lastReconnectAttempt = currentMillis;
+            lastDownloadCompletionTime = 0;  // Clear the timestamp after attempting reconnect
+          }
         }
       }
     }
@@ -1821,9 +1831,13 @@ void handleNetwork() {
           }
           logSerial("[DMR] " + stageMsg);
 
-          // Check if NAK occurred during/after download - attempt auto-reconnect
-          if (sdcard_csv_download_active || sdcard_sqlite_download_active) {
-            logSerial("[DMR] NAK during download detected - will auto-reconnect after download completes");
+          // Check if NAK occurred during or shortly after download - attempt auto-reconnect
+          unsigned long now = millis();
+          bool downloadRelated = sdcard_csv_download_active || sdcard_sqlite_download_active ||
+                                (lastDownloadCompletionTime > 0 && (now - lastDownloadCompletionTime < DOWNLOAD_NAK_WINDOW));
+          
+          if (downloadRelated) {
+            logSerial("[DMR] NAK during/after download detected - will auto-reconnect automatically");
           } else {
             logSerial("[DMR] STOPPING - Please check configuration and reboot");
           }
@@ -3312,6 +3326,8 @@ void setupWebServer() {
   server.on("/save-mqtt-config", HTTP_POST, handleSaveMqttConfig);
   server.on("/api/mqtt-monitor", handleMqttMonitor);
   server.on("/reboot", HTTP_POST, handleReboot);
+  server.on("/restart-dmr", HTTP_POST, handleRestartDMR);
+  server.on("/restart-mqtt", HTTP_POST, handleRestartMQTT);
   server.on("/restart-services", HTTP_POST, handleRestartServices);
   server.on("/export-config", handleExportConfig);
   server.on(

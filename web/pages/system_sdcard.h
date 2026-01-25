@@ -52,7 +52,7 @@ void handleSystemSdcard() {
   html += "select { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";
   html += "pre { background: var(--card-bg, #f5f5f5); color: var(--text-color, #333); padding: 10px; border-radius: 4px; overflow-x: auto; margin: 0; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color, #ddd); }";
   html += ".file-list { color: var(--text-color, #333); font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }";
-  html += ".owner-text { color: var(--text-color, #333); padding: 10px 0; line-height: 1.5; }";
+  html += ".owner-text { color: var(--text-color, #333); padding: 10px 0; line-height: 1.5; white-space: pre-wrap; }";
   html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; }";
   html += "th, td { padding: 8px; border: 1px solid var(--border-color, #ddd); text-align: left; color: var(--text-color); }";
   html += "th { background: var(--card-bg, #f0f0f0); color: var(--text-color); }";
@@ -289,7 +289,7 @@ void handleSystemSdcard() {
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(csvPollInterval);";
   html += "      document.getElementById('download-csv-btn').disabled = false;";
-  html += "      setTimeout(()=>{ loadSDCardInfo(); }, 1000);";
+  html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('csv-progress-container').style.display = 'none'; }, 5000);";
   html += "    } else if(!data.active && data.status.includes('ERROR')) {";
   html += "      clearInterval(csvPollInterval);";
   html += "      document.getElementById('download-csv-btn').disabled = false;";
@@ -319,7 +319,7 @@ void handleSystemSdcard() {
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(sqlitePollInterval);";
   html += "      document.getElementById('download-sqlite-btn').disabled = false;";
-  html += "      setTimeout(()=>{ loadSDCardInfo(); }, 1000);";
+  html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('sqlite-progress-container').style.display = 'none'; }, 5000);";
   html += "    } else if(!data.active && data.status.includes('ERROR')) {";
   html += "      clearInterval(sqlitePollInterval);";
   html += "      document.getElementById('download-sqlite-btn').disabled = false;";

@@ -69,6 +69,23 @@ extern bool checkAuthentication();
 extern void logSerial(String message);
 extern void mqttLoop();            // Keep MQTT connection alive
 extern void handleMMDVMSerial();   // Keep DMR connection alive
+extern unsigned long lastDownloadCompletionTime;  // Track download completion for NAK detection
+
+// FreeRTOS LED blinking task for download indication
+static TaskHandle_t downloadBlinkTaskHandle = NULL;
+static volatile bool downloadLEDActive = false;
+
+void downloadBlinkTask(void* param) {
+  while (downloadLEDActive) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+    digitalWrite(STATUS_LED_PIN, LOW);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+  }
+  digitalWrite(STATUS_LED_PIN, LOW);  // Ensure LED is off at end
+  downloadBlinkTaskHandle = NULL;
+  vTaskDelete(NULL);
+}
 
 // ===== SD Card Check =====
 // Note: SD card is already initialized in main .ino file
@@ -691,6 +708,10 @@ void performCSVDownload() {
       return;
     }
 
+    // Start LED blinking task
+    downloadLEDActive = true;
+    xTaskCreatePinnedToCore(downloadBlinkTask, "DownloadBlink", 1024, NULL, 1, &downloadBlinkTaskHandle, 1);
+
     sdcard_csv_download_status = "Downloading...";
 
     WiFiClient* stream = http.getStreamPtr();
@@ -740,10 +761,18 @@ void performCSVDownload() {
     }
 
     outFile.close();
+    
+    // Stop LED blinking
+    downloadLEDActive = false;
+    while (downloadBlinkTaskHandle != NULL) {
+      vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+    
     sdcard_csv_bytes_written = totalWritten;
     sdcard_csv_download_progress = 100;
     sdcard_csv_download_status = "Download complete!";
     logSerial("SD Card: CSV download complete (" + String(totalWritten) + " bytes)");
+    lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
   } else {
     sdcard_csv_download_status = "ERROR: HTTP " + String(httpCode);
     logSerial("SD Card: CSV download failed - HTTP " + String(httpCode));
@@ -784,6 +813,10 @@ void performSQLiteDownload() {
       http.end();
       return;
     }
+
+    // Start LED blinking task
+    downloadLEDActive = true;
+    xTaskCreatePinnedToCore(downloadBlinkTask, "DownloadBlink", 1024, NULL, 1, &downloadBlinkTaskHandle, 1);
 
     sdcard_sqlite_download_status = "Downloading...";
 
@@ -834,10 +867,18 @@ void performSQLiteDownload() {
     }
 
     outFile.close();
+    
+    // Stop LED blinking
+    downloadLEDActive = false;
+    while (downloadBlinkTaskHandle != NULL) {
+      vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+    
     sdcard_sqlite_bytes_written = totalWritten;
     sdcard_sqlite_download_progress = 100;
     sdcard_sqlite_download_status = "Download complete!";
     logSerial("SD Card: SQLite download complete (" + String(totalWritten) + " bytes)");
+    lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
   } else {
     sdcard_sqlite_download_status = "ERROR: HTTP " + String(httpCode);
     logSerial("SD Card: SQLite download failed - HTTP " + String(httpCode));

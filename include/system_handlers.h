@@ -48,6 +48,11 @@ extern bool enable_oled;
 extern bool oledAutoBlankEnabled;
 extern unsigned long oledBlankTimeout;
 extern long ntp_timezone_offset;
+extern void connectToDMRNetwork();
+extern bool dmrLoggedIn;
+extern int loginAttempts;
+extern WiFiClient mqttWiFiClient;
+extern PubSubClient mqttClient;
 extern long ntp_daylight_offset;
 extern String web_username;
 extern String web_password;
@@ -588,12 +593,55 @@ void handleReboot() {
   ESP.restart();
 }
 
+void handleRestartDMR() {
+  if (!checkAuthentication()) return;
+
+  logSerial("[USER] Restarting DMR connection...");
+  
+  // Disconnect from DMR (state will be managed by connectToDMRNetwork)
+  dmrLoggedIn = false;
+  loginAttempts = 0;
+  
+  // Trigger immediate reconnection
+  connectToDMRNetwork();
+  
+  server.send(200, "text/plain", "DMR reconnection initiated");
+  logSerial("[USER] DMR reconnection initiated");
+}
+
+void handleRestartMQTT() {
+  if (!checkAuthentication()) return;
+
+  logSerial("[USER] Restarting MQTT connection...");
+  
+  // Disconnect from MQTT
+  if (mqttClient.connected()) {
+    mqttClient.disconnect();
+  }
+  
+  // Reconnection will happen automatically in main loop
+  
+  server.send(200, "text/plain", "MQTT reconnection initiated");
+  logSerial("[USER] MQTT reconnection initiated");
+}
+
 void handleRestartServices() {
   if (!checkAuthentication()) return;
 
-  // Add logic here to restart DMR services without full reboot
-  logSerial("Services restarted by user");
-  server.send(200, "text/plain", "Services restarted");
+  logSerial("[USER] Restarting all network services...");
+  
+  // Restart DMR (state will be managed by connectToDMRNetwork)
+  dmrLoggedIn = false;
+  loginAttempts = 0;
+  connectToDMRNetwork();
+  
+  // Restart MQTT
+  if (mqttClient.connected()) {
+    mqttClient.disconnect();
+  }
+  
+  server.send(200, "text/plain", "All services restarted");
+  logSerial("[USER] DMR and MQTT reconnection initiated");
 }
 
 // ===== Config Export/Import Handlers =====

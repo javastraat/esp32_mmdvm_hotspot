@@ -52,11 +52,13 @@ void handleSystemAdmin() {
 
   // System Control Card
   html += "<div class='card'>";
-  html += "<h3>System Control</h3>";
-  html += "<p>Control basic system functions:</p>";
+  html += "<h3>System Administration</h3>";
+  html += "<p>Control system functions and network services:</p>";
   html += "<div class='action-buttons-vertical'>";
   html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>Reboot System</a>";
-  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-primary'>Restart Services</a>";
+  html += "<a href='javascript:void(0)' onclick='restartDMR()' class='btn btn-primary'>Restart DMR</a>";
+  html += "<a href='javascript:void(0)' onclick='restartMQTT()' class='btn btn-primary'>Restart MQTT</a>";
+  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-success'>Restart All Services</a>";
   html += "</div>";
   html += "</div>";
 
@@ -113,11 +115,24 @@ void handleSystemAdmin() {
   html += "    });";
   html += "  }";
   html += "}";
+  html += "function restartDMR() {";
+  html += "  if (confirm('Restart DMR network connection?')) {";
+  html += "    fetch('/restart-dmr', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      alert(msg);";
+  html += "    });";
+  html += "  }";
+  html += "}";
+  html += "function restartMQTT() {";
+  html += "  if (confirm('Restart MQTT connection?')) {";
+  html += "    fetch('/restart-mqtt', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      alert(msg);";
+  html += "    });";
+  html += "  }";
+  html += "}";
   html += "function restartServices() {";
-  html += "  if (confirm('Restart DMR and network services?')) {";
-  html += "    fetch('/restart-services', {method: 'POST'}).then(() => {";
-  html += "      alert('Services restarted successfully!');";
-  html += "      setTimeout(() => { window.location.reload(); }, 2000);";
+  html += "  if (confirm('Restart DMR and MQTT network services?')) {";
+  html += "    fetch('/restart-services', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      alert(msg);";
   html += "    });";
   html += "  }";
   html += "}";
