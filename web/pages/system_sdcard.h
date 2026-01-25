@@ -122,22 +122,12 @@ void handleSystemSdcard() {
   html += "<div id='search-result' style='margin-top:15px'></div>";
   html += "</div>";
 
-  // Card 5: Advanced SQLite Search
+  // Card 5: SQLite Search
   html += "<div class='card'>";
-  html += "<h3>Advanced Database Search (SQLite)</h3>";
-  html += "<p>Search the full SQLite database by different fields:</p>";
+  html += "<h3>DMR Database Search (SQLite)</h3>";
+  html += "<p>Search for DMR user by Radio ID:</p>";
   html += "<div style='margin:10px 0'>";
-  html += "<select id='search-field' style='width:100%; max-width:300px; box-sizing:border-box;'>";
-  html += "<option value='radio_id'>Radio ID</option>";
-  html += "<option value='callsign'>Callsign</option>";
-  html += "<option value='name'>Name</option>";
-  html += "<option value='city'>City</option>";
-  html += "<option value='state'>State</option>";
-  html += "<option value='country'>Country</option>";
-  html += "</select>";
-  html += "</div>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' id='search-value' placeholder='Enter search value' style='width:100%; max-width:300px; box-sizing:border-box;'>";
+  html += "<input type='text' id='sqlite-search-id' placeholder='Enter Radio ID' style='width:100%; max-width:300px; box-sizing:border-box;'>";
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
   html += "<button id='sqlite-search-btn' class='btn btn-primary' onclick='searchSQLite()'>Search</button>";
@@ -349,8 +339,9 @@ void handleSystemSdcard() {
 
   // Search Radio ID (CSV)
   html += "function searchRadioId() {";
-  html += "  var id = document.getElementById('search-id').value;";
+  html += "  var id = document.getElementById('search-id').value.trim();";
   html += "  if(!id) { alert('Please enter a Radio ID'); return; }";
+  html += "  if(!/^[0-9]{7}$/.test(id)) { alert('Radio ID must be exactly 7 digits (0-9)'); return; }";
   html += "  document.getElementById('search-btn').disabled = true;";
   html += "  document.getElementById('search-result').innerHTML = '<p>Searching...</p>';";
   html += "  fetch('/api/dmr/user/?id=' + id).then(r=>r.json()).then(data=>{";
@@ -377,34 +368,30 @@ void handleSystemSdcard() {
 
   // Search SQLite
   html += "function searchSQLite() {";
-  html += "  var field = document.getElementById('search-field').value;";
-  html += "  var value = document.getElementById('search-value').value;";
-  html += "  if(!value) { alert('Please enter a search value'); return; }";
+  html += "  var id = document.getElementById('sqlite-search-id').value.trim();";
+  html += "  if(!id) { alert('Please enter a Radio ID'); return; }";
+  html += "  if(!/^[0-9]{7}$/.test(id)) { alert('Radio ID must be exactly 7 digits (0-9)'); return; }";
   html += "  document.getElementById('sqlite-search-btn').disabled = true;";
-  html += "  document.getElementById('sqlite-result').innerHTML = '<p>Searching SQLite database...</p>';";
-  html += "  fetch('/api/sqlite/search?field=' + field + '&value=' + encodeURIComponent(value)).then(r=>r.json()).then(data=>{";
+  html += "  document.getElementById('sqlite-result').innerHTML = '<p>Searching...</p>';";
+  html += "  fetch('/api/sqlite/search?field=radio_id&value=' + id).then(r=>r.json()).then(data=>{";
   html += "    document.getElementById('sqlite-search-btn').disabled = false;";
   html += "    if(data.error) {";
   html += "      document.getElementById('sqlite-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + data.error + '</p>';";
   html += "      return;";
   html += "    }";
   html += "    if(data.results && data.results.length > 0) {";
-  html += "      var html = '<p>Found ' + data.results.length + ' result(s):</p>';";
-  html += "      for(var i = 0; i < Math.min(data.results.length, 10); i++) {";
-  html += "        var r = data.results[i];";
-  html += "        html += '<table style=\"margin-bottom:15px\">';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + (r.radio_id || r.RADIO_ID || 'N/A') + '</td></tr>';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">Callsign:</td><td>' + (r.callsign || r.CALLSIGN || 'N/A') + '</td></tr>';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">Name:</td><td>' + (r.first_name || r.FIRST_NAME || 'N/A') + '</td></tr>';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">City:</td><td>' + (r.city || r.CITY || 'N/A') + '</td></tr>';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">State:</td><td>' + (r.state || r.STATE || 'N/A') + '</td></tr>';";
-  html += "        html += '<tr><td style=\"font-weight:bold\">Country:</td><td>' + (r.country || r.COUNTRY || 'N/A') + '</td></tr>';";
-  html += "        html += '</table>';";
-  html += "      }";
-  html += "      if(data.results.length > 10) html += '<p>Showing first 10 of ' + data.results.length + ' results</p>';";
+  html += "      var r = data.results[0];";
+  html += "      var html = '<table>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Callsign:</td><td>' + (r.callsign || r.CALLSIGN || 'N/A') + '</td></tr>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Name:</td><td>' + (r.first_name || r.FIRST_NAME || 'N/A') + '</td></tr>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">City:</td><td>' + (r.city || r.CITY || 'N/A') + '</td></tr>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">State:</td><td>' + (r.state || r.STATE || 'N/A') + '</td></tr>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Country:</td><td>' + (r.country || r.COUNTRY || 'N/A') + '</td></tr>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + (r.radio_id || r.RADIO_ID || 'N/A') + '</td></tr>';";
+  html += "      html += '</table>';";
   html += "      document.getElementById('sqlite-result').innerHTML = html;";
   html += "    } else {";
-  html += "      document.getElementById('sqlite-result').innerHTML = '<p style=\"color:#dc3545\">No results found</p>';";
+  html += "      document.getElementById('sqlite-result').innerHTML = '<p style=\"color:#dc3545\">No results found for Radio ID: ' + id + '</p>';";
   html += "    }";
   html += "  }).catch(e=>{";
   html += "    document.getElementById('sqlite-search-btn').disabled = false;";

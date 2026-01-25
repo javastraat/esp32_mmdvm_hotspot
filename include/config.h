@@ -125,10 +125,13 @@
 #define SDCARD_SQLITE_FILE "/database/esp32_database.db"
 
 // Database Download URLs
+// Remote URLs for DMR database files
 #define SDCARD_CSV_URL "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.csv"
-//#define SDCARD_SQLITE_URL "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/esp32_database.db"
+#define SDCARD_SQLITE_URL "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/esp32_database.db"
+
 // Local server for testing (uncomment to use):
-#define SDCARD_SQLITE_URL "http://192.168.2.173/dmr-database/esp32_database.db"
+//#define SDCARD_CSV_URL "http://192.168.2.173/dmr-database/radioid.csv"
+//#define SDCARD_SQLITE_URL "http://192.168.2.173/dmr-database/esp32_database.db"
 // End database file info
 
 #endif
