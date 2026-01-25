@@ -3508,9 +3508,9 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   String userInfo = "";
 
   // First try local SQLite database lookup (fast, no network required)
-  if (sdCardAvailable && SD.exists("/database/esp32_database.db")) {
+  if (sdCardAvailable && SD.exists(SDCARD_SQLITE_FILE)) {
     sqlite3 *db = NULL;
-    String dbPath = "/sd/database/esp32_database.db";
+    String dbPath = "/sd" + String(SDCARD_SQLITE_FILE);
 
     int rc = sqlite3_open(dbPath.c_str(), &db);
     if (rc == SQLITE_OK) {

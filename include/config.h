@@ -15,9 +15,12 @@
 #define FIRMWARE_VERSION "20260125_ESP32_BETA"  // Update version as needed
 
 // Hardware Options
+
 // SD Card Support
 #define USE_SD_CARD true  // Enable SD card support (true/false)
 #define SDCARD_SQLITE_SUPPORT true  // Enable SQLite support on SD card (true/false)
+
+
 // Ethernet Support
 #define USE_ETHERNET false  // Enable Ethernet support (true/false)
 
@@ -115,6 +118,19 @@
 #define SD_MOSI_PIN SPI_MOSI_PIN
 #define SD_SCLK_PIN SPI_SCLK_PIN
 #define SD_CS_PIN 12
+
+// SD Card Database Settings
+#define SDCARD_DATABASE_DIR "/database"
+#define SDCARD_CSV_FILE "/database/radioid.csv"
+#define SDCARD_SQLITE_FILE "/database/esp32_database.db"
+
+// Database Download URLs
+#define SDCARD_CSV_URL "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.csv"
+//#define SDCARD_SQLITE_URL "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/esp32_database.db"
+// Local server for testing (uncomment to use):
+#define SDCARD_SQLITE_URL "http://192.168.2.173/dmr-database/esp32_database.db"
+// End database file info
+
 #endif
 //Define Ethernet pins (if used)
 #if USE_ETHERNET

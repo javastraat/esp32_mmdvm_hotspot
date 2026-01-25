@@ -28,17 +28,10 @@
 // External variables
 extern WebServer server;
 extern bool sdCardAvailable;  // From main .ino - SD card already initialized there
-// Database file paths
-static const char* SDCARD_DATABASE_DIR = "/database";
-static const char* SDCARD_CSV_FILE = "/database/radioid.csv";
-static const char* SDCARD_SQLITE_FILE = "/database/esp32_database.db";
 
-// Database URLs
-static const char* SDCARD_CSV_URL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radioid.csv";
-//static const char* SDCARD_SQLITE_URL = "https://raw.githubusercontent.com/DMR-Database/dmr-database-appdata/refs/heads/main/radio_database.db";
-// Local server for testing
-static const char* SDCARD_SQLITE_URL ="http://192.168.2.173/dmr-database/esp32_database.db";
-// End database file info
+// Database file paths and URLs are defined in config.h:
+// SDCARD_DATABASE_DIR, SDCARD_CSV_FILE, SDCARD_SQLITE_FILE
+// SDCARD_CSV_URL, SDCARD_SQLITE_URL
 
 // CSV Download progress tracking
 static volatile bool sdcard_csv_download_active = false;
