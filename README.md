@@ -48,8 +48,8 @@ A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web i
 
 ## Project Status
 
-<!-- **Current Release:** Beta - January 6, 2026
-**Firmware Version:** 20260106_ESP32_BETA -->
+**Current Release:** Beta - January 25, 2026
+**Firmware Version:** 20260125_ESP32_BETA
 
 ### Confirmed Working
 - **Bidirectional DMR** - Full duplex operation: Network → RF and RF → Network transmission paths
@@ -350,6 +350,24 @@ Settings are loaded automatically on boot and persist across power cycles. Use *
 ## Web Interface Features
 
 Once connected, access the web interface at the ESP32's IP address. Default login: **admin / pi-star**
+
+### Navigation Structure
+
+The web interface uses a dropdown menu system for easy navigation:
+
+| Menu Item | Page | Description |
+|-----------|------|-------------|
+| **Main** | `/` | Live DMR activity dashboard |
+| **System** | (dropdown) | System configuration and management |
+| ↳ Status | `/status` | WiFi, Ethernet, MMDVM, DMR network status |
+| ↳ Info | `/systeminfo` | System and modem information |
+| ↳ Settings | `/systemsettings` | Username, password, debug, OLED, timezone |
+| ↳ MQTT | `/systemmqtt` | MQTT broker configuration |
+| ↳ Admin | `/systemadmin` | System control, config management |
+| ↳ Firmware | `/systemfirmware` | ESP32 and MMDVM firmware updates |
+| ↳ SD Card | `/systemsdcard` | SD card management (T-ETH-Elite only) |
+| ↳ Mode Config | `/modeconfig` | DMR settings, server, frequencies |
+| ↳ Serial Monitor | `/serialmonitor` | Real-time log viewer |
 
 ### Home Dashboard (`/`)
 The main landing page provides comprehensive real-time monitoring:
@@ -664,6 +682,139 @@ The main landing page provides comprehensive real-time monitoring:
 - **Re-login Required** - Forces re-authentication after credential changes
 - **Safe Defaults** - Prevents accidental system-breaking changes
 
+### SD Card Management (`/systemsdcard`) - LILYGO T-ETH-Elite Only
+
+**SD Card Status Card:**
+- **Mount Status** - Visual badge (Mounted/Not Mounted)
+- **Card Type** - SD, SDHC, or MMC detection
+- **Storage Metrics** - Card size, total space, used space, free space in MB
+
+**Files on SD Card Card:**
+- **Recursive File Listing** - Complete directory tree with file sizes
+- **Refresh Button** - Manual update of file list
+
+**Owner Information Card:**
+- **owner.txt Display** - Shows SD card owner information file content
+
+**DMR Database Search (CSV) Card:**
+- **Radio ID Search** - Search RadioID.net CSV database by 7-digit DMR ID
+- **User Details** - Returns callsign, name, city, state, country
+- **Local Search** - Fast search without internet (uses downloaded CSV)
+
+**DMR Database Search (SQLite) Card:**
+- **Radio ID Search** - Search SQLite database by 7-digit DMR ID
+- **Indexed Queries** - Fast searches using database indexes
+- **Field Search** - Search by radio_id, callsign, name, city, state, or country
+
+**CSV Database Download Card:**
+- **File Status** - Shows if database exists and local/remote file sizes
+- **Update Detection** - Compares local vs remote size, shows "Update available!" badge
+- **Download Progress** - Real-time progress bar with percentage and bytes
+- **Delete Function** - Remove CSV database file
+
+**SQLite Database Download Card:**
+- **File Status** - Shows if database exists and local/remote file sizes
+- **Update Detection** - Compares local vs remote size, shows "Update available!" badge
+- **Download Progress** - Real-time progress bar with percentage and bytes
+- **Delete Function** - Remove SQLite database file
+
+**Manual File/Directory Delete Card:**
+- **Path Input** - Enter exact path to file or directory
+- **Recursive Delete** - Removes directories and all contents
+- **Safety Validation** - Prevents deletion of root or critical directories
+- **No Wildcards** - Requires exact paths for safety
+
+**Technical Features:**
+- **Background Downloads** - LED blinks during download, stays on when complete
+- **Non-Blocking** - Web interface remains responsive during downloads
+- **DMR/MQTT Keepalive** - Maintains connections during long downloads
+- **Progress Polling** - Web interface polls for download status every 500ms
+
+### System Info (`/systeminfo`)
+
+**System Information Card:**
+- **Uptime** - Days, hours, minutes, seconds since boot
+- **Chip Details** - Model, revision, CPU cores, frequency
+- **Memory Metrics** - Free heap, minimum free heap, heap size, PSRAM (if available)
+- **Flash Information** - Flash size, speed, sketch size, free sketch space
+- **Firmware Details** - SDK version, firmware version, build date/time
+
+**Modem Information Card:**
+- **Hardware Type** - MMDVM modem hardware identification
+- **Firmware Version** - Parsed version string
+- **Build Date** - Formatted build date
+- **Crystal Frequency** - 14.7456MHz or 12.288MHz
+- **Transceiver Chip** - ADF7021 or similar
+- **Author** - Firmware author (CA6JAU, G4KLX, etc.)
+- **Git Commit ID** - Exact firmware build identifier
+
+### System Settings (`/systemsettings`)
+
+**Web Username Card:**
+- **Current Username Display** - Shows active web interface username
+- **Username Editor** - Change web login username (min 3 characters)
+
+**Web Password Card:**
+- **Current Password Display** - Masked with show/hide toggle
+- **New Password Fields** - Password and confirmation with visibility toggles
+- **Validation** - Minimum 4 characters, matching confirmation
+
+**Hostname Configuration Card:**
+- **Current Hostname** - Shows active mDNS hostname
+- **Access URL** - Shows http://[hostname].local
+- **Hostname Editor** - Change device hostname (letters, numbers, hyphens)
+
+**Verbose Logging Card:**
+- **Toggle Control** - Enable/disable verbose keepalive message logging
+- **Serial Monitor Integration** - Controls RPTPING/MSTPONG visibility
+
+**Debug Mode Configuration Card:**
+- **Individual Toggles** - DEBUG_SERIAL, DEBUG_MMDVM, DEBUG_NETWORK, DEBUG_DMR, DEBUG_PASSWORD
+- **Granular Control** - Enable specific debug output categories
+
+**OLED Display Configuration Card:**
+- **Enable/Disable Toggle** - Turn OLED display on/off
+- **Auto-Blank Settings** - Configure screen blank timeout (0 = never)
+
+**NTP Timezone Configuration Card:**
+- **Timezone Selector** - 25 timezone options (UTC-12 to UTC+12)
+- **DST Toggle** - Enable/disable Daylight Saving Time adjustment
+- **Current Offset Display** - Shows active timezone and DST offset
+
+### System Admin (`/systemadmin`)
+
+**System Control Card:**
+- **Reboot System** - Full ESP32 restart with confirmation
+- **Restart Services** - Restart DMR/MQTT services without full reboot
+- **Test MMDVM** - Run MMDVM hardware test
+
+**Configuration Management Card:**
+- **Export Config** - Download settings as mmdvm-config.txt
+- **Import Config** - Upload and restore configuration file
+- **Show Preferences** - View all NVS storage contents
+- **Fix Corrupted Prefs** - Repair/cleanup preferences
+
+**Maintenance Card:**
+- **Clear Logs** - Erase serial monitor log buffer
+- **Factory Reset** - Complete storage reset (links to /resetconfig)
+
+### System Firmware (`/systemfirmware`)
+
+**ESP32 Firmware Update Card:**
+- **Current Version** - Shows installed firmware version and build date
+- **Online Version Check** - Fetches latest Stable and Beta versions from GitHub
+- **Version Selector** - Choose between Stable and Beta channels
+- **Download Button** - Download firmware from GitHub with progress tracking
+- **File Upload** - Manual .bin file upload for offline updates
+- **Flash Button** - Apply downloaded/uploaded firmware
+
+**MMDVM Modem Firmware Card:**
+- **Predefined Firmware** - Dropdown with common MMDVM_HS versions
+- **Custom URL** - Enter any GitHub firmware URL
+- **File Upload** - Upload custom .bin firmware files
+- **Flash Progress** - Real-time STM32 bootloader progress
+- **Flash from URL/File** - Two methods for modem firmware update
+
 ### Dark/Light Theme System
 **Professional UI Theming:**
 - Toggle between dark and light modes via navigation button
@@ -747,6 +898,23 @@ The ESP32 MMDVM Hotspot provides a complete RESTful HTTP API for external integr
 - **`POST /saveconfig`** - Save WiFi network settings
 - **`GET /export-config`** - Export configuration as text file
 - **`POST /import-config`** - Import configuration from file
+
+#### SD Card & Database (LILYGO T-ETH-Elite only)
+- **`GET /api/sdcard/info`** - SD card status, database file sizes, update availability
+- **`GET /api/sdcard/files`** - Recursive file listing of SD card contents
+- **`GET /api/sdcard/owner`** - Read owner.txt file content
+- **`GET /api/sdcard/download/csv`** - Start CSV database download from RadioID.net
+- **`GET /api/sdcard/download/sqlite`** - Start SQLite database download
+- **`GET /api/sdcard/status/csv`** - CSV download progress (active, progress%, bytes)
+- **`GET /api/sdcard/status/sqlite`** - SQLite download progress
+- **`GET /api/sdcard/delete/csv`** - Delete CSV database file
+- **`GET /api/sdcard/delete/sqlite`** - Delete SQLite database file
+- **`GET /api/sdcard/delete/custom?path=/path`** - Delete custom file/directory
+- **`GET /api/dmr/user/?id=1234567`** - Search CSV database by Radio ID
+- **`GET /api/sqlite/search?field=radio_id&value=1234567`** - Search SQLite database
+
+#### MQTT
+- **`GET /api/mqtt-monitor`** - MQTT connection status, broker info, message counts
 
 ### Example API Usage
 
@@ -961,6 +1129,22 @@ WiFiNetwork wifiNetworks[5];
 ```
 
 ### DMR User Lookup & Caching System
+
+**Smart Lookup Priority System:**
+When a DMR transmission is received, the system looks up user information in this order:
+1. **Memory Cache** - Check if user is already cached (instant)
+2. **Local SQLite Database** - Query SD card database if available (fast, ~10ms)
+3. **Remote RadioID.net API** - Fall back to internet lookup (slower, ~500ms)
+
+This priority system means that with an SD card database installed, most lookups are instant with no network latency!
+
+**Local Database Support (LILYGO T-ETH-Elite):**
+- Download RadioID.net database to SD card via web interface
+- SQLite database with indexed searches for fast lookups
+- Supports both CSV and SQLite formats
+- Automatic fallback to remote API if local lookup fails
+- Database updates available via SD Card Management page
+
 **RadioID.net API Integration:**
 - Real-time user information lookup (callsign, name, city, country)
 - Dual-cache architecture for optimal performance:
@@ -1353,16 +1537,60 @@ Access `/showprefs` for complete system state:
 ### File Structure
 ```
 esp32_mmdvm_hotspot/
-├── esp32_mmdvm_hotspot.ino    # Main firmware
-├── webpages.h                 # Complete web interface
-├── config.h                   # Hardware/network configuration
+├── esp32_mmdvm_hotspot.ino    # Main firmware (158KB)
 ├── README.md                  # This documentation
+├── API_README.md              # REST API documentation
+├── MQTT_README.md             # MQTT integration documentation
+├── OLED_SETUP.md              # OLED display setup guide
 ├── version.txt                # Current firmware version
-├── make-bin.sh               # Build script
-└── web/                      # Modular web components (legacy)
-    ├── common/
-    ├── pages/
-    └── handlers/
+├── make-bin.sh                # Build script
+│
+├── include/                   # Core headers and handlers (216KB)
+│   ├── config.h               # Hardware/network configuration
+│   ├── webpages.h             # Web UI components
+│   ├── RGBLedController.h     # RGB LED status control
+│   ├── firmware_flasher.h     # MMDVM/ESP32 OTA flashing
+│   ├── mqtt_handlers.h        # MQTT configuration
+│   ├── sdcard_handlers.h      # SD card database management
+│   ├── settings_handlers.h    # System settings handlers
+│   ├── system_handlers.h      # System administration
+│   └── dmr/                   # DMR protocol implementation
+│       ├── DMRDecoder.cpp/h   # Main DMR frame decoder
+│       ├── DMRLC.cpp/h        # Link Control decoder
+│       ├── DMRFullLC.cpp/h    # Full Link Control decoding
+│       ├── DMRBPTC.cpp/h      # Block Product Turbo Code
+│       ├── DMRRS.cpp/h        # Reed-Solomon error correction
+│       ├── DMRHamming.h       # Hamming(7,4) error detection
+│       ├── DMRDefines.h       # Protocol constants
+│       └── DMRUtils.h         # Utility functions
+│
+├── web/                       # Web interface files (360KB)
+│   ├── common/                # Shared components
+│   │   ├── css.h              # Styling and theme management
+│   │   ├── navigation.h       # Menu and navigation
+│   │   ├── utils.h            # JavaScript utilities
+│   │   └── server_utils.h     # Server helper functions
+│   └── pages/                 # Web pages
+│       ├── home.h             # Live activity dashboard
+│       ├── status.h           # System status page
+│       ├── admin.h            # Administration page (legacy)
+│       ├── wifi_config.h      # WiFi network configuration
+│       ├── mode_config.h      # DMR protocol configuration
+│       ├── monitor.h          # Serial communication monitor
+│       ├── system_info.h      # System information
+│       ├── system_admin.h     # System administration
+│       ├── system_firmware.h  # Firmware update/flashing
+│       ├── system_mqtt.h      # MQTT settings
+│       ├── system_sdcard.h    # SD card management
+│       └── system_settings.h  # General settings
+│
+├── firmware/                  # Pre-compiled binary releases (6.1MB)
+├── api-examples/              # Integration examples (288KB)
+│   ├── openapi/swagger.json   # OpenAPI 3.0 specification
+│   └── node-red/              # Node-RED flow examples
+├── boards/                    # ESP32 board definitions (3.4MB)
+├── screenshots/               # UI screenshots (5.5MB)
+└── test-sketches/             # Testing utilities (264KB)
 ```
 
 ### Key Functions
@@ -1403,6 +1631,29 @@ esp32_mmdvm_hotspot/
 - **Configuration Management** - ESP32 NVS storage with import/export
 - **DMR State Machine** - DISCONNECTED → WAITING_LOGIN → WAITING_AUTH → CONNECTED
 - **Serial Log Buffer** - 50-message circular buffer with overflow protection
+
+### DMR Decoder Library (`include/dmr/`)
+
+The project includes a complete DMR signal processing library for decoding and encoding DMR frames:
+
+| Module | Purpose |
+|--------|---------|
+| **DMRDecoder.cpp/h** | Main decoder API - processes raw DMR frames and extracts user data |
+| **DMRLC.cpp/h** | Link Control decoder - extracts source/destination IDs and call type |
+| **DMRFullLC.cpp/h** | Full Link Control - decodes LC headers from voice superframes |
+| **DMRBPTC.cpp/h** | Block Product Turbo Code (196,96) - FEC decoding for embedded data |
+| **DMRRS.cpp/h** | Reed-Solomon (12,9) - error correction for LC and embedded signaling |
+| **DMRHamming.h** | Hamming(7,4,3) and (13,9,3) - single-bit error correction |
+| **DMRDefines.h** | Protocol constants - frame types, slot definitions, magic numbers |
+| **DMRUtils.h** | Utility functions - bit manipulation and data conversion |
+
+**Features:**
+- Extract source and destination DMR IDs from voice headers
+- Decode call type (group call vs private call)
+- Full Link Control extraction from voice superframes
+- Error correction using Reed-Solomon and Hamming codes
+- BPTC(196,96) deinterleaving and FEC decoding
+- Support for both Slot 1 and Slot 2 processing
 
 ### config.h
 Main configuration file with hardware and network settings:
@@ -1546,23 +1797,24 @@ This project welcomes contributions from licensed amateur radio operators! Areas
 - **General Amateur Radio:** Local repeater groups, ham radio forums
 
 ### Project Information
-- **Version:** 20260106_ESP32_BETA
+- **Version:** 20260125_ESP32_BETA
 - **License:** Amateur Radio Non-Commercial License (see License section)
 - **Authors:** PD2EMC & PD8JO
 - **Repository:** https://github.com/javastraat/esp32_mmdvm_hotspot
 - **Amateur Radio Only:** Valid license required for operation
 
-### Recent Updates (20260106_ESP32_BETA)
+### Recent Updates (20260125_ESP32_BETA)
+- **DMR Decoder Library:** Complete DMR signal processing library with Reed-Solomon FEC, BPTC decoding, and Link Control extraction
+- **Modular Code Architecture:** Reorganized codebase with `/include/` and `/web/` folder structure for better maintainability
+- **SD Card Database Support:** Download and search RadioID.net CSV/SQLite databases locally (LILYGO T-ETH-Elite)
+- **Ethernet Support:** Full Ethernet connectivity for LILYGO T-ETH-Elite boards
+- **Enhanced Web Interface:** Modular page system with dedicated system pages (firmware, MQTT, SD card, settings)
 - **Full Duplex DMR Operation:** Bidirectional communication - both Network → RF and RF → Network paths working!
 - **REST API Implementation:** Complete HTTP API with 20+ endpoints for monitoring and control
 - **MQTT Integration:** Real-time publishing of system status and DMR activity to MQTT brokers
 - **MMDVM Firmware Flasher:** Flash modem firmware online from GitHub or upload custom .bin files
 - **API Examples:** Ready-to-use Node-RED flows and OpenAPI specification
-- **Enhanced Monitoring:** System information, modem details, and DMR activity via JSON APIs
 - **Home Automation Ready:** MQTT topics for Home Assistant, Node-RED, Grafana integration
-- **Dual History Tracking:** Separate logging for network RX and local RF TX
-- **Stream Management:** Proper stream ID and sequence tracking for RF transmissions
-- **MMDVM Protocol Complete:** Full communication with MMDVM HS Hat at 115200 baud
 
 ## Resources and Documentation
 
