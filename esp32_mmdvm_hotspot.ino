@@ -94,6 +94,7 @@
 #include "include/system_handlers.h"
 #include "include/mqtt_handlers.h"
 #include "include/settings_handlers.h"
+#include "include/sdcard_handlers.h"
 
 // DMR Decoder Library
 #include "include/dmr/DMRLC.cpp"
@@ -963,6 +964,9 @@ void loop() {
 
   // Handle web server
   server.handleClient();
+
+  // Process SD card downloads (if requested)
+  processSDCardDownloads();
 
   // Handle MQTT client
   mqttLoop();
@@ -3239,6 +3243,7 @@ void setupWebServer() {
   server.on("/systemmqtt", handleSystemMqtt);
   server.on("/systemadmin", handleSystemAdmin);
   server.on("/systemfirmware", handleSystemFirmware);
+  server.on("/systemsdcard", handleSystemSdcard);
 
   // Configuration handlers
   server.on("/saveconfig", HTTP_POST, handleSaveConfig);
@@ -3259,6 +3264,20 @@ void setupWebServer() {
   server.on("/api/system-status", handleSystemStatus);
   server.on("/api/system-information", handleSystemInformation);
   server.on("/api/modem-information", handleModemInformation);
+
+  // SD Card API endpoints
+  server.on("/api/sdcard/info", handleSDCardInfo);
+  server.on("/api/sdcard/files", handleSDCardFiles);
+  server.on("/api/sdcard/owner", handleSDCardOwner);
+  server.on("/api/sdcard/download/csv", handleDownloadCSV);
+  server.on("/api/sdcard/download/sqlite", handleDownloadSQLite);
+  server.on("/api/sdcard/status/csv", handleCSVDownloadStatus);
+  server.on("/api/sdcard/status/sqlite", handleSQLiteDownloadStatus);
+  server.on("/api/sdcard/delete/csv", handleDeleteCSV);
+  server.on("/api/sdcard/delete/sqlite", handleDeleteSQLite);
+  server.on("/api/sdcard/delete/custom", handleDeleteCustomPath);
+  server.on("/api/dmr/user/", handleDMRUserSearch);
+  server.on("/api/sqlite/search", handleSQLiteSearch);
 
   // Admin actions
   server.on("/clearlogs", HTTP_POST, handleClearLogs);

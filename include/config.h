@@ -9,13 +9,16 @@
 
 // ===== Firmware Version =====
 /*
-#define FIRMWARE_VERSION "20260124_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20260125_ESP32_BETA"  // Update version as needed
 */
-//#define FIRMWARE_VERSION "20260124_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20260124_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20260125_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20260125_ESP32_BETA"  // Update version as needed
 
 // Hardware Options
+// SD Card Support
 #define USE_SD_CARD true  // Enable SD card support (true/false)
+#define SDCARD_SQLITE_SUPPORT true  // Enable SQLite support on SD card (true/false)
+// Ethernet Support
 #define USE_ETHERNET false  // Enable Ethernet support (true/false)
 
 // 
