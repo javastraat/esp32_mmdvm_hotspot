@@ -29,12 +29,11 @@ void handleSystemInfo() {
   html += "<title>System Info - ESP32 MMDVM</title>";
   html += getCommonCSS();
   html += "<style>";
-  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }";
   html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
   html += ".metric:last-child { border-bottom: none; }";
   html += ".metric-label { font-weight: bold; color: #555; }";
   html += ".metric-value { color: #333; }";
-  html += ".uptime { color: #007bff; font-weight: bold; }";
   html += "</style></head><body>";
   html += getNavigation("systeminfo");
   html += "<div class='container'>";
@@ -122,7 +121,7 @@ void handleSystemInfo() {
   if (hours > 0 || days > 0) uptimeStr += String(hours) + "h ";
   uptimeStr += String(minutes) + "m " + String(seconds) + "s";
 
-  html += "<div class='metric'><span class='metric-label'>Uptime:</span><span class='metric-value uptime'>" + uptimeStr + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Uptime:</span><span class='metric-value'>" + uptimeStr + "</span></div>";
 
   // Reset reason
   esp_reset_reason_t resetReason = esp_reset_reason();
