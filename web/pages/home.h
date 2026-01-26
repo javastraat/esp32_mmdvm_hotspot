@@ -163,7 +163,7 @@ String getDMRActivityHTML() {
       html += "<span class='metric-value'>" + String(duration) + "s</span>";
       html += "</div>";
 
-#if DEBUG_DMR
+#if DEBUG_DMR == true
       html += "<div class='metric'>";
       html += "<span class='metric-label'>Type:</span>";
       html += "<span class='metric-value'>" + activity.frameType + "</span>";
@@ -248,7 +248,7 @@ String getDMRSlotHTML(int slotIndex) {
     html += "<span class='metric-value'>" + String(duration) + "s</span>";
     html += "</div>";
 
-#if DEBUG_DMR
+#if DEBUG_DMR == true
     html += "<div class='metric'>";
     html += "<span class='metric-label'>Type:</span>";
     html += "<span class='metric-value'>" + activity.frameType + "</span>";
@@ -802,6 +802,11 @@ void handleRoot() {
 #else
   html += "const USE_SD_CARD = false;";
 #endif
+#if DEBUG_DMR
+  html += "const DEBUG_DMR = true;";
+#else
+  html += "const DEBUG_DMR = false;";
+#endif
   // Render functions for JSON data
   html += "function renderDMRSlot(data) {";
   html += "  let html = '';";
@@ -822,8 +827,8 @@ void handleRoot() {
   html += "    if (data.srcCountry && data.srcCountry.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Country:</span><span class=\"metric-value\">' + data.srcCountry + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.srcId + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Destination:</span><span class=\"metric-value\">' + (data.isGroup ? 'TG ' : '') + data.dstId + '</span></div>';";
-  html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.frameType + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Duration:</span><span class=\"metric-value\">' + data.duration + 's</span></div>';";
+  html += "    if (DEBUG_DMR) html += '<div class=\"metric\"><span class=\"metric-label\">Type:</span><span class=\"metric-value\">' + data.frameType + '</span></div>';";
   html += "  } else {";
   html += "    html += '<div class=\"no-activity\">No Active Transmission</div>';";
   html += "  }";
