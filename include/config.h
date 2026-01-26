@@ -256,8 +256,10 @@
 #define FOOTER_LINK1_TEXT "einstein.amsterdam"                                     // First footer link text
 #define FOOTER_LINK2_URL "https://pd8jo.nl"                                        // Second footer link URL  
 #define FOOTER_LINK2_TEXT "pd8jo.nl"                                               // Second footer link text
-#define FOOTER_LINK3_URL "https://github.com/javastraat/esp32_mmdvm_hotspot"      // Third footer link URL
+#define FOOTER_LINK3_URL "https://github.com/javastraat/esp32_mmdvm_hotspot"       // Third footer link URL
 #define FOOTER_LINK3_TEXT "GitHub Project"                                         // Third footer link text
+#define FOOTER_LINK4_URL "https://dmr-database.github.io"                          // Fourth footer link URL
+#define FOOTER_LINK4_TEXT "DMR Database"                                           // Fourth footer link text
 
 // ===== OTA Update Configuration =====
 #define ENABLE_OTA false  // always on for now Enable over-the-air updates
