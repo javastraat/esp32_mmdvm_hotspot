@@ -49,6 +49,7 @@ struct DMRActivity {
   String srcCallsign;
   String srcName;
   String srcCity;
+  String srcState;
   String srcCountry;
   unsigned long lastUpdate;
   unsigned long startTime;  // Actual transmission start time
@@ -134,6 +135,13 @@ String getDMRActivityHTML() {
         html += "</div>";
       }
 
+      if (activity.srcState.length() > 0 && activity.srcState != "nan") {
+        html += "<div class='metric'>";
+        html += "<span class='metric-label'>State:</span>";
+        html += "<span class='metric-value'>" + activity.srcState + "</span>";
+        html += "</div>";
+      }
+
       if (activity.srcCountry.length() > 0) {
         html += "<div class='metric'>";
         html += "<span class='metric-label'>Country:</span>";
@@ -148,17 +156,19 @@ String getDMRActivityHTML() {
       html += String(activity.dstId) + "</span>";
       html += "</div>";
 
-      html += "<div class='metric'>";
-      html += "<span class='metric-label'>Type:</span>";
-      html += "<span class='metric-value'>" + activity.frameType + "</span>";
-      html += "</div>";
-
       // Calculate transmission duration from start time
       unsigned long duration = (millis() - activity.startTime) / 1000;
       html += "<div class='metric'>";
       html += "<span class='metric-label'>Duration:</span>";
       html += "<span class='metric-value'>" + String(duration) + "s</span>";
       html += "</div>";
+
+#if DEBUG_DMR
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>Type:</span>";
+      html += "<span class='metric-value'>" + activity.frameType + "</span>";
+      html += "</div>";
+#endif
     } else {
       html += "<div class='no-activity'>No Active Transmission</div>";
     }
@@ -205,6 +215,13 @@ String getDMRSlotHTML(int slotIndex) {
       html += "</div>";
     }
 
+    if (activity.srcState.length() > 0 && activity.srcState != "nan") {
+      html += "<div class='metric'>";
+      html += "<span class='metric-label'>State:</span>";
+      html += "<span class='metric-value'>" + activity.srcState + "</span>";
+      html += "</div>";
+    }
+
     if (activity.srcCountry.length() > 0) {
       html += "<div class='metric'>";
       html += "<span class='metric-label'>Country:</span>";
@@ -224,17 +241,19 @@ String getDMRSlotHTML(int slotIndex) {
     html += String(activity.dstId) + "</span>";
     html += "</div>";
 
-    html += "<div class='metric'>";
-    html += "<span class='metric-label'>Type:</span>";
-    html += "<span class='metric-value'>" + activity.frameType + "</span>";
-    html += "</div>";
-
     // Calculate transmission duration from start time
     unsigned long duration = (millis() - activity.startTime) / 1000;
     html += "<div class='metric'>";
     html += "<span class='metric-label'>Duration:</span>";
     html += "<span class='metric-value'>" + String(duration) + "s</span>";
     html += "</div>";
+
+#if DEBUG_DMR
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>Type:</span>";
+    html += "<span class='metric-value'>" + activity.frameType + "</span>";
+    html += "</div>";
+#endif
   } else {
     html += "<div class='no-activity'>No Active Transmission</div>";
   }
@@ -262,6 +281,7 @@ void handleDMRActivity() {
       json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
       json += ",\"srcName\":\"" + activity.srcName + "\"";
       json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+      json += ",\"srcState\":\"" + activity.srcState + "\"";
       json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
       json += ",\"dstId\":" + String(activity.dstId);
       json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
@@ -288,6 +308,7 @@ void handleDMRSlot1() {
     json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
     json += ",\"srcName\":\"" + activity.srcName + "\"";
     json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+    json += ",\"srcState\":\"" + activity.srcState + "\"";
     json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
     json += ",\"dstId\":" + String(activity.dstId);
     json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
@@ -311,6 +332,7 @@ void handleDMRSlot2() {
     json += ",\"srcCallsign\":\"" + activity.srcCallsign + "\"";
     json += ",\"srcName\":\"" + activity.srcName + "\"";
     json += ",\"srcCity\":\"" + activity.srcCity + "\"";
+    json += ",\"srcState\":\"" + activity.srcState + "\"";
     json += ",\"srcCountry\":\"" + activity.srcCountry + "\"";
     json += ",\"dstId\":" + String(activity.dstId);
     json += ",\"isGroup\":" + String(activity.isGroup ? "true" : "false");
@@ -796,6 +818,7 @@ void handleRoot() {
   html += "    html += '</div>';";
   html += "    if (data.srcName && data.srcName.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Name:</span><span class=\"metric-value\">' + data.srcName + '</span></div>';";
   html += "    if (data.srcCity && data.srcCity.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">City:</span><span class=\"metric-value\">' + data.srcCity + '</span></div>';";
+  html += "    if (data.srcState && data.srcState.length > 0 && data.srcState !== 'nan') html += '<div class=\"metric\"><span class=\"metric-label\">State:</span><span class=\"metric-value\">' + data.srcState + '</span></div>';";
   html += "    if (data.srcCountry && data.srcCountry.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Country:</span><span class=\"metric-value\">' + data.srcCountry + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.srcId + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Destination:</span><span class=\"metric-value\">' + (data.isGroup ? 'TG ' : '') + data.dstId + '</span></div>';";

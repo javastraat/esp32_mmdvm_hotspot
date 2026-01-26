@@ -452,8 +452,8 @@ unsigned long lastKeepalive = 0;
 // DMR Activity Tracking (struct defined in home.h)
 // Track up to 2 simultaneous transmissions (one per slot)
 DMRActivity dmrActivity[2] = {
-  { 0, 0, 1, true, "", "", "", "", "", 0, 0, false },
-  { 0, 0, 2, true, "", "", "", "", "", 0, 0, false }
+  { 0, 0, 1, true, "", "", "", "", "", "", 0, 0, false },
+  { 0, 0, 2, true, "", "", "", "", "", "", 0, 0, false }
 };
 
 // DMR Transmission Tracking (for consolidated log output)
@@ -1079,10 +1079,16 @@ void loop() {
       if (dmrActivity[i].srcId > 0 && dmrActivity[i].srcId != dmr_id) {
         uint32_t duration = (currentMillis - dmrActivity[i].startTime) / 1000;
         String location = "";
-        if (dmrActivity[i].srcCity.length() > 0 || dmrActivity[i].srcCountry.length() > 0) {
+        if (dmrActivity[i].srcCity.length() > 0 || dmrActivity[i].srcState.length() > 0 || dmrActivity[i].srcCountry.length() > 0) {
           if (dmrActivity[i].srcCity.length() > 0) location += dmrActivity[i].srcCity;
-          if (dmrActivity[i].srcCity.length() > 0 && dmrActivity[i].srcCountry.length() > 0) location += ", ";
-          if (dmrActivity[i].srcCountry.length() > 0) location += dmrActivity[i].srcCountry;
+          if (dmrActivity[i].srcState.length() > 0 && dmrActivity[i].srcState != "nan") {
+            if (location.length() > 0) location += ", ";
+            location += dmrActivity[i].srcState;
+          }
+          if (dmrActivity[i].srcCountry.length() > 0) {
+            if (location.length() > 0) location += ", ";
+            location += dmrActivity[i].srcCountry;
+          }
         }
         addDMRHistory(dmrActivity[i].srcId, dmrActivity[i].srcCallsign, dmrActivity[i].srcName, location,
                       dmrActivity[i].dstId, dmrActivity[i].isGroup, duration, 0, 0, dmrActivity[i].slotNo);
@@ -1989,10 +1995,16 @@ void handleNetwork() {
             // Previous transmission ended, add it to history
             uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
             String location = "";
-            if (dmrActivity[activityIndex].srcCity.length() > 0 || dmrActivity[activityIndex].srcCountry.length() > 0) {
+            if (dmrActivity[activityIndex].srcCity.length() > 0 || dmrActivity[activityIndex].srcState.length() > 0 || dmrActivity[activityIndex].srcCountry.length() > 0) {
               if (dmrActivity[activityIndex].srcCity.length() > 0) location += dmrActivity[activityIndex].srcCity;
-              if (dmrActivity[activityIndex].srcCity.length() > 0 && dmrActivity[activityIndex].srcCountry.length() > 0) location += ", ";
-              if (dmrActivity[activityIndex].srcCountry.length() > 0) location += dmrActivity[activityIndex].srcCountry;
+              if (dmrActivity[activityIndex].srcState.length() > 0 && dmrActivity[activityIndex].srcState != "nan") {
+                if (location.length() > 0) location += ", ";
+                location += dmrActivity[activityIndex].srcState;
+              }
+              if (dmrActivity[activityIndex].srcCountry.length() > 0) {
+                if (location.length() > 0) location += ", ";
+                location += dmrActivity[activityIndex].srcCountry;
+              }
             }
             addDMRHistory(dmrActivity[activityIndex].srcId, dmrActivity[activityIndex].srcCallsign,
                           dmrActivity[activityIndex].srcName, location, dmrActivity[activityIndex].dstId,
@@ -2007,7 +2019,7 @@ void handleNetwork() {
             // Lookup detailed user information (async, will use cache if available)
             String userInfo = lookupUserInfo(srcId);
             String callsignForMqtt = "";  // Will be populated after lookup
-            // userInfo format: "callsign|name|city|country" or just "callsign" for basic lookup
+            // userInfo format: "callsign|name|city|state|country" or just "callsign" for basic lookup
             int pipe1 = userInfo.indexOf('|');
             if (pipe1 > 0) {
               dmrActivity[activityIndex].srcCallsign = userInfo.substring(0, pipe1);
@@ -2017,7 +2029,13 @@ void handleNetwork() {
                 int pipe3 = userInfo.indexOf('|', pipe2 + 1);
                 if (pipe3 > pipe2) {
                   dmrActivity[activityIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
-                  dmrActivity[activityIndex].srcCountry = userInfo.substring(pipe3 + 1);
+                  int pipe4 = userInfo.indexOf('|', pipe3 + 1);
+                  if (pipe4 > pipe3) {
+                    dmrActivity[activityIndex].srcState = userInfo.substring(pipe3 + 1, pipe4);
+                    dmrActivity[activityIndex].srcCountry = userInfo.substring(pipe4 + 1);
+                  } else {
+                    dmrActivity[activityIndex].srcCountry = userInfo.substring(pipe3 + 1);
+                  }
                 } else {
                   dmrActivity[activityIndex].srcCity = userInfo.substring(pipe2 + 1);
                 }
@@ -2049,6 +2067,9 @@ void handleNetwork() {
               }
               if (dmrActivity[activityIndex].srcCity.length() > 0) {
                 logMsg += " from " + dmrActivity[activityIndex].srcCity;
+                if (dmrActivity[activityIndex].srcState.length() > 0 && dmrActivity[activityIndex].srcState != "nan") {
+                  logMsg += ", " + dmrActivity[activityIndex].srcState;
+                }
                 if (dmrActivity[activityIndex].srcCountry.length() > 0) {
                   logMsg += ", " + dmrActivity[activityIndex].srcCountry;
                 }
@@ -2448,7 +2469,13 @@ int buildDMRDPacket(uint8_t* output, const uint8_t* modemData, uint16_t modemDat
           int pipe3 = userInfo.indexOf('|', pipe2 + 1);
           if (pipe3 > 0) {
             dmrActivity[slotIndex].srcCity = userInfo.substring(pipe2 + 1, pipe3);
-            dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe3 + 1);
+            int pipe4 = userInfo.indexOf('|', pipe3 + 1);
+            if (pipe4 > pipe3) {
+              dmrActivity[slotIndex].srcState = userInfo.substring(pipe3 + 1, pipe4);
+              dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe4 + 1);
+            } else {
+              dmrActivity[slotIndex].srcCountry = userInfo.substring(pipe3 + 1);
+            }
           }
         }
       }
@@ -3515,7 +3542,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
 
     int rc = sqlite3_open(dbPath.c_str(), &db);
     if (rc == SQLITE_OK) {
-      String sql = "SELECT CALLSIGN, FIRST_NAME, CITY, COUNTRY FROM radioid WHERE RADIO_ID = " + String(dmrId) + " LIMIT 1;";
+      String sql = "SELECT CALLSIGN, FIRST_NAME, CITY, STATE, COUNTRY FROM radioid WHERE RADIO_ID = " + String(dmrId) + " LIMIT 1;";
 
       sqlite3_stmt *stmt;
       rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
@@ -3524,12 +3551,13 @@ String lookupUserInfoAPI(uint32_t dmrId) {
         String callsign = sqlite3_column_text(stmt, 0) ? String((const char*)sqlite3_column_text(stmt, 0)) : "";
         String name = sqlite3_column_text(stmt, 1) ? String((const char*)sqlite3_column_text(stmt, 1)) : "";
         String city = sqlite3_column_text(stmt, 2) ? String((const char*)sqlite3_column_text(stmt, 2)) : "";
-        String country = sqlite3_column_text(stmt, 3) ? String((const char*)sqlite3_column_text(stmt, 3)) : "";
+        String state = sqlite3_column_text(stmt, 3) ? String((const char*)sqlite3_column_text(stmt, 3)) : "";
+        String country = sqlite3_column_text(stmt, 4) ? String((const char*)sqlite3_column_text(stmt, 4)) : "";
 
         if (callsign.length() > 0) {
           userInfo = callsign;
-          if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
-            userInfo += "|" + name + "|" + city + "|" + country;
+          if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
+            userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
           }
           logSerial("[API] Local SQLite lookup for " + String(dmrId) + ": " + callsign);
         }
@@ -3557,11 +3585,12 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   if (httpCode == 200) {
     String payload = http.getString();
 
-    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
-    // Parse multiple fields: callsign, name/fname, city, country
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","state":"NH","country":"Netherlands",...}]}
+    // Parse multiple fields: callsign, name/fname, city, state, country
     String callsign = "";
     String name = "";
     String city = "";
+    String state = "";
     String country = "";
 
     // Extract callsign
@@ -3606,6 +3635,17 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       }
     }
 
+    // Extract state
+    int stateIndex = payload.indexOf("\"state\":\"");
+    if (stateIndex > 0) {
+      stateIndex += 9;  // Length of "state":"
+      int endIndex = payload.indexOf("\"", stateIndex);
+      if (endIndex > stateIndex) {
+        state = payload.substring(stateIndex, endIndex);
+        if (state == "null") state = "";
+      }
+    }
+
     // Extract country
     int countryIndex = payload.indexOf("\"country\":\"");
     if (countryIndex > 0) {
@@ -3617,11 +3657,11 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       }
     }
 
-    // Build userInfo string: "callsign|name|city|country"
+    // Build userInfo string: "callsign|name|city|state|country"
     if (callsign.length() > 0) {
       userInfo = callsign;
-      if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
-        userInfo += "|" + name + "|" + city + "|" + country;
+      if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
+        userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
       }
       logSerial("[API] Remote API lookup for " + String(dmrId) + ": " + callsign);
     }
@@ -3651,11 +3691,12 @@ String lookupUserInfoAPI(uint32_t dmrId) {
   if (httpCode == 200) {
     String payload = http.getString();
 
-    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","country":"Netherlands",...}]}
-    // Parse multiple fields: callsign, name/fname, city, country
+    // RadioID.net returns JSON: {"count":1,"results":[{"id":2041152,"callsign":"PA3ANG","fname":"John","name":"John","city":"Amsterdam","state":"NH","country":"Netherlands",...}]}
+    // Parse multiple fields: callsign, name/fname, city, state, country
     String callsign = "";
     String name = "";
     String city = "";
+    String state = "";
     String country = "";
 
     // Extract callsign
@@ -3700,6 +3741,17 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       }
     }
 
+    // Extract state
+    int stateIndex = payload.indexOf("\"state\":\"");
+    if (stateIndex > 0) {
+      stateIndex += 9;  // Length of "state":"
+      int endIndex = payload.indexOf("\"", stateIndex);
+      if (endIndex > stateIndex) {
+        state = payload.substring(stateIndex, endIndex);
+        if (state == "null") state = "";
+      }
+    }
+
     // Extract country
     int countryIndex = payload.indexOf("\"country\":\"");
     if (countryIndex > 0) {
@@ -3711,11 +3763,11 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       }
     }
 
-    // Build userInfo string: "callsign|name|city|country"
+    // Build userInfo string: "callsign|name|city|state|country"
     if (callsign.length() > 0) {
       userInfo = callsign;
-      if (name.length() > 0 || city.length() > 0 || country.length() > 0) {
-        userInfo += "|" + name + "|" + city + "|" + country;
+      if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
+        userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
       }
     }
   } else if (httpCode > 0) {
