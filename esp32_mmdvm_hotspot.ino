@@ -3358,6 +3358,7 @@ void setupWebServer() {
   server.on("/save-mqtt-config", HTTP_POST, handleSaveMqttConfig);
   server.on("/api/mqtt-monitor", handleMqttMonitor);
   server.on("/reboot", HTTP_POST, handleReboot);
+  server.on("/switch-partition", HTTP_POST, handleSwitchPartition);
   server.on("/restart-dmr", HTTP_POST, handleRestartDMR);
   server.on("/restart-mqtt", HTTP_POST, handleRestartMQTT);
   server.on("/restart-services", HTTP_POST, handleRestartServices);

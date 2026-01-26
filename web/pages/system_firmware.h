@@ -9,6 +9,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESP.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
 #include "../common/css.h"
 #include "../common/navigation.h"
 #include "../common/utils.h"
@@ -118,6 +120,71 @@ void handleSystemFirmware() {
   html += "<div id='modem-flash-status' style='margin-top: 10px; padding: 10px; display: none; border-radius: 4px;'></div>";
   html += "</div>";
 
+  // Partition Management Card
+  html += "<div class='card'>";
+  html += "<h3>Partition Management</h3>";
+  html += "<p>Switch between firmware versions:</p>";
+
+  // Get partition info
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  const esp_partition_t* boot = esp_ota_get_boot_partition();
+  const esp_partition_t* app0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+  const esp_partition_t* app1 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+
+  String runningLabel = running ? String(running->label) : "Unknown";
+  String bootLabel = boot ? String(boot->label) : "Unknown";
+
+  // Get app descriptions for version info
+  esp_app_desc_t app0_desc, app1_desc;
+  String app0_version = "Empty";
+  String app1_version = "Empty";
+
+  if (app0 && esp_ota_get_partition_description(app0, &app0_desc) == ESP_OK) {
+    // Use FIRMWARE_VERSION for running partition, app_desc for other
+    if (running && strcmp(running->label, "app0") == 0) {
+      app0_version = String(FIRMWARE_VERSION);
+    } else {
+      app0_version = String(app0_desc.version);
+    }
+  }
+  if (app1 && esp_ota_get_partition_description(app1, &app1_desc) == ESP_OK) {
+    // Use FIRMWARE_VERSION for running partition, app_desc for other
+    if (running && strcmp(running->label, "app1") == 0) {
+      app1_version = String(FIRMWARE_VERSION);
+    } else {
+      app1_version = String(app1_desc.version);
+    }
+  }
+
+  html += "<div class='metric'><span class='metric-label'>Running Partition:</span><span class='metric-value'>" + runningLabel + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Boot Partition:</span><span class='metric-value'>" + bootLabel + "</span></div>";
+
+  // Show app0 info
+  if (app0) {
+    String app0Label = (running && strcmp(running->label, "app0") == 0) ? "app0 (Current):" : "app0:";
+    html += "<div class='metric'><span class='metric-label'>" + app0Label + "</span><span class='metric-value'>" + app0_version + "</span></div>";
+  }
+  // Show app1 info
+  if (app1) {
+    String app1Label = (running && strcmp(running->label, "app1") == 0) ? "app1 (Current):" : "app1:";
+    html += "<div class='metric'><span class='metric-label'>" + app1Label + "</span><span class='metric-value'>" + app1_version + "</span></div>";
+  }
+
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  if (app0) {
+    String app0Class = (running && strcmp(running->label, "app0") == 0) ? "btn btn-success" : "btn btn-primary";
+    String app0BtnText = (running && strcmp(running->label, "app0") == 0) ? "app0 (Running)" : "Boot app0";
+    html += "<a href='javascript:void(0)' onclick='switchPartition(\"app0\")' class='" + app0Class + "'>" + app0BtnText + "</a>";
+  }
+  if (app1) {
+    String app1Class = (running && strcmp(running->label, "app1") == 0) ? "btn btn-success" : "btn btn-primary";
+    String app1BtnText = (running && strcmp(running->label, "app1") == 0) ? "app1 (Running)" : "Boot app1";
+    html += "<a href='javascript:void(0)' onclick='switchPartition(\"app1\")' class='" + app1Class + "'>" + app1BtnText + "</a>";
+  }
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:#666;margin-top:10px;'>Switch partitions to rollback to a previous firmware version.</p>";
+  html += "</div>";
+
   html += "</div>"; // Close admin-grid
 
   // Warning message
@@ -133,6 +200,26 @@ void handleSystemFirmware() {
   html += "function testMmdvm() {";
   html += "  alert('MMDVM test started. Check the Serial Monitor for results.');";
   html += "  fetch('/test-mmdvm', {method: 'POST'});";
+  html += "}";
+
+  // Partition switching function
+  html += "function switchPartition(partition) {";
+  html += "  if (confirm('Switch boot partition to ' + partition + '?\\n\\nThe system will reboot and start from ' + partition + '.\\n\\nContinue?')) {";
+  html += "    fetch('/switch-partition', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'partition=' + partition})";
+  html += "      .then(r => r.text())";
+  html += "      .then(msg => {";
+  html += "        if (msg.includes('SUCCESS')) {";
+  html += "          alert('Boot partition set to ' + partition + '. Rebooting...');";
+  html += "          setTimeout(() => { window.location.href = '/'; }, 10000);";
+  html += "        } else {";
+  html += "          alert('Error: ' + msg);";
+  html += "        }";
+  html += "      })";
+  html += "      .catch(err => {";
+  html += "        alert('Rebooting to ' + partition + '...');";
+  html += "        setTimeout(() => { window.location.href = '/'; }, 10000);";
+  html += "      });";
+  html += "  }";
   html += "}";
 
   // ESP32 OTA Update functions

@@ -17,6 +17,8 @@
 #include <Preferences.h>
 #include <HTTPClient.h>
 #include "nvs_flash.h"
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
 
 // External variables
 extern WebServer server;
@@ -591,6 +593,50 @@ void handleReboot() {
   logSerial("System reboot requested");
   delay(1000);
   ESP.restart();
+}
+
+void handleSwitchPartition() {
+  if (!checkAuthentication()) return;
+
+  if (server.hasArg("partition")) {
+    String partition = server.arg("partition");
+    const esp_partition_t* target = NULL;
+
+    if (partition == "app0") {
+      target = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+    } else if (partition == "app1") {
+      target = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+    }
+
+    if (target == NULL) {
+      server.send(400, "text/plain", "ERROR: Partition " + partition + " not found");
+      return;
+    }
+
+    // Check if partition has valid app
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(target, &state) == ESP_OK) {
+      if (state == ESP_OTA_IMG_INVALID || state == ESP_OTA_IMG_ABORTED) {
+        server.send(400, "text/plain", "ERROR: Partition " + partition + " does not contain valid firmware");
+        return;
+      }
+    }
+
+    // Set the boot partition
+    esp_err_t err = esp_ota_set_boot_partition(target);
+    if (err != ESP_OK) {
+      server.send(500, "text/plain", "ERROR: Failed to set boot partition - " + String(esp_err_to_name(err)));
+      return;
+    }
+
+    logSerial("[USER] Boot partition set to: " + partition);
+    server.send(200, "text/plain", "SUCCESS: Boot partition set to " + partition + ". Rebooting...");
+
+    delay(1000);
+    ESP.restart();
+  } else {
+    server.send(400, "text/plain", "ERROR: Missing partition parameter");
+  }
 }
 
 void handleRestartDMR() {
