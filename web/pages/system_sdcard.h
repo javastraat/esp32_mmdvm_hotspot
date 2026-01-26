@@ -48,7 +48,8 @@ void handleSystemSdcard() {
   html += ".progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34ce57); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; }";
   html += ".progress-text { position: absolute; width: 100%; text-align: center; line-height: 30px; color: var(--text-color, #000); font-weight: bold; z-index: 1; top: 0; }";
   html += ".status-text { padding: 10px; background: var(--card-bg, #f8f9fa); border-radius: 4px; margin: 10px 0; color: var(--text-color); }";
-  html += "input[type=text] { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";
+  html += "input[type=text] { padding: 8px; border-radius: 4px; }";
+  html += ".search-input { width: 100%; max-width: 300px; box-sizing: border-box; }";
   html += "select { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";
   html += "pre { background: var(--card-bg, #f5f5f5); color: var(--text-color, #333); padding: 10px; border-radius: 4px; overflow-x: auto; margin: 0; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color, #ddd); }";
   html += ".file-list { color: var(--text-color, #333); font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }";
@@ -112,33 +113,7 @@ void handleSystemSdcard() {
   html += "</div>";
   html += "</div>";
 
-  // Card 4: DMR Database Search (CSV)
-  html += "<div class='card'>";
-  html += "<h3>DMR Database Search (CSV)</h3>";
-  html += "<p>Search for DMR user by Radio ID:</p>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' id='search-id' placeholder='Enter Radio ID' style='width:100%; max-width:300px; box-sizing:border-box;'>";
-  html += "</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='search-btn' class='btn btn-primary' onclick='searchRadioId()'>Search</button>";
-  html += "</div>";
-  html += "<div id='search-result' style='margin-top:15px'></div>";
-  html += "</div>";
-
-  // Card 5: SQLite Search
-  html += "<div class='card'>";
-  html += "<h3>DMR Database Search (SQLite)</h3>";
-  html += "<p>Search for DMR user by Radio ID:</p>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' id='sqlite-search-id' placeholder='Enter Radio ID' style='width:100%; max-width:300px; box-sizing:border-box;'>";
-  html += "</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='sqlite-search-btn' class='btn btn-primary' onclick='searchSQLite()'>Search</button>";
-  html += "</div>";
-  html += "<div id='sqlite-result' style='margin-top:15px'></div>";
-  html += "</div>";
-
-  // Card 6: CSV Database Download
+  // Card 4: CSV Database Download
   html += "<div class='card'>";
   html += "<h3>CSV Database Download</h3>";
   html += "<div id='csv-db-info'>Loading...</div>";
@@ -154,7 +129,7 @@ void handleSystemSdcard() {
   html += "</div>";
   html += "</div>";
 
-  // Card 7: SQLite Database Download
+  // Card 5: SQLite Database Download
   html += "<div class='card'>";
   html += "<h3>SQLite Database Download</h3>";
   html += "<div id='sqlite-db-info'>Loading...</div>";
@@ -170,12 +145,12 @@ void handleSystemSdcard() {
   html += "</div>";
   html += "</div>";
 
-  // Card 8: Manual File/Directory Delete
+  // Card 6: Manual File/Directory Delete
   html += "<div class='card'>";
   html += "<h3>Manual File/Directory Delete</h3>";
   html += "<p>Delete specific files or directories from the SD card:</p>";
   html += "<div style='margin:10px 0'>";
-  html += "<input type='text' id='delete-path' placeholder='/path/to/file or /path/to/directory' style='width:100%; max-width:300px; box-sizing:border-box;'>";
+  html += "<input type='text' class='search-input' id='delete-path' placeholder='/path/to/file or /path/to/directory'>";
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
   html += "<button id='delete-custom-btn' class='btn btn-danger' onclick='deleteCustomPath()'>Delete</button>";
@@ -186,6 +161,32 @@ void handleSystemSdcard() {
   html += "<strong>Examples:</strong> /test.txt, /.Trashes, /database/old_backup.csv<br>";
   html += "<strong>Note:</strong> Wildcards (* or ?) are not supported. Specify exact paths only.";
   html += "</p>";
+  html += "</div>";
+  
+  // Card 7: DMR Database Search (CSV)
+  html += "<div class='card'>";
+  html += "<h3>DMR Database Search (CSV)</h3>";
+  html += "<p>Search for DMR user by Radio ID:</p>";
+  html += "<div style='margin:10px 0'>";
+  html += "<input type='text' class='search-input' id='search-id' placeholder='Enter Radio ID'>";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<button id='search-btn' class='btn btn-primary' onclick='searchRadioId()'>Search</button>";
+  html += "</div>";
+  html += "<div id='search-result' style='margin-top:15px'></div>";
+  html += "</div>";
+
+  // Card 8: SQLite Search
+  html += "<div class='card'>";
+  html += "<h3>DMR Database Search (SQLite)</h3>";
+  html += "<p>Search for DMR user by Radio ID:</p>";
+  html += "<div style='margin:10px 0'>";
+  html += "<input type='text' class='search-input' id='sqlite-search-id' placeholder='Enter Radio ID'>";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<button id='sqlite-search-btn' class='btn btn-primary' onclick='searchSQLite()'>Search</button>";
+  html += "</div>";
+  html += "<div id='sqlite-result' style='margin-top:15px'></div>";
   html += "</div>";
 
   html += "</div>"; // Close admin-grid
@@ -362,12 +363,12 @@ void handleSystemSdcard() {
   html += "    if(data.results && data.results.length > 0) {";
   html += "      var r = data.results[0];";
   html += "      var html = '<table>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + r.radio_id + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Callsign:</td><td>' + r.callsign + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Name:</td><td>' + r.name + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">City:</td><td>' + r.city + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">State:</td><td>' + (r.state || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Country:</td><td>' + r.country + '</td></tr>';";
-  html += "      html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + r.radio_id + '</td></tr>';";
   html += "      html += '</table>';";
   html += "      document.getElementById('search-result').innerHTML = html;";
   html += "    } else {";
@@ -395,12 +396,12 @@ void handleSystemSdcard() {
   html += "    if(data.results && data.results.length > 0) {";
   html += "      var r = data.results[0];";
   html += "      var html = '<table>';";
+  html += "      html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + (r.radio_id || r.RADIO_ID || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Callsign:</td><td>' + (r.callsign || r.CALLSIGN || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Name:</td><td>' + (r.first_name || r.FIRST_NAME || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">City:</td><td>' + (r.city || r.CITY || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">State:</td><td>' + (r.state || r.STATE || 'N/A') + '</td></tr>';";
   html += "      html += '<tr><td style=\"font-weight:bold\">Country:</td><td>' + (r.country || r.COUNTRY || 'N/A') + '</td></tr>';";
-  html += "      html += '<tr><td style=\"font-weight:bold\">Radio ID:</td><td>' + (r.radio_id || r.RADIO_ID || 'N/A') + '</td></tr>';";
   html += "      html += '</table>';";
   html += "      document.getElementById('sqlite-result').innerHTML = html;";
   html += "    } else {";
