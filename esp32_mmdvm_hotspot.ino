@@ -608,7 +608,7 @@ void mqttPublishNetworkDMR();
 void mqttPublishMMDVMConfig();
 void mqttPublishStationInfo();
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                             const String& name, const String& city, const String& country, bool isGroup,
+                             const String& name, const String& city, const String& state, const String& country, bool isGroup,
                              bool active, uint32_t duration);
 void sendMMDVMCommand(uint8_t cmd, uint8_t* data, uint16_t length);
 void writeDMRStart(bool tx, String callsign = "");
@@ -2053,6 +2053,7 @@ void handleNetwork() {
                                       dmrActivity[activityIndex].srcCallsign,
                                       dmrActivity[activityIndex].srcName,
                                       dmrActivity[activityIndex].srcCity,
+                                      dmrActivity[activityIndex].srcState,
                                       dmrActivity[activityIndex].srcCountry,
                                       isGroup,
                                       true,  // Always true - we only publish during active transmissions
@@ -3004,7 +3005,7 @@ void mqttPublishStationInfo() {
 }
 
 void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const String& callsign,
-                             const String& name = "", const String& city = "", const String& country = "", bool isGroup = true,
+                             const String& name = "", const String& city = "", const String& state = "", const String& country = "", bool isGroup = true,
                              bool active = true, uint32_t duration = 0) {
   if (!mqttConnected || !mqttClient.connected()) return;
 
@@ -3027,6 +3028,9 @@ void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const Str
     // Add location info if available
     if (city.length() > 0) {
       payload += "\"city\":\"" + city + "\",";
+    }
+    if (state.length() > 0 && state != "nan") {
+      payload += "\"state\":\"" + state + "\",";
     }
     if (country.length() > 0) {
       payload += "\"country\":\"" + country + "\",";
