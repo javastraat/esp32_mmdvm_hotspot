@@ -9,6 +9,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESP.h>
+#include <esp_system.h>
+#include <esp_ota_ops.h>
 #include "../common/css.h"
 #include "../common/navigation.h"
 #include "../common/utils.h"
@@ -40,9 +42,74 @@ void handleSystemInfo() {
 
   html += "<div class='admin-grid'>";
 
-  // System Information Card
+  // ==================== System Hardware Card ====================
   html += "<div class='card'>";
-  html += "<h3>System Information</h3>";
+  html += "<h3>System Hardware</h3>";
+
+  html += "<div class='metric'><span class='metric-label'>Chip Model:</span><span class='metric-value'>" + String(ESP.getChipModel()) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Chip Revision:</span><span class='metric-value'>" + String(ESP.getChipRevision()) + "</span></div>";
+
+  // Chip ID from EFuse MAC
+  uint64_t chipId = ESP.getEfuseMac();
+  char chipIdStr[18];
+  snprintf(chipIdStr, sizeof(chipIdStr), "%04X%08X", (uint16_t)(chipId >> 32), (uint32_t)chipId);
+  html += "<div class='metric'><span class='metric-label'>Chip ID:</span><span class='metric-value'>" + String(chipIdStr) + "</span></div>";
+
+  html += "<div class='metric'><span class='metric-label'>CPU Cores:</span><span class='metric-value'>" + String(ESP.getChipCores()) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>CPU Frequency:</span><span class='metric-value'>" + String(ESP.getCpuFreqMHz()) + " MHz</span></div>";
+
+  // Internal temperature (ESP32-S3)
+  float tempC = temperatureRead();
+  if (tempC > -40 && tempC < 125) {  // Valid range check
+    html += "<div class='metric'><span class='metric-label'>CPU Temperature:</span><span class='metric-value'>" + String(tempC, 1) + " &deg;C</span></div>";
+  }
+  html += "</div>";
+
+  // ==================== Memory Card ====================
+  html += "<div class='card'>";
+  html += "<h3>Memory</h3>";
+
+  html += "<div class='metric'><span class='metric-label'>Heap Size:</span><span class='metric-value'>" + String(ESP.getHeapSize()/1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Free Heap:</span><span class='metric-value'>" + String(ESP.getFreeHeap()/1024.0, 1) + " KB (" + String(ESP.getFreeHeap()*100/ESP.getHeapSize()) + "%)</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Min Free Heap:</span><span class='metric-value'>" + String(ESP.getMinFreeHeap()/1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Max Alloc Heap:</span><span class='metric-value'>" + String(ESP.getMaxAllocHeap()/1024.0, 1) + " KB</span></div>";
+
+  // PSRAM info (if available)
+  if (ESP.getPsramSize() > 0) {
+    html += "<div class='metric'><span class='metric-label'>PSRAM Size:</span><span class='metric-value'>" + String(ESP.getPsramSize()/1024/1024) + " MB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Free PSRAM:</span><span class='metric-value'>" + String(ESP.getFreePsram()/1024.0, 1) + " KB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Max Alloc PSRAM:</span><span class='metric-value'>" + String(ESP.getMaxAllocPsram()/1024.0, 1) + " KB</span></div>";
+  }
+  html += "</div>";
+
+  // ==================== Storage Card ====================
+  html += "<div class='card'>";
+  html += "<h3>Storage</h3>";
+
+  html += "<div class='metric'><span class='metric-label'>Flash Size:</span><span class='metric-value'>" + String(ESP.getFlashChipSize()/1024/1024) + " MB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Flash Speed:</span><span class='metric-value'>" + String(ESP.getFlashChipSpeed()/1000000) + " MHz</span></div>";
+
+  // Flash Mode
+  const char* flashModes[] = {"QIO", "QOUT", "DIO", "DOUT", "Fast Read", "Slow Read"};
+  FlashMode_t flashMode = ESP.getFlashChipMode();
+  String flashModeStr = (flashMode < 6) ? flashModes[flashMode] : "Unknown";
+  html += "<div class='metric'><span class='metric-label'>Flash Mode:</span><span class='metric-value'>" + flashModeStr + "</span></div>";
+
+  html += "<div class='metric'><span class='metric-label'>Sketch Size:</span><span class='metric-value'>" + String(ESP.getSketchSize()/1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Free Sketch Space:</span><span class='metric-value'>" + String(ESP.getFreeSketchSpace()/1024.0, 1) + " KB</span></div>";
+  String sketchMD5 = ESP.getSketchMD5();
+  html += "<div class='metric'><span class='metric-label'>Sketch MD5:</span><span class='metric-value'>" + sketchMD5.substring(sketchMD5.length() - 8) + "</span></div>";
+
+  // Running partition
+  const esp_partition_t* partition = esp_ota_get_running_partition();
+  if (partition != NULL) {
+    html += "<div class='metric'><span class='metric-label'>Running Partition:</span><span class='metric-value'>" + String(partition->label) + "</span></div>";
+  }
+  html += "</div>";
+
+  // ==================== Software Card ====================
+  html += "<div class='card'>";
+  html += "<h3>Software</h3>";
 
   // Uptime calculation
   unsigned long uptimeSeconds = millis() / 1000;
@@ -56,25 +123,17 @@ void handleSystemInfo() {
   uptimeStr += String(minutes) + "m " + String(seconds) + "s";
 
   html += "<div class='metric'><span class='metric-label'>Uptime:</span><span class='metric-value uptime'>" + uptimeStr + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Chip Model:</span><span class='metric-value'>" + String(ESP.getChipModel()) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Chip Revision:</span><span class='metric-value'>" + String(ESP.getChipRevision()) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>CPU Cores:</span><span class='metric-value'>" + String(ESP.getChipCores()) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>CPU Frequency:</span><span class='metric-value'>" + String(ESP.getCpuFreqMHz()) + " MHz</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Free Heap:</span><span class='metric-value'>" + String(ESP.getFreeHeap()/1024.0, 1) + " KB (" + String(ESP.getFreeHeap()*100/ESP.getHeapSize()) + "%)</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Min Free Heap:</span><span class='metric-value'>" + String(ESP.getMinFreeHeap()/1024.0, 1) + " KB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Heap Size:</span><span class='metric-value'>" + String(ESP.getHeapSize()/1024.0, 1) + " KB</span></div>";
 
-  // PSRAM info (if available)
-  if (ESP.getPsramSize() > 0) {
-    html += "<div class='metric'><span class='metric-label'>PSRAM Size:</span><span class='metric-value'>" + String(ESP.getPsramSize()/1024/1024) + " MB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Free PSRAM:</span><span class='metric-value'>" + String(ESP.getFreePsram()/1024.0, 1) + " KB</span></div>";
-  }
+  // Reset reason
+  esp_reset_reason_t resetReason = esp_reset_reason();
+  const char* resetReasons[] = {"Unknown", "Power-on", "External", "Software", "Panic", "Interrupt WDT", "Task WDT", "Other WDT", "Deepsleep", "Brownout", "SDIO"};
+  String resetReasonStr = (resetReason < 11) ? resetReasons[resetReason] : "Unknown";
+  html += "<div class='metric'><span class='metric-label'>Reset Reason:</span><span class='metric-value'>" + resetReasonStr + "</span></div>";
 
-  html += "<div class='metric'><span class='metric-label'>Flash Size:</span><span class='metric-value'>" + String(ESP.getFlashChipSize()/1024/1024) + " MB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Flash Speed:</span><span class='metric-value'>" + String(ESP.getFlashChipSpeed()/1000000) + " MHz</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Sketch Size:</span><span class='metric-value'>" + String(ESP.getSketchSize()/1024.0, 1) + " KB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Free Sketch Space:</span><span class='metric-value'>" + String(ESP.getFreeSketchSpace()/1024.0, 1) + " KB</span></div>";
   html += "<div class='metric'><span class='metric-label'>SDK Version:</span><span class='metric-value'>" + String(ESP.getSdkVersion()) + "</span></div>";
+  #ifdef ESP_ARDUINO_VERSION_STR
+  html += "<div class='metric'><span class='metric-label'>Arduino Core:</span><span class='metric-value'>" + String(ESP_ARDUINO_VERSION_STR) + "</span></div>";
+  #endif
   html += "<div class='metric'><span class='metric-label'>Firmware Version:</span><span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Build Date:</span><span class='metric-value'>" + String(__DATE__) + " " + String(__TIME__) + "</span></div>";
   html += "</div>";
