@@ -3448,6 +3448,10 @@ String lookupUserInfo(uint32_t dmrId) {
   // Check cache first
   String cached = getCachedUserInfo(dmrId);
   if (cached.length() > 0) {
+    // Extract callsign from cached data for logging
+    int pipeIndex = cached.indexOf('|');
+    String callsign = (pipeIndex > 0) ? cached.substring(0, pipeIndex) : String(dmrId);
+    logSerial("[CACHE] Found " + String(dmrId) + ": " + callsign);
     return cached;
   }
 
@@ -3769,6 +3773,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
         userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
       }
+      logSerial("[API] Remote RadioID.net lookup for " + String(dmrId) + ": " + callsign);
     }
   } else if (httpCode > 0) {
     logSerial("[API] User info lookup failed: HTTP " + String(httpCode));
