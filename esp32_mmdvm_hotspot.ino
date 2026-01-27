@@ -83,6 +83,7 @@
 #include <Preferences.h>
 #include "mbedtls/md.h"
 #include "nvs_flash.h"
+#include <esp_ota_ops.h>
 #include <Update.h>
 #include <HTTPClient.h>
 #include <time.h>
@@ -682,6 +683,19 @@ void setup() {
 
   // Load full configuration
   loadConfig();
+
+  // Save firmware version to NVS for partition tracking
+  // This allows us to know which version is on each partition
+  {
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    if (running) {
+      String partKey = "fw_" + String(running->label);  // e.g., "fw_app0" or "fw_app1"
+      preferences.begin("mmdvm", false);
+      preferences.putString(partKey.c_str(), FIRMWARE_VERSION);
+      preferences.end();
+      logSerial("[SYSTEM] Registered firmware " + String(FIRMWARE_VERSION) + " on partition " + String(running->label));
+    }
+  }
 
   // Configure MQTT buffer size (default is 256 bytes, increase for larger payloads)
   mqttClient.setBufferSize(1024);  // 1KB buffer for system info and modem status messages

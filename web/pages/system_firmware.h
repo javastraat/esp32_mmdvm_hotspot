@@ -9,6 +9,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESP.h>
+#include <Preferences.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 #include "../common/css.h"
@@ -134,26 +135,27 @@ void handleSystemFirmware() {
   String runningLabel = running ? String(running->label) : "Unknown";
   String bootLabel = boot ? String(boot->label) : "Unknown";
 
-  // Get app descriptions for version info
-  esp_app_desc_t app0_desc, app1_desc;
+  // Get firmware versions from NVS (stored on each boot)
+  // This is more reliable than esp_app_desc which contains build system info
   String app0_version = "Empty";
   String app1_version = "Empty";
 
-  if (app0 && esp_ota_get_partition_description(app0, &app0_desc) == ESP_OK) {
-    // Use FIRMWARE_VERSION for running partition, app_desc for other
-    if (running && strcmp(running->label, "app0") == 0) {
-      app0_version = String(FIRMWARE_VERSION);
-    } else {
-      app0_version = String(app0_desc.version);
-    }
+  // Read versions from NVS
+  Preferences prefs;
+  prefs.begin("mmdvm", true);  // Read-only
+  if (app0) {
+    app0_version = prefs.getString("fw_app0", "Unknown");
   }
-  if (app1 && esp_ota_get_partition_description(app1, &app1_desc) == ESP_OK) {
-    // Use FIRMWARE_VERSION for running partition, app_desc for other
-    if (running && strcmp(running->label, "app1") == 0) {
-      app1_version = String(FIRMWARE_VERSION);
-    } else {
-      app1_version = String(app1_desc.version);
-    }
+  if (app1) {
+    app1_version = prefs.getString("fw_app1", "Unknown");
+  }
+  prefs.end();
+
+  // For the currently running partition, use FIRMWARE_VERSION directly (most accurate)
+  if (running && strcmp(running->label, "app0") == 0) {
+    app0_version = String(FIRMWARE_VERSION);
+  } else if (running && strcmp(running->label, "app1") == 0) {
+    app1_version = String(FIRMWARE_VERSION);
   }
 
   html += "<div class='metric'><span class='metric-label'>Running Partition:</span><span class='metric-value'>" + runningLabel + "</span></div>";
