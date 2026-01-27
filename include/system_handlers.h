@@ -938,7 +938,7 @@ void handleShowPreferences() {
   const char* systemKeys[] = {
     "hostname", "verbose_log", "debug_serial", "debug_mmdvm", "debug_network",
     "debug_dmr", "debug_password", "enable_oled", "oled_autoblank", "oled_blank_to",
-    "ntp_tz_offset", "ntp_dst_offset", "modem_type"
+    "ntp_tz_offset", "ntp_dst_offset", "modem_type", "fw_app0", "fw_app1"
   };
 
   const char* modeKeys[] = {

@@ -12,6 +12,10 @@
 #include <HTTPClient.h>
 #include <Update.h>
 #include <Preferences.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
+
+
 #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3,0,0)
 #include <ETHClass2.h>       //Is to use the modified ETHClass
 #define ETH  ETH2
@@ -119,7 +123,15 @@ void setup() {
 
   // Open preferences and load saved WiFi credentials (using same namespace as main firmware)
   preferences.begin("mmdvm", false); // false = read-write mode (correct for saving credentials)
-  
+
+  // Save firmware version to NVS for partition tracking (same as main firmware)
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  if (running) {
+    String partKey = "fw_" + String(running->label);  // e.g., "fw_app0" or "fw_app1"
+    preferences.putString(partKey.c_str(), FACTORY_VERSION);
+    Serial.println("[SYSTEM] Registered firmware " + String(FACTORY_VERSION) + " on partition " + String(running->label));
+  }
+
   // Debug: Print all preferences in the namespace
   Serial.println("=== DEBUG: Preferences namespace 'mmdvm' contents ===");
   size_t freeEntries = preferences.freeEntries();
@@ -195,7 +207,7 @@ void setup() {
     if (preferences.isKey(("wifi" + String(i) + "_pass").c_str())) actualCount++;
   }
 
-  // System Settings (11 possible)
+  // System Settings (13 possible)
   if (preferences.isKey("hostname")) actualCount++;
   if (preferences.isKey("verbose_log")) actualCount++;
   if (preferences.isKey("debug_serial")) actualCount++;
@@ -207,6 +219,8 @@ void setup() {
   if (preferences.isKey("oled_autoblank")) actualCount++;
   if (preferences.isKey("oled_blank_to")) actualCount++;
   if (preferences.isKey("modem_type")) actualCount++;
+  if (preferences.isKey("fw_app0")) actualCount++;
+  if (preferences.isKey("fw_app1")) actualCount++;
 
   // Mode Settings (6 possible)
   if (preferences.isKey("mode_dmr")) actualCount++;
@@ -363,6 +377,7 @@ void setup() {
 
   // Settings management routes
   server.on("/clear-all-settings", HTTP_POST, handleClearAllSettings);
+  server.on("/switch-partition", HTTP_POST, handleSwitchPartition);
 
   server.begin();
   Serial.println("\nWeb server started!");
@@ -585,4 +600,47 @@ void handleClearAllSettings() {
     Serial.println("ERROR: Failed to clear preferences!");
     server.send(500, "text/plain", "ERROR: Failed to clear preferences");
   }
+}
+
+void handleSwitchPartition() {
+  if (!server.hasArg("partition")) {
+    server.send(400, "text/plain", "ERROR: Missing partition parameter");
+    return;
+  }
+
+  String partition = server.arg("partition");
+  const esp_partition_t* target = NULL;
+
+  if (partition == "app0") {
+    target = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+  } else if (partition == "app1") {
+    target = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+  }
+
+  if (target == NULL) {
+    server.send(400, "text/plain", "ERROR: Partition " + partition + " not found");
+    return;
+  }
+
+  // Check if partition has valid app
+  esp_ota_img_states_t state;
+  if (esp_ota_get_state_partition(target, &state) == ESP_OK) {
+    if (state == ESP_OTA_IMG_INVALID || state == ESP_OTA_IMG_ABORTED) {
+      server.send(400, "text/plain", "ERROR: Partition " + partition + " does not contain valid firmware");
+      return;
+    }
+  }
+
+  // Set the boot partition
+  esp_err_t err = esp_ota_set_boot_partition(target);
+  if (err != ESP_OK) {
+    server.send(500, "text/plain", "ERROR: Failed to set boot partition - " + String(esp_err_to_name(err)));
+    return;
+  }
+
+  Serial.println("[USER] Boot partition set to: " + partition);
+  server.send(200, "text/plain", "SUCCESS: Boot partition set to " + partition + ". Rebooting...");
+
+  delay(1000);
+  ESP.restart();
 }

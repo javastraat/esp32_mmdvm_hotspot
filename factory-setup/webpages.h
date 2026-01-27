@@ -7,6 +7,10 @@
 #ifndef WEBPAGES_H
 #define WEBPAGES_H
 
+#include <Arduino.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
+
 // External variables from main sketch
 extern WebServer server;
 extern Preferences preferences;
@@ -68,6 +72,8 @@ String getStoredPreferencesInfo() {
   if (preferences.isKey("oled_autoblank")) totalPrefs++;
   if (preferences.isKey("oled_blank_to")) totalPrefs++;
   if (preferences.isKey("modem_type")) totalPrefs++;
+  if (preferences.isKey("fw_app0")) totalPrefs++;
+  if (preferences.isKey("fw_app1")) totalPrefs++;
 
   // Mode Settings (6 possible)
   if (preferences.isKey("mode_dmr")) totalPrefs++;
@@ -96,7 +102,7 @@ String getStoredPreferencesInfo() {
   info += "<h3>Stored Configuration</h3>";
 
   if (totalPrefs == 0) {
-    info += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107; color: #000;'>";
+    info += "<div class='info info-warning'>";
     info += "<strong>No Configuration Found</strong><br>";
     info += "This device has not been configured yet. After flashing the main firmware, you can configure your DMR settings via the web interface.";
     info += "</div>";
@@ -129,7 +135,7 @@ String getStoredPreferencesInfo() {
     info += "<small><strong>Total Stored Settings:</strong> " + String(totalPrefs) + "</small>";
     info += "</div>";
 
-    info += "<div class='info' style='background: #d4edda; border-left-color: #28a745; color: #000; margin-top: 15px;'>";
+    info += "<div class='info info-success' style='margin-top: 15px;'>";
     info += "<strong>Configuration Preserved:</strong> Your settings will be retained when you flash the main firmware.";
     info += "</div>";
   }
@@ -141,31 +147,54 @@ String getStoredPreferencesInfo() {
 
 String getCSS() {
   String css = "<style>";
-  css += ":root { --bg-color: #f5f5f5; --container-bg: #ffffff; --text-color: #333333; --border-color: #dddddd; --primary-color: #007bff; --primary-hover: #0056b3; --hover-bg: #f8f9fa; --input-bg: #ffffff; --info-bg: #e7f3ff; }";
-  css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #e0e0e0; --border-color: #444444; --primary-color: #4a9eff; --primary-hover: #6bb0ff; --hover-bg: #3a3a3a; --input-bg: #3a3a3a; --info-bg: #2a4a5a; }";
-  css += "@media (prefers-color-scheme: dark) {";
-  css += "  :root:not([data-theme='light']) { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #e0e0e0; --border-color: #444444; --primary-color: #4a9eff; --primary-hover: #6bb0ff; --hover-bg: #3a3a3a; --input-bg: #3a3a3a; --info-bg: #2a4a5a; }";
-  css += "}";
-  css += "* { margin: 0; padding: 0; box-sizing: border-box; }";
-  css += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); color: var(--text-color); line-height: 1.6; padding: 20px; }";
-  css += ".container { max-width: 800px; margin: 0 auto; background: var(--container-bg); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }";
-  css += "h1 { color: var(--primary-color); margin-bottom: 10px; font-size: 2em; }";
-  css += "h2 { color: var(--primary-color); margin-top: 20px; margin-bottom: 15px; font-size: 1.5em; }";
-  css += "h3 { color: var(--text-color); margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }";
-  css += ".card { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }";
-  css += ".info { padding: 15px; margin: 20px 0; background: var(--info-bg); border-left: 4px solid var(--primary-color); border-radius: 4px; }";
+  // CSS variables matching main version (web/common/css.h)
+  css += ":root { --bg-color: #f0f0f0; --container-bg: white; --text-color: #333; --border-color: #dee2e6; --card-bg: #f8f9fa; --info-bg: #e7f3ff; --link-color: #007bff; --link-hover-color: #0056b3; --input-bg: #ffffff; }";
+  css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #ffffff; --border-color: #555; --card-bg: #3a3a3a; --info-bg: #1e3a5f; --link-color: #4da6ff; --link-hover-color: #66b3ff; --input-bg: #3a3a3a; }";
+  css += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }";
+  css += ".container { max-width: 1000px; margin: 20px auto; background: var(--container-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }";
+  css += "h1 { color: var(--text-color); border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; }";
+  css += "h2 { color: var(--text-color); margin-top: 30px; }";
+  css += "h3 { margin-top: 0; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }";
+  // Grid layout matching main version
+  css += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
+  css += ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0; }";
+  // Card styling matching main version
+  css += ".card { background: var(--card-bg); padding: 15px; border-radius: 6px; border: 1px solid var(--border-color); }";
+  css += ".card h3 { margin-top: 0; color: var(--text-color); }";
+  // Info and status styling
+  css += ".info { padding: 12px; background: var(--info-bg); border-left: 4px solid #007bff; margin: 10px 0; border-radius: 0 4px 4px 0; }";
+  css += ".info-warning { background: rgba(255, 193, 7, 0.15); border-left-color: #ffc107; }";
+  css += ".info-success { background: rgba(40, 167, 69, 0.15); border-left-color: #28a745; }";
+  css += ".info-danger { background: rgba(220, 53, 69, 0.15); border-left-color: #dc3545; }";
+  css += ".status { padding: 12px; margin: 10px 0; border-radius: 6px; font-weight: bold; }";
+  css += ".status.connected { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }";
+  css += ".status.disconnected { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }";
+  css += ".status.warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }";
   css += ".status-badge { display: inline-block; padding: 8px 16px; border-radius: 6px; font-weight: bold; margin: 10px 0; }";
   css += ".badge-connected { background: #28a745; color: white; }";
   css += ".badge-ap { background: #ffc107; color: black; }";
+  // Metric styling matching main version
+  css += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  css += ".metric:last-child { border-bottom: none; }";
+  css += ".metric-label { font-weight: bold; color: var(--text-color); }";
+  css += ".metric-value { color: var(--text-color); }";
+  // Button styling matching main version
   css += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
-  css += ".btn-success { background: #28a745; color: white; } .btn-success:hover { background: #218838; }";
   css += ".btn-primary { background: #007bff; color: white; } .btn-primary:hover { background: #0056b3; }";
+  css += ".btn-success { background: #28a745; color: white; } .btn-success:hover { background: #218838; }";
   css += ".btn-warning { background: #ffc107; color: black; } .btn-warning:hover { background: #e0a800; }";
   css += ".btn-danger { background: #dc3545; color: white; } .btn-danger:hover { background: #c82333; }";
+  css += ".btn-info { background: #17a2b8; color: white; } .btn-info:hover { background: #138496; }";
   css += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
   css += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
-  css += "footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.9em; color: var(--text-color); }";
-  css += "footer a { color: var(--primary-color); text-decoration: none; margin: 0 10px; } footer a:hover { text-decoration: underline; }";
+  // Input styling matching main version
+  css += "input, select, textarea { background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; }";
+  css += "input:focus, select:focus, textarea:focus { border-color: #007bff; outline: none; }";
+  // Footer styling matching main version
+  css += ".footer { text-align: center; padding: 20px 20px 5px 20px; margin-top: 30px; border-top: 1px solid var(--border-color); color: var(--text-color); font-size: 14px; }";
+  css += ".footer a { color: var(--link-color); text-decoration: none; margin: 0 10px; }";
+  css += ".footer a:hover { color: var(--link-hover-color); text-decoration: underline; }";
+  // Theme toggle (floating button for factory-setup since no navbar)
   css += ".theme-toggle { position: fixed; top: 20px; right: 20px; background: var(--container-bg); border: 2px solid var(--border-color); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; }";
   css += ".theme-toggle:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }";
   css += "</style>";
@@ -173,14 +202,12 @@ String getCSS() {
 }
 
 String getFooter() {
-  String footer = "<footer>";
+  String footer = "<div class='footer'>";
   footer += "<p>" + String(COPYRIGHT_TEXT) + "</p>";
-  footer += "<div>";
   footer += "<a href='" + String(FOOTER_LINK1_URL) + "' target='_blank'>" + String(FOOTER_LINK1_TEXT) + "</a> | ";
   footer += "<a href='" + String(FOOTER_LINK2_URL) + "' target='_blank'>" + String(FOOTER_LINK2_TEXT) + "</a> | ";
   footer += "<a href='" + String(FOOTER_LINK3_URL) + "' target='_blank'>" + String(FOOTER_LINK3_TEXT) + "</a>";
   footer += "</div>";
-  footer += "</footer>";
   return footer;
 }
 
@@ -202,6 +229,8 @@ void handleRoot() {
   html += "<h1>ESP32 MMDVM Hotspot</h1>";
   html += "<h2>Factory Setup & Deployment</h2>";
 
+  html += "<div class='admin-grid'>";
+
   // Network Status Card
   html += "<div class='card'>";
   html += "<h3>Network Status</h3>";
@@ -210,7 +239,7 @@ void handleRoot() {
     html += "<p><strong>SSID:</strong> " + String(AP_SSID) + "</p>";
     html += "<p><strong>Password:</strong> " + String(AP_PASSWORD) + "</p>";
     html += "<p><strong>IP Address:</strong> " + currentIP + "</p>";
-    html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107; color: #000;'>";
+    html += "<div class='info info-warning'>";
     html += "<strong>No Internet Connection:</strong><br>";
     html += "You are connected to the ESP32's access point, which has no internet access.<br>";
     html += "To download firmware, you must first configure WiFi settings below to connect this device to your network.";
@@ -221,7 +250,7 @@ void handleRoot() {
     String connectedSSID = (savedSSID.length() > 0) ? savedSSID : String(WIFI_SSID);
     html += "<p><strong>Network:</strong> " + connectedSSID + "</p>";
     html += "<p><strong>IP Address:</strong> " + currentIP + "</p>";
-    html += "<div class='info' style='background: #d4edda; border-left-color: #28a745; color: #000;'>";
+    html += "<div class='info' class='info info-success'>";
     html += "<strong>Internet Connected:</strong> Ready to download and flash firmware.";
     html += "</div>";
   }
@@ -264,10 +293,71 @@ void handleRoot() {
   // System Information Card
   html += "<div class='card'>";
   html += "<h3>System Information</h3>";
-  html += "<div><strong>Current Version:</strong> " + String(FACTORY_VERSION) + "</div>";
-  html += "<div><strong>Chip Model:</strong> " + String(ESP.getChipModel()) + "</div>";
-  html += "<div><strong>Flash Size:</strong> " + String(ESP.getFlashChipSize()/1024/1024) + " MB</div>";
-  html += "<div><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()/1024.0, 1) + " KB</div>";
+  html += "<div class='metric'><span class='metric-label'>Current Version:</span><span class='metric-value'>" + String(FACTORY_VERSION) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Chip Model:</span><span class='metric-value'>" + String(ESP.getChipModel()) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Flash Size:</span><span class='metric-value'>" + String(ESP.getFlashChipSize()/1024/1024) + " MB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Free Heap:</span><span class='metric-value'>" + String(ESP.getFreeHeap()/1024.0, 1) + " KB</span></div>";
+  html += "</div>";
+
+  // Partition Management Card
+  html += "<div class='card'>";
+  html += "<h3>Partition Management</h3>";
+  html += "<p>Switch between firmware versions:</p>";
+
+  // Get partition info
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  const esp_partition_t* boot = esp_ota_get_boot_partition();
+  const esp_partition_t* app0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+  const esp_partition_t* app1 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+
+  String runningLabel = running ? String(running->label) : "Unknown";
+  String bootLabel = boot ? String(boot->label) : "Unknown";
+
+  // Get firmware versions from NVS
+  String app0_version = "Empty";
+  String app1_version = "Empty";
+
+  if (app0) {
+    app0_version = preferences.getString("fw_app0", "Unknown");
+  }
+  if (app1) {
+    app1_version = preferences.getString("fw_app1", "Unknown");
+  }
+
+  // For the currently running partition, use FACTORY_VERSION directly
+  if (running && strcmp(running->label, "app0") == 0) {
+    app0_version = String(FACTORY_VERSION);
+  } else if (running && strcmp(running->label, "app1") == 0) {
+    app1_version = String(FACTORY_VERSION);
+  }
+
+  html += "<div class='metric'><span class='metric-label'>Running Partition:</span><span class='metric-value'>" + runningLabel + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Boot Partition:</span><span class='metric-value'>" + bootLabel + "</span></div>";
+
+  // Show app0 info
+  if (app0) {
+    String app0Label = (running && strcmp(running->label, "app0") == 0) ? "app0 (Current):" : "app0:";
+    html += "<div class='metric'><span class='metric-label'>" + app0Label + "</span><span class='metric-value'>" + app0_version + "</span></div>";
+  }
+  // Show app1 info
+  if (app1) {
+    String app1Label = (running && strcmp(running->label, "app1") == 0) ? "app1 (Current):" : "app1:";
+    html += "<div class='metric'><span class='metric-label'>" + app1Label + "</span><span class='metric-value'>" + app1_version + "</span></div>";
+  }
+
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  if (app0) {
+    String app0Class = (running && strcmp(running->label, "app0") == 0) ? "btn btn-success" : "btn btn-primary";
+    String app0BtnText = (running && strcmp(running->label, "app0") == 0) ? "app0 (Running)" : "Boot app0";
+    html += "<a href='javascript:void(0)' onclick='switchPartition(\"app0\")' class='" + app0Class + "'>" + app0BtnText + "</a>";
+  }
+  if (app1) {
+    String app1Class = (running && strcmp(running->label, "app1") == 0) ? "btn btn-success" : "btn btn-primary";
+    String app1BtnText = (running && strcmp(running->label, "app1") == 0) ? "app1 (Running)" : "Boot app1";
+    html += "<a href='javascript:void(0)' onclick='switchPartition(\"app1\")' class='" + app1Class + "'>" + app1BtnText + "</a>";
+  }
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:var(--text-color);opacity:0.7;margin-top:10px;'>Switch partitions to rollback to a previous firmware version.</p>";
   html += "</div>";
 
   // MMDVM Modem Firmware Card
@@ -277,7 +367,7 @@ void handleRoot() {
   html += "<br>";
   html += "<div><strong>Current Modem Version:</strong> <span id='modem-version'>Detecting...</span></div>";
   html += "<br>";
-  html += "<div class='info' style='background: #e7f3ff; border-left-color: #007bff; color: #000;'>";
+  html += "<div class='info'>";
   html += "<strong>Why Flash Modem First?</strong><br>";
   html += "• Verify modem hardware is working before proceeding<br>";
   html += "• Update to latest modem firmware with bug fixes<br>";
@@ -313,7 +403,7 @@ void handleRoot() {
   html += "<div><strong>Stable Version:</strong> <span id='latest-version'>Checking...</span></div>";
   html += "<div><strong>Beta Version:</strong> <span id='latest-beta-version'>Checking...</span></div>";
   html += "<br>";
-  html += "<div class='info' style='background: #fff3cd; border-left-color: #ffc107; color: #000;'>";
+  html += "<div class='info info-warning'>";
   html += "<strong>First Time Setup:</strong><br>";
   html += "1. Select your preferred firmware version (Stable recommended)<br>";
   html += "2. Click 'Download & Flash Firmware'<br>";
@@ -335,6 +425,8 @@ void handleRoot() {
   html += "<input type='file' id='firmware-file' accept='.bin' style='display: none;' />";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
   html += "</div>";
+
+  html += "</div>"; // Close admin-grid
 
   html += "<script>";
 
@@ -736,6 +828,26 @@ void handleRoot() {
   html += "          alert('❌ Network error: ' + err);";
   html += "        });";
   html += "    }";
+  html += "  }";
+  html += "}";
+
+  // Partition switching function
+  html += "function switchPartition(partition) {";
+  html += "  if (confirm('Switch boot partition to ' + partition + '?\\n\\nThe system will reboot and start from ' + partition + '.\\n\\nContinue?')) {";
+  html += "    fetch('/switch-partition', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'partition=' + partition})";
+  html += "      .then(r => r.text())";
+  html += "      .then(msg => {";
+  html += "        if (msg.includes('SUCCESS')) {";
+  html += "          alert('Boot partition set to ' + partition + '. Rebooting...');";
+  html += "          setTimeout(() => { window.location.href = '/'; }, 10000);";
+  html += "        } else {";
+  html += "          alert('Error: ' + msg);";
+  html += "        }";
+  html += "      })";
+  html += "      .catch(err => {";
+  html += "        alert('Rebooting to ' + partition + '...');";
+  html += "        setTimeout(() => { window.location.href = '/'; }, 10000);";
+  html += "      });";
   html += "  }";
   html += "}";
 
