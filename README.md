@@ -3,6 +3,10 @@
 <p align="center">
   <img src="screenshots/esp32-mmdvm-logo.png" alt="ESP32 MMDVM Logo" width="400">
 </p>
+<p align="center">
+  <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo Transparent" width="200" style="margin-right:20px">
+  <img src="screenshots/bootlogo.png" alt="Boot Logo" width="200">
+</p>
 <hr>
 
 A professional ESP32-based DMR hotspot with MMDVM modem support, real-time web interface, and BrandMeister network integration.
@@ -250,6 +254,8 @@ Settings are automatically saved to ESP32 NVS storage and persist across reboots
 2. Select your COM port: Tools → Port
 3. Click Upload button
 4. Monitor serial output at 115200 baud
+
+![Firmware Upload](screenshots/firmware.png)
 
 ### 5. First Time Setup
 
@@ -683,6 +689,8 @@ The main landing page provides comprehensive real-time monitoring:
 - **Safe Defaults** - Prevents accidental system-breaking changes
 
 ### SD Card Management (`/systemsdcard`) - LILYGO T-ETH-Elite Only
+ 
+![SD Card Management](screenshots/sdcard.png)
 
 **SD Card Status Card:**
 - **Mount Status** - Visual badge (Mounted/Not Mounted)
@@ -773,6 +781,8 @@ The main landing page provides comprehensive real-time monitoring:
 - **Granular Control** - Enable specific debug output categories
 
 **OLED Display Configuration Card:**
+![System Info](screenshots/info.png)
+
 - **Enable/Disable Toggle** - Turn OLED display on/off
 - **Auto-Blank Settings** - Configure screen blank timeout (0 = never)
 
@@ -782,6 +792,8 @@ The main landing page provides comprehensive real-time monitoring:
 - **Current Offset Display** - Shows active timezone and DST offset
 
 ### System Admin (`/systemadmin`)
+
+![System Settings](screenshots/settings.png)
 
 **System Control Card:**
 - **Reboot System** - Full ESP32 restart with confirmation
@@ -1029,6 +1041,8 @@ All topics use configured prefix (default: `{hostname}/{callsign}`):
   "firmware": {"version": "20260106_ESP32_BETA"}
 }
 ```
+
+![MQTT Integration](screenshots/mqtt.png)
 
 ### MQTT Use Cases
 
