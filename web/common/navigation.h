@@ -40,6 +40,7 @@ String getNavigation(String activePage) {
   nav += "<a href='/systemsdcard'" + String(activePage == "systemsdcard" ? " class='active'" : "") + ">SD Card</a>";
   #endif
   nav += "<a href='/modeconfig'" + String(activePage == "modeconfig" ? " class='active'" : "") + ">Mode Config</a>";
+  nav += "<a href='/wificonfig'" + String(activePage == "wificonfig" ? " class='active'" : "") + ">WiFi Config</a>";
   nav += "<a href='/serialmonitor'" + String(activePage == "monitor" ? " class='active'" : "") + ">Serial Monitor</a>";
   nav += "<a href='/admin'" + String(activePage == "admin" ? " class='active'" : "") + ">Old Admin</a>";
   nav += "</div>";
