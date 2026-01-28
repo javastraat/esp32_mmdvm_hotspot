@@ -150,16 +150,18 @@ String getCSS() {
   // CSS variables matching main version (web/common/css.h)
   css += ":root { --bg-color: #f0f0f0; --container-bg: white; --text-color: #333; --border-color: #dee2e6; --card-bg: #f8f9fa; --info-bg: #e7f3ff; --link-color: #007bff; --link-hover-color: #0056b3; --input-bg: #ffffff; }";
   css += "[data-theme='dark'] { --bg-color: #1a1a1a; --container-bg: #2d2d2d; --text-color: #ffffff; --border-color: #555; --card-bg: #3a3a3a; --info-bg: #1e3a5f; --link-color: #4da6ff; --link-hover-color: #66b3ff; --input-bg: #3a3a3a; }";
+  // Global box-sizing for proper width calculations
+  css += "*, *::before, *::after { box-sizing: border-box; }";
   css += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }";
-  css += ".container { max-width: 1000px; margin: 20px auto; background: var(--container-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }";
+  css += ".container { max-width: 1000px; margin: 20px auto; background: var(--container-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow-x: hidden; }";
   css += "h1 { color: var(--text-color); border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; }";
   css += "h2 { color: var(--text-color); margin-top: 30px; }";
   css += "h3 { margin-top: 0; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }";
-  // Grid layout matching main version
-  css += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  css += ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0; }";
-  // Card styling matching main version
-  css += ".card { background: var(--card-bg); padding: 15px; border-radius: 6px; border: 1px solid var(--border-color); }";
+  // Grid layout matching main version - use 250px minmax like system_info.h for better mobile support
+  css += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px; margin: 20px 0; }";
+  css += ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 15px; margin: 20px 0; }";
+  // Card styling matching main version - add overflow handling for long content
+  css += ".card { background: var(--card-bg); padding: 15px; border-radius: 6px; border: 1px solid var(--border-color); overflow-wrap: break-word; word-wrap: break-word; }";
   css += ".card h3 { margin-top: 0; color: var(--text-color); }";
   // Info and status styling
   css += ".info { padding: 12px; background: var(--info-bg); border-left: 4px solid #007bff; margin: 10px 0; border-radius: 0 4px 4px 0; }";
@@ -173,11 +175,11 @@ String getCSS() {
   css += ".status-badge { display: inline-block; padding: 8px 16px; border-radius: 6px; font-weight: bold; margin: 10px 0; }";
   css += ".badge-connected { background: #28a745; color: white; }";
   css += ".badge-ap { background: #ffc107; color: black; }";
-  // Metric styling matching main version
-  css += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }";
+  // Metric styling matching main version - with text wrapping for long values
+  css += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 4px; }";
   css += ".metric:last-child { border-bottom: none; }";
-  css += ".metric-label { font-weight: bold; color: var(--text-color); }";
-  css += ".metric-value { color: var(--text-color); }";
+  css += ".metric-label { font-weight: bold; color: var(--text-color); flex-shrink: 0; }";
+  css += ".metric-value { color: var(--text-color); word-break: break-word; text-align: right; }";
   // Button styling matching main version
   css += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
   css += ".btn-primary { background: #007bff; color: white; } .btn-primary:hover { background: #0056b3; }";
@@ -197,6 +199,8 @@ String getCSS() {
   // Theme toggle (floating button for factory-setup since no navbar)
   css += ".theme-toggle { position: fixed; top: 20px; right: 20px; background: var(--container-bg); border: 2px solid var(--border-color); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; }";
   css += ".theme-toggle:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }";
+  // Responsive adjustments for small mobile screens
+  css += "@media screen and (max-width: 400px) { body { padding: 10px; } .container { padding: 15px; margin: 10px; } .admin-grid { gap: 15px; } .btn { padding: 10px 16px; font-size: 13px; } }";
   css += "</style>";
   return css;
 }
