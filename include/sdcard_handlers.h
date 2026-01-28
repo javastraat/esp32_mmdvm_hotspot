@@ -23,6 +23,11 @@
 
 #include <sqlite3.h>
 
+// OLED display includes for download progress display
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
 // #ifdef SDCARD_SQLITE_SUPPORT
 // #include <sqlite3.h>
 // #endif
@@ -35,21 +40,21 @@ extern bool sdCardAvailable;  // From main .ino - SD card already initialized th
 // SDCARD_DATABASE_DIR, SDCARD_CSV_FILE, SDCARD_SQLITE_FILE
 // SDCARD_CSV_URL, SDCARD_SQLITE_URL
 
-// CSV Download progress tracking
-static volatile bool sdcard_csv_download_active = false;
-static volatile bool sdcard_csv_download_requested = false;
-static volatile int sdcard_csv_download_progress = 0;
-static volatile unsigned long sdcard_csv_bytes_total = 0;
-static volatile unsigned long sdcard_csv_bytes_written = 0;
-static String sdcard_csv_download_status = "Idle";
+// CSV Download progress tracking (not static - shared with OLED display)
+volatile bool sdcard_csv_download_active = false;
+volatile bool sdcard_csv_download_requested = false;
+volatile int sdcard_csv_download_progress = 0;
+volatile unsigned long sdcard_csv_bytes_total = 0;
+volatile unsigned long sdcard_csv_bytes_written = 0;
+String sdcard_csv_download_status = "Idle";
 
-// SQLite Download progress tracking
-static volatile bool sdcard_sqlite_download_active = false;
-static volatile bool sdcard_sqlite_download_requested = false;
-static volatile int sdcard_sqlite_download_progress = 0;
-static volatile unsigned long sdcard_sqlite_bytes_total = 0;
-static volatile unsigned long sdcard_sqlite_bytes_written = 0;
-static String sdcard_sqlite_download_status = "Idle";
+// SQLite Download progress tracking (not static - shared with OLED display)
+volatile bool sdcard_sqlite_download_active = false;
+volatile bool sdcard_sqlite_download_requested = false;
+volatile int sdcard_sqlite_download_progress = 0;
+volatile unsigned long sdcard_sqlite_bytes_total = 0;
+volatile unsigned long sdcard_sqlite_bytes_written = 0;
+String sdcard_sqlite_download_status = "Idle";
 
 // Update checking
 static unsigned long sdcard_csv_remote_size = 0;
@@ -65,6 +70,68 @@ extern void logSerial(String message);
 extern void mqttLoop();            // Keep MQTT connection alive
 extern void handleMMDVMSerial();   // Keep DMR connection alive
 extern unsigned long lastDownloadCompletionTime;  // Track download completion for NAK detection
+
+// OLED display externals for download progress display
+extern Adafruit_SSD1306 display;
+extern SemaphoreHandle_t displayMutex;
+extern bool enable_oled;
+
+// Helper function to update OLED with download progress
+void updateDownloadOLED(bool isCSV, int progress) {
+  if (!enable_oled) return;
+
+  // Try to acquire mutex
+  if (displayMutex != NULL) {
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+      return;  // Skip if mutex busy
+    }
+  }
+
+  display.clearDisplay();
+
+  // "Downloading" title - centered
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  const char* title = "Downloading";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 8);
+  display.print(title);
+
+  // Database type - centered
+  const char* dbType = isCSV ? "CSV Database" : "SQLite Database";
+  display.getTextBounds(dbType, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 22);
+  display.print(dbType);
+
+  // Progress bar - draw outline
+  int barX = 14;
+  int barY = 42;
+  int barWidth = 100;
+  int barHeight = 12;
+  display.drawRect(barX, barY, barWidth, barHeight, SSD1306_WHITE);
+
+  // Progress bar - fill based on progress
+  int fillWidth = (progress * (barWidth - 4)) / 100;
+  if (fillWidth > 0) {
+    display.fillRect(barX + 2, barY + 2, fillWidth, barHeight - 4, SSD1306_WHITE);
+  }
+
+  // Progress percentage - centered below bar
+  char progressStr[8];
+  snprintf(progressStr, sizeof(progressStr), "%d%%", progress);
+  display.getTextBounds(progressStr, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 56);
+  display.print(progressStr);
+
+  display.display();
+
+  // Release mutex
+  if (displayMutex != NULL) {
+    xSemaphoreGive(displayMutex);
+  }
+}
 
 // FreeRTOS LED blinking task for download indication
 static TaskHandle_t downloadBlinkTaskHandle = NULL;
@@ -736,6 +803,9 @@ void performCSVDownload() {
   sdcard_csv_download_status = "Connecting...";
   sdcard_csv_download_active = true;
 
+  // Show initial download screen on OLED
+  updateDownloadOLED(true, 0);
+
   HTTPClient http;
   http.begin(SDCARD_CSV_URL);
   int httpCode = http.GET();
@@ -787,9 +857,15 @@ void performCSVDownload() {
           sdcard_csv_bytes_written = totalWritten;
 
           if (sdcard_csv_bytes_total > 0) {
-            sdcard_csv_download_progress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_csv_bytes_total);
-            
-            // Log progress every 10%
+            int newProgress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_csv_bytes_total);
+
+            // Update OLED every 1% for smooth progress feedback
+            if (newProgress > sdcard_csv_download_progress) {
+              sdcard_csv_download_progress = newProgress;
+              updateDownloadOLED(true, sdcard_csv_download_progress);
+            }
+
+            // Log to serial every 10%
             if (sdcard_csv_download_progress >= lastLoggedPercent + 10) {
               lastLoggedPercent = (sdcard_csv_download_progress / 10) * 10;  // Round to nearest 10%
               logSerial("[SD] CSV download progress " + String(lastLoggedPercent) + "% (" + String(totalWritten) + " / " + String(sdcard_csv_bytes_total) + " bytes)");
@@ -853,6 +929,9 @@ void performSQLiteDownload() {
   sdcard_sqlite_download_status = "Connecting...";
   sdcard_sqlite_download_active = true;
 
+  // Show initial download screen on OLED
+  updateDownloadOLED(false, 0);
+
   HTTPClient http;
   http.begin(SDCARD_SQLITE_URL);
   int httpCode = http.GET();
@@ -904,9 +983,15 @@ void performSQLiteDownload() {
           sdcard_sqlite_bytes_written = totalWritten;
 
           if (sdcard_sqlite_bytes_total > 0) {
-            sdcard_sqlite_download_progress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_sqlite_bytes_total);
-            
-            // Log progress every 10%
+            int newProgress = (int)(((unsigned long long)totalWritten * 100ULL) / sdcard_sqlite_bytes_total);
+
+            // Update OLED every 1% for smooth progress feedback
+            if (newProgress > sdcard_sqlite_download_progress) {
+              sdcard_sqlite_download_progress = newProgress;
+              updateDownloadOLED(false, sdcard_sqlite_download_progress);
+            }
+
+            // Log to serial every 10%
             if (sdcard_sqlite_download_progress >= lastLoggedPercent + 10) {
               lastLoggedPercent = (sdcard_sqlite_download_progress / 10) * 10;  // Round to nearest 10%
               logSerial("[SD] SQLite download progress " + String(lastLoggedPercent) + "% (" + String(totalWritten) + " / " + String(sdcard_sqlite_bytes_total) + " bytes)");
