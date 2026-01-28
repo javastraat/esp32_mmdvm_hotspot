@@ -142,7 +142,7 @@ uint8_t sdCardType = 0;  // Cached SD card type
 #endif                   // USE_SD_CARD
 
 // ESP32-S3 USB Serial configuration
-#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 //#if USE_ETHERNET
 #if ARDUINO_USB_MODE
 #warning "USB MODE is enabled - Serial will work via USB CDC"
@@ -150,7 +150,7 @@ uint8_t sdCardType = 0;  // Cached SD card type
 #if ARDUINO_USB_CDC_ON_BOOT
 #warning "USB CDC ON BOOT is enabled"
 #endif
-#endif
+//#endif
 
 // ===== Configuration from config.h =====
 // WiFi Settings
@@ -635,7 +635,7 @@ void cacheCallsign(uint32_t dmrId, String callsign);
 void cacheUserInfo(uint32_t dmrId, String userInfo);
 void addDMRHistory(uint32_t srcId, String srcCallsign, String srcName, String srcLocation, uint32_t dstId, bool isGroup, uint32_t duration, uint8_t ber, uint8_t rssi, uint8_t slotNo);
 
-//#ifdef LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+
 #if USE_ETHERNET
 // Helper functions for status page
 String getEthIPAddress();

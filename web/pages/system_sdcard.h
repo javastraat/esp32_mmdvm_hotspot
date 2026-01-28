@@ -100,7 +100,7 @@ void handleSystemSdcard() {
   html += "<h3>Files on SD Card</h3>";
   html += "<div id='file-list' class='file-list'>Loading...</div>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<button class='btn btn-primary' onclick='refreshFileList()'>Refresh</button>";
+  html += "<button id='refresh-files-btn' class='btn btn-primary' onclick='refreshFileList()'>Refresh</button>";
   html += "</div>";
   html += "</div>";
 
@@ -120,7 +120,7 @@ void handleSystemSdcard() {
   html += "<div class='action-buttons-vertical'>";
   html += "<button id='check-csv-btn' class='btn btn-primary' onclick='checkCSVUpdate()'>Refresh</button>";
   html += "<button id='download-csv-btn' class='btn btn-success' onclick='startDownloadCSV()'>Download Database</button>";
-  html += "<button id='delete-csv-btn' class='btn btn-danger' onclick='deleteCSVDatabase()'>Delete Database</button>";
+  html += "<button id='delete-csv-btn' class='btn btn-danger' style='display:none' onclick='deleteCSVDatabase()'>Delete Database</button>";
   html += "</div>";
   html += "<div id='csv-progress-container' class='progress-container'>";
   html += "<div class='status-text'>Status: <span id='csv-status-text'>Starting...</span></div>";
@@ -136,7 +136,7 @@ void handleSystemSdcard() {
   html += "<div class='action-buttons-vertical'>";
   html += "<button id='check-sqlite-btn' class='btn btn-primary' onclick='checkSQLiteUpdate()'>Refresh</button>";
   html += "<button id='download-sqlite-btn' class='btn btn-success' onclick='startDownloadSQLite()'>Download Database</button>";
-  html += "<button id='delete-sqlite-btn' class='btn btn-danger' onclick='deleteSQLiteDatabase()'>Delete Database</button>";
+  html += "<button id='delete-sqlite-btn' class='btn btn-danger' style='display:none' onclick='deleteSQLiteDatabase()'>Delete Database</button>";
   html += "</div>";
   html += "<div id='sqlite-progress-container' class='progress-container'>";
   html += "<div class='status-text'>Status: <span id='sqlite-status-text'>Starting...</span></div>";
@@ -197,6 +197,16 @@ void handleSystemSdcard() {
   // Load initial data
   html += "window.onload = function() { loadSDCardInfo(); refreshFileList(); loadOwnerInfo(); };";
 
+  // Helper functions to disable/enable all buttons during download
+  html += "function disableAllButtons() {";
+  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn'];";
+  html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=true; });";
+  html += "}";
+  html += "function enableAllButtons() {";
+  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn'];";
+  html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=false; });";
+  html += "}";
+
   // Load SD card info (CSV and SQLite database status) - basic info only
   html += "function loadSDCardInfo() {";
   html += "  fetch('/api/sdcard/info').then(r=>r.json()).then(data=>{";
@@ -218,6 +228,7 @@ void handleSystemSdcard() {
   html += "    else csvHtml += '<p class=\"up-to-date\">Database is up to date</p>';";
   html += "  }";
   html += "  document.getElementById('csv-db-info').innerHTML = csvHtml;";
+  html += "  document.getElementById('delete-csv-btn').style.display = data.csv_exists ? 'block' : 'none';";
   html += "  var sqlHtml = '<div class=\"metric\"><span class=\"metric-label\">File exists:</span><span class=\"metric-value\">'+(data.sqlite_exists?'YES':'NO')+'</span></div>';";
   html += "  if(data.sqlite_exists) sqlHtml += '<div class=\"metric\"><span class=\"metric-label\">Local size:</span><span class=\"metric-value\">'+data.sqlite_local_size.toLocaleString()+' bytes</span></div>';";
   html += "  if(data.sqlite_remote_size>0) {";
@@ -226,11 +237,13 @@ void handleSystemSdcard() {
   html += "    else sqlHtml += '<p class=\"up-to-date\">Database is up to date</p>';";
   html += "  }";
   html += "  document.getElementById('sqlite-db-info').innerHTML = sqlHtml;";
+  html += "  document.getElementById('delete-sqlite-btn').style.display = data.sqlite_exists ? 'block' : 'none';";
   html += "}";
 
   // Refresh/check for updates (calls remote server - now automatic)
   html += "function checkCSVUpdate() {";
   html += "  document.getElementById('check-csv-btn').disabled = true;";
+  html += "  document.getElementById('check-sqlite-btn').disabled = true;";
   html += "  document.getElementById('csv-db-info').innerHTML = '<p>Checking for updates...</p>';";
   html += "  document.getElementById('sqlite-db-info').innerHTML = '<p>Checking for updates...</p>';";
   html += "  fetch('/api/sdcard/info').then(r=>r.json()).then(data=>{";
@@ -274,8 +287,8 @@ void handleSystemSdcard() {
   // CSV Database download
   html += "var csvPollInterval;";
   html += "function startDownloadCSV() {";
+  html += "  disableAllButtons();";
   html += "  document.getElementById('csv-progress-container').style.display = 'block';";
-  html += "  document.getElementById('download-csv-btn').disabled = true;";
   html += "  document.getElementById('csv-progress-fill').style.width = '0%';";
   html += "  document.getElementById('csv-progress-text').textContent = '0%';";
   html += "  document.getElementById('csv-bytes').textContent = '0 / 0 bytes';";
@@ -292,11 +305,11 @@ void handleSystemSdcard() {
   html += "    document.getElementById('csv-status-text').textContent = data.status;";
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(csvPollInterval);";
-  html += "      document.getElementById('download-csv-btn').disabled = false;";
+  html += "      enableAllButtons();";
   html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('csv-progress-container').style.display = 'none'; }, 5000);";
   html += "    } else if(!data.active && data.status.includes('ERROR')) {";
   html += "      clearInterval(csvPollInterval);";
-  html += "      document.getElementById('download-csv-btn').disabled = false;";
+  html += "      enableAllButtons();";
   html += "    }";
   html += "  });";
   html += "}";
@@ -304,8 +317,8 @@ void handleSystemSdcard() {
   // SQLite Database download
   html += "var sqlitePollInterval;";
   html += "function startDownloadSQLite() {";
+  html += "  disableAllButtons();";
   html += "  document.getElementById('sqlite-progress-container').style.display = 'block';";
-  html += "  document.getElementById('download-sqlite-btn').disabled = true;";
   html += "  document.getElementById('sqlite-progress-fill').style.width = '0%';";
   html += "  document.getElementById('sqlite-progress-text').textContent = '0%';";
   html += "  document.getElementById('sqlite-bytes').textContent = '0 / 0 bytes';";
@@ -322,11 +335,11 @@ void handleSystemSdcard() {
   html += "    document.getElementById('sqlite-status-text').textContent = data.status;";
   html += "    if(!data.active && data.progress >= 100) {";
   html += "      clearInterval(sqlitePollInterval);";
-  html += "      document.getElementById('download-sqlite-btn').disabled = false;";
+  html += "      enableAllButtons();";
   html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('sqlite-progress-container').style.display = 'none'; }, 5000);";
   html += "    } else if(!data.active && data.status.includes('ERROR')) {";
   html += "      clearInterval(sqlitePollInterval);";
-  html += "      document.getElementById('download-sqlite-btn').disabled = false;";
+  html += "      enableAllButtons();";
   html += "    }";
   html += "  });";
   html += "}";

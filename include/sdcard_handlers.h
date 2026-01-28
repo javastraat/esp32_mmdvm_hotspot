@@ -75,10 +75,21 @@ extern unsigned long lastDownloadCompletionTime;  // Track download completion f
 extern Adafruit_SSD1306 display;
 extern SemaphoreHandle_t displayMutex;
 extern bool enable_oled;
+extern bool oledDisplayOn;
+extern bool oledBlankingActive;
+extern unsigned long lastActivityTime;
+extern void setOLEDPower(bool on);
 
 // Helper function to update OLED with download progress
 void updateDownloadOLED(bool isCSV, int progress) {
   if (!enable_oled) return;
+
+  // Wake up screen if it was auto-blanked
+  if (!oledDisplayOn && oledBlankingActive) {
+    setOLEDPower(true);
+    oledBlankingActive = false;
+  }
+  lastActivityTime = millis();  // Reset auto-blank timer
 
   // Try to acquire mutex
   if (displayMutex != NULL) {
@@ -131,6 +142,59 @@ void updateDownloadOLED(bool isCSV, int progress) {
   if (displayMutex != NULL) {
     xSemaphoreGive(displayMutex);
   }
+}
+
+// Helper function to show download success message on OLED
+void displayDownloadSuccess(bool isCSV) {
+  if (!enable_oled) return;
+
+  // Wake up screen if it was auto-blanked
+  if (!oledDisplayOn && oledBlankingActive) {
+    setOLEDPower(true);
+    oledBlankingActive = false;
+  }
+  lastActivityTime = millis();  // Reset auto-blank timer
+
+  // Try to acquire mutex
+  if (displayMutex != NULL) {
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+      return;  // Skip if mutex busy
+    }
+  }
+
+  display.clearDisplay();
+
+  // "Download" title - centered
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  const char* title = "Download";
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 10);
+  display.print(title);
+
+  // "Success!" - centered
+  const char* success = "Success!";
+  display.getTextBounds(success, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 25);
+  display.print(success);
+
+  // Database type - centered
+  const char* dbType = isCSV ? "CSV Database" : "SQLite Database";
+  display.getTextBounds(dbType, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((OLED_WIDTH - w) / 2, 45);
+  display.print(dbType);
+
+  display.display();
+
+  // Release mutex
+  if (displayMutex != NULL) {
+    xSemaphoreGive(displayMutex);
+  }
+
+  // Show success message for 2 seconds
+  delay(2000);
 }
 
 // FreeRTOS LED blinking task for download indication
@@ -907,6 +971,9 @@ void performCSVDownload() {
     sdcard_csv_download_status = "Download complete!";
     logSerial("[SD] CSV download complete (" + String(totalWritten) + " bytes)");
     lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
+
+    // Show success message on OLED
+    displayDownloadSuccess(true);
   } else {
     sdcard_csv_download_status = "ERROR: HTTP " + String(httpCode);
     logSerial("[SD] CSV download failed - HTTP " + String(httpCode));
@@ -1033,6 +1100,9 @@ void performSQLiteDownload() {
     sdcard_sqlite_download_status = "Download complete!";
     logSerial("[SD] SQLite download complete (" + String(totalWritten) + " bytes)");
     lastDownloadCompletionTime = millis();  // Track completion time for NAK detection
+
+    // Show success message on OLED
+    displayDownloadSuccess(false);
   } else {
     sdcard_sqlite_download_status = "ERROR: HTTP " + String(httpCode);
     logSerial("[SD] SQLite download failed - HTTP " + String(httpCode));

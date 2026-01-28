@@ -9,10 +9,10 @@
 
 // ===== Firmware Version =====
 /*
-#define FIRMWARE_VERSION "20260127_ESP32_BETA"  // Update version as needed
+#define FIRMWARE_VERSION "20260128_ESP32_BETA"  // Update version as needed
 */
-//#define FIRMWARE_VERSION "20260127_ESP32"  // Update version as needed
-#define FIRMWARE_VERSION "20260127_ESP32_BETA"  // Update version as needed
+//#define FIRMWARE_VERSION "20260128_ESP32"  // Update version as needed
+#define FIRMWARE_VERSION "20260128_ESP32_BETA"  // Update version as needed
 
 // Hardware Options
 
