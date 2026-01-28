@@ -2091,7 +2091,7 @@ void handleNetwork() {
                   logMsg += ", " + dmrActivity[activityIndex].srcCountry;
                 }
               }
-              logSerial("[INFO] " + logMsg);
+              logSerial("[USERINFO] " + logMsg);
             }
           } else {
             // Update lastUpdate for timeout detection but keep startTime unchanged
@@ -3472,7 +3472,7 @@ String lookupUserInfo(uint32_t dmrId) {
     // Extract callsign from cached data for logging
     int pipeIndex = cached.indexOf('|');
     String callsign = (pipeIndex > 0) ? cached.substring(0, pipeIndex) : String(dmrId);
-    logSerial("[CACHE] Found " + String(dmrId) + ": " + callsign);
+    logSerial("[USERDATA] Cache Found " + String(dmrId) + ": " + callsign);
     return cached;
   }
 
@@ -3584,7 +3584,7 @@ String lookupUserInfoAPI(uint32_t dmrId) {
           if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
             userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
           }
-          logSerial("[API] Local SQLite lookup for " + String(dmrId) + ": " + callsign);
+          logSerial("[USERDATA] Local SQLite lookup for " + String(dmrId) + ": " + callsign);
         }
       }
 
@@ -3688,10 +3688,10 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
         userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
       }
-      logSerial("[API] Remote API lookup for " + String(dmrId) + ": " + callsign);
+      logSerial("[USERDATA] Remote API lookup for " + String(dmrId) + ": " + callsign);
     }
   } else if (httpCode > 0) {
-    logSerial("[API] Remote API lookup failed: HTTP " + String(httpCode));
+    logSerial("[USERDATA] Remote API lookup failed: HTTP " + String(httpCode));
   }
 
   http.end();
@@ -3794,10 +3794,10 @@ String lookupUserInfoAPI(uint32_t dmrId) {
       if (name.length() > 0 || city.length() > 0 || state.length() > 0 || country.length() > 0) {
         userInfo += "|" + name + "|" + city + "|" + state + "|" + country;
       }
-      logSerial("[API] Remote RadioID.net lookup for " + String(dmrId) + ": " + callsign);
+      logSerial("[USERDATA] Remote RadioID.net lookup for " + String(dmrId) + ": " + callsign);
     }
   } else if (httpCode > 0) {
-    logSerial("[API] User info lookup failed: HTTP " + String(httpCode));
+    logSerial("[USERDATA] User info lookup failed: HTTP " + String(httpCode));
   }
 
   http.end();
