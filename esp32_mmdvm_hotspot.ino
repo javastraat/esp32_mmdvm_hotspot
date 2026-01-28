@@ -600,6 +600,7 @@ void updateBootStatus(String status);
 void updateOLEDStatus();
 void setOLEDPower(bool on);
 void toggleOLEDPower();
+void showOLEDProgress(String title, int percent);
 void loadConfig();
 void saveConfig();
 void handleMMDVMSerial();
@@ -4389,6 +4390,56 @@ void toggleOLEDPower() {
   setOLEDPower(!oledDisplayOn);
 }
 
+// Show progress bar on OLED (for firmware updates)
+void showOLEDProgress(String title, int percent) {
+  if (!enable_oled) return;
+
+  // Try to acquire mutex to prevent conflicts
+  if (displayMutex != NULL) {
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+      return;  // Skip if mutex busy
+    }
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Title centered
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
+  int16_t x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 5);
+  display.println(title);
+
+  // Progress bar outline
+  int barX = 10;
+  int barY = 25;
+  int barWidth = OLED_WIDTH - 20;
+  int barHeight = 15;
+  display.drawRect(barX, barY, barWidth, barHeight, SSD1306_WHITE);
+
+  // Progress bar fill
+  int fillWidth = (barWidth - 4) * percent / 100;
+  display.fillRect(barX + 2, barY + 2, fillWidth, barHeight - 4, SSD1306_WHITE);
+
+  // Percentage text
+  display.setTextSize(2);
+  String percentStr = String(percent) + "%";
+  display.getTextBounds(percentStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+  x = (OLED_WIDTH - w) / 2;
+  display.setCursor(x, 45);
+  display.println(percentStr);
+
+  display.display();
+
+  // Release mutex
+  if (displayMutex != NULL) {
+    xSemaphoreGive(displayMutex);
+  }
+}
+
 #else
 // Stub functions when OLED is disabled at compile time
 void setupOLED() {
@@ -4408,6 +4459,10 @@ void setOLEDPower(bool on) {
 }
 
 void toggleOLEDPower() {
+  // No-op when OLED is disabled
+}
+
+void showOLEDProgress(String title, int percent) {
   // No-op when OLED is disabled
 }
 #endif

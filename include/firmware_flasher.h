@@ -21,6 +21,8 @@ extern HardwareSerial MMDVMWakeup;
 extern bool mmdvmWakeupActive;
 extern void logSerial(String message);
 extern bool checkAuthentication();
+extern void showOLEDProgress(String title, int percent);
+extern void updateOLEDStatus();
 
 // STM32 Bootloader Protocol Constants
 #define STM32_SYNC_BYTE   0x7F
@@ -247,21 +249,28 @@ void handleDownloadUpdate() {
 
   // Select appropriate URL based on version
   String downloadUrl;
+  String versionLabel = "ESP32: Updating";
   if (version == "beta") {
     downloadUrl = OTA_UPDATE_BETA_URL;
     logSerial("Starting BETA firmware download from GitHub...");
+    versionLabel = "ESP32: Beta";
   } else if (version == "factory") {
     downloadUrl = OTA_UPDATE_FACTORY_URL;
     logSerial("Starting Factory Setup firmware download from GitHub...");
+    versionLabel = "ESP32: Factory";
   } else {
     downloadUrl = OTA_UPDATE_URL;
     logSerial("Starting stable firmware download from GitHub...");
+    versionLabel = "ESP32: Stable";
   }
+
+  showOLEDProgress(versionLabel, 5);
 
   HTTPClient http;
   http.begin(downloadUrl);
   http.setTimeout(OTA_TIMEOUT);
 
+  showOLEDProgress(versionLabel, 10);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
@@ -269,40 +278,68 @@ void handleDownloadUpdate() {
 
     if (contentLength > 0) {
       logSerial("Firmware download successful, size: " + String(contentLength) + " bytes");
+      showOLEDProgress(versionLabel, 20);
 
       // Check if there's enough space
       if (Update.begin(contentLength)) {
         WiFiClient *client = http.getStreamPtr();
-        size_t written = Update.writeStream(*client);
+
+        // Stream with progress updates
+        uint8_t buff[1024];
+        size_t written = 0;
+        while (http.connected() && (written < contentLength)) {
+          size_t available = client->available();
+          if (available) {
+            int bytesRead = client->readBytes(buff, min(available, sizeof(buff)));
+            if (bytesRead > 0) {
+              Update.write(buff, bytesRead);
+              written += bytesRead;
+              // Update progress (20% to 90% during download)
+              int progress = 20 + ((written * 70) / contentLength);
+              showOLEDProgress(versionLabel, progress);
+            }
+          }
+          yield();
+        }
 
         if (written == contentLength) {
+          showOLEDProgress(versionLabel, 95);
           if (Update.end(true)) {
             logSerial("Firmware downloaded and finalized successfully: " + String(contentLength) + " bytes");
+            showOLEDProgress("ESP32: Ready!", 100);
             server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(contentLength) + " bytes)");
           } else {
             logSerial("Failed to finalize downloaded firmware - Error: " + String(Update.getError()));
+            showOLEDProgress("ESP32: Error!", 0);
             server.send(500, "text/plain", "ERROR: Failed to finalize firmware - " + String(Update.getError()));
           }
         } else {
           Update.abort();
           logSerial("Download incomplete: " + String(written) + " of " + String(contentLength) + " bytes");
+          showOLEDProgress("ESP32: Error!", 0);
           server.send(500, "text/plain", "ERROR: Download incomplete");
         }
       } else {
         logSerial("Not enough space for firmware update");
+        showOLEDProgress("ESP32: No Space", 0);
         server.send(500, "text/plain", "ERROR: Not enough space for update");
       }
     } else {
       logSerial("Invalid firmware size from server");
+      showOLEDProgress("ESP32: Error!", 0);
       server.send(500, "text/plain", "ERROR: Invalid firmware file");
     }
   } else {
     logSerial("Failed to download firmware, HTTP code: " + String(httpCode));
+    showOLEDProgress("ESP32: HTTP Err", 0);
     server.send(500, "text/plain", "ERROR: Failed to download (HTTP " + String(httpCode) + ")");
   }
 
   http.end();
 }
+
+// Static variable for tracking upload progress
+static size_t espUploadBytesWritten = 0;
 
 void handleUploadFirmware() {
   if (!checkAuthentication()) return;
@@ -311,23 +348,36 @@ void handleUploadFirmware() {
 
   if (upload.status == UPLOAD_FILE_START) {
     logSerial("Starting firmware upload: " + upload.filename);
+    showOLEDProgress("ESP32: Upload", 5);
+    espUploadBytesWritten = 0;
 
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
       logSerial("Failed to begin OTA update");
+      showOLEDProgress("ESP32: Error!", 0);
       return;
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       logSerial("OTA write failed");
+      showOLEDProgress("ESP32: Error!", 0);
       Update.abort();
       return;
     }
+    espUploadBytesWritten += upload.currentSize;
+    // Update progress (5% to 90% during upload)
+    if (upload.totalSize > 0) {
+      int progress = 5 + ((espUploadBytesWritten * 85) / upload.totalSize);
+      showOLEDProgress("ESP32: Upload", progress);
+    }
   } else if (upload.status == UPLOAD_FILE_END) {
+    showOLEDProgress("ESP32: Upload", 95);
     if (Update.end(true)) {
       logSerial("Firmware upload successful: " + String(upload.totalSize) + " bytes");
+      showOLEDProgress("ESP32: Ready!", 100);
       server.send(200, "text/plain", "SUCCESS: Firmware ready for flash (" + String(upload.totalSize) + " bytes)");
     } else {
       logSerial("Upload failed: " + String(Update.getError()));
+      showOLEDProgress("ESP32: Error!", 0);
       server.send(500, "text/plain", "ERROR: Upload failed - " + String(Update.getError()));
     }
   }
@@ -335,16 +385,21 @@ void handleUploadFirmware() {
 
 void handleFlashFirmware() {
   logSerial("Starting firmware flash process...");
+  showOLEDProgress("ESP32: Flashing", 50);
 
   // Check if firmware was properly prepared by either download or upload method
   if (Update.isFinished()) {
     logSerial("Firmware flash completed successfully!");
+    showOLEDProgress("ESP32: Complete!", 100);
     server.send(200, "text/plain", "SUCCESS: Firmware flashed, rebooting...");
 
-    delay(2000);
+    delay(1000);
+    showOLEDProgress("ESP32: Rebooting", 100);
+    delay(1000);
     ESP.restart();
   } else {
     logSerial("No firmware ready for flashing - Update.isFinished() = false");
+    showOLEDProgress("ESP32: Error!", 0);
     server.send(400, "text/plain", "ERROR: No firmware prepared for flash");
   }
 }
@@ -432,56 +487,63 @@ void handleModemFlashStatus() {
 
 void handleFlashModemUpload() {
   HTTPUpload& upload = server.upload();
-  
+
   if (upload.status == UPLOAD_FILE_START) {
     logSerial("[Modem] Starting upload: " + String(upload.filename));
-    
+
     modemUploadBytesWritten = 0;
     modemUploadBufferPtr = 0;
-    
+
     // Set initial progress state
     modemFlashInProgress = true;
     modemFlashProgress = 5;
     modemFlashStatus = "Entering bootloader mode...";
-    
+    showOLEDProgress("Modem: Bootloader", 5);
+
     // Enter bootloader mode
     if (!modemInBootloaderMode) {
       modemEnterBootloader();
       delay(500);
     }
-    
+
     if (!modemInBootloaderMode) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Could not enter bootloader";
+      showOLEDProgress("Modem: Error!", 0);
       server.send(500, "text/plain", "ERROR: Could not enter bootloader");
       return;
     }
-    
+
     modemFlashProgress = 15;
     modemFlashStatus = "Syncing with bootloader...";
-    
+    showOLEDProgress("Modem: Syncing", 15);
+
     // Sync with bootloader
     if (!modemSyncBootloader()) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Bootloader sync failed";
+      showOLEDProgress("Modem: Sync Fail", 0);
       server.send(500, "text/plain", "ERROR: Bootloader sync failed");
       return;
     }
-    
+
     modemFlashProgress = 20;
     modemFlashStatus = "Erasing flash memory...";
-    
+    showOLEDProgress("Modem: Erasing", 20);
+
     // Erase flash
     if (!modemEraseFlash()) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Flash erase failed";
+      showOLEDProgress("Modem: Erase Fail", 0);
       server.send(500, "text/plain", "ERROR: Flash erase failed");
       return;
     }
-    
+
     modemFlashProgress = 30;
     modemFlashStatus = "Uploading and flashing...";
-    
+    showOLEDProgress("Modem: Flashing", 30);
+
     // Initialize streaming state
     modemUploadAddress = FLASH_START_ADDR;
     logSerial("[Modem] Starting firmware write...");
@@ -504,12 +566,13 @@ void handleFlashModemUpload() {
         modemUploadAddress += MAX_WRITE_SIZE;
         modemUploadBytesWritten += MAX_WRITE_SIZE;
         modemUploadBufferPtr = 0;
-        
+
         // Update progress (30% to 90% during write)
         if (upload.totalSize > 0) {
           modemFlashProgress = 30 + ((modemUploadBytesWritten * 60) / upload.totalSize);
+          showOLEDProgress("Modem: Flashing", modemFlashProgress);
         }
-        
+
         // Log progress every 4KB
         if (modemUploadBytesWritten % (16 * 256) == 0) {
           logSerial("[Modem] Progress: " + String(modemUploadBytesWritten) + " bytes");
@@ -525,43 +588,47 @@ void handleFlashModemUpload() {
         logSerial("[Modem] ERROR: Final write failed");
         modemFlashInProgress = false;
         modemFlashStatus = "ERROR: Final write failed";
+        showOLEDProgress("Modem: Write Fail", 0);
         server.send(500, "text/plain", "ERROR: Final write failed");
         return;
       }
       modemUploadBytesWritten += modemUploadBufferPtr;
     }
-    
+
     modemFlashProgress = 95;
     modemFlashStatus = "Flash complete! Rebooting...";
-    
+    showOLEDProgress("Modem: Complete!", 95);
+
     logSerial("[Modem] Upload complete! " + String(modemUploadBytesWritten) + " bytes written");
-    
+
     // Send response BEFORE rebooting
     server.send(200, "text/plain", "SUCCESS: Modem firmware flashed (" + String(modemUploadBytesWritten) + " bytes). ESP32 rebooting...");
     delay(100);  // Allow response to be sent
-    
+
     // Allow UI to poll at 95% a few times (1 second total)
     for (int i = 0; i < 4; i++) {
       server.handleClient();
       delay(250);
     }
-    
+
     // Update to 100%
     modemFlashProgress = 100;
     modemFlashStatus = "Complete! Rebooting ESP32...";
-    
+    showOLEDProgress("Modem: Rebooting", 100);
+
     // Allow UI to poll at 100% a few times (1 second total)
     for (int i = 0; i < 4; i++) {
       server.handleClient();
       delay(250);
     }
-    
+
     // Exit bootloader (will reboot ESP32)
     modemFlashInProgress = false;
     modemExitBootloader();
   }
   else if (upload.status == UPLOAD_FILE_ABORTED) {
     logSerial("[Modem] Upload aborted");
+    showOLEDProgress("Modem: Aborted", 0);
     modemExitBootloader();
     server.send(500, "text/plain", "ERROR: Upload aborted");
   }
@@ -572,71 +639,79 @@ void handleFlashModemURL() {
     server.send(400, "text/plain", "ERROR: Missing URL parameter");
     return;
   }
-  
+
   String url = server.arg("url");
-  
+
   // Send immediate response to start async process
   server.send(202, "text/plain", "Firmware flash started. Check status for progress.");
-  
+
   // Set initial state
   modemFlashInProgress = true;
   modemFlashProgress = 5;
   modemFlashStatus = "Connecting to server...";
-  
+  showOLEDProgress("Modem: Download", 5);
+
   logSerial("[Modem] Downloading from: " + url);
-  
+
   HTTPClient http;
   http.begin(url);
   http.setTimeout(30000);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);  // Follow redirects (GitHub CDN)
-  
+
   int httpCode = http.GET();
-  
+
   if (httpCode == HTTP_CODE_OK) {
     int totalLen = http.getSize();
     logSerial("[Modem] File size: " + String(totalLen) + " bytes");
-    
+
     modemFlashProgress = 10;
     modemFlashStatus = "Entering bootloader mode...";
-    
+    showOLEDProgress("Modem: Bootloader", 10);
+
     // Enter bootloader mode
     if (!modemInBootloaderMode) {
       modemEnterBootloader();
       delay(500);
     }
-    
+
     if (!modemInBootloaderMode) {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Could not enter bootloader";
+      showOLEDProgress("Modem: Error!", 0);
       return;
     }
-    
+
     modemFlashProgress = 15;
     modemFlashStatus = "Syncing with bootloader...";
-    
+    showOLEDProgress("Modem: Syncing", 15);
+
     // Sync with bootloader
     if (!modemSyncBootloader()) {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Bootloader sync failed";
+      showOLEDProgress("Modem: Sync Fail", 0);
       return;
     }
-    
+
     modemFlashProgress = 20;
     modemFlashStatus = "Erasing flash memory...";
+    showOLEDProgress("Modem: Erasing", 20);
     server.handleClient();  // Allow status poll
-    
+
     // Erase flash
     if (!modemEraseFlash()) {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Flash erase failed";
+      showOLEDProgress("Modem: Erase Fail", 0);
       return;
     }
-    
+
     modemFlashProgress = 30;
     modemFlashStatus = "Downloading and flashing...";
+    showOLEDProgress("Modem: Flashing", 30);
     server.handleClient();  // Allow status poll
     
     // Download and flash
@@ -665,35 +740,37 @@ void handleFlashModemURL() {
             http.end();
             modemFlashInProgress = false;
             modemFlashStatus = "ERROR: Write failed";
+            showOLEDProgress("Modem: Write Fail", 0);
             return;
           }
-          
+
           address += MAX_WRITE_SIZE;
           bytesWritten += MAX_WRITE_SIZE;
           bufferPtr = 0;
-          
+
           // Update progress (30% to 90% during write)
           int fileSize = http.getSize();
           if (fileSize > 0) {
             modemFlashProgress = 30 + ((bytesWritten * 60) / fileSize);
+            showOLEDProgress("Modem: Flashing", modemFlashProgress);
           }
-          
+
           // Log progress every 4KB
           if (bytesWritten % (16 * 256) == 0) {
             logSerial("[Modem] Progress: " + String(bytesWritten) + " bytes");
           }
-          
+
           // Allow web server to handle status poll requests
           server.handleClient();
         }
       }
-      
+
       // Allow web server to handle status poll requests
       server.handleClient();
       yield();
       delay(1);
     }
-    
+
     // Write any remaining bytes (pad to 256 bytes)
     if (bufferPtr > 0) {
       memset(buffer + bufferPtr, 0xFF, MAX_WRITE_SIZE - bufferPtr);
@@ -702,34 +779,37 @@ void handleFlashModemURL() {
         http.end();
         modemFlashInProgress = false;
         modemFlashStatus = "ERROR: Final write failed";
+        showOLEDProgress("Modem: Write Fail", 0);
         return;
       }
       bytesWritten += bufferPtr;
     }
-    
+
     modemFlashProgress = 95;
     modemFlashStatus = "Flash complete! Rebooting...";
-    
+    showOLEDProgress("Modem: Complete!", 95);
+
     logSerial("[Modem] Download complete! " + String(bytesWritten) + " bytes written");
-    
+
     http.end();
-    
+
     // Allow UI to poll at 95% multiple times (1 second total)
     for (int i = 0; i < 4; i++) {
       server.handleClient();
       delay(250);
     }
-    
+
     // Update to 100% so user sees completion
     modemFlashProgress = 100;
     modemFlashStatus = "Complete! Rebooting ESP32...";
-    
+    showOLEDProgress("Modem: Rebooting", 100);
+
     // Allow UI to poll at 100% a couple times (500ms)
     for (int i = 0; i < 2; i++) {
       server.handleClient();
       delay(250);
     }
-    
+
     // Now mark as complete and exit bootloader (will reboot ESP32)
     modemFlashInProgress = false;
     modemExitBootloader();
@@ -739,6 +819,7 @@ void handleFlashModemURL() {
     http.end();
     modemFlashInProgress = false;
     modemFlashStatus = "ERROR: HTTP " + String(httpCode);
+    showOLEDProgress("Modem: HTTP Err", 0);
   }
 }
 
