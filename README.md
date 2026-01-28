@@ -255,7 +255,6 @@ Settings are automatically saved to ESP32 NVS storage and persist across reboots
 3. Click Upload button
 4. Monitor serial output at 115200 baud
 
-![Firmware Upload](screenshots/firmware.png)
 
 ### 5. First Time Setup
 
