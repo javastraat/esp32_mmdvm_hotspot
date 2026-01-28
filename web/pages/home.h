@@ -128,7 +128,7 @@ String getDMRActivityHTML() {
         html += "</div>";
       }
 
-      if (activity.srcCity.length() > 0) {
+      if (activity.srcCity.length() > 0 && activity.srcCity != "nan") {
         html += "<div class='metric'>";
         html += "<span class='metric-label'>City:</span>";
         html += "<span class='metric-value'>" + activity.srcCity + "</span>";
@@ -142,7 +142,7 @@ String getDMRActivityHTML() {
         html += "</div>";
       }
 
-      if (activity.srcCountry.length() > 0) {
+      if (activity.srcCountry.length() > 0 && activity.srcCountry != "nan") {
         html += "<div class='metric'>";
         html += "<span class='metric-label'>Country:</span>";
         html += "<span class='metric-value'>" + activity.srcCountry + "</span>";
@@ -208,7 +208,7 @@ String getDMRSlotHTML(int slotIndex) {
       html += "</div>";
     }
 
-    if (activity.srcCity.length() > 0) {
+    if (activity.srcCity.length() > 0 && activity.srcCity != "nan") {
       html += "<div class='metric'>";
       html += "<span class='metric-label'>City:</span>";
       html += "<span class='metric-value'>" + activity.srcCity + "</span>";
@@ -222,7 +222,7 @@ String getDMRSlotHTML(int slotIndex) {
       html += "</div>";
     }
 
-    if (activity.srcCountry.length() > 0) {
+    if (activity.srcCountry.length() > 0 && activity.srcCountry != "nan") {
       html += "<div class='metric'>";
       html += "<span class='metric-label'>Country:</span>";
       html += "<span class='metric-value'>" + activity.srcCountry + "</span>";
@@ -822,9 +822,9 @@ void handleRoot() {
   html += "    }";
   html += "    html += '</div>';";
   html += "    if (data.srcName && data.srcName.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Name:</span><span class=\"metric-value\">' + data.srcName + '</span></div>';";
-  html += "    if (data.srcCity && data.srcCity.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">City:</span><span class=\"metric-value\">' + data.srcCity + '</span></div>';";
+  html += "    if (data.srcCity && data.srcCity.length > 0 && data.srcCity !== 'nan') html += '<div class=\"metric\"><span class=\"metric-label\">City:</span><span class=\"metric-value\">' + data.srcCity + '</span></div>';";
   html += "    if (data.srcState && data.srcState.length > 0 && data.srcState !== 'nan') html += '<div class=\"metric\"><span class=\"metric-label\">State:</span><span class=\"metric-value\">' + data.srcState + '</span></div>';";
-  html += "    if (data.srcCountry && data.srcCountry.length > 0) html += '<div class=\"metric\"><span class=\"metric-label\">Country:</span><span class=\"metric-value\">' + data.srcCountry + '</span></div>';";
+  html += "    if (data.srcCountry && data.srcCountry.length > 0 && data.srcCountry !== 'nan') html += '<div class=\"metric\"><span class=\"metric-label\">Country:</span><span class=\"metric-value\">' + data.srcCountry + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">DMR ID:</span><span class=\"metric-value\">' + data.srcId + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Destination:</span><span class=\"metric-value\">' + (data.isGroup ? 'TG ' : '') + data.dstId + '</span></div>';";
   html += "    html += '<div class=\"metric\"><span class=\"metric-label\">Duration:</span><span class=\"metric-value\">' + data.duration + 's</span></div>';";

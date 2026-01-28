@@ -5,3 +5,5 @@
 /MMDVM/
 /MMDVM/*
 /MMDVM/.DS_Store
+*.py
+makedb.sh

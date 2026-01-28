@@ -1096,12 +1096,12 @@ void loop() {
         uint32_t duration = (currentMillis - dmrActivity[i].startTime) / 1000;
         String location = "";
         if (dmrActivity[i].srcCity.length() > 0 || dmrActivity[i].srcState.length() > 0 || dmrActivity[i].srcCountry.length() > 0) {
-          if (dmrActivity[i].srcCity.length() > 0) location += dmrActivity[i].srcCity;
+          if (dmrActivity[i].srcCity.length() > 0 && dmrActivity[i].srcCity != "nan") location += dmrActivity[i].srcCity;
           if (dmrActivity[i].srcState.length() > 0 && dmrActivity[i].srcState != "nan") {
             if (location.length() > 0) location += ", ";
             location += dmrActivity[i].srcState;
           }
-          if (dmrActivity[i].srcCountry.length() > 0) {
+          if (dmrActivity[i].srcCountry.length() > 0 && dmrActivity[i].srcCountry != "nan") {
             if (location.length() > 0) location += ", ";
             location += dmrActivity[i].srcCountry;
           }
@@ -2012,12 +2012,12 @@ void handleNetwork() {
             uint32_t duration = (millis() - dmrActivity[activityIndex].startTime) / 1000;
             String location = "";
             if (dmrActivity[activityIndex].srcCity.length() > 0 || dmrActivity[activityIndex].srcState.length() > 0 || dmrActivity[activityIndex].srcCountry.length() > 0) {
-              if (dmrActivity[activityIndex].srcCity.length() > 0) location += dmrActivity[activityIndex].srcCity;
+              if (dmrActivity[activityIndex].srcCity.length() > 0 && dmrActivity[activityIndex].srcCity != "nan") location += dmrActivity[activityIndex].srcCity;
               if (dmrActivity[activityIndex].srcState.length() > 0 && dmrActivity[activityIndex].srcState != "nan") {
                 if (location.length() > 0) location += ", ";
                 location += dmrActivity[activityIndex].srcState;
               }
-              if (dmrActivity[activityIndex].srcCountry.length() > 0) {
+              if (dmrActivity[activityIndex].srcCountry.length() > 0 && dmrActivity[activityIndex].srcCountry != "nan") {
                 if (location.length() > 0) location += ", ";
                 location += dmrActivity[activityIndex].srcCountry;
               }
@@ -3041,14 +3041,14 @@ void mqttPublishSlotActivity(int slot, uint32_t srcId, uint32_t dstId, const Str
       payload += "\"name\":\"" + name + "\",";
     }
 
-    // Add location info if available
-    if (city.length() > 0) {
+    // Add location info if available (skip nan/empty values)
+    if (city.length() > 0 && city != "nan") {
       payload += "\"city\":\"" + city + "\",";
     }
     if (state.length() > 0 && state != "nan") {
       payload += "\"state\":\"" + state + "\",";
     }
-    if (country.length() > 0) {
+    if (country.length() > 0 && country != "nan") {
       payload += "\"country\":\"" + country + "\",";
     }
 
