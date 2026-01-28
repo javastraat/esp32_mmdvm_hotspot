@@ -416,6 +416,7 @@ void handleRoot() {
   html += "<select id='version-select' style='width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);'>";
   html += "<option value='stable' selected>Stable Release (Recommended)</option>";
   html += "<option value='beta'>Beta Release (Latest Features)</option>";
+  html += "<option value='factory'>Factory Setup (Re-flash this tool)</option>";
   html += "</select>";
   html += "</div>";
   html += "<div class='action-buttons-vertical'>";
@@ -456,7 +457,7 @@ void handleRoot() {
   // Online update function
   html += "function startOnlineUpdate() {";
   html += "  var selectedVersion = document.getElementById('version-select').value;";
-  html += "  var versionText = selectedVersion === 'beta' ? 'BETA' : 'Stable';";
+  html += "  var versionText = selectedVersion === 'beta' ? 'BETA' : (selectedVersion === 'factory' ? 'Factory Setup' : 'Stable');";
   html += "  if (confirm('Download and flash ' + versionText + ' firmware from GitHub?\\n\\nThis will replace the factory setup with the full MMDVM firmware.\\n\\nThe device will reboot after flashing.')) {";
   html += "    document.getElementById('update-status').style.display = 'block';";
   html += "    document.getElementById('update-status').innerHTML = '<div style=\"color: #007bff;\"><strong>Downloading ' + versionText + ' firmware from GitHub...</strong><br><br><div style=\"width: 100%; background: #e9ecef; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden;\"><div id=\"progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\"><span id=\"progress-text\">0%</span></div></div><div id=\"progress-status\">Initializing download...</div></div>';";

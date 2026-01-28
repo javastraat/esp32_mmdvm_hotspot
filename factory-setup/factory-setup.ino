@@ -402,6 +402,9 @@ void handleDownloadUpdate() {
   if (version == "beta") {
     downloadUrl = OTA_UPDATE_BETA_URL;
     Serial.println("Starting BETA firmware download from GitHub...");
+  } else if (version == "factory") {
+    downloadUrl = OTA_UPDATE_FACTORY_URL;
+    Serial.println("Starting Factory Setup firmware download from GitHub...");
   } else {
     downloadUrl = OTA_UPDATE_URL;
     Serial.println("Starting stable firmware download from GitHub...");

@@ -8,7 +8,7 @@
 #define FACTORY_CONFIG_H
 
 // ===== Factory Firmware Version =====
-#define FACTORY_VERSION "20260127_ESP32_SETUP"
+#define FACTORY_VERSION "20260128_ESP32_SETUP"
 
 // ===== Default WiFi Configuration =====
 #define WIFI_SSID "TechInc"              // Default WiFi SSID
@@ -24,6 +24,7 @@
 #define OTA_UPDATE_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update_beta.bin"
 #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
 #define OTA_VERSION_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version_beta.txt"
+#define OTA_UPDATE_FACTORY_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/factory-setup.bin"
 #define OTA_TIMEOUT 30000  // OTA download timeout in milliseconds
 
 // ===== Footer Links =====
