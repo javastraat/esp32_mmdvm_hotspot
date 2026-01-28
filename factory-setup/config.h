@@ -55,6 +55,23 @@
 #define MMDVM_BOOT0_PIN 4        // BOOT0 pin for bootloader control
 #define MMDVM_RESET_PIN 13       // RESET pin for modem reset
 
+// ===== OLED Display Pins =====
+#define OLED_SDA_PIN 17          // I2C SDA for OLED
+#define OLED_SCL_PIN 18          // I2C SCL for OLED
+#define OLED_BUTTON_PIN 0        // Button to toggle OLED display (directly from main config)
+
+#else
+// Default pins for generic ESP32 boards
+#define OLED_SDA_PIN 21          // Default I2C SDA
+#define OLED_SCL_PIN 22          // Default I2C SCL
+#define OLED_BUTTON_PIN 0        // Button to toggle OLED display
+
 #endif
+
+// ===== OLED Display Settings =====
+#define ENABLE_OLED true         // Enable OLED display support
+#define OLED_I2C_ADDRESS 0x3C    // I2C address for OLED display (0x3C or 0x3D)
+#define OLED_WIDTH 128           // OLED display width
+#define OLED_HEIGHT 64           // OLED display height
 
 #endif // FACTORY_CONFIG_H

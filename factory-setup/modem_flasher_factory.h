@@ -54,6 +54,10 @@ void modemEnterBootloader();
 void modemExitBootloader();
 void initModemSerial();
 
+// OLED function declarations (defined in factory-setup.ino)
+extern void showOLEDProgress(String title, int percent);
+extern void updateOLEDStatus();
+
 // ===== Helper function to replace logSerial =====
 void logModem(String message) {
   Serial.println(message);
@@ -340,6 +344,7 @@ void handleFlashModemUpload() {
     modemFlashInProgress = true;
     modemFlashProgress = 5;
     modemFlashStatus = "Entering bootloader mode...";
+    showOLEDProgress("Modem: Bootloader", 5);
 
     // Enter bootloader mode
     if (!modemInBootloaderMode) {
@@ -350,31 +355,37 @@ void handleFlashModemUpload() {
     if (!modemInBootloaderMode) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Could not enter bootloader";
+      showOLEDProgress("Modem: Error!", 0);
       return;
     }
 
     modemFlashProgress = 15;
     modemFlashStatus = "Syncing with bootloader...";
+    showOLEDProgress("Modem: Syncing", 15);
 
     // Sync with bootloader
     if (!modemSyncBootloader()) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Bootloader sync failed";
+      showOLEDProgress("Modem: Sync Fail", 0);
       return;
     }
 
     modemFlashProgress = 20;
     modemFlashStatus = "Erasing flash memory...";
+    showOLEDProgress("Modem: Erasing", 20);
 
     // Erase flash
     if (!modemEraseFlash()) {
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Flash erase failed";
+      showOLEDProgress("Modem: Erase Fail", 0);
       return;
     }
 
     modemFlashProgress = 30;
     modemFlashStatus = "Uploading and flashing...";
+    showOLEDProgress("Modem: Flashing", 30);
 
     // Initialize streaming state
     modemUploadAddress = FLASH_START_ADDR;
@@ -391,6 +402,7 @@ void handleFlashModemUpload() {
           logModem("[Modem] ERROR: Write failed at 0x" + String(modemUploadAddress, HEX));
           modemFlashInProgress = false;
           modemFlashStatus = "ERROR: Write failed";
+          showOLEDProgress("Modem: Write Fail", 0);
           return;
         }
 
@@ -401,6 +413,10 @@ void handleFlashModemUpload() {
         // Update progress (30% to 90% during write)
         if (upload.totalSize > 0) {
           modemFlashProgress = 30 + ((modemUploadBytesWritten * 60) / upload.totalSize);
+          // Update OLED every 4KB
+          if (modemUploadBytesWritten % (16 * 256) == 0) {
+            showOLEDProgress("Modem: Flashing", modemFlashProgress);
+          }
         }
 
         // Log progress every 4KB
@@ -418,6 +434,7 @@ void handleFlashModemUpload() {
         logModem("[Modem] ERROR: Final write failed");
         modemFlashInProgress = false;
         modemFlashStatus = "ERROR: Final write failed";
+        showOLEDProgress("Modem: Write Fail", 0);
         return;
       }
       modemUploadBytesWritten += modemUploadBufferPtr;
@@ -425,6 +442,7 @@ void handleFlashModemUpload() {
 
     modemFlashProgress = 95;
     modemFlashStatus = "Flash complete! Rebooting...";
+    showOLEDProgress("Modem: Complete!", 95);
 
     logModem("[Modem] Upload complete! " + String(modemUploadBytesWritten) + " bytes written");
 
@@ -441,6 +459,7 @@ void handleFlashModemUpload() {
     // Update to 100%
     modemFlashProgress = 100;
     modemFlashStatus = "Complete! Rebooting ESP32...";
+    showOLEDProgress("Modem: Rebooting", 100);
 
     // Allow UI to poll at 100% a few times (1 second total)
     for (int i = 0; i < 4; i++) {
@@ -454,6 +473,7 @@ void handleFlashModemUpload() {
   }
   else if (upload.status == UPLOAD_FILE_ABORTED) {
     logModem("[Modem] Upload aborted");
+    showOLEDProgress("Modem: Aborted", 0);
     modemExitBootloader();
   }
 }
@@ -478,6 +498,7 @@ void handleFlashModemURL() {
   modemFlashInProgress = true;
   modemFlashProgress = 5;
   modemFlashStatus = "Connecting to server...";
+  showOLEDProgress("Modem: Download", 5);
 
   logModem("[Modem] Downloading from: " + url);
 
@@ -494,6 +515,7 @@ void handleFlashModemURL() {
 
     modemFlashProgress = 10;
     modemFlashStatus = "Entering bootloader mode...";
+    showOLEDProgress("Modem: Bootloader", 10);
 
     // Enter bootloader mode
     if (!modemInBootloaderMode) {
@@ -505,22 +527,26 @@ void handleFlashModemURL() {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Could not enter bootloader";
+      showOLEDProgress("Modem: Error!", 0);
       return;
     }
 
     modemFlashProgress = 15;
     modemFlashStatus = "Syncing with bootloader...";
+    showOLEDProgress("Modem: Syncing", 15);
 
     // Sync with bootloader
     if (!modemSyncBootloader()) {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Bootloader sync failed";
+      showOLEDProgress("Modem: Sync Fail", 0);
       return;
     }
 
     modemFlashProgress = 20;
     modemFlashStatus = "Erasing flash memory...";
+    showOLEDProgress("Modem: Erasing", 20);
     server.handleClient();  // Allow status poll
 
     // Erase flash
@@ -528,11 +554,13 @@ void handleFlashModemURL() {
       http.end();
       modemFlashInProgress = false;
       modemFlashStatus = "ERROR: Flash erase failed";
+      showOLEDProgress("Modem: Erase Fail", 0);
       return;
     }
 
     modemFlashProgress = 30;
     modemFlashStatus = "Downloading and flashing...";
+    showOLEDProgress("Modem: Flashing", 30);
     server.handleClient();  // Allow status poll
 
     // Download and flash
@@ -561,6 +589,7 @@ void handleFlashModemURL() {
             http.end();
             modemFlashInProgress = false;
             modemFlashStatus = "ERROR: Write failed";
+            showOLEDProgress("Modem: Write Fail", 0);
             return;
           }
 
@@ -572,6 +601,10 @@ void handleFlashModemURL() {
           int fileSize = http.getSize();
           if (fileSize > 0) {
             modemFlashProgress = 30 + ((bytesWritten * 60) / fileSize);
+            // Update OLED every 4KB
+            if (bytesWritten % (16 * 256) == 0) {
+              showOLEDProgress("Modem: Flashing", modemFlashProgress);
+            }
           }
 
           // Log progress every 4KB
@@ -598,6 +631,7 @@ void handleFlashModemURL() {
         http.end();
         modemFlashInProgress = false;
         modemFlashStatus = "ERROR: Final write failed";
+        showOLEDProgress("Modem: Write Fail", 0);
         return;
       }
       bytesWritten += bufferPtr;
@@ -605,6 +639,7 @@ void handleFlashModemURL() {
 
     modemFlashProgress = 95;
     modemFlashStatus = "Flash complete! Rebooting...";
+    showOLEDProgress("Modem: Complete!", 95);
 
     logModem("[Modem] Download complete! " + String(bytesWritten) + " bytes written");
 
@@ -619,6 +654,7 @@ void handleFlashModemURL() {
     // Update to 100% so user sees completion
     modemFlashProgress = 100;
     modemFlashStatus = "Complete! Rebooting ESP32...";
+    showOLEDProgress("Modem: Rebooting", 100);
 
     // Allow UI to poll at 100% a couple times (500ms)
     for (int i = 0; i < 2; i++) {
@@ -635,6 +671,7 @@ void handleFlashModemURL() {
     http.end();
     modemFlashInProgress = false;
     modemFlashStatus = "ERROR: HTTP " + String(httpCode);
+    showOLEDProgress("Modem: HTTP Error", 0);
   }
 }
 
