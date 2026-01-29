@@ -575,9 +575,7 @@ The main landing page provides comprehensive real-time monitoring:
 - **Save Confirmation** - Success page shows new settings and auto-redirects after 5 seconds
 - **Automatic Restart** - Device restarts after save to apply new DMR configuration
 
-### Admin Panel (`/admin`)
-
-![Admin Panel](screenshots/system_admin.png)
+### Admin Panel (`/admin`) legacy page
 
 **System Information Card:**
 - **System Uptime** - Days, hours, minutes, seconds display with blue highlighting
@@ -739,6 +737,8 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### System Info (`/systeminfo`)
 
+![System Info](screenshots/system_info.png)
+
 **System Information Card:**
 - **Uptime** - Days, hours, minutes, seconds since boot
 - **Chip Details** - Model, revision, CPU cores, frequency
@@ -756,6 +756,8 @@ The main landing page provides comprehensive real-time monitoring:
 - **Git Commit ID** - Exact firmware build identifier
 
 ### System Settings (`/systemsettings`)
+
+![System Settings](screenshots/system_settings.png)
 
 **Web Username Card:**
 - **Current Username Display** - Shows active web interface username
@@ -780,8 +782,6 @@ The main landing page provides comprehensive real-time monitoring:
 - **Granular Control** - Enable specific debug output categories
 
 **OLED Display Configuration Card:**
-![System Info](screenshots/system_info.png)
-
 - **Enable/Disable Toggle** - Turn OLED display on/off
 - **Auto-Blank Settings** - Configure screen blank timeout (0 = never)
 
@@ -792,7 +792,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### System Admin (`/systemadmin`)
 
-![System Settings](screenshots/system_settings.png)
+![System Admin](screenshots/system_admin.png)
 
 **System Control Card:**
 - **Reboot System** - Full ESP32 restart with confirmation
