@@ -5,7 +5,7 @@
 </p>
 <p align="center">
   <!-- <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo Transparent" width="200" style="margin-right:20px"> -->
-  <img src="screenshots/bootlogo.png" alt="Boot Logo" width="200">
+  <!-- <img src="screenshots/bootlogo.png" alt="Boot Logo" width="200"> -->
 </p>
 <hr>
 
