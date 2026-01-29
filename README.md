@@ -444,6 +444,13 @@ The main landing page provides comprehensive real-time monitoring:
 - **Location** - Station location text
 - **Configuration Warning** - Visual indicator for unconfigured callsign
 
+**MQTT Status Card:**
+- **Connection Status** - Visual badge (Connected/Disconnected/Disabled)
+- **Broker** - MQTT broker hostname or IP address
+- **Port** - MQTT broker port number
+- **Username** - MQTT authentication username (if configured)
+- **Topic Prefix** - MQTT topic prefix for all published messages
+
 **Interactive Controls:**
 - **Auto-Refresh** - Updates all cards every 5 seconds
 - **Refresh Now Button** - Manual immediate status update
@@ -452,8 +459,8 @@ The main landing page provides comprehensive real-time monitoring:
 
 **Technical Features:**
 - **Grid Layout** - Responsive auto-fit cards (minimum 250px width)
-- **Fetch API** - Asynchronous updates from `/statusdata` endpoint
-- **Conditional Display** - Ethernet and SD card sections only show on T-ETH-Elite hardware
+- **Fetch API** - Asynchronous updates from `/api/status` endpoint
+- **Conditional Display** - Ethernet, SD card, and MQTT cards conditionally shown based on hardware/configuration
 - **Status Badges** - Color-coded visual indicators (green=connected, yellow=warning, red=disconnected)
 - **JavaScript Auto-Refresh** - setInterval updates without page reload
 - **Error Handling** - Console logging for failed fetch requests
@@ -574,116 +581,6 @@ The main landing page provides comprehensive real-time monitoring:
 - **Validation** - Client-side and server-side validation for DMR ID (7 digits), ESSID (0-99), frequencies (400-480 MHz)
 - **Save Confirmation** - Success page shows new settings and auto-redirects after 5 seconds
 - **Automatic Restart** - Device restarts after save to apply new DMR configuration
-
-### Admin Panel (`/admin`) legacy page
-
-**System Information Card:**
-- **System Uptime** - Days, hours, minutes, seconds display with blue highlighting
-- **ESP32 Details** - Chip model, revision, CPU cores, CPU frequency
-- **Memory Metrics** - Free heap, minimum free heap, heap size, free PSRAM (if available)
-- **Flash Information** - Flash size, flash speed, sketch size, free sketch space
-- **SDK & Firmware** - SDK version, firmware version, build date/time
-- **Real-time Updates** - All metrics refresh dynamically
-
-**Modem Information Card:**
-- **Hardware Identification** - Modem hardware type (e.g., MMDVM_HS_Hat)
-- **Firmware Details** - Parsed modem firmware version
-- **Build Information** - Formatted build date (YYYY-MM-DD)
-- **Crystal Frequency** - Crystal specification (e.g., 14.7456MHz)
-- **Transceiver Chip** - RF chip type (e.g., ADF7021)
-- **Author** - Firmware author information
-- **Git Commit ID** - Exact firmware build identifier
-
-**System Control Card:**
-- **Reboot System** - Full ESP32 restart with confirmation dialog
-- **Restart Services** - Restart DMR/network services without full reboot
-- **Vertical Button Layout** - Easy access to system actions
-
-**Hostname Configuration Card:**
-- **Current Hostname Display** - Shows active mDNS hostname
-- **Access URL** - Shows http://[hostname].local for easy reference
-- **Hostname Editor** - Input field with validation (letters, numbers, hyphens, 1-32 chars)
-- **Auto-Redirect** - Redirects to new URL after save and reboot
-- **Save Button** - Applies hostname change with automatic reboot
-
-**Verbose Logging Card:**
-- **Current Status Display** - Shows Enabled/Disabled state
-- **Purpose Explanation** - Controls RPTPING/MSTPONG keepalive message visibility
-- **Checkbox Toggle** - Simple enable/disable interface
-- **Serial Monitor Integration** - Affects what appears in /serialmonitor logs
-
-**NTP Timezone Configuration Card:**
-- **Current Offset Display** - Shows timezone offset in hours from UTC
-- **DST Offset Display** - Shows daylight saving time offset in hours
-- **Timezone Selector** - Dropdown with 25 timezone options (UTC-12 to UTC+12)
-- **Named Timezones** - Includes common names (PST, EST, CET, AEST, etc.)
-- **DST Checkbox** - Enable/disable Daylight Saving Time (+1 hour)
-- **Save Button** - Applies timezone changes with reload
-
-**Web Username Card:**
-- **Current Username Display** - Shows active web interface username in info box
-- **Username Editor** - Text input with validation (minimum 3 characters)
-- **Change Confirmation** - Warns user they'll need to re-login
-- **Auto-Logout** - Redirects to login after successful change
-
-**Web Password Card:**
-- **Current Password Display** - Masked (********) with toggle to show/hide
-- **Password Visibility Toggle** - Eye icon to reveal actual password
-- **New Password Field** - Password input with show/hide toggle
-- **Confirm Password Field** - Validation input with show/hide toggle
-- **Minimum Length** - 4 characters required with validation
-- **Password Matching** - Client-side validation before submission
-- **Change Confirmation** - Warns user they'll need to re-login with new password
-
-**Configuration Management Card:**
-- **Reset All Settings** - Complete factory reset button (links to /resetconfig with extreme warnings)
-- **Export Config** - Download current settings as mmdvm-config.txt file
-- **Import Config** - Upload configuration file to restore settings
-- **Show Preferences** - View all NVS storage (links to /showprefs)
-- **Import Area Toggle** - Expandable file upload interface with warning
-- **Vertical Button Layout** - Organized action buttons
-
-**Maintenance Card:**
-- **Clear Logs** - Erase all serial monitor logs with confirmation
-- **Test MMDVM** - Run MMDVM hardware test (check Serial Monitor for results)
-- **Fix Corrupted Prefs** - Clean up and reload preferences from config.h defaults
-- **Service Actions** - System maintenance without full restart
-
-**OTA Firmware Updates Card:**
-- **Version Display** - Current firmware version and build date/time
-- **Online Version Check** - Shows latest Stable and Beta versions available
-- **Version Selector** - Dropdown to choose Stable or Beta (auto-selects Beta if current is Beta)
-- **Online Update** - Download firmware from GitHub with progress bar
-- **File Upload** - Manual .bin file upload interface
-- **Progress Tracking** - Visual progress bar with percentage and elapsed time
-- **Three-Step Process** - Download → Upload → Flash workflow
-- **Update Status Display** - Real-time feedback area for all operations
-- **Version Detection** - Auto-selects appropriate branch based on current version
-
-**Complete Storage Reset System:**
-- **Dedicated Reset Page** - `/resetconfig` with extreme warnings
-- **Multi-Level Warnings** - Danger and warning boxes explaining consequences
-- **Erase Details** - Lists everything that will be deleted (DMR config, WiFi, location, NVS partition)
-- **Final Confirmation** - JavaScript confirm dialog before proceeding
-- **Complete Erasure** - Clears all known namespaces, erases NVS partition, wipes WiFi credentials
-- **Auto-Reboot** - 5-second countdown with spinner animation
-- **Reinstallation** - Returns to factory config.h defaults
-
-**JavaScript Functionality:**
-- **Form Submission Handlers** - All forms use Fetch API for asynchronous submissions
-- **Password Toggles** - Show/hide functionality for all password fields
-- **Validation** - Client-side checks before server submission
-- **Confirmation Dialogs** - Prevent accidental destructive actions
-- **Auto-Reload/Redirect** - Automatic page updates after settings changes
-- **Progress Animations** - Visual feedback for long-running operations
-- **Error Handling** - Alert dialogs for failures with descriptive messages
-
-**Security Features:**
-- **HTTP Basic Authentication** - Required on all admin pages
-- **Password Masking** - All password displays masked by default with toggle
-- **Confirmation Prompts** - Double-check for destructive actions
-- **Re-login Required** - Forces re-authentication after credential changes
-- **Safe Defaults** - Prevents accidental system-breaking changes
 
 ### SD Card Management (`/systemsdcard`) - LILYGO T-ETH-Elite Only
  
@@ -1567,9 +1464,9 @@ Access `/showprefs` for complete system state:
 - NVS storage utilization
 
 #### Factory Reset Procedure
-1. Access admin panel at `/admin`
-2. Click "Complete Factory Reset" 
-3. Confirm erasure of all NVS data
+1. Access System Admin page at `/systemadmin`
+2. Click "Reset All Settings" in Configuration Management card
+3. Confirm erasure of all NVS data on the warning page
 4. System will restart with default settings
 5. Reconfigure via Access Point mode
 
