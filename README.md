@@ -739,21 +739,46 @@ The main landing page provides comprehensive real-time monitoring:
 
 ![System Info](screenshots/system_info.png)
 
-**System Information Card:**
+**System Hardware Card:**
+- **Chip Model** - ESP32-S3 or other ESP32 variant
+- **Chip Revision** - Hardware revision number
+- **Chip ID** - Unique EFuse MAC identifier
+- **CPU Cores** - Number of processor cores
+- **CPU Frequency** - Clock speed in MHz
+- **CPU Temperature** - Internal temperature sensor reading (ESP32-S3)
+
+**Memory Card:**
+- **Heap Size** - Total available heap memory
+- **Free Heap** - Currently available heap with percentage
+- **Min Free Heap** - Lowest free heap since boot
+- **Max Alloc Heap** - Largest allocatable block
+- **PSRAM** - Size, free space, and max alloc (if available)
+
+**Storage Card:**
+- **Flash Size** - Total flash memory capacity
+- **Flash Speed** - Flash clock speed in MHz
+- **Flash Mode** - QIO, QOUT, DIO, or DOUT
+- **Sketch Size** - Current firmware size
+- **Free Sketch Space** - Available space for OTA updates
+- **Sketch MD5** - Firmware checksum (last 8 characters)
+- **Running Partition** - Current OTA partition (app0/app1)
+
+**Software Card:**
 - **Uptime** - Days, hours, minutes, seconds since boot
-- **Chip Details** - Model, revision, CPU cores, frequency
-- **Memory Metrics** - Free heap, minimum free heap, heap size, PSRAM (if available)
-- **Flash Information** - Flash size, speed, sketch size, free sketch space
-- **Firmware Details** - SDK version, firmware version, build date/time
+- **Reset Reason** - Last reset cause (Power-on, Software, Panic, etc.)
+- **SDK Version** - ESP-IDF SDK version
+- **Arduino Core** - Arduino-ESP32 version
+- **Firmware Version** - Current ESP32 MMDVM firmware version
+- **Build Date** - Compilation date and time
 
 **Modem Information Card:**
-- **Hardware Type** - MMDVM modem hardware identification
-- **Firmware Version** - Parsed version string
-- **Build Date** - Formatted build date
-- **Crystal Frequency** - 14.7456MHz or 12.288MHz
-- **Transceiver Chip** - ADF7021 or similar
+- **Hardware** - MMDVM modem hardware type (e.g., MMDVM_HS_Hat)
+- **Firmware Version** - Parsed modem firmware version
+- **Build Date** - Formatted build date (DD-MM-YYYY)
+- **Crystal** - Crystal frequency (e.g., 14.7456MHz)
+- **Transceiver** - RF chip type (e.g., ADF7021)
 - **Author** - Firmware author (CA6JAU, G4KLX, etc.)
-- **Git Commit ID** - Exact firmware build identifier
+- **Git ID** - Firmware build commit identifier
 
 ### System Settings (`/systemsettings`)
 
@@ -762,71 +787,89 @@ The main landing page provides comprehensive real-time monitoring:
 **Web Username Card:**
 - **Current Username Display** - Shows active web interface username
 - **Username Editor** - Change web login username (min 3 characters)
+- **Update Button** - Save new username with confirmation
 
 **Web Password Card:**
-- **Current Password Display** - Masked with show/hide toggle
-- **New Password Fields** - Password and confirmation with visibility toggles
-- **Validation** - Minimum 4 characters, matching confirmation
+- **Current Password Display** - Masked with show/hide eye toggle
+- **New Password Field** - Password input with visibility toggle
+- **Confirm Password Field** - Confirmation with visibility toggle
+- **Validation** - Minimum 4 characters, matching confirmation required
 
 **Hostname Configuration Card:**
 - **Current Hostname** - Shows active mDNS hostname
-- **Access URL** - Shows http://[hostname].local
-- **Hostname Editor** - Change device hostname (letters, numbers, hyphens)
+- **Access URL** - Shows http://[hostname].local for reference
+- **Hostname Editor** - Change device hostname (letters, numbers, hyphens, 1-32 chars)
+- **Auto-Redirect** - Redirects to new URL after save and reboot
 
-**Verbose Logging Card:**
-- **Toggle Control** - Enable/disable verbose keepalive message logging
-- **Serial Monitor Integration** - Controls RPTPING/MSTPONG visibility
+**Debug Settings Card:**
+- **Serial Output** - Enable/disable general serial debug messages
+- **Verbose Logging** - Show keepalive messages in Serial Monitor web page
+- **MMDVM Protocol** - TX frame debug output (verbose)
+- **Network Debug** - Keepalive message debugging (verbose)
+- **DMR Protocol** - DMR packet details (reserved)
+- **Password Debug** - Show password length and last 4 characters
 
-**Debug Mode Configuration Card:**
-- **Individual Toggles** - DEBUG_SERIAL, DEBUG_MMDVM, DEBUG_NETWORK, DEBUG_DMR, DEBUG_PASSWORD
-- **Granular Control** - Enable specific debug output categories
-
-**OLED Display Configuration Card:**
-- **Enable/Disable Toggle** - Turn OLED display on/off
-- **Auto-Blank Settings** - Configure screen blank timeout (0 = never)
+**OLED Display Settings Card:**
+- **Enable/Disable Toggle** - Turn OLED display on/off (requires reboot)
+- **Auto-Blanking Enable** - Screen turns off after inactivity to prevent burn-in
+- **Blank Timeout Selector** - Never, 30 seconds, 1/2/5/10 minutes options
+- **Auto-Wake** - Display automatically wakes when DMR activity is detected
 
 **NTP Timezone Configuration Card:**
-- **Timezone Selector** - 25 timezone options (UTC-12 to UTC+12)
-- **DST Toggle** - Enable/disable Daylight Saving Time adjustment
-- **Current Offset Display** - Shows active timezone and DST offset
+- **Current Offset Display** - Shows active timezone offset in hours
+- **Current DST Display** - Shows daylight saving offset in hours
+- **Timezone Selector** - 25 timezone options (UTC-12 to UTC+12) with named zones
+- **DST Checkbox** - Enable/disable Daylight Saving Time (+1 hour)
 
 ### System Admin (`/systemadmin`)
 
 ![System Admin](screenshots/system_admin.png)
 
-**System Control Card:**
-- **Reboot System** - Full ESP32 restart with confirmation
-- **Restart Services** - Restart DMR/MQTT services without full reboot
-- **Test MMDVM** - Run MMDVM hardware test
+**System Administration Card:**
+- **Reboot System** - Full ESP32 restart with confirmation dialog
+- **Restart DMR** - Restart DMR network connection only
+- **Restart MQTT** - Restart MQTT connection only
+- **Restart All Services** - Restart DMR and MQTT without full reboot
 
 **Configuration Management Card:**
-- **Export Config** - Download settings as mmdvm-config.txt
-- **Import Config** - Upload and restore configuration file
-- **Show Preferences** - View all NVS storage contents
-- **Fix Corrupted Prefs** - Repair/cleanup preferences
-
-**Maintenance Card:**
-- **Clear Logs** - Erase serial monitor log buffer
-- **Factory Reset** - Complete storage reset (links to /resetconfig)
+- **Show Preferences** - View all NVS storage contents (links to /showprefs)
+- **Export Config** - Download settings as mmdvm-config.txt file
+- **Import Config** - Upload and restore configuration file with validation
+- **Repair Preferences** - Check all 57 preference keys and add missing defaults
+- **Reset All Settings** - Complete factory reset (links to /resetconfig with warnings)
 
 ### System Firmware (`/systemfirmware`)
 
 ![System Firmware](screenshots/system_firmware.png)
 
-**ESP32 Firmware Update Card:**
-- **Current Version** - Shows installed firmware version and build date
-- **Online Version Check** - Fetches latest Stable and Beta versions from GitHub
-- **Version Selector** - Choose between Stable and Beta channels
-- **Download Button** - Download firmware from GitHub with progress tracking
-- **File Upload** - Manual .bin file upload for offline updates
-- **Flash Button** - Apply downloaded/uploaded firmware
+**ESP32 Firmware Card:**
+- **Current Version** - Shows installed firmware version and build date/time
+- **Stable Version** - Latest stable release from GitHub (auto-checked)
+- **Beta Version** - Latest beta release from GitHub (auto-checked)
+- **Update Status** - Badge showing Up to date, Update available, or Beta Version
+- **Version Selector** - Choose Stable Release, Beta Release, or Factory Setup
+- **Online Update** - Download firmware from GitHub with progress bar
+- **Upload File** - Manual .bin file upload with retry support
+- **Auto-Flash Prompt** - Prompts to flash after successful download/upload
 
 **MMDVM Modem Firmware Card:**
-- **Predefined Firmware** - Dropdown with common MMDVM_HS versions
-- **Custom URL** - Enter any GitHub firmware URL
-- **File Upload** - Upload custom .bin firmware files
-- **Flash Progress** - Real-time STM32 bootloader progress
-- **Flash from URL/File** - Two methods for modem firmware update
+- **Current Modem Version** - Shows detected MMDVM firmware version
+- **Firmware Selector** - Dropdown with predefined versions:
+  - Single MMDVM Modem v1.6.1
+  - Dual MMDVM Modem v1.6.1
+  - Single MMDVM Modem v1.5.2
+  - Custom URL option for any firmware
+- **Download & Flash** - Download and flash firmware from URL
+- **Upload File** - Upload custom .bin firmware files
+- **Test MMDVM** - Run hardware communication test
+- **Flash Progress** - Real-time progress bar during STM32 flashing
+
+**Partition Management Card:**
+- **Running Partition** - Shows currently executing partition (app0/app1)
+- **Boot Partition** - Shows partition set for next boot
+- **app0/app1 Versions** - Shows firmware version stored in each partition
+- **Boot app0/app1 Buttons** - Switch to alternate partition on next reboot
+- **Rollback Support** - Easily revert to previous firmware version
 
 ### Dark/Light Theme System
 **Professional UI Theming:**
