@@ -385,7 +385,7 @@ void handleUploadFirmware() {
 
 void handleFlashFirmware() {
   logSerial("Starting firmware flash process...");
-  showOLEDProgress("Flashing Firmware", 50);
+  showOLEDProgress("ESP32: Flashing", 50);
 
   // Check if firmware was properly prepared by either download or upload method
   if (Update.isFinished()) {
@@ -394,12 +394,12 @@ void handleFlashFirmware() {
     server.send(200, "text/plain", "SUCCESS: Firmware flashed, rebooting...");
 
     delay(1000);
-    showOLEDProgress("Rebooting ESP32", 100);
+    showOLEDProgress("ESP32: Rebooting", 100);
     delay(1000);
     ESP.restart();
   } else {
     logSerial("No firmware ready for flashing - Update.isFinished() = false");
-    showOLEDProgress("Firmware Error!", 0);
+    showOLEDProgress("ESP32: Error!", 0);
     server.send(400, "text/plain", "ERROR: No firmware prepared for flash");
   }
 }
