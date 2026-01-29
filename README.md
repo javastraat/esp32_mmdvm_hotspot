@@ -4,7 +4,7 @@
   <img src="screenshots/esp32-mmdvm-logo.png" alt="ESP32 MMDVM Logo" width="400">
 </p>
 <p align="center">
-  <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo Transparent" width="200" style="margin-right:20px">
+  <!-- <img src="screenshots/esp32-mmdvm-logo-trans.png" alt="ESP32 MMDVM Logo Transparent" width="200" style="margin-right:20px"> -->
   <img src="screenshots/bootlogo.png" alt="Boot Logo" width="200">
 </p>
 <hr>
@@ -377,7 +377,7 @@ The web interface uses a dropdown menu system for easy navigation:
 ### Home Dashboard (`/`)
 The main landing page provides comprehensive real-time monitoring:
 
-![Home Dashboard](screenshots/main.png)
+![Home Dashboard](screenshots/home.png)
 
 **Live DMR Activity Cards:**
 - **Dual-slot display** for real-time transmissions (Slot 1 & Slot 2)
@@ -460,7 +460,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### Serial Monitor (`/serialmonitor`)
 
-![Serial Monitor](screenshots/serialmonitor.png)
+![Serial Monitor](screenshots/monitor.png)
 
 **Real-time Log Display:**
 - **Live Log Feed** - Auto-refreshing display updates every 2 seconds
@@ -484,7 +484,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### WiFi Configuration (`/wificonfig`)
 
-![WiFi Configuration](screenshots/wificonfig.png)
+![WiFi Configuration](screenshots/wifi_config.png)
 
 **Current WiFi Status:**
 - **Connection Details** - SSID, IP address, Gateway, Subnet Mask, DNS Server
@@ -508,7 +508,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### DMR Configuration (`/modeconfig`)  
 
-![DMR Configuration](screenshots/modeconfig.png)
+![DMR Configuration](screenshots/mode_config.png)
 
 **Active Modes Status Card:**
 - **DMR Mode** - Real-time status badge (Enabled/Disabled with green/red indicator)
@@ -577,7 +577,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### Admin Panel (`/admin`)
 
-![Admin Panel](screenshots/admin.png)
+![Admin Panel](screenshots/system_admin.png)
 
 **System Information Card:**
 - **System Uptime** - Days, hours, minutes, seconds display with blue highlighting
@@ -689,7 +689,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### SD Card Management (`/systemsdcard`) - LILYGO T-ETH-Elite Only
  
-![SD Card Management](screenshots/sdcard.png)
+![SD Card Management](screenshots/system_sdcard.png)
 
 **SD Card Status Card:**
 - **Mount Status** - Visual badge (Mounted/Not Mounted)
@@ -780,7 +780,7 @@ The main landing page provides comprehensive real-time monitoring:
 - **Granular Control** - Enable specific debug output categories
 
 **OLED Display Configuration Card:**
-![System Info](screenshots/info.png)
+![System Info](screenshots/system_info.png)
 
 - **Enable/Disable Toggle** - Turn OLED display on/off
 - **Auto-Blank Settings** - Configure screen blank timeout (0 = never)
@@ -792,7 +792,7 @@ The main landing page provides comprehensive real-time monitoring:
 
 ### System Admin (`/systemadmin`)
 
-![System Settings](screenshots/settings.png)
+![System Settings](screenshots/system_settings.png)
 
 **System Control Card:**
 - **Reboot System** - Full ESP32 restart with confirmation
@@ -810,6 +810,8 @@ The main landing page provides comprehensive real-time monitoring:
 - **Factory Reset** - Complete storage reset (links to /resetconfig)
 
 ### System Firmware (`/systemfirmware`)
+
+![System Firmware](screenshots/system_firmware.png)
 
 **ESP32 Firmware Update Card:**
 - **Current Version** - Shows installed firmware version and build date
@@ -1041,7 +1043,7 @@ All topics use configured prefix (default: `{hostname}/{callsign}`):
 }
 ```
 
-![MQTT Integration](screenshots/mqtt.png)
+![MQTT Integration](screenshots/system_mqtt.png)
 
 ### MQTT Use Cases
 
