@@ -7,3 +7,6 @@
 /MMDVM/.DS_Store
 *.py
 makedb.sh
+/scripts/
+/scripts/*
+/scripts/.DS_Store
