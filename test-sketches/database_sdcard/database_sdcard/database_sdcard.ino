@@ -1626,16 +1626,16 @@ void performSQLiteSearch(const char* searchField, const char* searchValue) {
   // This handles older databases that don't have indexes
   Serial.println("Index RadioId");
   sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_radio_id ON radioid (RADIO_ID);", NULL, NULL, NULL);
-  Serial.println("Index Callsign");
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_callsign ON radioid (CALLSIGN COLLATE NOCASE);", NULL, NULL, NULL);
-  Serial.println("Index First Name");
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_first_name ON radioid (FIRST_NAME COLLATE NOCASE);", NULL, NULL, NULL);
-  Serial.println("Index City");
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_city ON radioid (CITY COLLATE NOCASE);", NULL, NULL, NULL);
-  Serial.println("Index State");
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_state ON radioid (STATE COLLATE NOCASE);", NULL, NULL, NULL);
-  Serial.println("Index Country");
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_country ON radioid (COUNTRY COLLATE NOCASE);", NULL, NULL, NULL);
+  // Serial.println("Index Callsign");
+  // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_callsign ON radioid (CALLSIGN COLLATE NOCASE);", NULL, NULL, NULL);
+  // Serial.println("Index First Name");
+  // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_first_name ON radioid (FIRST_NAME COLLATE NOCASE);", NULL, NULL, NULL);
+  // Serial.println("Index City");
+  // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_city ON radioid (CITY COLLATE NOCASE);", NULL, NULL, NULL);
+  // Serial.println("Index State");
+  // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_state ON radioid (STATE COLLATE NOCASE);", NULL, NULL, NULL);
+  // Serial.println("Index Country");
+  // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_country ON radioid (COUNTRY COLLATE NOCASE);", NULL, NULL, NULL);
 
   // Build query based on search field
   // Schema: RADIO_ID, CALLSIGN, FIRST_NAME, CITY, STATE, COUNTRY

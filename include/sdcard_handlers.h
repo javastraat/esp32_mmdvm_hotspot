@@ -796,11 +796,11 @@ void handleSQLiteSearch() {
 
   // Ensure indexes exist for fast searches (creates them if missing)
   sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_radio_id ON radioid (RADIO_ID);", NULL, NULL, NULL);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_callsign ON radioid (CALLSIGN COLLATE NOCASE);", NULL, NULL, NULL);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_first_name ON radioid (FIRST_NAME COLLATE NOCASE);", NULL, NULL, NULL);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_city ON radioid (CITY COLLATE NOCASE);", NULL, NULL, NULL);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_state ON radioid (STATE COLLATE NOCASE);", NULL, NULL, NULL);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_country ON radioid (COUNTRY COLLATE NOCASE);", NULL, NULL, NULL);
+ // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_callsign ON radioid (CALLSIGN COLLATE NOCASE);", NULL, NULL, NULL);
+ // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_first_name ON radioid (FIRST_NAME COLLATE NOCASE);", NULL, NULL, NULL);
+//sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_city ON radioid (CITY COLLATE NOCASE);", NULL, NULL, NULL);
+ // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_state ON radioid (STATE COLLATE NOCASE);", NULL, NULL, NULL);
+ // sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_radioid_country ON radioid (COUNTRY COLLATE NOCASE);", NULL, NULL, NULL);
 
   // Build query
   String sql;
