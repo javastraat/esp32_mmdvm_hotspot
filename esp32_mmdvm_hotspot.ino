@@ -2750,8 +2750,6 @@ bool mqttConnect() {
 void mqttPublishSystemInfo() {
   if (!mqttConnected || !mqttClient.connected()) return;
 
-  String topic = mqtt_topic_prefix + "/system/status";
-
   // Calculate uptime breakdown
   unsigned long uptimeSeconds = millis() / 1000;
   unsigned long days = uptimeSeconds / 86400;
@@ -2783,56 +2781,59 @@ void mqttPublishSystemInfo() {
   float sketchSizeKB = sketchSize / 1024.0;
   float freeSketchSpaceKB = freeSketchSpace / 1024.0;
 
-  String payload = "{";
-  payload += "\"callsign\":\"" + dmr_callsign + "\",";
-  payload += "\"dmr_id\":" + String(dmr_id) + ",";
-  payload += "\"hostname\":\"" + device_hostname + "\",";
+  // Build JSON using fixed buffer with snprintf (prevents heap fragmentation)
+  char payload[1024];
+  snprintf(payload, sizeof(payload),
+    "{"
+    "\"callsign\":\"%s\","
+    "\"dmr_id\":%lu,"
+    "\"hostname\":\"%s\","
+    "\"uptime\":{"
+      "\"seconds\":%lu,"
+      "\"days\":%lu,"
+      "\"hours\":%lu,"
+      "\"minutes\":%lu,"
+      "\"secondsRemaining\":%lu"
+    "},"
+    "\"chip\":{"
+      "\"model\":\"%s\","
+      "\"revision\":%d,"
+      "\"cores\":%d,"
+      "\"cpuFreqMHz\":%lu"
+    "},"
+    "\"memory\":{"
+      "\"freeHeapKB\":%.1f,"
+      "\"freeHeapPercent\":%u,"
+      "\"minFreeHeapKB\":%.1f,"
+      "\"heapSizeKB\":%.1f,"
+      "\"psramSizeMB\":%.0f,"
+      "\"freePsramKB\":%.1f"
+    "},"
+    "\"flash\":{"
+      "\"sizeMB\":%.0f,"
+      "\"speedMHz\":%lu,"
+      "\"sketchSizeKB\":%.1f,"
+      "\"freeSketchSpaceKB\":%.1f"
+    "},"
+    "\"firmware\":{"
+      "\"sdkVersion\":\"%s\","
+      "\"version\":\"%s\","
+      "\"buildDate\":\"%s %s\""
+    "}"
+    "}",
+    dmr_callsign.c_str(), dmr_id, device_hostname.c_str(),
+    uptimeSeconds, days, hours, minutes, seconds,
+    ESP.getChipModel(), ESP.getChipRevision(), ESP.getChipCores(), (unsigned long)ESP.getCpuFreqMHz(),
+    freeHeapKB, freeHeapPercent, minFreeHeapKB, heapSizeKB, psramSizeMB, freePsramKB,
+    flashSizeMB, flashSpeed, sketchSizeKB, freeSketchSpaceKB,
+    ESP.getSdkVersion(), FIRMWARE_VERSION, __DATE__, __TIME__
+  );
 
-  // Uptime object
-  payload += "\"uptime\":{";
-  payload += "\"seconds\":" + String(uptimeSeconds) + ",";
-  payload += "\"days\":" + String(days) + ",";
-  payload += "\"hours\":" + String(hours) + ",";
-  payload += "\"minutes\":" + String(minutes) + ",";
-  payload += "\"secondsRemaining\":" + String(seconds);
-  payload += "},";
-
-  // Chip object
-  payload += "\"chip\":{";
-  payload += "\"model\":\"" + String(ESP.getChipModel()) + "\",";
-  payload += "\"revision\":" + String(ESP.getChipRevision()) + ",";
-  payload += "\"cores\":" + String(ESP.getChipCores()) + ",";
-  payload += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz());
-  payload += "},";
-
-  // Memory object
-  payload += "\"memory\":{";
-  payload += "\"freeHeapKB\":" + String(freeHeapKB, 1) + ",";
-  payload += "\"freeHeapPercent\":" + String(freeHeapPercent) + ",";
-  payload += "\"minFreeHeapKB\":" + String(minFreeHeapKB, 1) + ",";
-  payload += "\"heapSizeKB\":" + String(heapSizeKB, 1) + ",";
-  payload += "\"psramSizeMB\":" + String(psramSizeMB, 0) + ",";
-  payload += "\"freePsramKB\":" + String(freePsramKB, 1);
-  payload += "},";
-
-  // Flash object
-  payload += "\"flash\":{";
-  payload += "\"sizeMB\":" + String(flashSizeMB, 0) + ",";
-  payload += "\"speedMHz\":" + String(flashSpeed) + ",";
-  payload += "\"sketchSizeKB\":" + String(sketchSizeKB, 1) + ",";
-  payload += "\"freeSketchSpaceKB\":" + String(freeSketchSpaceKB, 1);
-  payload += "},";
-
-  // Firmware object
-  payload += "\"firmware\":{";
-  payload += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
-  payload += "\"version\":\"" + String(FIRMWARE_VERSION) + "\",";
-  payload += "\"buildDate\":\"" + String(__DATE__) + " " + String(__TIME__) + "\"";
-  payload += "}";
-
-  payload += "}";
-
-  mqttClient.publish(topic.c_str(), payload.c_str());
+  // Build topic string efficiently
+  char topic[128];
+  snprintf(topic, sizeof(topic), "%s/system/status", mqtt_topic_prefix.c_str());
+  
+  mqttClient.publish(topic, payload);
 }
 
 void mqttPublishHardwareModem() {
