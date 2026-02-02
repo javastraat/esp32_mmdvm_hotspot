@@ -88,10 +88,6 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <PubSubClient.h>
-#include "esp_task_wdt.h"
-
-// Watchdog Timer Configuration
-#define WDT_TIMEOUT 10  // Watchdog timeout in seconds
 
 // Include files
 #include "include/config.h"
@@ -952,24 +948,9 @@ void setup() {
 
   // Initialize auto-blanking timer
   lastActivityTime = millis();
-
-  // Initialize ESP32 Task Watchdog Timer (Arduino 3.x API)
-  // Deinitialize first in case Arduino framework already initialized it
-  esp_task_wdt_deinit();
-  esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = WDT_TIMEOUT * 1000,
-    .idle_core_mask = 0,
-    .trigger_panic = true
-  };
-  esp_task_wdt_init(&wdt_config);
-  esp_task_wdt_add(NULL);  // Add current task (loop task) to WDT watch
-  logSerial("[SYSTEM] Watchdog timer enabled (" + String(WDT_TIMEOUT) + "s timeout)");
 }
 
 void loop() {
-  // Reset watchdog timer at start of each loop iteration
-  esp_task_wdt_reset();
-
   // MMDVM wakeup serial on GPIO 13 stays open (no need to send more data after initial wakeup)
   // Just keeping the UART port active is enough to keep the modem awake
 
@@ -1656,31 +1637,22 @@ void handleMMDVMSerial() {
       continue;  // Wait for frame start
     }
 
-    // Prevent buffer overflow BEFORE writing
-    if (rxBufferPtr >= sizeof(rxBuffer)) {
-      logSerial("[ERROR] MMDVM RX buffer overflow, discarding frame");
-      rxBufferPtr = 0;
-      continue;
-    }
-
     rxBuffer[rxBufferPtr++] = byte;
 
     // Check if we have enough bytes to read length
     if (rxBufferPtr >= 2) {
       uint8_t frameLength = rxBuffer[1];
-      
-      // Validate frame length to prevent overflow
-      if (frameLength > sizeof(rxBuffer)) {
-        logSerial("[ERROR] MMDVM frame length too large: " + String(frameLength) + " bytes, max: " + String(sizeof(rxBuffer)));
-        rxBufferPtr = 0;
-        continue;
-      }
 
       // Check if we have a complete frame
       if (rxBufferPtr >= frameLength) {
         processMMDVMFrame();
         rxBufferPtr = 0;
       }
+    }
+
+    // Prevent buffer overflow
+    if (rxBufferPtr >= sizeof(rxBuffer)) {
+      rxBufferPtr = 0;
     }
   }
 }
@@ -2778,6 +2750,8 @@ bool mqttConnect() {
 void mqttPublishSystemInfo() {
   if (!mqttConnected || !mqttClient.connected()) return;
 
+  String topic = mqtt_topic_prefix + "/system/status";
+
   // Calculate uptime breakdown
   unsigned long uptimeSeconds = millis() / 1000;
   unsigned long days = uptimeSeconds / 86400;
@@ -2809,59 +2783,56 @@ void mqttPublishSystemInfo() {
   float sketchSizeKB = sketchSize / 1024.0;
   float freeSketchSpaceKB = freeSketchSpace / 1024.0;
 
-  // Build JSON using fixed buffer with snprintf (prevents heap fragmentation)
-  char payload[1024];
-  snprintf(payload, sizeof(payload),
-    "{"
-    "\"callsign\":\"%s\","
-    "\"dmr_id\":%lu,"
-    "\"hostname\":\"%s\","
-    "\"uptime\":{"
-      "\"seconds\":%lu,"
-      "\"days\":%lu,"
-      "\"hours\":%lu,"
-      "\"minutes\":%lu,"
-      "\"secondsRemaining\":%lu"
-    "},"
-    "\"chip\":{"
-      "\"model\":\"%s\","
-      "\"revision\":%d,"
-      "\"cores\":%d,"
-      "\"cpuFreqMHz\":%lu"
-    "},"
-    "\"memory\":{"
-      "\"freeHeapKB\":%.1f,"
-      "\"freeHeapPercent\":%u,"
-      "\"minFreeHeapKB\":%.1f,"
-      "\"heapSizeKB\":%.1f,"
-      "\"psramSizeMB\":%.0f,"
-      "\"freePsramKB\":%.1f"
-    "},"
-    "\"flash\":{"
-      "\"sizeMB\":%.0f,"
-      "\"speedMHz\":%lu,"
-      "\"sketchSizeKB\":%.1f,"
-      "\"freeSketchSpaceKB\":%.1f"
-    "},"
-    "\"firmware\":{"
-      "\"sdkVersion\":\"%s\","
-      "\"version\":\"%s\","
-      "\"buildDate\":\"%s %s\""
-    "}"
-    "}",
-    dmr_callsign.c_str(), dmr_id, device_hostname.c_str(),
-    uptimeSeconds, days, hours, minutes, seconds,
-    ESP.getChipModel(), ESP.getChipRevision(), ESP.getChipCores(), (unsigned long)ESP.getCpuFreqMHz(),
-    freeHeapKB, freeHeapPercent, minFreeHeapKB, heapSizeKB, psramSizeMB, freePsramKB,
-    flashSizeMB, flashSpeed, sketchSizeKB, freeSketchSpaceKB,
-    ESP.getSdkVersion(), FIRMWARE_VERSION, __DATE__, __TIME__
-  );
+  String payload = "{";
+  payload += "\"callsign\":\"" + dmr_callsign + "\",";
+  payload += "\"dmr_id\":" + String(dmr_id) + ",";
+  payload += "\"hostname\":\"" + device_hostname + "\",";
 
-  // Build topic string efficiently
-  char topic[128];
-  snprintf(topic, sizeof(topic), "%s/system/status", mqtt_topic_prefix.c_str());
-  
-  mqttClient.publish(topic, payload);
+  // Uptime object
+  payload += "\"uptime\":{";
+  payload += "\"seconds\":" + String(uptimeSeconds) + ",";
+  payload += "\"days\":" + String(days) + ",";
+  payload += "\"hours\":" + String(hours) + ",";
+  payload += "\"minutes\":" + String(minutes) + ",";
+  payload += "\"secondsRemaining\":" + String(seconds);
+  payload += "},";
+
+  // Chip object
+  payload += "\"chip\":{";
+  payload += "\"model\":\"" + String(ESP.getChipModel()) + "\",";
+  payload += "\"revision\":" + String(ESP.getChipRevision()) + ",";
+  payload += "\"cores\":" + String(ESP.getChipCores()) + ",";
+  payload += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz());
+  payload += "},";
+
+  // Memory object
+  payload += "\"memory\":{";
+  payload += "\"freeHeapKB\":" + String(freeHeapKB, 1) + ",";
+  payload += "\"freeHeapPercent\":" + String(freeHeapPercent) + ",";
+  payload += "\"minFreeHeapKB\":" + String(minFreeHeapKB, 1) + ",";
+  payload += "\"heapSizeKB\":" + String(heapSizeKB, 1) + ",";
+  payload += "\"psramSizeMB\":" + String(psramSizeMB, 0) + ",";
+  payload += "\"freePsramKB\":" + String(freePsramKB, 1);
+  payload += "},";
+
+  // Flash object
+  payload += "\"flash\":{";
+  payload += "\"sizeMB\":" + String(flashSizeMB, 0) + ",";
+  payload += "\"speedMHz\":" + String(flashSpeed) + ",";
+  payload += "\"sketchSizeKB\":" + String(sketchSizeKB, 1) + ",";
+  payload += "\"freeSketchSpaceKB\":" + String(freeSketchSpaceKB, 1);
+  payload += "},";
+
+  // Firmware object
+  payload += "\"firmware\":{";
+  payload += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
+  payload += "\"version\":\"" + String(FIRMWARE_VERSION) + "\",";
+  payload += "\"buildDate\":\"" + String(__DATE__) + " " + String(__TIME__) + "\"";
+  payload += "}";
+
+  payload += "}";
+
+  mqttClient.publish(topic.c_str(), payload.c_str());
 }
 
 void mqttPublishHardwareModem() {
