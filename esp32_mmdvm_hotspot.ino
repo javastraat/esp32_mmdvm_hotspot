@@ -1656,22 +1656,31 @@ void handleMMDVMSerial() {
       continue;  // Wait for frame start
     }
 
+    // Prevent buffer overflow BEFORE writing
+    if (rxBufferPtr >= sizeof(rxBuffer)) {
+      logSerial("[ERROR] MMDVM RX buffer overflow, discarding frame");
+      rxBufferPtr = 0;
+      continue;
+    }
+
     rxBuffer[rxBufferPtr++] = byte;
 
     // Check if we have enough bytes to read length
     if (rxBufferPtr >= 2) {
       uint8_t frameLength = rxBuffer[1];
+      
+      // Validate frame length to prevent overflow
+      if (frameLength > sizeof(rxBuffer)) {
+        logSerial("[ERROR] MMDVM frame length too large: " + String(frameLength) + " bytes, max: " + String(sizeof(rxBuffer)));
+        rxBufferPtr = 0;
+        continue;
+      }
 
       // Check if we have a complete frame
       if (rxBufferPtr >= frameLength) {
         processMMDVMFrame();
         rxBufferPtr = 0;
       }
-    }
-
-    // Prevent buffer overflow
-    if (rxBufferPtr >= sizeof(rxBuffer)) {
-      rxBufferPtr = 0;
     }
   }
 }
