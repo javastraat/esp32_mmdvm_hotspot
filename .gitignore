@@ -10,3 +10,4 @@ makedb.sh
 /scripts/
 /scripts/*
 /scripts/.DS_Store
+/include/config.h
