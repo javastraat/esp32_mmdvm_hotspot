@@ -88,6 +88,10 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <PubSubClient.h>
+#include "esp_task_wdt.h"
+
+// Watchdog Timer Configuration
+#define WDT_TIMEOUT 10  // Watchdog timeout in seconds
 
 // Include files
 #include "include/config.h"
@@ -948,9 +952,24 @@ void setup() {
 
   // Initialize auto-blanking timer
   lastActivityTime = millis();
+
+  // Initialize ESP32 Task Watchdog Timer (Arduino 3.x API)
+  // Deinitialize first in case Arduino framework already initialized it
+  esp_task_wdt_deinit();
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = WDT_TIMEOUT * 1000,
+    .idle_core_mask = 0,
+    .trigger_panic = true
+  };
+  esp_task_wdt_init(&wdt_config);
+  esp_task_wdt_add(NULL);  // Add current task (loop task) to WDT watch
+  logSerial("[SYSTEM] Watchdog timer enabled (" + String(WDT_TIMEOUT) + "s timeout)");
 }
 
 void loop() {
+  // Reset watchdog timer at start of each loop iteration
+  esp_task_wdt_reset();
+
   // MMDVM wakeup serial on GPIO 13 stays open (no need to send more data after initial wakeup)
   // Just keeping the UART port active is enough to keep the modem awake
 
