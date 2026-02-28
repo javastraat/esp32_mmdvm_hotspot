@@ -318,15 +318,15 @@ const int MMDVM_TX_LEVEL = 128;   // TX level (0-255)
 #define ARDUINO_OTA_PORT 3232        // Default ArduinoOTA port
 
 // OTA Update URLs
-// #define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
-// #define OTA_VERSION_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version_beta.txt"
-// #define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update.bin"
-// #define OTA_UPDATE_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update_beta.bin"
+#define OTA_VERSION_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version.txt"
+#define OTA_VERSION_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/version_beta.txt"
+#define OTA_UPDATE_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update.bin"
+#define OTA_UPDATE_BETA_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update_beta.bin"
 
-#define OTA_VERSION_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/version.txt"
-#define OTA_VERSION_BETA_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/version_beta.txt"
-#define OTA_UPDATE_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update.bin"
-#define OTA_UPDATE_BETA_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update_beta.bin"
+// #define OTA_VERSION_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/version.txt"
+// #define OTA_VERSION_BETA_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/version_beta.txt"
+// #define OTA_UPDATE_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update.bin"
+// #define OTA_UPDATE_BETA_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update_beta.bin"
 
 
 #define OTA_UPDATE_FACTORY_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/factory-setup.bin"
