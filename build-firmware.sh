@@ -26,7 +26,7 @@ NO_COMMIT=false  # Default: commit to git
 FQBN="esp32:esp32:mmdvm:PartitionScheme=custom_16MB"
 BUILD_DIR="build/esp32.esp32.mmdvm"
 
-BINARY_NAME="esp32_mmdvm_hotspot.ino.bin"
+BINARY_NAME="esp32-rtos-mmdvm.ino.bin"
 
 # Function to print colored output
 print_info() {

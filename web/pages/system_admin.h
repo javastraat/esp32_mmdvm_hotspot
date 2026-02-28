@@ -1,204 +1,381 @@
 /*
- * system_admin.h - System Administration Page for ESP32 MMDVM Hotspot Web Interface
+ * System Admin Page
+ * Administrative functions (reboot, reset, backup/restore)
  */
 
-#ifndef WEB_PAGES_SYSTEM_ADMIN_H
-#define WEB_PAGES_SYSTEM_ADMIN_H
+#ifndef WEB_SYSTEM_ADMIN_H
+#define WEB_SYSTEM_ADMIN_H
 
 #include <Arduino.h>
-#include <WebServer.h>
-#include "../common/css.h"
-#include "../common/navigation.h"
-#include "../common/utils.h"
-#include "../common/server_utils.h"
+#include "web/include/styles.h"
+#include "web/include/navigation.h"
+#include "web/include/utils.h"
 
-// External variables
-extern WebServer server;
-//extern String device_hostname;
+// External references to runtime settings
+extern bool modeDmrEnabled;
+extern bool modeDstarEnabled;
+extern bool modeYsfEnabled;
+extern bool modeP25Enabled;
+extern bool modeNxdnEnabled;
+extern bool modePocsagEnabled;
+extern bool mqttEnabled;
+extern String mdnsHostname;
 
-void handleSystemAdmin() {
-  if (!checkAuthentication()) return;
+static inline bool anyModeEnabled()
+{
+  return modeDmrEnabled || modeDstarEnabled || modeYsfEnabled || modeP25Enabled || modeNxdnEnabled || modePocsagEnabled;
+}
 
-  String html = "<!DOCTYPE html><html><head>";
+String getSystemAdminPageHTML()
+{
+  String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>System Admin - ESP32 MMDVM</title>";
-  html += getCommonCSS();
-  html += "<style>";
-  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
-  html += ".metric:last-child { border-bottom: none; }";
-  html += ".metric-label { font-weight: bold; color: #555; }";
-  html += ".metric-value { color: #333; }";
-  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
-  html += ".btn-primary { background: #007bff; color: white; }";
-  html += ".btn-primary:hover { background: #0056b3; }";
-  html += ".btn-success { background: #28a745; color: white; }";
-  html += ".btn-success:hover { background: #218838; }";
-  html += ".btn-warning { background: #ffc107; color: black; }";
-  html += ".btn-warning:hover { background: #e0a800; }";
-  html += ".btn-danger { background: #dc3545; color: white; }";
-  html += ".btn-danger:hover { background: #c82333; }";
-  html += ".btn-info { background: #17a2b8; color: white; }";
-  html += ".btn-info:hover { background: #138496; }";
-  html += ".action-buttons-vertical { text-align: center; margin: 15px 0; }";
-  html += ".action-buttons-vertical .btn { display: block; margin: 8px auto; width: 80%; }";
-  html += "</style></head><body>";
-  html += getNavigation("systemadmin");
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>System Administration</title>";
+  html += getSharedStyles();
+  // Inject mdnsHostname as JS variable for export filename
+  html += "<script>window.mdnsHostname = '" + mdnsHostname + "';</script>";
+  html += "</head><body>";
+  html += getNavigation("system-admin");
+
   html += "<div class='container'>";
   html += "<h1>System Administration</h1>";
 
   html += "<div class='admin-grid'>";
 
-  // System Control Card
+  // Card 1: System Control
   html += "<div class='card'>";
-  html += "<h3>System Administration</h3>";
-  html += "<p>Control system functions and network services:</p>";
+  html += "<h3>System Control</h3>";
+  html += "<p>Control system functions and restart services</p>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<a href='javascript:void(0)' onclick='rebootSystem()' class='btn btn-warning'>Reboot System</a>";
-  html += "<a href='javascript:void(0)' onclick='restartDMR()' class='btn btn-primary'>Restart DMR</a>";
-  html += "<a href='javascript:void(0)' onclick='restartMQTT()' class='btn btn-primary'>Restart MQTT</a>";
-  html += "<a href='javascript:void(0)' onclick='restartServices()' class='btn btn-success'>Restart All Services</a>";
+  html += "<button class='btn btn-warning' onclick='rebootSystem()'>Reboot System</button>";
+  html += "<button class='btn btn-primary' onclick='restartMMDVM()'" + String(anyModeEnabled() ? "" : " disabled") + ">Restart MMDVM</button>";
+  html += "<button class='btn btn-primary' onclick='restartMQTT()'" + String(mqttEnabled ? "" : " disabled") + ">Restart MQTT</button>";
+  html += "<button class='btn btn-success' onclick='restartServices()'>Restart All Services</button>";
+  html += "<button class='btn btn-danger' onclick='factoryReset()'>Factory Reset</button>";
+  html += "</div>";
+  html += "<div class='info' style='margin-top:15px'>";
+  html += "<small><strong>Warning:</strong> Factory reset will erase all settings and restore defaults from config.h.</small>";
   html += "</div>";
   html += "</div>";
 
-  // // Hostname Configuration Card
-  // html += "<div class='card'>";
-  // html += "<h3>Hostname Configuration</h3>";
-  // html += "<p>Current hostname: <strong>" + device_hostname + "</strong></p>";
-  // html += "<p style='font-size:0.9em;color:#666;'>Access via: http://" + device_hostname + ".local</p>";
-  // html += "<form id='hostname-form' onsubmit='saveHostname(event)'>";
-  // html += "<input type='text' id='hostname-input' value='" + device_hostname + "' placeholder='e.g., mmdvm-hotspot' style='width:100%;padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;' pattern='[a-zA-Z0-9-]{1,32}' required>";
-  // html += "<button type='submit' class='btn btn-success' style='width:100%;'>Save Hostname</button>";
-  // html += "</form>";
-  // html += "</div>";
-
-  // Configuration Management Card
+  // Card 2: Configuration Management
   html += "<div class='card'>";
   html += "<h3>Configuration Management</h3>";
-  html += "<p>Manage system configuration:</p>";
+  html += "<p>Manage system configuration and preferences</p>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<a href='/showprefs' class='btn btn-primary'>Show Preferences</a>";
-  html += "<a href='javascript:void(0)' onclick='downloadConfig()' class='btn btn-success'>Export Config</a>";
-  html += "<a href='javascript:void(0)' onclick='document.getElementById(\"config-file\").click()' class='btn btn-info'>Import Config</a>";
-  html += "<a href='javascript:void(0)' onclick='cleanupPrefs()' class='btn btn-warning'>Repair Preferences</a>";
-  html += "<a href='/resetconfig' class='btn btn-danger'>Reset All Settings</a>";
+  html += "<button class='btn btn-primary' onclick='showPreferences()'>Show Preferences</button>";
+  html += "<button class='btn btn-primary' onclick='showPreferencesRaw()'>Show Preferences RAW</button>";
+  html += "<button class='btn btn-success' onclick='exportConfig()'>Export Config</button>";
+  html += "<button class='btn btn-secondary' onclick='document.getElementById(\"config-file\").click()'>Import Config</button>";
+  html += "<button class='btn btn-warning' onclick='repairPreferences()'>Repair Preferences</button>";
+  html += "<button class='btn btn-danger' onclick='prefsReset()'>Reset All Settings</button>";
   html += "</div>";
-  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display: none;'>";
+  html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display:none;'>";
   html += "</div>";
 
+  // Card 3: Saved Configurations (snapshots to SD card and internal flash)
+  html += "<div class='card'>";
+  html += "<h3>Saved Configurations</h3>";
+  html += "<p>Save and restore named configuration snapshots to SD card or internal flash</p>";
+
+  // SD Card section
+  html += "<h4 style='margin-top:10px;margin-bottom:2px'>SD Card <span id='sd-badge' style='font-size:12px;padding:2px 8px;border-radius:10px;background:#6c757d;color:#fff'>checking...</span></h4>";
+  html += "<div id='sd-storage-info' style='font-size:11px;color:#aaa;margin-top:8px;margin-bottom:6px'></div>";
+  html += "<div id='sd-snapshot-list' style='margin-bottom:8px'><small style='color:#aaa'>Loading...</small></div>";
+  html += "<div style='display:flex;gap:6px;align-items:center;margin-bottom:14px'>";
+  html += "<input type='text' id='sd-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
+  html += "<button class='btn btn-success' onclick='saveSnapshot(\"sd\")'>Save to SD</button>";
+  html += "</div>";
+
+  // Internal Flash section
+  html += "<h4 style='margin-top:8px;margin-bottom:2px'>Internal Flash <span style='font-size:12px;padding:2px 8px;border-radius:10px;background:#28a745;color:#fff'>always available</span></h4>";
+  html += "<div id='flash-storage-info' style='font-size:11px;color:#aaa;margin-top:8px;margin-bottom:6px'></div>";
+  html += "<div id='flash-snapshot-list' style='margin-bottom:8px'><small style='color:#aaa'>Loading...</small></div>";
+  html += "<div style='display:flex;gap:6px;align-items:center'>";
+  html += "<input type='text' id='flash-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
+  html += "<button class='btn btn-success' onclick='saveSnapshot(\"flash\")'>Save to Flash</button>";
+  html += "</div>";
+
+  html += "</div>"; // close card
+
+   // Card 4: NVS Namespace Listing
+  html += "<div class='card'>";
+  html += "<h3>NVS Namespace Listing</h3>";
+  html += "<p>View all NVS namespaces stored on the ESP32</p>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "<button class='btn btn-info' onclick='showNvsNamespaces()'>Refresh</button>";
+  html += "</div>";
+  html += "<div id='nvs-namespaces-list' style='margin-top:15px;'></div>";
+  html += "</div>";
+
+  // End of grid
   html += "</div>"; // Close admin-grid
 
   // JavaScript functions
   html += "<script>";
-  html += "function saveHostname(event) {";
-  html += "  event.preventDefault();";
-  html += "  var hostname = document.getElementById('hostname-input').value;";
-  html += "  if (hostname && /^[a-zA-Z0-9-]{1,32}$/.test(hostname)) {";
-  html += "    fetch('/save-hostname', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'hostname=' + encodeURIComponent(hostname)}).then(response => response.text()).then(data => {";
-  html += "      if (data.includes('SUCCESS')) {";
-  html += "        alert('Hostname saved! System will reboot in 3 seconds.\\n\\nNew URL: http://' + hostname + '.local');";
-  html += "        setTimeout(() => { window.location.href = 'http://' + hostname + '.local'; }, 3000);";
-  html += "      } else {";
-  html += "        alert('Error: ' + data);";
-  html += "      }";
-  html += "    });";
-  html += "  } else {";
-  html += "    alert('Invalid hostname. Use only letters, numbers, and hyphens (1-32 characters).');";
-  html += "  }";
+  html += "function showNvsNamespaces() {";
+  html += "  fetch('/api/list-nvs-namespaces').then(r => r.json()).then(data => {";
+  html += "    var out = '<div style=\"display:flex;flex-direction:column;gap:8px\">';";
+  html += "    if (data.namespaces && data.namespaces.length > 0) {";
+  html += "      data.namespaces.forEach(ns => { out += '<button class=\"btn btn-primary\" style=\"font-family:monospace;font-size:13px;text-align:center\" onclick=\"showNvsContents(\\'' + ns + '\\')\">' + 'Show ' + ns + '</button>'; });";
+  html += "    } else { out += '<span>No namespaces found</span>'; }";
+  html += "    out += '</div>';";
+  html += "    document.getElementById('nvs-namespaces-list').innerHTML = out;";
+  html += "  }).catch(err => { document.getElementById('nvs-namespaces-list').innerHTML = '<span style=\"color:#dc3545\">Error loading namespaces</span>'; });";
   html += "}";
+  html += "function showNvsContents(ns) {";
+  html += "  fetch('/api/show-prefs-raw?namespace=' + encodeURIComponent(ns)).then(r => r.text()).then(data => {";
+  html += "    showPrefsInline('NVS Namespace: ' + ns, data);";
+  html += "  }).catch(err => { showAlert('Error loading namespace: ' + ns); });";
+  html += "}";
+  // Modal helpers (from system_wifi.h)
+  html += "window.showModal = function(contentFn) { var overlay = document.createElement('div'); overlay.className = 'modal-overlay'; var box = document.createElement('div'); box.className = 'modal-box'; contentFn(box, function() { document.body.removeChild(overlay); }); overlay.appendChild(box); overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); }); document.body.appendChild(overlay); return overlay; };";
+  html += "window.showAlert = function(msg) { showModal(function(box, close) { box.innerHTML = '<h4>' + msg + '</h4>'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var ok = document.createElement('button'); ok.textContent = 'OK'; ok.className = 'btn btn-primary'; ok.onclick = close; btns.appendChild(ok); box.appendChild(btns); }); };";
+  html += "window.showConfirm = function(msg, onYes) { showModal(function(box, close) { box.innerHTML = '<h4>' + msg + '</h4>'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var yes = document.createElement('button'); yes.textContent = 'Yes'; yes.className = 'btn btn-success'; yes.onclick = function() { close(); onYes(); }; var no = document.createElement('button'); no.textContent = 'Cancel'; no.className = 'btn btn-danger'; no.onclick = close; btns.appendChild(yes); btns.appendChild(no); box.appendChild(btns); }); };";
+  // Custom filename prompt modal
+  html += "window.showFilenamePrompt = function(defaultName, onOk) { showModal(function(box, close) { box.innerHTML = '<h4>Choose filename for export:</h4>'; var input = document.createElement('input'); input.type = 'text'; input.value = defaultName; input.style.width = '90%'; input.style.margin = '10px 0'; input.className = 'form-control'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var ok = document.createElement('button'); ok.textContent = 'Export'; ok.className = 'btn btn-success'; ok.onclick = function() { var val = input.value.trim(); if(val) { close(); onOk(val); } }; var cancel = document.createElement('button'); cancel.textContent = 'Cancel'; cancel.className = 'btn btn-danger'; cancel.onclick = close; btns.appendChild(ok); btns.appendChild(cancel); box.appendChild(input); box.appendChild(btns); input.focus(); input.select(); }); };";
+
+  // Reboot System
   html += "function rebootSystem() {";
-  html += "  if (confirm('Are you sure you want to reboot the system? This will temporarily interrupt service.')) {";
-  html += "    fetch('/reboot', {method: 'POST'}).then(() => {";
-  html += "      alert('System is rebooting... Please wait 30 seconds before reconnecting.');";
-  html += "      setTimeout(() => { window.location.href = '/'; }, 30000);";
+  html += "  showConfirm('Are you sure you want to restart the system?', function() {";
+  html += "    fetch('/api/reboot', {method: 'POST'}).then(function() {";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
   html += "    });";
-  html += "  }";
-  html += "}";
-  html += "function restartDMR() {";
-  html += "  if (confirm('Restart DMR network connection?')) {";
-  html += "    fetch('/restart-dmr', {method: 'POST'}).then(r => r.text()).then(msg => {";
-  html += "      alert(msg);";
-  html += "    });";
-  html += "  }";
-  html += "}";
-  html += "function restartMQTT() {";
-  html += "  if (confirm('Restart MQTT connection?')) {";
-  html += "    fetch('/restart-mqtt', {method: 'POST'}).then(r => r.text()).then(msg => {";
-  html += "      alert(msg);";
-  html += "    });";
-  html += "  }";
-  html += "}";
-  html += "function restartServices() {";
-  html += "  if (confirm('Restart DMR and MQTT network services?')) {";
-  html += "    fetch('/restart-services', {method: 'POST'}).then(r => r.text()).then(msg => {";
-  html += "      alert(msg);";
-  html += "    });";
-  html += "  }";
-  html += "}";
-  html += "function downloadConfig() {";
-  html += "  fetch('/export-config').then(r => r.blob()).then(blob => {";
-  html += "    const url = window.URL.createObjectURL(blob);";
-  html += "    const a = document.createElement('a');";
-  html += "    a.href = url;";
-  html += "    a.download = 'mmdvm-config.txt';";
-  html += "    a.click();";
-  html += "    window.URL.revokeObjectURL(url);";
   html += "  });";
   html += "}";
+
+  // Factory Reset
+  html += "function factoryReset() {";
+  html += "  showConfirm('WARNING: Factory Reset\\n\\nThis will erase ALL saved settings and restore defaults from config.h:\\n\\n• Mode settings (DMR, D-Star, etc.)\\n• WiFi & network configuration\\n• MQTT settings\\n• Hardware pin assignments\\n• All preferences\\n\\nThis action CANNOT be undone!\\n\\nAre you sure?', function() {";
+  html += "    showConfirm('FINAL CONFIRMATION\\n\\nAll settings will be permanently erased.\\n\\nProceed with factory reset?', function() {";
+  html += "      fetch('/api/factory-reset', {method: 'POST'}).then(function() {";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Factory reset complete. Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "        setTimeout(function() { location.reload(); }, 10000);";
+  html += "      });";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Preferences Reset (Reset All Settings)
+  html += "function prefsReset() {";
+  html += "  showConfirm('Reset All Settings\\n\\nThis will clear ALL preferences in NVS.\\n\\nAre you sure you want to proceed?', function() {";
+  html += "    showConfirm('FINAL CONFIRMATION\\n\\nAll preferences will be erased.\\n\\nProceed with reset?', function() {";
+  html += "      fetch('/api/prefs-reset', {method: 'POST'}).then(function() {";
+  html += "        showConfirm('Preferences have been cleared.\\n\\nDo you want to reboot now?', function() {";
+  html += "          fetch('/api/reboot', {method: 'POST'}).then(function() {";
+  html += "            document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "            setTimeout(function() { location.reload(); }, 10000);";
+  html += "          });";
+  html += "        }, function() { showAlert('Preferences have been cleared. Please review settings before rebooting.'); });";
+  html += "      });";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Restart MMDVM (all 6 mode tasks)
+  html += "function restartMMDVM() {";
+  html += "  showConfirm('Restart MMDVM protocol tasks?\\n\\nThis will stop all mode tasks and restart only the enabled ones.', function() {";
+  html += "    fetch('/api/restart-mmdvm', {method: 'POST'}).then(function(r) { return r.text(); }).then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Restart MQTT
+  html += "function restartMQTT() {";
+  html += "  showConfirm('Restart MQTT connection?', function() {";
+  html += "    fetch('/api/restart-mqtt', {method: 'POST'}).then(function(r) { return r.text(); }).then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Restart All Services
+  html += "function restartServices() {";
+  html += "  showConfirm('Restart MMDVM and MQTT services?\\n\\nOnly enabled services will be restarted.', function() {";
+  html += "    fetch('/api/restart-services', {method: 'POST'}).then(function(r) { return r.text(); }).then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Show Preferences (inline)
+  html += "function showPreferences() {";
+  html += "  fetch('/api/show-prefs').then(function(r) { return r.text(); }).then(function(data) {";
+  html += "    showPrefsInline('NVS Preferences', data);";
+  html += "  });";
+  html += "}";
+
+  // Show Preferences RAW (inline)
+  html += "function showPreferencesRaw() {";
+  html += "  fetch('/api/show-prefs-raw').then(function(r) { return r.text(); }).then(function(data) {";
+  html += "    showPrefsInline('NVS Preferences RAW', data);";
+  html += "  });";
+  html += "}";
+
+  // Shared inline display for preferences
+  html += "function showPrefsInline(title, data) {";
+  html += "  var container = document.querySelector('.container');";
+  html += "  container.innerHTML = '<h1>' + title + '</h1>';";
+  html += "  container.innerHTML += '<button class=\"btn btn-primary\" onclick=\"location.reload()\" style=\"margin-bottom:15px;\">Back to Administration</button>';";
+  html += "  var content = document.createElement('div');";
+  html += "  content.className = 'card';";
+  html += "  content.style.fontFamily = 'monospace';";
+  html += "  content.style.fontSize = '13px';";
+  html += "  content.style.overflowX = 'auto';";
+  html += "  content.innerHTML = data;";
+  html += "  container.appendChild(content);";
+  html += "  var backBtn = document.createElement('button');";
+  html += "  backBtn.className = 'btn btn-primary';";
+  html += "  backBtn.textContent = 'Back to Administration';";
+  html += "  backBtn.style.marginTop = '15px';";
+  html += "  backBtn.onclick = function() { location.reload(); };";
+  html += "  container.appendChild(backBtn);";
+  html += "  window.scrollTo(0, 0);";
+  html += "}";
+
+  // Repair Preferences
+  html += "function repairPreferences() {";
+  html += "  showConfirm('Repair Preferences\\n\\nThis will check all preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?', function() {";
+  html += "    fetch('/api/repair-prefs', {method: 'POST'}).then(function(r) { return r.text(); }).then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "      if (msg.indexOf('Repaired') >= 0 || msg.indexOf('added') >= 0) {";
+  html += "        setTimeout(function() { location.reload(); }, 2000);";
+  html += "      }";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Export Config
+  html += "function exportConfig() {";
+  html += "  var mdns = window.mdnsHostname || 'mmdvm';";
+  html += "  var now = new Date();";
+  html += "  var pad = n => n.toString().padStart(2, '0');";
+  html += "  var ts = now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '_' + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());";
+  html += "  var defaultName = mdns + '-' + ts + '.txt';";
+  html += "  window.showFilenamePrompt(defaultName, function(fname) {";
+  html += "    fetch('/api/export-config').then(function(r) { return r.blob(); }).then(function(blob) {";
+  html += "      var url = window.URL.createObjectURL(blob);";
+  html += "      var a = document.createElement('a');";
+  html += "      a.href = url;";
+  html += "      a.download = fname;";
+  html += "      a.click();";
+  html += "      window.URL.revokeObjectURL(url);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Import Config
   html += "function importConfig() {";
   html += "  var fileInput = document.getElementById('config-file');";
   html += "  var file = fileInput.files[0];";
   html += "  if (!file) return;";
-  html += "  if (confirm('Import configuration from: ' + file.name + '?\\n\\nWARNING: This will overwrite ALL current settings!\\n\\nCurrent settings will be replaced with:\\n• DMR configuration\\n• WiFi networks\\n• System settings\\n• MQTT settings\\n• All preferences\\n\\nThis action CANNOT be undone!\\n\\nContinue?')) {";
-  html += "    var formData = new FormData();";
-  html += "    formData.append('config', file);";
-  html += "    fetch('/import-config', {method: 'POST', body: formData}).then(response => response.text()).then(data => {";
-  html += "      fileInput.value = '';";
-  html += "      if (data.includes('SUCCESS')) {";
-  html += "        alert('Configuration imported successfully! System will reboot in 3 seconds.');";
-  html += "        setTimeout(() => { window.location.href = '/'; }, 3000);";
-  html += "      } else {";
-  html += "        alert('Import failed: ' + data);";
-  html += "      }";
-  html += "    }).catch(err => {";
-  html += "      fileInput.value = '';";
-  html += "      alert('Configuration imported successfully! System is rebooting...');";
-  html += "      setTimeout(() => { window.location.href = '/'; }, 5000);";
-  html += "    });";
-  html += "  } else {";
-  html += "    fileInput.value = '';";
-  html += "  }";
-  html += "}";
-  html += "function cleanupPrefs() {";
-  html += "  if (confirm('Repair Preferences\\n\\nThis will check all 57 preference keys and add any missing ones with defaults from config.h.\\n\\nYour existing preferences will be preserved!\\n\\nContinue?')) {";
-  html += "    fetch('/cleanup-prefs', {method: 'POST'})";
-  html += "      .then(response => response.text())";
-  html += "      .then(data => {";
-  html += "        alert(data);";
-  html += "        if (data.includes('Repaired')) {";
-  html += "          setTimeout(() => { window.location.href = '/'; }, 3000);";
-  html += "        }";
+  html += "  showConfirm('Import configuration from: ' + file.name + '?\\n\\nWARNING: This will overwrite ALL current settings!\\n\\nThis action CANNOT be undone!\\n\\nContinue?', function() {";
+  html += "    var reader = new FileReader();";
+  html += "    reader.onload = function(e) {";
+  html += "      fetch('/api/import-config', {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: e.target.result}).then(function(r) { return r.text(); }).then(function(msg) {";
+  html += "        showAlert(msg + '\\n\\nThe device will now reboot.');";
+  html += "        fetch('/api/reboot', {method: 'POST'});";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Configuration imported. Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "        setTimeout(function() { location.reload(); }, 10000);";
   html += "      });";
-  html += "  }";
+  html += "    };";
+  html += "    reader.readAsText(file);";
+  html += "  }, function() { fileInput.value = ''; });";
   html += "}";
   html += "document.getElementById('config-file').addEventListener('change', function(e) {";
   html += "  var file = e.target.files[0];";
   html += "  if (!file) return;";
   html += "  if (!file.name.match(/\\.(txt|cfg|conf)$/i)) {";
-  html += "    alert('Please select a valid configuration file (.txt, .cfg, or .conf)');";
+  html += "    showAlert('Please select a valid configuration file (.txt, .cfg, or .conf)');";
   html += "    e.target.value = '';";
   html += "    return;";
   html += "  }";
   html += "  importConfig();";
   html += "});";
+
+  // Snapshot functions
+  html += "function formatKB(kb) {";
+  html += "  if (kb >= 1024*1024) return (kb/1024/1024).toFixed(1) + ' GB';";
+  html += "  if (kb >= 1024) return (kb/1024).toFixed(1) + ' MB';";
+  html += "  return kb + ' KB';";
+  html += "}";
+
+  html += "function loadSnapshotList(storage) {";
+  html += "  var listId  = storage === 'sd' ? 'sd-snapshot-list'  : 'flash-snapshot-list';";
+  html += "  var infoId  = storage === 'sd' ? 'sd-storage-info'   : 'flash-storage-info';";
+  html += "  fetch('/api/snapshots/list?storage=' + storage).then(r => r.json()).then(data => {";
+  html += "    if (storage === 'sd') {";
+  html += "      var badge = document.getElementById('sd-badge');";
+  html += "      badge.textContent = data.mounted ? 'Mounted' : 'Not mounted';";
+  html += "      badge.style.background = data.mounted ? '#28a745' : '#dc3545';";
+  html += "    }";
+  html += "    var infoEl = document.getElementById(infoId);";
+  html += "    if (data.totalKB > 0) {";
+  html += "      infoEl.textContent = formatKB(data.freeKB) + ' free of ' + formatKB(data.totalKB);";
+  html += "    }";
+  html += "    var el = document.getElementById(listId);";
+  html += "    if (!data.files || data.files.length === 0) { el.innerHTML = '<small style=\"color:#aaa\">No snapshots saved yet</small>'; return; }";
+  html += "    data.files.sort(function(a, b) { return a.name.localeCompare(b.name); });";
+  html += "    var html = '<table style=\"width:100%;font-size:13px;border-collapse:collapse\">';";
+  html += "    data.files.forEach(function(f) {";
+  html += "      html += '<tr style=\"border-bottom:1px solid #444\">';";
+  html += "      html += '<td style=\"padding:4px 6px\">' + f.name + '</td>';";
+  html += "      html += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + (f.size/1024).toFixed(1) + ' KB</td>';";
+  html += "      html += '<td style=\"padding:4px 2px;text-align:right\">';";
+  html += "      html += '<button class=\"btn btn-primary\" style=\"padding:2px 8px;font-size:12px;margin-right:4px\" onclick=\"loadSnapshot(\\'' + storage + '\\',\\'' + f.name + '\\')\">Load</button>';";
+  html += "      html += '<button class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;margin-right:4px\" onclick=\"downloadSnapshot(\\'' + storage + '\\',\\'' + f.name + '\\')\">DL</button>';";
+  html += "      html += '<button class=\"btn btn-danger\" style=\"padding:2px 8px;font-size:12px\" onclick=\"deleteSnapshot(\\'' + storage + '\\',\\'' + f.name + '\\')\">Del</button>';";
+  html += "      html += '</td></tr>';";
+  html += "    });";
+  html += "    html += '</table>';";
+  html += "    el.innerHTML = html;";
+  html += "  }).catch(function() { document.getElementById(listId).innerHTML = '<small style=\"color:#dc3545\">Error loading list</small>'; });";
+  html += "}";
+
+  html += "function saveSnapshot(storage) {";
+  html += "  var inputId = storage === 'sd' ? 'sd-save-name' : 'flash-save-name';";
+  html += "  var name = document.getElementById(inputId).value.trim();";
+  html += "  if (!name) { showAlert('Please enter a name for the snapshot'); return; }";
+  html += "  fetch('/api/snapshots/save?storage=' + storage + '&name=' + encodeURIComponent(name), {method:'POST'})";
+  html += "    .then(r => r.text()).then(msg => { showAlert(msg); loadSnapshotList(storage); })";
+  html += "    .catch(() => showAlert('Error saving snapshot'));";
+  html += "}";
+
+  html += "function downloadSnapshot(storage, name) {";
+  html += "  var a = document.createElement('a');";
+  html += "  a.href = '/api/snapshots/download?storage=' + storage + '&name=' + encodeURIComponent(name);";
+  html += "  a.download = name + '.txt';";
+  html += "  a.click();";
+  html += "}";
+
+  html += "function loadSnapshot(storage, name) {";
+  html += "  showConfirm('Load snapshot \"' + name + '\" from ' + (storage==='sd'?'SD card':'internal flash') + '?\\n\\nThis will overwrite ALL current settings and reboot the device.', function() {";
+  html += "    fetch('/api/snapshots/load?storage=' + storage + '&name=' + encodeURIComponent(name), {method:'POST'})";
+  html += "      .then(r => r.text()).then(function(msg) {";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:22px\">' + msg + '<br>Page reloads in 10s.</div>';";
+  html += "        setTimeout(function() { location.reload(); }, 10000);";
+  html += "      }).catch(() => showAlert('Error loading snapshot'));";
+  html += "  });";
+  html += "}";
+
+  html += "function deleteSnapshot(storage, name) {";
+  html += "  showConfirm('Delete snapshot \"' + name + '\"?', function() {";
+  html += "    fetch('/api/snapshots/delete?storage=' + storage + '&name=' + encodeURIComponent(name), {method:'POST'})";
+  html += "      .then(r => r.text()).then(function(msg) { showAlert(msg); loadSnapshotList(storage); })";
+  html += "      .catch(() => showAlert('Error deleting snapshot'));";
+  html += "  });";
+  html += "}";
+
+  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); };";
   html += "</script>";
 
-  html += getFooter();
   html += "</div>"; // Close container
+  html += getFooter();
   html += "</body></html>";
-
-  server.send(200, "text/html; charset=UTF-8", html);
+  return html;
 }
 
-#endif // WEB_PAGES_SYSTEM_ADMIN_H
+#endif // WEB_SYSTEM_ADMIN_H

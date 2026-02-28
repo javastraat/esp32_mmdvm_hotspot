@@ -1,138 +1,336 @@
 /*
- * system_mqtt.h - MQTT Configuration Page for ESP32 MMDVM Hotspot Web Interface
+ * System MQTT Page
+ * MQTT configuration and status
  */
 
-#ifndef WEB_PAGES_SYSTEM_MQTT_H
-#define WEB_PAGES_SYSTEM_MQTT_H
+#ifndef WEB_SYSTEM_MQTT_H
+#define WEB_SYSTEM_MQTT_H
 
 #include <Arduino.h>
-#include <WebServer.h>
-#include "../common/css.h"
-#include "../common/navigation.h"
-#include "../common/utils.h"
-#include "../common/server_utils.h"
+#include "web/include/styles.h"
+#include "web/include/navigation.h"
+#include "web/include/utils.h"
 
-// External variables
-extern WebServer server;
-extern bool mqtt_enabled;
-extern String mqtt_broker;
-extern uint16_t mqtt_port;
-extern String mqtt_username;
-extern String mqtt_password;
-extern String mqtt_client_id;
-extern String mqtt_topic_prefix;
-extern uint32_t mqtt_publish_interval;
-extern String device_hostname;
-extern String dmr_callsign;
-
-void handleSystemMqtt() {
-  if (!checkAuthentication()) return;
-
-  String html = "<!DOCTYPE html><html><head>";
+// External references to runtime MQTT settings
+extern bool mqttEnabled;
+extern String mqttBroker;
+extern uint16_t mqttPort;
+extern String mqttUser;
+extern String mqttPassword;
+extern String mqttStatusTopic;
+extern String mqttLogsTopic;
+extern String mqttHardwareTopic;
+extern String mqttSubscribeTopic;
+extern uint16_t mqttSendHardwareInfo;
+extern bool mqttHardwareInfoLog;
+String getSystemMqttPageHTML()
+{
+  String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>MQTT Configuration - ESP32 MMDVM</title>";
-  html += getCommonCSS();
-  html += "<style>";
-  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
-  html += ".metric:last-child { border-bottom: none; }";
-  html += ".metric-label { font-weight: bold; color: #555; }";
-  html += ".metric-value { color: #333; }";
-  html += ".btn { display: inline-block; padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; font-weight: bold; text-align: center; transition: background-color 0.3s; }";
-  html += ".btn-success { background: #28a745; color: white; }";
-  html += ".btn-success:hover { background: #218838; }";
-  html += "</style></head><body>";
-  html += getNavigation("systemmqtt");
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>MQTT Configuration</title>";
+  html += getSharedStyles();
+  html += "</head><body>";
+  html += getNavigation("system-mqtt");
+
   html += "<div class='container'>";
   html += "<h1>MQTT Configuration</h1>";
+  html += "<p>Configure MQTT broker connection and topic settings</p>";
 
   html += "<div class='admin-grid'>";
 
-  // MQTT Configuration Card
+  // Card 1: MQTT Enable/Disable
   html += "<div class='card'>";
-  html += "<h3>MQTT Configuration</h3>";
-  html += "<p>Configure MQTT pub/sub for real-time data streaming</p>";
-  html += "<form id='mqtt-form' onsubmit='saveMqttConfig(event)'>";
-
-  // Enable/Disable
-  html += "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;margin:15px 0;'>";
-  html += "<input type='checkbox' id='mqtt-enabled' " + String(mqtt_enabled ? "checked" : "") + " style='width:20px;height:20px;cursor:pointer;'>";
-  html += "<span><strong>Enable MQTT</strong></span>";
-  html += "</label>";
-
-  // Broker
-  html += "<label>MQTT Broker:</label>";
-  html += "<input type='text' id='mqtt-broker' value='" + mqtt_broker + "' placeholder='e.g., broker.hivemq.com or 192.168.1.100' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
-
-  // Port
-  html += "<label>Port:</label>";
-  html += "<input type='number' id='mqtt-port' value='" + String(mqtt_port) + "' min='1' max='65535' placeholder='1883' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
-
-  // Username
-  html += "<label>Username (optional):</label>";
-  html += "<input type='text' id='mqtt-username' value='" + mqtt_username + "' placeholder='Leave empty if no auth' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
-
-  // Password
-  html += "<label>Password (optional):</label>";
-  html += "<div style='position:relative;'>";
-  html += "<input type='password' id='mqtt-password' value='" + mqtt_password + "' placeholder='Leave empty if no auth' style='width:100%;padding:8px;padding-right:40px;margin:5px 0;box-sizing:border-box;'>";
-  html += "<span onclick='togglePasswordField(\"mqtt-password\")' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;' title='Show/Hide'>&#128065;</span>";
+  html += "<h3>MQTT Service</h3>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Enable MQTT:</span>";
+  html += "<label class='switch'><input type='checkbox' id='mqtt-enabled'" + String(mqttEnabled ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "</div>";
+  html += "<div class='metric'><span class='metric-label'>Current Status:</span><span class='metric-value'>" + String(mqttEnabled ? "Enabled" : "Disabled") + "</span></div>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' onclick='saveMqttService()'>Save</button>";
+  html += "<button class='btn btn-danger' onclick='resetMqttService()'>Reset to Default</button>";
+  html += "</div>";
   html += "</div>";
 
-  // Client ID
-  html += "<label>Client ID:</label>";
-  html += "<input type='text' id='mqtt-client-id' value='" + mqtt_client_id + "' placeholder='Default: your callsign' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
+  // Card 2: Broker Settings
+  html += "<div class='card'>";
+  html += "<h3>Broker Settings</h3>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Broker Address:</span>";
+  html += "<input type='text' id='mqtt-broker' value='" + mqttBroker + "' placeholder='mqtt.example.com' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Port:</span>";
+  html += "<input type='text' id='mqtt-port' value='" + String(mqttPort) + "' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:#666;margin-top:10px;'>Default: 1883 (MQTT), 8883 (MQTT over TLS)</p>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' onclick='saveMqttBroker()'>Save</button>";
+  html += "<button class='btn btn-danger' onclick='resetMqttBroker()'>Reset to Default</button>";
+  html += "</div>";
+  html += "</div>";
 
-  // Topic Prefix
-  html += "<label>Topic Prefix:</label>";
-  html += "<input type='text' id='mqtt-topic-prefix' value='" + mqtt_topic_prefix + "' placeholder='Default: " + device_hostname + "/" + dmr_callsign + "' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
-
-  // Publish Interval
-  html += "<label>Publish Interval (ms):</label>";
-  html += "<input type='number' id='mqtt-interval' value='" + String(mqtt_publish_interval) + "' min='5000' max='300000' placeholder='30000' style='width:100%;padding:8px;margin:5px 0;box-sizing:border-box;'>";
-  html += "<p style='font-size:0.85em;color:#666;margin:5px 0;'>How often to publish system/modem/network status (5000-300000 ms)</p>";
-
-  // Submit button
-  html += "<button type='submit' class='btn btn-success' style='width:100%;margin-top:10px;'>Save MQTT Config</button>";
+  // Card 3: Authentication
+  html += "<div class='card'>";
+  html += "<h3>Authentication</h3>";
+  html += "<form onsubmit=\"return false;\">";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Username:</span>";
+  html += "<input type='text' id='mqtt-user' value='" + mqttUser + "' placeholder='username' style='width: 120px; padding-right: 8px;' autocomplete='username'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Password:</span>";
+  html += "<input type='password' id='mqtt-pass' value='" + mqttPassword + "' placeholder='password' style='width: 120px; padding-right: 8px;' autocomplete='current-password'>";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' type='button' onclick='saveMqttAuth()'>Save</button>";
+  html += "<button class='btn btn-danger' type='button' onclick='resetMqttAuth()'>Reset to Default</button>";
+  html += "</div>";
   html += "</form>";
+  html += "</div>";
+
+  // Card 4: Topics Configuration
+  html += "<div class='card'>";
+  html += "<h3>Topics Configuration</h3>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Status Topic:</span>";
+  html += "<input type='text' id='mqtt-topic-status' value='" + mqttStatusTopic + "' placeholder='mmdvm/status' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Logs Topic:</span>";
+  html += "<input type='text' id='mqtt-topic-logs' value='" + mqttLogsTopic + "' placeholder='mmdvm/logs' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Hardware Topic:</span>";
+  html += "<input type='text' id='mqtt-topic-hw' value='" + mqttHardwareTopic + "' placeholder='mmdvm/hardware' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Subscribe Topic:</span>";
+  html += "<input type='text' id='mqtt-topic-sub' value='" + mqttSubscribeTopic + "' placeholder='mmdvm/command' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' onclick='saveMqttTopics()'>Save</button>";
+  html += "<button class='btn btn-danger' onclick='resetMqttTopics()'>Reset to Default</button>";
+  html += "</div>";
+  html += "</div>";
+
+  // Card 5: Advanced Settings
+  html += "<div class='card'>";
+  html += "<h3>Advanced Settings</h3>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>HW Info Interval (s):</span>";
+  html += "<input type='text' id='mqtt-hw-interval' value='" + String(mqttSendHardwareInfo) + "' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Log MQTT Info to Serial:</span>";
+  html += "<label class='switch'><input type='checkbox' id='mqtt-hw-log'" + String(mqttHardwareInfoLog ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:#666;margin-top:10px;'>When disabled, reduces serial log spam</p>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' onclick='saveMqttAdvanced()'>Save</button>";
+  html += "<button class='btn btn-danger' onclick='resetMqttAdvanced()'>Reset to Default</button>";
+  html += "</div>";
   html += "</div>";
 
   html += "</div>"; // Close admin-grid
 
-  // JavaScript
+  // JavaScript functions
   html += "<script>";
-  html += "function togglePasswordField(fieldId) {";
-  html += "  var field = document.getElementById(fieldId);";
-  html += "  field.type = field.type === 'password' ? 'text' : 'password';";
-  html += "}";
-  html += "function saveMqttConfig(event) {";
-  html += "  event.preventDefault();";
+
+  // Styled modal helpers (matching system_wifi / system_admin)
+  html += "window.showModal = function(contentFn) {";
+  html += "  var overlay = document.createElement('div');";
+  html += "  overlay.className = 'modal-overlay';";
+  html += "  var box = document.createElement('div');";
+  html += "  box.className = 'modal-box';";
+  html += "  contentFn(box, function() { document.body.removeChild(overlay); });";
+  html += "  overlay.appendChild(box);";
+  html += "  overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });";
+  html += "  document.body.appendChild(overlay);";
+  html += "  return overlay;";
+  html += "};";
+  html += "window.showAlert = function(msg) {";
+  html += "  showModal(function(box, close) {";
+  html += "    box.innerHTML = '<h4>' + msg + '</h4>';";
+  html += "    var btns = document.createElement('div');";
+  html += "    btns.className = 'modal-buttons';";
+  html += "    var ok = document.createElement('button');";
+  html += "    ok.textContent = 'OK';";
+  html += "    ok.className = 'btn btn-primary';";
+  html += "    ok.onclick = close;";
+  html += "    btns.appendChild(ok);";
+  html += "    box.appendChild(btns);";
+  html += "  });";
+  html += "};";
+  html += "window.showConfirm = function(msg, onYes) {";
+  html += "  showModal(function(box, close) {";
+  html += "    box.innerHTML = '<h4>' + msg + '</h4>';";
+  html += "    var btns = document.createElement('div');";
+  html += "    btns.className = 'modal-buttons';";
+  html += "    var yes = document.createElement('button');";
+  html += "    yes.textContent = 'Yes';";
+  html += "    yes.className = 'btn btn-success';";
+  html += "    yes.onclick = function() { close(); onYes(); };";
+  html += "    var no = document.createElement('button');";
+  html += "    no.textContent = 'Cancel';";
+  html += "    no.className = 'btn btn-danger';";
+  html += "    no.onclick = close;";
+  html += "    btns.appendChild(yes);";
+  html += "    btns.appendChild(no);";
+  html += "    box.appendChild(btns);";
+  html += "  });";
+  html += "};";
+
+  html += "function saveMqttService() {";
   html += "  var enabled = document.getElementById('mqtt-enabled').checked ? '1' : '0';";
-  html += "  var broker = encodeURIComponent(document.getElementById('mqtt-broker').value);";
+  html += "  showConfirm('Save MQTT service setting and reboot?', function() {";
+  html += "    fetch('/api/save-mqtt-service', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'enabled=' + enabled";
+  html += "    }).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function resetMqttService() {";
+  html += "  showConfirm('Reset MQTT service to default and reboot?', function() {";
+  html += "    fetch('/api/reset-mqtt-service', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function saveMqttBroker() {";
+  html += "  var broker = document.getElementById('mqtt-broker').value;";
   html += "  var port = document.getElementById('mqtt-port').value;";
-  html += "  var username = encodeURIComponent(document.getElementById('mqtt-username').value);";
-  html += "  var password = encodeURIComponent(document.getElementById('mqtt-password').value);";
-  html += "  var clientId = encodeURIComponent(document.getElementById('mqtt-client-id').value);";
-  html += "  var prefix = encodeURIComponent(document.getElementById('mqtt-topic-prefix').value);";
-  html += "  var interval = document.getElementById('mqtt-interval').value;";
-  html += "  var body = 'enabled=' + enabled + '&broker=' + broker + '&port=' + port + '&username=' + username + '&password=' + password + '&client_id=' + clientId + '&prefix=' + prefix + '&interval=' + interval;";
-  html += "  fetch('/save-mqtt-config', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body}).then(response => response.text()).then(data => {";
-  html += "    if (data.includes('SUCCESS')) {";
-  html += "      alert('MQTT configuration saved successfully!');";
-  html += "      location.reload();";
-  html += "    } else {";
-  html += "      alert('Error: ' + data);";
-  html += "    }";
+  html += "  if (!broker || broker.length < 3) {";
+  html += "    showAlert('Broker address must be at least 3 characters');";
+  html += "    return;";
+  html += "  }";
+  html += "  if (port < 1 || port > 65535) {";
+  html += "    showAlert('Port must be 1-65535');";
+  html += "    return;";
+  html += "  }";
+  html += "  showConfirm('Save MQTT broker settings and reboot?<br><br>Broker: ' + broker + '<br>Port: ' + port, function() {";
+  html += "    fetch('/api/save-mqtt-broker', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'broker=' + encodeURIComponent(broker) + '&port=' + port";
+  html += "    }).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function resetMqttBroker() {";
+  html += "  showConfirm('Reset MQTT broker to default and reboot?', function() {";
+  html += "    fetch('/api/reset-mqtt-broker', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function saveMqttAuth() {";
+  html += "  var user = document.getElementById('mqtt-user').value;";
+  html += "  var pass = document.getElementById('mqtt-pass').value;";
+  html += "  showConfirm('Save MQTT authentication and reboot?', function() {";
+  html += "    fetch('/api/save-mqtt-auth', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'user=' + encodeURIComponent(user) + '&pass=' + encodeURIComponent(pass)";
+  html += "    }).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function resetMqttAuth() {";
+  html += "  showConfirm('Reset MQTT authentication to default and reboot?', function() {";
+  html += "    fetch('/api/reset-mqtt-auth', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function saveMqttTopics() {";
+  html += "  var status = document.getElementById('mqtt-topic-status').value;";
+  html += "  var logs = document.getElementById('mqtt-topic-logs').value;";
+  html += "  var hw = document.getElementById('mqtt-topic-hw').value;";
+  html += "  var sub = document.getElementById('mqtt-topic-sub').value;";
+  html += "  showConfirm('Save MQTT topics and reboot?', function() {";
+  html += "    fetch('/api/save-mqtt-topics', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'status=' + encodeURIComponent(status) + '&logs=' + encodeURIComponent(logs) + '&hw=' + encodeURIComponent(hw) + '&sub=' + encodeURIComponent(sub)";
+  html += "    }).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function resetMqttTopics() {";
+  html += "  showConfirm('Reset MQTT topics to default and reboot?', function() {";
+  html += "    fetch('/api/reset-mqtt-topics', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function saveMqttAdvanced() {";
+  html += "  var interval = document.getElementById('mqtt-hw-interval').value;";
+  html += "  var hwLog = document.getElementById('mqtt-hw-log').checked ? '1' : '0';";
+  html += "  if (interval < 5 || interval > 3600) {";
+  html += "    showAlert('Interval must be 5-3600 seconds');";
+  html += "    return;";
+  html += "  }";
+  html += "  showConfirm('Save MQTT advanced settings and reboot?', function() {";
+  html += "    fetch('/api/save-mqtt-advanced', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'interval=' + interval + '&hwlog=' + hwLog";
+  html += "    }).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
+  html += "  });";
+  html += "}";
+  html += "function resetMqttAdvanced() {";
+  html += "  showConfirm('Reset MQTT advanced settings to default and reboot?', function() {";
+  html += "    fetch('/api/reset-mqtt-advanced', {method: 'POST'}).then(r => r.text()).then(msg => {";
+  html += "      showAlert(msg + '<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    });";
   html += "  });";
   html += "}";
   html += "</script>";
 
-  html += getFooter();
   html += "</div>"; // Close container
+  html += getFooter();
   html += "</body></html>";
-
-  server.send(200, "text/html; charset=UTF-8", html);
+  return html;
 }
 
-#endif // WEB_PAGES_SYSTEM_MQTT_H
+#endif // WEB_SYSTEM_MQTT_H

@@ -36,7 +36,7 @@
 #define FOOTER_LINK3_URL "https://github.com/javastraat/esp32_mmdvm_hotspot"
 #define FOOTER_LINK3_TEXT "GitHub Project"
 
-#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
+//#define LILYGO_T_ETH_ELITE_ESP32S3_MMDVM
 
 #if defined(LILYGO_T_ETH_ELITE_ESP32S3_MMDVM)
 // Network Pins
@@ -73,5 +73,12 @@
 #define OLED_I2C_ADDRESS 0x3C    // I2C address for OLED display (0x3C or 0x3D)
 #define OLED_WIDTH 128           // OLED display width
 #define OLED_HEIGHT 64           // OLED display height
+
+// ===== MMDVM Pin Configuration =====
+#define MMDVM_SERIAL_BAUD 115200
+#define MMDVM_RX_PIN 44          // ESP32 RX from MMDVM TX
+#define MMDVM_TX_PIN 43          // ESP32 TX to MMDVM RX
+#define MMDVM_BOOT0_PIN 4        // BOOT0 pin for bootloader control
+#define MMDVM_RESET_PIN 13       // RESET pin for modem reset
 
 #endif // FACTORY_CONFIG_H

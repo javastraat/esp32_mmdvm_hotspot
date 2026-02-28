@@ -1,33 +1,81 @@
 /*
- * system_info.h - System Information Page for ESP32 MMDVM Hotspot Web Interface
+ * system_info.h - System Information Page for ESP32 RTOS MMDVM Web Interface
  */
 
-#ifndef WEB_PAGES_SYSTEM_INFO_H
-#define WEB_PAGES_SYSTEM_INFO_H
+#ifndef WEB_SYSTEM_INFO_H
+#define WEB_SYSTEM_INFO_H
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
 #include <ESP.h>
+#include <WiFi.h>
 #include <esp_system.h>
 #include <esp_ota_ops.h>
-#include "../common/css.h"
-#include "../common/navigation.h"
-#include "../common/utils.h"
-#include "../common/server_utils.h"
+#include "web/include/styles.h"
+#include "web/include/navigation.h"
+#include "web/include/utils.h"
+#include "include/config.h"
 
-// External variables
-extern WebServer server;
-extern String modemFirmwareVersion;
+// External variables (if you have modem firmware version tracking)
+// extern String modemFirmwareVersion;
 
-void handleSystemInfo() {
-  if (!checkAuthentication()) return;
+// External task handles for stack monitoring
+extern TaskHandle_t wifiTaskHandle;
+extern TaskHandle_t ethTaskHandle;
+extern TaskHandle_t webServerTaskHandle;
+extern TaskHandle_t sdCardTaskHandle;
+extern TaskHandle_t oledTaskHandle;
+extern TaskHandle_t ledTaskHandle;
+extern TaskHandle_t sensorTaskHandle;
+extern TaskHandle_t ntpTaskHandle;
+extern TaskHandle_t mqttTaskHandle;
+extern TaskHandle_t arduinoOtaTaskHandle;
+extern TaskHandle_t modemTaskHandle;
+extern TaskHandle_t dmrTaskHandle;
+extern TaskHandle_t dstarTaskHandle;
+extern TaskHandle_t ysfTaskHandle;
+extern TaskHandle_t p25TaskHandle;
+extern TaskHandle_t nxdnTaskHandle;
+extern TaskHandle_t pocsagTaskHandle;
+extern TaskHandle_t wireguardTaskHandle;
+extern TaskHandle_t dapnetTaskHandle;
 
+// Helper function to get stack usage HTML for a task
+// Note: stackSize in config.h is in WORDS (despite comment saying bytes)
+// xTaskCreatePinnedToCore treats it as words, uxTaskGetStackHighWaterMark returns words
+String getTaskStackHTML(const char *name, TaskHandle_t handle, int stackSizeWords)
+{
+  if (handle == NULL)
+    return "";
+
+  UBaseType_t freeWords = uxTaskGetStackHighWaterMark(handle);
+  int usedWords = stackSizeWords - (int)freeWords;
+  int usedPercent = (usedWords * 100) / stackSizeWords;
+
+  // Convert to bytes for display
+  int freeBytes = freeWords * 4;
+
+  // Color based on usage: green < 70%, yellow 70-85%, red > 85%
+  String color = "#4CAF50"; // Green
+  if (usedPercent > 85)
+    color = "#f44336"; // Red
+  else if (usedPercent > 70)
+    color = "#ff9800"; // Orange
+
+  String html = "<div class='metric'>";
+  html += "<span class='metric-label'>" + String(name) + ":</span>";
+  html += "<span class='metric-value' style='color:" + color + "'>";
+  html += String(usedPercent) + "% (" + String(freeBytes / 1024.0, 1) + " KB free)";
+  html += "</span></div>";
+  return html;
+}
+
+String getSystemInfoPageHTML()
+{
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>System Info - ESP32 MMDVM</title>";
-  html += getCommonCSS();
+  html += "<title>System Info - ESP32 RTOS MMDVM</title>";
+  html += getSharedStyles();
   html += "<style>";
   html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }";
   html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }";
@@ -35,7 +83,7 @@ void handleSystemInfo() {
   html += ".metric-label { font-weight: bold; color: #555; }";
   html += ".metric-value { color: #333; }";
   html += "</style></head><body>";
-  html += getNavigation("systeminfo");
+  html += getNavigation("system-info");
   html += "<div class='container'>";
   html += "<h1>System Information</h1>";
 
@@ -59,7 +107,8 @@ void handleSystemInfo() {
 
   // Internal temperature (ESP32-S3)
   float tempC = temperatureRead();
-  if (tempC > -40 && tempC < 125) {  // Valid range check
+  if (tempC > -40 && tempC < 125)
+  { // Valid range check
     html += "<div class='metric'><span class='metric-label'>CPU Temperature:</span><span class='metric-value'>" + String(tempC, 1) + " &deg;C</span></div>";
   }
   html += "</div>";
@@ -68,16 +117,102 @@ void handleSystemInfo() {
   html += "<div class='card'>";
   html += "<h3>Memory</h3>";
 
-  html += "<div class='metric'><span class='metric-label'>Heap Size:</span><span class='metric-value'>" + String(ESP.getHeapSize()/1024.0, 1) + " KB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Free Heap:</span><span class='metric-value'>" + String(ESP.getFreeHeap()/1024.0, 1) + " KB (" + String(ESP.getFreeHeap()*100/ESP.getHeapSize()) + "%)</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Min Free Heap:</span><span class='metric-value'>" + String(ESP.getMinFreeHeap()/1024.0, 1) + " KB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Max Alloc Heap:</span><span class='metric-value'>" + String(ESP.getMaxAllocHeap()/1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Heap Size:</span><span class='metric-value'>" + String(ESP.getHeapSize() / 1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Free Heap:</span><span class='metric-value'>" + String(ESP.getFreeHeap() / 1024.0, 1) + " KB (" + String(ESP.getFreeHeap() * 100 / ESP.getHeapSize()) + "%)</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Min Free Heap:</span><span class='metric-value'>" + String(ESP.getMinFreeHeap() / 1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Max Alloc Heap:</span><span class='metric-value'>" + String(ESP.getMaxAllocHeap() / 1024.0, 1) + " KB</span></div>";
 
   // PSRAM info (if available)
-  if (ESP.getPsramSize() > 0) {
-    html += "<div class='metric'><span class='metric-label'>PSRAM Size:</span><span class='metric-value'>" + String(ESP.getPsramSize()/1024/1024) + " MB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Free PSRAM:</span><span class='metric-value'>" + String(ESP.getFreePsram()/1024.0, 1) + " KB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Max Alloc PSRAM:</span><span class='metric-value'>" + String(ESP.getMaxAllocPsram()/1024.0, 1) + " KB</span></div>";
+  if (ESP.getPsramSize() > 0)
+  {
+    html += "<div class='metric'><span class='metric-label'>PSRAM Size:</span><span class='metric-value'>" + String(ESP.getPsramSize() / 1024 / 1024) + " MB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Free PSRAM:</span><span class='metric-value'>" + String(ESP.getFreePsram() / 1024.0, 1) + " KB</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Max Alloc PSRAM:</span><span class='metric-value'>" + String(ESP.getMaxAllocPsram() / 1024.0, 1) + " KB</span></div>";
+  }
+  html += "</div>";
+
+  // ==================== Task Stack Usage Card ====================
+  html += "<div class='card'>";
+  html += "<h3>Task Stack Usage</h3>";
+
+  // System tasks (in start order)
+  html += getTaskStackHTML("OLED", oledTaskHandle, OLED_TASK_STACK);
+  html += getTaskStackHTML("LED", ledTaskHandle, LED_TASK_STACK);
+  html += getTaskStackHTML("WiFi", wifiTaskHandle, WIFI_TASK_STACK);
+  html += getTaskStackHTML("Ethernet", ethTaskHandle, ETH_TASK_STACK);
+  html += getTaskStackHTML("WireGuard", wireguardTaskHandle, WG_TASK_STACK);
+  html += getTaskStackHTML("MQTT", mqttTaskHandle, MQTT_TASK_STACK);
+  html += getTaskStackHTML("ArduinoOTA", arduinoOtaTaskHandle, ARDUINO_OTA_TASK_STACK);
+  html += getTaskStackHTML("NTP", ntpTaskHandle, NTP_TASK_STACK);
+  html += getTaskStackHTML("Web Server", webServerTaskHandle, WEBSERVER_TASK_STACK);
+  html += getTaskStackHTML("SD Card", sdCardTaskHandle, SDCARD_TASK_STACK);
+
+  // MMDVM protocol tasks (in start order)
+  html += getTaskStackHTML("Modem", modemTaskHandle, MODEM_TASK_STACK);
+  html += getTaskStackHTML("DMR", dmrTaskHandle, MMDVM_DMR_STACK);
+  html += getTaskStackHTML("D-Star", dstarTaskHandle, MMDVM_DSTAR_STACK);
+  html += getTaskStackHTML("YSF", ysfTaskHandle, MMDVM_YSF_STACK);
+  html += getTaskStackHTML("P25", p25TaskHandle, MMDVM_P25_STACK);
+  html += getTaskStackHTML("NXDN", nxdnTaskHandle, MMDVM_NXDN_STACK);
+  html += getTaskStackHTML("POCSAG", pocsagTaskHandle, MMDVM_POCSAG_STACK);
+  html += getTaskStackHTML("DAPNET", dapnetTaskHandle, MMDVM_DAPNET_STACK);
+  
+  html += "</div>";
+
+  // ==================== All Tasks Card ====================
+  html += "<div class='card'>";
+  html += "<h3>All Tasks</h3>";
+
+  UBaseType_t taskCount = uxTaskGetNumberOfTasks();
+  TaskStatus_t *taskArray = (TaskStatus_t *)pvPortMalloc(taskCount * sizeof(TaskStatus_t));
+  if (taskArray != NULL) {
+    uint32_t totalRuntime = 0;
+    UBaseType_t actualCount = uxTaskGetSystemState(taskArray, taskCount, &totalRuntime);
+
+    html += "<details>";
+    html += "<summary style='cursor:pointer;color:#007bff;font-size:0.9em;margin-bottom:8px;'>" + String(actualCount) + " tasks &mdash; click to expand</summary>";
+
+    html += "<table id='tasks-table' style='width:100%;font-size:0.82em;'>";
+    html += "<thead><tr>";
+    html += "<th style='padding:3px 4px;cursor:pointer;' onclick='sortTaskTable(this,0,\"str\")'><span>Name</span><span class='si'></span></th>";
+    html += "<th style='padding:3px 4px;text-align:center;cursor:pointer;' onclick='sortTaskTable(this,1,\"str\")'><span>State</span><span class='si'></span></th>";
+    html += "<th style='padding:3px 4px;text-align:center;cursor:pointer;' onclick='sortTaskTable(this,2,\"num\")'><span>Pri</span><span class='si'></span></th>";
+    html += "<th style='padding:3px 4px;text-align:center;cursor:pointer;' onclick='sortTaskTable(this,3,\"str\")'><span>Core</span><span class='si'></span></th>";
+    html += "<th style='padding:3px 4px;text-align:right;cursor:pointer;' onclick='sortTaskTable(this,4,\"bytes\")'><span>Stack Free</span><span class='si'></span></th>";
+    html += "</tr></thead>";
+    html += "<tbody>";
+
+    const char* stateNames[] = { "Run", "Ready", "Block", "Susp", "Del", "?" };
+
+    for (UBaseType_t i = 0; i < actualCount; i++) {
+      int si = (int)taskArray[i].eCurrentState;
+      if (si < 0 || si > 5) si = 5;
+
+      int freeBytes = (int)taskArray[i].usStackHighWaterMark * 4;
+      String freeStr = (freeBytes >= 1024)
+        ? String(freeBytes / 1024.0, 1) + " KB"
+        : String(freeBytes) + " B";
+
+      String stackColor = (freeBytes < 512) ? "#f44336" : (freeBytes < 1024) ? "#ff9800" : "";
+      String stackStyle = stackColor.length() ? "color:" + stackColor + ";" : "";
+
+      String coreStr = (taskArray[i].xCoreID == 0 || taskArray[i].xCoreID == 1)
+        ? String(taskArray[i].xCoreID) : "*";
+
+      html += "<tr>";
+      html += "<td style='padding:3px 4px;'>" + String(taskArray[i].pcTaskName) + "</td>";
+      html += "<td style='padding:3px 4px;text-align:center;'>" + String(stateNames[si]) + "</td>";
+      html += "<td style='padding:3px 4px;text-align:center;'>" + String(taskArray[i].uxCurrentPriority) + "</td>";
+      html += "<td style='padding:3px 4px;text-align:center;'>" + coreStr + "</td>";
+      html += "<td style='padding:3px 4px;text-align:right;" + stackStyle + "'>" + freeStr + "</td>";
+      html += "</tr>";
+    }
+    html += "</tbody></table>";
+    html += "<p style='font-size:0.78em;color:var(--text-muted);margin-top:6px;'>* = any core. Red &lt;512B, orange &lt;1KB.</p>";
+    html += "</details>";
+    vPortFree(taskArray);
+  } else {
+    html += "<p style='color:red;'>Memory allocation failed.</p>";
   }
   html += "</div>";
 
@@ -85,23 +220,24 @@ void handleSystemInfo() {
   html += "<div class='card'>";
   html += "<h3>Storage</h3>";
 
-  html += "<div class='metric'><span class='metric-label'>Flash Size:</span><span class='metric-value'>" + String(ESP.getFlashChipSize()/1024/1024) + " MB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Flash Speed:</span><span class='metric-value'>" + String(ESP.getFlashChipSpeed()/1000000) + " MHz</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Flash Size:</span><span class='metric-value'>" + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Flash Speed:</span><span class='metric-value'>" + String(ESP.getFlashChipSpeed() / 1000000) + " MHz</span></div>";
 
   // Flash Mode
-  const char* flashModes[] = {"QIO", "QOUT", "DIO", "DOUT", "Fast Read", "Slow Read"};
+  const char *flashModes[] = {"QIO", "QOUT", "DIO", "DOUT", "Fast Read", "Slow Read"};
   FlashMode_t flashMode = ESP.getFlashChipMode();
   String flashModeStr = (flashMode < 6) ? flashModes[flashMode] : "Unknown";
   html += "<div class='metric'><span class='metric-label'>Flash Mode:</span><span class='metric-value'>" + flashModeStr + "</span></div>";
 
-  html += "<div class='metric'><span class='metric-label'>Sketch Size:</span><span class='metric-value'>" + String(ESP.getSketchSize()/1024.0, 1) + " KB</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Free Sketch Space:</span><span class='metric-value'>" + String(ESP.getFreeSketchSpace()/1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Sketch Size:</span><span class='metric-value'>" + String(ESP.getSketchSize() / 1024.0, 1) + " KB</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Free Sketch Space:</span><span class='metric-value'>" + String(ESP.getFreeSketchSpace() / 1024.0, 1) + " KB</span></div>";
   String sketchMD5 = ESP.getSketchMD5();
   html += "<div class='metric'><span class='metric-label'>Sketch MD5:</span><span class='metric-value'>" + sketchMD5.substring(sketchMD5.length() - 8) + "</span></div>";
 
   // Running partition
-  const esp_partition_t* partition = esp_ota_get_running_partition();
-  if (partition != NULL) {
+  const esp_partition_t *partition = esp_ota_get_running_partition();
+  if (partition != NULL)
+  {
     html += "<div class='metric'><span class='metric-label'>Running Partition:</span><span class='metric-value'>" + String(partition->label) + "</span></div>";
   }
   html += "</div>";
@@ -117,27 +253,34 @@ void handleSystemInfo() {
   unsigned long minutes = (uptimeSeconds % 3600) / 60;
   unsigned long seconds = uptimeSeconds % 60;
   String uptimeStr = "";
-  if (days > 0) uptimeStr += String(days) + "d ";
-  if (hours > 0 || days > 0) uptimeStr += String(hours) + "h ";
+  if (days > 0)
+    uptimeStr += String(days) + "d ";
+  if (hours > 0 || days > 0)
+    uptimeStr += String(hours) + "h ";
   uptimeStr += String(minutes) + "m " + String(seconds) + "s";
 
   html += "<div class='metric'><span class='metric-label'>Uptime:</span><span class='metric-value'>" + uptimeStr + "</span></div>";
 
   // Reset reason
   esp_reset_reason_t resetReason = esp_reset_reason();
-  const char* resetReasons[] = {"Unknown", "Power-on", "External", "Software", "Panic", "Interrupt WDT", "Task WDT", "Other WDT", "Deepsleep", "Brownout", "SDIO"};
+  const char *resetReasons[] = {"Unknown", "Power-on", "External", "Software", "Panic", "Interrupt WDT", "Task WDT", "Other WDT", "Deepsleep", "Brownout", "SDIO"};
   String resetReasonStr = (resetReason < 11) ? resetReasons[resetReason] : "Unknown";
   html += "<div class='metric'><span class='metric-label'>Reset Reason:</span><span class='metric-value'>" + resetReasonStr + "</span></div>";
 
   html += "<div class='metric'><span class='metric-label'>SDK Version:</span><span class='metric-value'>" + String(ESP.getSdkVersion()) + "</span></div>";
-  #ifdef ESP_ARDUINO_VERSION_STR
+#ifdef ESP_ARDUINO_VERSION_STR
   html += "<div class='metric'><span class='metric-label'>Arduino Core:</span><span class='metric-value'>" + String(ESP_ARDUINO_VERSION_STR) + "</span></div>";
-  #endif
-  html += "<div class='metric'><span class='metric-label'>Firmware Version:</span><span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span></div>";
+#endif
+
+  // If you have FIRMWARE_VERSION defined in config.h, uncomment this:
+  // html += "<div class='metric'><span class='metric-label'>Firmware Version:</span><span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span></div>";
+
   html += "<div class='metric'><span class='metric-label'>Build Date:</span><span class='metric-value'>" + String(__DATE__) + " " + String(__TIME__) + "</span></div>";
   html += "</div>";
 
-  // Modem Information Card - Parse the firmware version string
+  // ==================== Modem Information Card ====================
+  // Uncomment when you have modemFirmwareVersion available
+  /*
   html += "<div class='card'>";
   html += "<h3>Modem Information</h3>";
 
@@ -250,14 +393,50 @@ void handleSystemInfo() {
   html += "<div class='metric'><span class='metric-label'>Author:</span><span class='metric-value'>" + author + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Git ID:</span><span class='metric-value'>" + gitId + "</span></div>";
   html += "</div>";
+  */
+
+  // ==================== Network Card ====================
+  // html += "<div class='card'>";
+  // html += "<h3>Network</h3>";
+  // html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.macAddress() + "</span></div>";
+  // if (WiFi.status() == WL_CONNECTED)
+  // {
+  //   html += "<div class='metric'><span class='metric-label'>IP Address:</span><span class='metric-value'>" + WiFi.localIP().toString() + "</span></div>";
+  //   html += "<div class='metric'><span class='metric-label'>SSID:</span><span class='metric-value'>" + WiFi.SSID() + "</span></div>";
+  //   html += "<div class='metric'><span class='metric-label'>RSSI:</span><span class='metric-value'>" + String(WiFi.RSSI()) + " dBm</span></div>";
+  // }
+  // html += "</div>";
 
   html += "</div>"; // Close admin-grid
 
   html += getFooter();
   html += "</div>"; // Close container
+
+  html += "<script>";
+  html += "var _tsd={};";
+  html += "function sortTaskTable(th,col,type){";
+  html += "  var dir=_tsd[col]==='asc'?'desc':'asc';";
+  html += "  _tsd={};_tsd[col]=dir;";
+  html += "  var tbody=document.getElementById('tasks-table').querySelector('tbody');";
+  html += "  var rows=Array.from(tbody.querySelectorAll('tr'));";
+  html += "  function toB(s){var m=s.match(/([\\d.]+)\\s*(KB|B)/);if(!m)return 0;return m[2]==='KB'?parseFloat(m[1])*1024:parseFloat(m[1]);}";
+  html += "  rows.sort(function(a,b){";
+  html += "    var av=a.cells[col].textContent.trim();";
+  html += "    var bv=b.cells[col].textContent.trim();";
+  html += "    if(type==='num'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}";
+  html += "    else if(type==='bytes'){av=toB(av);bv=toB(bv);}";
+  html += "    if(av<bv)return dir==='asc'?-1:1;";
+  html += "    if(av>bv)return dir==='asc'?1:-1;";
+  html += "    return 0;";
+  html += "  });";
+  html += "  rows.forEach(function(r){tbody.appendChild(r);});";
+  html += "  document.getElementById('tasks-table').querySelectorAll('th .si').forEach(function(s,i){s.textContent=i===col?(dir==='asc'?' \u25b2':' \u25bc'):'';});";
+  html += "}";
+  html += "</script>";
+
   html += "</body></html>";
 
-  server.send(200, "text/html; charset=UTF-8", html);
+  return html;
 }
 
-#endif // WEB_PAGES_SYSTEM_INFO_H
+#endif // WEB_SYSTEM_INFO_H

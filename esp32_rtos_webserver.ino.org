@@ -1,0 +1,158 @@
+/*
+ * ============================================================================
+ * ESP32 RTOS MMDVM - Multi-Mode Digital Voice Modem
+ * ============================================================================
+ * 
+ * FreeRTOS-based implementation supporting multiple digital voice protocols:
+ * DMR, D-STAR, System Fusion (YSF), P25, NXDN, and POCSAG
+ * 
+ * ARCHITECTURE:
+ *   • Modular task-based design with independent timing and priorities
+ *   • Each protocol and system component runs as a separate RTOS task
+ *   • Web-based configuration and monitoring interface
+ *   • Dual network support: WiFi and Ethernet
+ *   • Integrated logging, OLED display, and SD card support
+ * 
+ * RTOS BENEFITS:
+ *   • True multitasking - protocols and systems run concurrently
+ *   • No blocking operations - everything remains responsive
+ *   • Priority-based scheduling for time-critical operations
+ *   • Efficient CPU usage with automatic sleep during idle
+ * 
+ * PROJECT STRUCTURE:
+ *   system/     System components (WiFi, Ethernet, logging, display)
+ *   mmdvm/      Digital voice protocol implementations
+ *   web/        Web interface pages and assets
+ *   include/    Configuration headers
+ * 
+ * ============================================================================
+ */
+
+ // Configuration
+#include "include/config.h"
+
+// System modules
+#include "system/system_wifi.h"
+#include "system/system_eth.h"
+#include "system/system_webserver.h"
+#include "system/system_oled.h"
+#include "system/system_led.h"
+#include "system/system_sensor.h"
+#include "system/system_sdcard.h"
+#include "system/system_logger.h"
+
+// MMDVM Protocol modules
+#include "mmdvm/mmdvm_dmr.h"
+#include "mmdvm/mmdvm_dstar.h"
+#include "mmdvm/mmdvm_ysf.h"
+#include "mmdvm/mmdvm_p25.h"
+#include "mmdvm/mmdvm_nxdn.h"
+#include "mmdvm/mmdvm_pocsag.h"
+
+/*
+ * Arduino Setup - Initialize all system modules
+ */
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  
+  // Initialize logger first to capture all messages
+  initLogger();
+  
+  addLogMessage("");
+  addLogMessage("==========================================");
+  addLogMessage("ESP32 FreeRTOS Web Server - Modular Demo");
+  addLogMessage("==========================================");
+  addLogMessage("");
+  addLogMessage("[Setup] Starting system modules...");
+  addLogMessage("");
+
+
+  // OLED display task
+  if (OLED_ENABLED) {
+    addLogMessage("[Setup] OLED enabled - initializing OLED display");
+    initOledTask();
+  }
+
+  // LED status indicator task
+  addLogMessage("[Setup] Initializing LED task");
+  initLedTask();
+
+  // Initialize WiFi task
+  addLogMessage("[Setup] Initializing WiFi task");
+  initWiFiTask();
+  
+  // Optionally initialize Ethernet (can run alongside WiFi)
+  if (ETH_ENABLED) {
+    addLogMessage("[Setup] Ethernet enabled - will connect in parallel with WiFi");
+    initEthTask();
+  }
+
+   // Web server task  
+  addLogMessage("[Setup] Initializing Web Server task");
+  initWebServerTask();
+
+  // Initialize SD Card (if enabled)
+  if (SDCARD_ENABLED) {
+    addLogMessage("[Setup] SD Card enabled - initializing SD Card");
+    initSdCardTask();
+  }
+ 
+  // Sensor monitoring task
+  //addLogMessage("[Setup] Initializing Sensor task");
+  //initSensorTask();
+
+ 
+  // Initialize MMDVM protocol tasks (based on DEFAULT_MODE_* settings)
+  addLogMessage("");
+  addLogMessage("[Setup] Initializing MMDVM Protocol Tasks...");
+ 
+  if (DEFAULT_MODE_DMR) {
+    initDmrTask();
+  }
+  
+  if (DEFAULT_MODE_DSTAR) {
+    initDstarTask();
+  }
+  
+  if (DEFAULT_MODE_YSF) {
+    initYsfTask();
+  }
+  
+  if (DEFAULT_MODE_P25) {
+    initP25Task();
+  }
+  
+  if (DEFAULT_MODE_NXDN) {
+    initNxdnTask();
+  }
+  
+  if (DEFAULT_MODE_POCSAG) {
+    initPocsagTask();
+  }
+  
+  addLogMessage("[Setup] All system modules initialized!");
+  addLogMessage("[Setup] RTOS scheduler managing all tasks");
+  addLogMessage("");
+}
+
+/*
+ * Arduino Loop - EMPTY!
+ * 
+ * This is the beauty of RTOS:
+ * No complex loop with millis() checks, no state machines, no blocking delays!
+ * The RTOS scheduler handles everything automatically.
+ * 
+ * In a plain loop, this would be filled with:
+ * - if (millis() - lastWiFiCheck > 5000) { checkWiFi(); }
+ * - if (millis() - lastLedToggle > 1000) { toggleLED(); }
+ * - server.handleClient();
+ * - etc...
+ * 
+ * And if WiFi reconnection blocks, EVERYTHING stops!
+ */
+void loop() {
+  // Nothing here! RTOS tasks do all the work.
+  // This loop is actually part of the "idle" task.
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+}

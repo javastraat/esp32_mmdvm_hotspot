@@ -1,67 +1,31 @@
 /*
- * system_sdcard.h - SD Card Management Page for ESP32 MMDVM Hotspot Web Interface
- // api lookup from csv thru ip/api/dmr/user/?id=1234567 or sqlite ip/api/sqlite/search?field=radioid&value=1234567
+ * system_sdcard.h - SD Card Management Page
+ *
+ * Provides interface for:
+ * - Viewing SD card status and files
+ * - Managing database files (CSV and SQLite)
+ * - File operations and deletion
+ * - DMR Radio ID search
  */
 
-#ifndef WEB_PAGES_SYSTEM_SDCARD_H
-#define WEB_PAGES_SYSTEM_SDCARD_H
+#ifndef WEB_SYSTEM_SDCARD_H
+#define WEB_SYSTEM_SDCARD_H
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
-#include <SD.h>
-#include "../common/css.h"
-#include "../common/navigation.h"
-#include "../common/utils.h"
-#include "../common/server_utils.h"
+#include "web/include/styles.h"
+#include "web/include/navigation.h"
+#include "web/include/utils.h"
 
-// External variables
-extern WebServer server;
-extern bool sdCardAvailable;  // From main .ino - SD card status
-
-void handleSystemSdcard() {
-  if (!checkAuthentication()) return;
-
-  String html = "<!DOCTYPE html><html><head>";
+String getSystemSdcardPageHTML()
+{
+  String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>SD Card - ESP32 MMDVM</title>";
-  html += getCommonCSS();
-  html += "<style>";
-  html += ".admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }";
-  html += ".metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color, #eee); }";
-  html += ".metric:last-child { border-bottom: none; }";
-  html += ".metric-label { font-weight: bold; color: var(--text-muted, #555); }";
-  html += ".metric-value { color: var(--text-color, #333); }";
-  html += ".btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; font-weight: bold; box-sizing: border-box; margin: 2px; }";
-  html += ".btn-success { background-color: #28a745; color: white; }";
-  html += ".btn-success:hover { background-color: #218838; }";
-  html += ".btn-primary { background-color: #007bff; color: white; }";
-  html += ".btn-primary:hover { background-color: #0069d9; }";
-  html += ".btn-danger { background-color: #dc3545; color: white; }";
-  html += ".btn-danger:hover { background-color: #c82333; }";
-  html += ".btn:disabled { background-color: #cccccc; cursor: not-allowed; opacity: 0.6; }";
-  html += ".action-buttons-vertical { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }";
-  html += ".action-buttons-vertical .btn { width: 100%; margin: 0; }";
-  html += ".progress-container { margin: 15px 0; display: none; }";
-  html += ".progress-bar { width: 100%; background: var(--border-color, #e9ecef); border-radius: 4px; height: 30px; position: relative; overflow: hidden; }";
-  html += ".progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34ce57); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; }";
-  html += ".progress-text { position: absolute; width: 100%; text-align: center; line-height: 30px; color: var(--text-color, #000); font-weight: bold; z-index: 1; top: 0; }";
-  html += ".status-text { padding: 10px; background: var(--card-bg, #f8f9fa); border-radius: 4px; margin: 10px 0; color: var(--text-color); }";
-  html += "input[type=text] { padding: 8px; border-radius: 4px; }";
-  html += ".search-input { width: 100%; max-width: 300px; box-sizing: border-box; }";
-  html += "select { padding: 8px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--container-bg, white); color: var(--text-color, #333); }";
-  html += "pre { background: var(--card-bg, #f5f5f5); color: var(--text-color, #333); padding: 10px; border-radius: 4px; overflow-x: auto; margin: 0; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color, #ddd); }";
-  html += ".file-list { color: var(--text-color, #333); font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }";
-  html += ".owner-text { color: var(--text-color, #333); padding: 10px 0; line-height: 1.5; white-space: pre-wrap; }";
-  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; }";
-  html += "th, td { padding: 8px; border: 1px solid var(--border-color, #ddd); text-align: left; color: var(--text-color); }";
-  html += "th { background: var(--card-bg, #f0f0f0); color: var(--text-color); }";
-  html += "tr:nth-child(even) { background: var(--card-bg, #f9f9f9); }";
-  html += ".update-available { color: #ff9800; font-weight: bold; }";
-  html += ".up-to-date { color: #4CAF50; font-weight: bold; }";
-  html += "</style></head><body>";
-  html += getNavigation("systemsdcard");
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>SD Card Management</title>";
+  html += getSharedStyles();
+  html += "</head><body>";
+  html += getNavigation("system-sdcard");
+
   html += "<div class='container'>";
   html += "<h1>SD Card Management</h1>";
 
@@ -70,132 +34,174 @@ void handleSystemSdcard() {
   // Card 1: SD Card Status
   html += "<div class='card'>";
   html += "<h3>SD Card Status</h3>";
-
-  // Use sdCardAvailable from main - SD is already initialized there
-  if (sdCardAvailable) {
-    uint8_t cardType = SD.cardType();
-    String cardTypeStr = "Unknown";
-    if (cardType == CARD_SD) cardTypeStr = "SD";
-    else if (cardType == CARD_SDHC) cardTypeStr = "SDHC";
-    else if (cardType == CARD_MMC) cardTypeStr = "MMC";
-
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    uint64_t totalBytes = SD.totalBytes() / (1024 * 1024);
-    uint64_t usedBytes = SD.usedBytes() / (1024 * 1024);
-
-    html += "<div class='metric'><span class='metric-label'>Status:</span><span class='metric-value' style='color:#28a745'>Mounted</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Card Type:</span><span class='metric-value'>" + cardTypeStr + "</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Card Size:</span><span class='metric-value'>" + String((uint32_t)cardSize) + " MB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Total Space:</span><span class='metric-value'>" + String((uint32_t)totalBytes) + " MB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Used Space:</span><span class='metric-value'>" + String((uint32_t)usedBytes) + " MB</span></div>";
-    html += "<div class='metric'><span class='metric-label'>Free Space:</span><span class='metric-value'>" + String((uint32_t)(totalBytes - usedBytes)) + " MB</span></div>";
-  } else {
-    html += "<div class='metric'><span class='metric-label'>Status:</span><span class='metric-value' style='color:#dc3545'>Not Mounted</span></div>";
-    html += "<p style='color:#dc3545'>SD card not detected or failed to mount.</p>";
-  }
+  html += "<div id='sd-status-content'>";
+  html += "  <div class='metric'><span class='metric-label'>Status:</span><span class='metric-value' id='card-status'>Checking...</span></div>";
+  html += "  <div class='metric'><span class='metric-label'>Card Type:</span><span class='metric-value' id='card-type'>-</span></div>";
+  html += "  <div class='metric'><span class='metric-label'>Card Size:</span><span class='metric-value' id='card-size'>-</span></div>";
+  html += "  <div class='metric'><span class='metric-label'>Total Space:</span><span class='metric-value' id='card-total'>-</span></div>";
+  html += "  <div class='metric'><span class='metric-label'>Used Space:</span><span class='metric-value' id='card-used'>-</span></div>";
+  html += "  <div class='metric'><span class='metric-label'>Free Space:</span><span class='metric-value' id='card-free'>-</span></div>";
+  html += "</div>";
   html += "</div>";
 
   // Card 2: Files on SD Card
   html += "<div class='card'>";
   html += "<h3>Files on SD Card</h3>";
-  html += "<div id='file-list' class='file-list'>Loading...</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='refresh-files-btn' class='btn btn-primary' onclick='refreshFileList()'>Refresh</button>";
-  html += "</div>";
+  html += "<button class='btn btn-primary' id='refresh-files-btn' onclick='refreshFileList()'>Refresh File List</button>";
+  html += "<pre id='file-list'>Click Refresh to load files...</pre>";
   html += "</div>";
 
   // Card 3: Owner Information
   html += "<div class='card'>";
   html += "<h3>Owner Information</h3>";
-  html += "<div id='owner-info' class='owner-text'>Loading...</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='save-owner-btn' class='btn btn-success' onclick='writeOwner()'>Save Owner</button>";
-  html += "</div>";
+  html += "<p>Content of <code>owner.txt</code> file:</p>";
+  html += "<pre id='owner-info'>Loading...</pre>";
+  html += "<p>Write your callsign (from settings) to <code>owner.txt</code>:</p>";
+  html += "<button class='btn btn-success' id='save-owner-btn' onclick='writeOwner()'>Write owner.txt</button>";
   html += "</div>";
 
   // Card 4: CSV Database Download
   html += "<div class='card'>";
   html += "<h3>CSV Database Download</h3>";
-  html += "<div id='csv-db-info'>Loading...</div>";
+  html += "<div id='csv-db-info'><p>Loading...</p></div>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<button id='check-csv-btn' class='btn btn-primary' onclick='checkCSVUpdate()'>Refresh</button>";
-  html += "<button id='download-csv-btn' class='btn btn-success' onclick='startDownloadCSV()'>Download Database</button>";
-  html += "<button id='delete-csv-btn' class='btn btn-danger' style='display:none' onclick='deleteCSVDatabase()'>Delete Database</button>";
+  html += "  <button class='btn btn-primary' id='check-csv-btn' onclick='checkCSVUpdate()'>Check for Updates</button>";
+  html += "  <button class='btn btn-success' id='download-csv-btn' onclick='startDownloadCSV()'>Download CSV Database</button>";
+  html += "  <button class='btn btn-danger' id='delete-csv-btn' onclick='deleteCSVDatabase()' style='display:none'>Delete CSV Database</button>";
   html += "</div>";
   html += "<div id='csv-progress-container' class='progress-container'>";
-  html += "<div class='status-text'>Status: <span id='csv-status-text'>Starting...</span></div>";
-  html += "<div class='progress-bar'><div id='csv-progress-fill' class='progress-fill'></div><span id='csv-progress-text' class='progress-text'>0%</span></div>";
-  html += "<p id='csv-bytes'>0 / 0 bytes</p>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='csv-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='csv-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "  <p id='csv-bytes' style='margin-top:5px; font-size:0.9em'>0 / 0 bytes</p>";
+  html += "  <p id='csv-status-text' style='margin-top:5px; font-size:0.9em'>Starting...</p>";
   html += "</div>";
   html += "</div>";
 
   // Card 5: SQLite Database Download
   html += "<div class='card'>";
   html += "<h3>SQLite Database Download</h3>";
-  html += "<div id='sqlite-db-info'>Loading...</div>";
+  html += "<div id='sqlite-db-info'><p>Loading...</p></div>";
   html += "<div class='action-buttons-vertical'>";
-  html += "<button id='check-sqlite-btn' class='btn btn-primary' onclick='checkSQLiteUpdate()'>Refresh</button>";
-  html += "<button id='download-sqlite-btn' class='btn btn-success' onclick='startDownloadSQLite()'>Download Database</button>";
-  html += "<button id='delete-sqlite-btn' class='btn btn-danger' style='display:none' onclick='deleteSQLiteDatabase()'>Delete Database</button>";
+  html += "  <button class='btn btn-primary' id='check-sqlite-btn' onclick='checkSQLiteUpdate()'>Check for Updates</button>";
+  html += "  <button class='btn btn-success' id='download-sqlite-btn' onclick='startDownloadSQLite()'>Download SQLite Database</button>";
+  html += "  <button class='btn btn-danger' id='delete-sqlite-btn' onclick='deleteSQLiteDatabase()' style='display:none'>Delete SQLite Database</button>";
   html += "</div>";
   html += "<div id='sqlite-progress-container' class='progress-container'>";
-  html += "<div class='status-text'>Status: <span id='sqlite-status-text'>Starting...</span></div>";
-  html += "<div class='progress-bar'><div id='sqlite-progress-fill' class='progress-fill'></div><span id='sqlite-progress-text' class='progress-text'>0%</span></div>";
-  html += "<p id='sqlite-bytes'>0 / 0 bytes</p>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='sqlite-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='sqlite-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "  <p id='sqlite-bytes' style='margin-top:5px; font-size:0.9em'>0 / 0 bytes</p>";
+  html += "  <p id='sqlite-status-text' style='margin-top:5px; font-size:0.9em'>Starting...</p>";
   html += "</div>";
   html += "</div>";
 
   // Card 6: Manual File/Directory Delete
   html += "<div class='card'>";
   html += "<h3>Manual File/Directory Delete</h3>";
-  html += "<p>Delete specific files or directories from the SD card:</p>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' class='search-input' id='delete-path' placeholder='/path/to/file or /path/to/directory'>";
+  html += "<p>Enter a file or directory path (e.g., <code>/database/user.csv</code>):</p>";
+  html += "<input type='text' id='delete-path' placeholder='/database/somefile.txt'>";
+  html += "<button class='btn btn-danger' id='delete-custom-btn' onclick='deleteCustomPath()'>Delete</button>";
+  html += "<div id='delete-result' class='status-text' style='display:none'></div>";
   html += "</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='delete-custom-btn' class='btn btn-danger' onclick='deleteCustomPath()'>Delete</button>";
-  html += "</div>";
-  html += "<div id='delete-result' style='margin-top:10px'></div>";
-  html += "<p style='color:#ff9800;font-size:12px;margin-top:10px'>";
-  html += "<strong>Warning:</strong> This will permanently delete the file or directory and all its contents.<br>";
-  html += "<strong>Examples:</strong> /test.txt, /.Trashes, /database/old_backup.csv<br>";
-  html += "<strong>Note:</strong> Wildcards (* or ?) are not supported. Specify exact paths only.";
-  html += "</p>";
-  html += "</div>";
-  
-  // Card 7: DMR Database Search (CSV)
+
+  // Card 7: DMR Radio ID Search (CSV)
   html += "<div class='card'>";
-  html += "<h3>DMR Database Search (CSV)</h3>";
-  html += "<p>Search for DMR user by Radio ID:</p>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' class='search-input' id='search-id' placeholder='Enter Radio ID'>";
-  html += "</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='search-btn' class='btn btn-primary' onclick='searchRadioId()'>Search</button>";
-  html += "</div>";
+  html += "<h3>DMR Radio ID Search (CSV)</h3>";
+  html += "<p>Search for a DMR user by Radio ID (7 digits):</p>";
+  html += "<input type='text' id='search-id' placeholder='1234567' maxlength='7' autocomplete='off'>";
+  html += "<button class='btn btn-primary' id='search-btn' onclick='searchRadioId()'>Search</button>";
   html += "<div id='search-result' style='margin-top:15px'></div>";
   html += "</div>";
 
-  // Card 8: SQLite Search
+  // Card 8: DMR Radio ID Search (SQLite)
   html += "<div class='card'>";
-  html += "<h3>DMR Database Search (SQLite)</h3>";
-  html += "<p>Search for DMR user by Radio ID:</p>";
-  html += "<div style='margin:10px 0'>";
-  html += "<input type='text' class='search-input' id='sqlite-search-id' placeholder='Enter Radio ID'>";
-  html += "</div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button id='sqlite-search-btn' class='btn btn-primary' onclick='searchSQLite()'>Search</button>";
-  html += "</div>";
+  html += "<h3>DMR Radio ID Search (SQLite)</h3>";
+  html += "<p>Search for a DMR user by Radio ID (7 digits) in SQLite database:</p>";
+  html += "<input type='text' id='sqlite-search-id' placeholder='1234567' maxlength='7' autocomplete='off'>";
+  html += "<button class='btn btn-primary' id='sqlite-search-btn' onclick='searchSQLite()'>Search</button>";
   html += "<div id='sqlite-result' style='margin-top:15px'></div>";
   html += "</div>";
 
   html += "</div>"; // Close admin-grid
 
-  // JavaScript
   html += "<script>";
 
-  // Load initial data
-  html += "window.onload = function() { loadSDCardInfo(); refreshFileList(); loadOwnerInfo(); };";
+  // Styled modal helpers (matching system_wifi / system_admin)
+  html += "window.showModal = function(contentFn) {";
+  html += "  var overlay = document.createElement('div');";
+  html += "  overlay.className = 'modal-overlay';";
+  html += "  var box = document.createElement('div');";
+  html += "  box.className = 'modal-box';";
+  html += "  contentFn(box, function() { document.body.removeChild(overlay); });";
+  html += "  overlay.appendChild(box);";
+  html += "  overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });";
+  html += "  document.body.appendChild(overlay);";
+  html += "  return overlay;";
+  html += "};";
+  html += "window.showAlert = function(msg) {";
+  html += "  showModal(function(box, close) {";
+  html += "    box.innerHTML = '<h4>' + msg + '</h4>';";
+  html += "    var btns = document.createElement('div');";
+  html += "    btns.className = 'modal-buttons';";
+  html += "    var ok = document.createElement('button');";
+  html += "    ok.textContent = 'OK';";
+  html += "    ok.className = 'btn btn-primary';";
+  html += "    ok.onclick = close;";
+  html += "    btns.appendChild(ok);";
+  html += "    box.appendChild(btns);";
+  html += "  });";
+  html += "};";
+  html += "window.showConfirm = function(msg, onYes) {";
+  html += "  showModal(function(box, close) {";
+  html += "    box.innerHTML = '<h4>' + msg + '</h4>';";
+  html += "    var btns = document.createElement('div');";
+  html += "    btns.className = 'modal-buttons';";
+  html += "    var yes = document.createElement('button');";
+  html += "    yes.textContent = 'Yes';";
+  html += "    yes.className = 'btn btn-success';";
+  html += "    yes.onclick = function() { close(); onYes(); };";
+  html += "    var no = document.createElement('button');";
+  html += "    no.textContent = 'Cancel';";
+  html += "    no.className = 'btn btn-danger';";
+  html += "    no.onclick = close;";
+  html += "    btns.appendChild(yes);";
+  html += "    btns.appendChild(no);";
+  html += "    box.appendChild(btns);";
+  html += "  });";
+  html += "};";
+
+  html += "window.onload = function() {";
+  html += "  checkSDCardStatus();";
+  html += "};";
+
+  // Check SD card availability
+  html += "function checkSDCardStatus() {";
+  html += "  fetch('/api/sdcard/status').then(r=>r.json()).then(data=>{";
+  html += "    const statusEl = document.getElementById('card-status');";
+  html += "    if(data.available) {";
+  html += "      statusEl.textContent = 'Available';";
+  html += "      statusEl.style.color = '#4CAF50';";
+  html += "      if(data.type) document.getElementById('card-type').textContent = data.type;";
+  html += "      if(data.sizeGB) document.getElementById('card-size').textContent = data.sizeGB.toFixed(2) + ' MB';";
+  html += "      if(data.totalGB) document.getElementById('card-total').textContent = data.totalGB.toFixed(2) + ' MB';";
+  html += "      if(data.usedGB) document.getElementById('card-used').textContent = data.usedGB.toFixed(2) + ' MB';";
+  html += "      if(data.freeGB) document.getElementById('card-free').textContent = data.freeGB.toFixed(2) + ' MB';";
+  html += "      loadSDCardInfo();";
+  html += "      refreshFileList();";
+  html += "      loadOwnerInfo();";
+  html += "    } else {";
+  html += "      statusEl.textContent = 'Not Available';";
+  html += "      statusEl.style.color = '#dc3545';";
+  html += "    }";
+  html += "  }).catch(e=>{";
+  html += "    const statusEl = document.getElementById('card-status');";
+  html += "    statusEl.textContent = 'Error checking status';";
+  html += "    statusEl.style.color = '#dc3545';";
+  html += "  });";
+  html += "}";
 
   // Helper functions to disable/enable all buttons during download
   html += "function disableAllButtons() {";
@@ -207,7 +213,7 @@ void handleSystemSdcard() {
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=false; });";
   html += "}";
 
-  // Load SD card info (CSV and SQLite database status) - basic info only
+  // Load SD card info (CSV and SQLite database status)
   html += "function loadSDCardInfo() {";
   html += "  fetch('/api/sdcard/info').then(r=>r.json()).then(data=>{";
   html += "    updateDBInfo(data);";
@@ -279,9 +285,9 @@ void handleSystemSdcard() {
   html += "  var btn = document.getElementById('save-owner-btn');";
   html += "  btn.disabled = true;";
   html += "  fetch('/api/sdcard/writeowner', { method: 'POST' }).then(r=>r.json()).then(data=>{";
-  html += "    if (data && data.success) { alert('owner.txt written'); } else { alert('Error: ' + (data ? data.message : 'Unknown')); }";
+  html += "    if (data && data.success) { showAlert('owner.txt written'); } else { showAlert('Error: ' + (data ? data.message : 'Unknown')); }";
   html += "    loadOwnerInfo(); refreshFileList(); btn.disabled = false;";
-  html += "  }).catch(e=>{ alert('Error writing owner.txt: ' + e.message); btn.disabled = false; });";
+  html += "  }).catch(e=>{ showAlert('Error writing owner.txt: ' + e.message); btn.disabled = false; });";
   html += "}";
 
   // CSV Database download
@@ -297,21 +303,25 @@ void handleSystemSdcard() {
   html += "  csvPollInterval = setInterval(updateCSVStatus, 500);";
   html += "}";
   html += "function updateCSVStatus() {";
-  html += "  fetch('/api/sdcard/status/csv').then(r=>r.json()).then(data=>{";
-  html += "    document.getElementById('csv-progress-fill').style.width = data.progress + '%';";
-  html += "    document.getElementById('csv-progress-text').textContent = data.progress + '%';";
-  html += "    var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
-  html += "    document.getElementById('csv-bytes').textContent = bytes;";
-  html += "    document.getElementById('csv-status-text').textContent = data.status;";
-  html += "    if(!data.active && data.progress >= 100) {";
-  html += "      clearInterval(csvPollInterval);";
-  html += "      enableAllButtons();";
-  html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('csv-progress-container').style.display = 'none'; }, 5000);";
-  html += "    } else if(!data.active && data.status.includes('ERROR')) {";
-  html += "      clearInterval(csvPollInterval);";
-  html += "      enableAllButtons();";
-  html += "    }";
-  html += "  });";
+  html += "  fetch('/api/sdcard/status/csv')";
+  html += "    .then(r => { console.log('CSV API response:', r.status); return r.json(); })";
+  html += "    .then(data => {";
+  html += "      console.log('CSV data:', data);";
+  html += "      document.getElementById('csv-progress-fill').style.width = data.progress + '%';";
+  html += "      document.getElementById('csv-progress-text').textContent = data.progress + '%';";
+  html += "      var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
+  html += "      document.getElementById('csv-bytes').textContent = bytes;";
+  html += "      document.getElementById('csv-status-text').textContent = data.status;";
+  html += "      if(!data.active && data.progress >= 100) {";
+  html += "        clearInterval(csvPollInterval);";
+  html += "        enableAllButtons();";
+  html += "        setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('csv-progress-container').style.display = 'none'; }, 5000);";
+  html += "      } else if(!data.active && data.status.includes('ERROR')) {";
+  html += "        clearInterval(csvPollInterval);";
+  html += "        enableAllButtons();";
+  html += "      }";
+  html += "    })";
+  html += "    .catch(err => console.error('CSV status error:', err));";
   html += "}";
 
   // SQLite Database download
@@ -327,48 +337,54 @@ void handleSystemSdcard() {
   html += "  sqlitePollInterval = setInterval(updateSQLiteStatus, 500);";
   html += "}";
   html += "function updateSQLiteStatus() {";
-  html += "  fetch('/api/sdcard/status/sqlite').then(r=>r.json()).then(data=>{";
-  html += "    document.getElementById('sqlite-progress-fill').style.width = data.progress + '%';";
-  html += "    document.getElementById('sqlite-progress-text').textContent = data.progress + '%';";
-  html += "    var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
-  html += "    document.getElementById('sqlite-bytes').textContent = bytes;";
-  html += "    document.getElementById('sqlite-status-text').textContent = data.status;";
-  html += "    if(!data.active && data.progress >= 100) {";
-  html += "      clearInterval(sqlitePollInterval);";
-  html += "      enableAllButtons();";
-  html += "      setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('sqlite-progress-container').style.display = 'none'; }, 5000);";
-  html += "    } else if(!data.active && data.status.includes('ERROR')) {";
-  html += "      clearInterval(sqlitePollInterval);";
-  html += "      enableAllButtons();";
-  html += "    }";
-  html += "  });";
+  html += "  fetch('/api/sdcard/status/sqlite')";
+  html += "    .then(r => { console.log('SQLite API response:', r.status); return r.json(); })";
+  html += "    .then(data => {";
+  html += "      console.log('SQLite data:', data);";
+  html += "      document.getElementById('sqlite-progress-fill').style.width = data.progress + '%';";
+  html += "      document.getElementById('sqlite-progress-text').textContent = data.progress + '%';";
+  html += "      var bytes = data.bytesWritten.toLocaleString() + ' / ' + data.bytesTotal.toLocaleString() + ' bytes';";
+  html += "      document.getElementById('sqlite-bytes').textContent = bytes;";
+  html += "      document.getElementById('sqlite-status-text').textContent = data.status;";
+  html += "      if(!data.active && data.progress >= 100) {";
+  html += "        clearInterval(sqlitePollInterval);";
+  html += "        enableAllButtons();";
+  html += "        setTimeout(()=>{ loadSDCardInfo(); refreshFileList(); document.getElementById('sqlite-progress-container').style.display = 'none'; }, 5000);";
+  html += "      } else if(!data.active && data.status.includes('ERROR')) {";
+  html += "        clearInterval(sqlitePollInterval);";
+  html += "        enableAllButtons();";
+  html += "      }";
+  html += "    })";
+  html += "    .catch(err => console.error('SQLite status error:', err));";
   html += "}";
 
   // Delete CSV database
   html += "function deleteCSVDatabase() {";
-  html += "  if(!confirm('Delete CSV database file?')) return;";
-  html += "  fetch('/api/sdcard/delete/csv').then(r=>r.json()).then(data=>{";
-  html += "    alert(data.message);";
-  html += "    loadSDCardInfo();";
-  html += "    refreshFileList();";
+  html += "  showConfirm('Delete CSV database file?', function() {";
+  html += "    fetch('/api/sdcard/delete/csv').then(r=>r.json()).then(data=>{";
+  html += "      showAlert(data.message);";
+  html += "      loadSDCardInfo();";
+  html += "      refreshFileList();";
+  html += "    });";
   html += "  });";
   html += "}";
 
   // Delete SQLite database
   html += "function deleteSQLiteDatabase() {";
-  html += "  if(!confirm('Delete SQLite database file?')) return;";
-  html += "  fetch('/api/sdcard/delete/sqlite').then(r=>r.json()).then(data=>{";
-  html += "    alert(data.message);";
-  html += "    loadSDCardInfo();";
-  html += "    refreshFileList();";
+  html += "  showConfirm('Delete SQLite database file?', function() {";
+  html += "    fetch('/api/sdcard/delete/sqlite').then(r=>r.json()).then(data=>{";
+  html += "      showAlert(data.message);";
+  html += "      loadSDCardInfo();";
+  html += "      refreshFileList();";
+  html += "    });";
   html += "  });";
   html += "}";
 
   // Search Radio ID (CSV)
   html += "function searchRadioId() {";
   html += "  var id = document.getElementById('search-id').value.trim();";
-  html += "  if(!id) { alert('Please enter a Radio ID'); return; }";
-  html += "  if(!/^[0-9]{7}$/.test(id)) { alert('Radio ID must be exactly 7 digits (0-9)'); return; }";
+  html += "  if(!id) { showAlert('Please enter a Radio ID'); return; }";
+  html += "  if(!/^[0-9]{7}$/.test(id)) { showAlert('Radio ID must be exactly 7 digits (0-9)'); return; }";
   html += "  document.getElementById('search-btn').disabled = true;";
   html += "  document.getElementById('search-result').innerHTML = '<p>Searching...</p>';";
   html += "  fetch('/api/dmr/user/?id=' + id).then(r=>r.json()).then(data=>{";
@@ -396,8 +412,8 @@ void handleSystemSdcard() {
   // Search SQLite
   html += "function searchSQLite() {";
   html += "  var id = document.getElementById('sqlite-search-id').value.trim();";
-  html += "  if(!id) { alert('Please enter a Radio ID'); return; }";
-  html += "  if(!/^[0-9]{7}$/.test(id)) { alert('Radio ID must be exactly 7 digits (0-9)'); return; }";
+  html += "  if(!id) { showAlert('Please enter a Radio ID'); return; }";
+  html += "  if(!/^[0-9]{7}$/.test(id)) { showAlert('Radio ID must be exactly 7 digits (0-9)'); return; }";
   html += "  document.getElementById('sqlite-search-btn').disabled = true;";
   html += "  document.getElementById('sqlite-result').innerHTML = '<p>Searching...</p>';";
   html += "  fetch('/api/sqlite/search?field=radio_id&value=' + id).then(r=>r.json()).then(data=>{";
@@ -429,24 +445,25 @@ void handleSystemSdcard() {
   // Delete custom path
   html += "function deleteCustomPath() {";
   html += "  var path = document.getElementById('delete-path').value;";
-  html += "  if(!path) { alert('Please enter a file or directory path'); return; }";
-  html += "  if(!path.startsWith('/')) { alert('Path must start with /'); return; }";
-  html += "  if(path === '/' || path === '/database') { alert('Cannot delete root or database directory'); return; }";
-  html += "  if(!confirm('Are you sure you want to delete: ' + path + '?\\n\\nThis action cannot be undone!')) return;";
-  html += "  document.getElementById('delete-custom-btn').disabled = true;";
-  html += "  document.getElementById('delete-result').innerHTML = '<p style=\"color:#ff9800\">Deleting...</p>';";
-  html += "  fetch('/api/sdcard/delete/custom?path=' + encodeURIComponent(path)).then(r=>r.json()).then(data=>{";
-  html += "    document.getElementById('delete-custom-btn').disabled = false;";
-  html += "    if(data.success) {";
-  html += "      document.getElementById('delete-result').innerHTML = '<p style=\"color:#4CAF50\">' + data.message + '</p>';";
-  html += "      document.getElementById('delete-path').value = '';";
-  html += "      refreshFileList();";
-  html += "    } else {";
-  html += "      document.getElementById('delete-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + data.message + '</p>';";
-  html += "    }";
-  html += "  }).catch(e=>{";
-  html += "    document.getElementById('delete-custom-btn').disabled = false;";
-  html += "    document.getElementById('delete-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + e.message + '</p>';";
+  html += "  if(!path) { showAlert('Please enter a file or directory path'); return; }";
+  html += "  if(!path.startsWith('/')) { showAlert('Path must start with /'); return; }";
+  html += "  if(path === '/' || path === '/database') { showAlert('Cannot delete root or database directory'); return; }";
+  html += "  showConfirm('Are you sure you want to delete: ' + path + '?<br><br>This action cannot be undone!', function() {";
+  html += "    document.getElementById('delete-custom-btn').disabled = true;";
+  html += "    document.getElementById('delete-result').innerHTML = '<p style=\"color:#ff9800\">Deleting...</p>';";
+  html += "    fetch('/api/sdcard/delete/custom?path=' + encodeURIComponent(path)).then(r=>r.json()).then(data=>{";
+  html += "      document.getElementById('delete-custom-btn').disabled = false;";
+  html += "      if(data.success) {";
+  html += "        document.getElementById('delete-result').innerHTML = '<p style=\"color:#4CAF50\">' + data.message + '</p>';";
+  html += "        document.getElementById('delete-path').value = '';";
+  html += "        refreshFileList();";
+  html += "      } else {";
+  html += "        document.getElementById('delete-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + data.message + '</p>';";
+  html += "      }";
+  html += "    }).catch(e=>{";
+  html += "      document.getElementById('delete-custom-btn').disabled = false;";
+  html += "      document.getElementById('delete-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + e.message + '</p>';";
+  html += "    });";
   html += "  });";
   html += "}";
 
@@ -456,7 +473,7 @@ void handleSystemSdcard() {
   html += "</div>"; // Close container
   html += "</body></html>";
 
-  server.send(200, "text/html; charset=UTF-8", html);
+  return html;
 }
 
-#endif // WEB_PAGES_SYSTEM_SDCARD_H
+#endif // WEB_SYSTEM_SDCARD_H
