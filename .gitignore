@@ -2,9 +2,9 @@
 /sharkrf/
 /sharkrf/*
 /sharkrf/.DS_Store
-/MMDVM-Software/
-/MMDVM-Software/*
-/MMDVM-Software/.DS_Store
+/mmdvm-Software/
+/mmdvm-Software/*
+/mmdvm-Software/.DS_Store
 *.py
 makedb.sh
 /scripts/
