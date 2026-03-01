@@ -210,6 +210,7 @@ String mqttDapnetTaskTopic = MQTT_DAPNET_TASK_TOPIC;
 String mqttSubscribeTopic = MQTT_SUBSCRIBE_TOPIC;
 uint16_t mqttSendHardwareInfo = MQTT_SEND_HARDWARE_INFO;
 bool mqttHardwareInfoLog = MQTT_HARDWARE_INFO_LOG;
+String mqttCommandToken = MQTT_CMD_TOKEN;
 
 // WireGuard VPN Settings (loaded from NVS or defaults from config.h)
 bool wgEnabled = WG_ENABLED;
@@ -434,6 +435,7 @@ void loadSettings()
     mqttSubscribeTopic = getStringNonEmpty("mqtt_sub", MQTT_SUBSCRIBE_TOPIC);
     mqttSendHardwareInfo = preferences.getUShort("mqtt_hw_int", MQTT_SEND_HARDWARE_INFO);
     mqttHardwareInfoLog = preferences.getBool("mqtt_hw_log", MQTT_HARDWARE_INFO_LOG);
+    mqttCommandToken = preferences.getString("mqtt_cmd_tok", MQTT_CMD_TOKEN);
 
     // Web Server Settings
     webEnabled = preferences.getBool("web_en", WEB_ENABLED);
@@ -778,6 +780,7 @@ void saveSettings()
   preferences.putString("mqtt_sub", mqttSubscribeTopic);
   preferences.putUShort("mqtt_hw_int", mqttSendHardwareInfo);
   preferences.putBool("mqtt_hw_log", mqttHardwareInfoLog);
+  preferences.putString("mqtt_cmd_tok", mqttCommandToken);
   preferences.putString("mq_log_task", mqttLoggerTaskTopic);
   preferences.putString("mqtt_oled_task", mqttOledTaskTopic);
   preferences.putString("mqtt_led_task", mqttLedTaskTopic);

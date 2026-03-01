@@ -135,7 +135,7 @@ String getSystemFirmwarePageHTML()
   html += "<input type='file' id='firmware-file' accept='.bin' style='display: none;' />";
   html += "<div id='update-status' style='margin-top: 10px; padding: 10px; display: none;'></div>";
 
-  html += "<hr style='border:0;border-top:1px solid var(--border-color);margin:15px 0;'>";
+  //html += "<hr style='border:0;border-top:1px solid var(--border-color);margin:15px 0;'>";
   //html += "<div style='font-size:0.85em;color:#888;margin-top:5px;'>OTA URL: " + ota_url + "</div>";
   html += "</div>";
   html += "</details>";

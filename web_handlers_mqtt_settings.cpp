@@ -47,6 +47,7 @@ extern String mqttPocsagTaskTopic;
 extern String mqttSubscribeTopic;
 extern uint16_t mqttSendHardwareInfo;
 extern bool mqttHardwareInfoLog;
+extern String mqttCommandToken;
 extern void saveSettings();
 
 void registerMqttSettingsRoutes()
@@ -173,5 +174,21 @@ void registerMqttSettingsRoutes()
     saveSettings();
     addLogMessage("[Settings] MQTT advanced settings reset to default");
     server.send(200, "text/plain", "MQTT advanced settings reset to default"); });
+
+  // MQTT Command Token
+  server.on("/api/get-mqtt-token", HTTP_GET, []()
+            {
+    server.send(200, "text/plain", mqttCommandToken); });
+
+  server.on("/api/save-mqtt-token", HTTP_POST, []()
+            {
+    if (!server.hasArg("token")) {
+      server.send(400, "text/plain", "ERROR: Missing parameter");
+      return;
+    }
+    mqttCommandToken = server.arg("token");
+    saveSettings();
+    addLogMessage("[Settings] MQTT command token updated");
+    server.send(200, "text/plain", mqttCommandToken.length() > 0 ? "Token saved" : "Token cleared (no token check)"); });
 
 }

@@ -133,6 +133,20 @@ String getSystemMqttPageHTML()
   html += "</div>";
   html += "</div>";
 
+  // Card 6: Command Token
+  html += "<div class='card'>";
+  html += "<h3>Command Token</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Token required in MQTT commands. Leave empty to disable token check.</p>";
+  html += "<div class='metric'>";
+  html += "<span class='metric-label'>Token:</span>";
+  html += "<input type='text' id='mqtt-cmd-token' value='' placeholder='(none)' style='width:160px;padding-right:8px;font-family:monospace;' readonly>";
+  html += "</div>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-primary' onclick='generateMqttToken()'>Generate</button>";
+  html += "<button class='btn btn-success' onclick='saveMqttToken()'>Save</button>";
+  html += "</div>";
+  html += "</div>";
+
   html += "</div>"; // Close admin-grid
 
   // JavaScript functions
@@ -325,6 +339,33 @@ String getSystemMqttPageHTML()
   html += "    });";
   html += "  });";
   html += "}";
+  // Load current token on page load
+  html += "fetch('/api/get-mqtt-token').then(r => r.text()).then(t => {";
+  html += "  var el = document.getElementById('mqtt-cmd-token');";
+  html += "  el.value = t;";
+  html += "  el.readOnly = false;";
+  html += "});";
+
+  html += "function generateMqttToken() {";
+  html += "  var arr = new Uint8Array(16);";
+  html += "  crypto.getRandomValues(arr);";
+  html += "  var token = Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');";
+  html += "  var el = document.getElementById('mqtt-cmd-token');";
+  html += "  el.value = token;";
+  html += "  el.readOnly = false;";
+  html += "}";
+
+  html += "function saveMqttToken() {";
+  html += "  var token = document.getElementById('mqtt-cmd-token').value.trim();";
+  html += "  showConfirm('Save command token?', function() {";
+  html += "    fetch('/api/save-mqtt-token', {";
+  html += "      method: 'POST',";
+  html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+  html += "      body: 'token=' + encodeURIComponent(token)";
+  html += "    }).then(r => r.text()).then(msg => { showAlert(msg); });";
+  html += "  });";
+  html += "}";
+
   html += "</script>";
 
   html += "</div>"; // Close container

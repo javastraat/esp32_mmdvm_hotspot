@@ -7,6 +7,8 @@
   *   /api/save-mqtt-auth + reset
   *   /api/save-mqtt-topics + reset
   *   /api/save-mqtt-advanced + reset
+ *   /api/get-mqtt-token
+ *   /api/save-mqtt-token
  */
 
 #ifndef WEB_HANDLERS_MQTT_SETTINGS

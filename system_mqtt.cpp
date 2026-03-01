@@ -21,6 +21,7 @@ extern String mqttUser;
 extern String mqttPassword;
 extern String mqttStatusTopic;
 extern String mqttSubscribeTopic;
+extern String mqttCommandToken;
 extern String mdnsHostname;
 
 // MQTT status variables
@@ -85,7 +86,64 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
 
   addLogMessage("[MQTT Task] Message received on " + String(topic) + ": " + message);
 
-  // Add custom message handling here if needed
+  // Skip announce/info messages published by this device itself
+  if (message.indexOf("\"info\"") >= 0 && message.indexOf("\"cmd\"") < 0)
+  {
+    return;
+  }
+
+  // Extract a JSON string field value: finds "key":"value" and returns value
+  auto extractJsonString = [](const String &json, const char *key) -> String {
+    String search = String("\"") + key + "\"";
+    int keyPos = json.indexOf(search);
+    if (keyPos < 0) return "";
+    int colon = json.indexOf(':', keyPos + search.length());
+    if (colon < 0) return "";
+    int quote1 = json.indexOf('"', colon + 1);
+    if (quote1 < 0) return "";
+    int quote2 = json.indexOf('"', quote1 + 1);
+    if (quote2 < 0) return "";
+    return json.substring(quote1 + 1, quote2);
+  };
+
+  // Token check — if a token is configured, the message must carry it
+  if (mqttCommandToken.length() > 0)
+  {
+    String token = extractJsonString(message, "token");
+    if (token != mqttCommandToken)
+    {
+      addLogMessage("[MQTT Task] Command rejected: invalid or missing token");
+      return;
+    }
+  }
+
+  // Dispatch command
+  String cmd = extractJsonString(message, "cmd");
+
+  if (cmd == "reboot")
+  {
+    addLogMessage("[MQTT Task] Command: reboot");
+    mqttClient.publish(mqttStatusTopic.c_str(), "{\"status\":\"rebooting\"}");
+    mqttClient.loop();
+    delay(500);
+    ESP.restart();
+  }
+  else if (cmd == "get_hardware")
+  {
+    addLogMessage("[MQTT Task] Command: get_hardware");
+    publishHardwareInfo();
+  }
+  else if (cmd == "get_status")
+  {
+    addLogMessage("[MQTT Task] Command: get_status");
+    unsigned long uptime = millis() / 1000;
+    String status = "{\"status\":\"online\",\"uptime_seconds\":" + String(uptime) + "}";
+    mqttClient.publish(mqttStatusTopic.c_str(), status.c_str());
+  }
+  else
+  {
+    addLogMessage("[MQTT Task] Command unknown: " + cmd);
+  }
 }
 
 /*
@@ -141,6 +199,19 @@ void reconnectMqtt()
     {
       mqttClient.subscribe(mqttSubscribeTopic.c_str());
       addLogMessage("[MQTT Task] Subscribed to: " + mqttSubscribeTopic);
+
+#if MQTT_CMD_ANNOUNCE
+      // Announce available commands on the command topic so users know what is accepted
+      bool tokenRequired = mqttCommandToken.length() > 0;
+      String announce = "{\"info\":\"Commands available\","
+                        "\"commands\":[\"reboot\",\"get_hardware\",\"get_status\"],"
+                        "\"token_required\":" + String(tokenRequired ? "true" : "false") + ","
+                        "\"usage\":{\"cmd\":\"<command>\"" + String(tokenRequired ? ",\"token\":\"<your_token>\"" : "") + "},"
+                        "\"example\":{\"cmd\":\"reboot\"" + String(tokenRequired ? ",\"token\":\"<your_token>\"" : "") + "},"
+                        "\"client\":\"" + clientId + "\"}";
+      mqttClient.publish(mqttSubscribeTopic.c_str(), announce.c_str());
+      addLogMessage("[MQTT Task] Command announce published to: " + mqttSubscribeTopic);
+#endif
     }
 
     // Publish connection message
