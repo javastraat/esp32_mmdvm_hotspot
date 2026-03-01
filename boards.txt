@@ -1,0 +1,216 @@
+##############################################################
+
+mmdvms3.name=ESP32 MMDVM Board
+
+mmdvms3.bootloader.tool=esptool_py
+mmdvms3.bootloader.tool.default=esptool_py
+
+mmdvms3.upload.tool=esptool_py
+mmdvms3.upload.tool.default=esptool_py
+mmdvms3.upload.tool.network=esp_ota
+mmdvms3.upload.maximum_size=8257536
+mmdvms3.upload.maximum_data_size=327680
+mmdvms3.upload.flags=
+mmdvms3.upload.extra_flags=
+mmdvms3.upload.use_1200bps_touch=false
+mmdvms3.upload.wait_for_upload_port=false
+
+mmdvms3.serial.disableDTR=false
+mmdvms3.serial.disableRTS=false
+
+mmdvms3.build.tarch=xtensa
+mmdvms3.build.bootloader_addr=0x0
+mmdvms3.build.target=esp32s3
+mmdvms3.build.mcu=esp32s3
+mmdvms3.build.core=esp32
+mmdvms3.build.variant=esp32s3
+mmdvms3.build.board=ESP32S3_DEV
+
+mmdvms3.build.usb_mode=1
+mmdvms3.build.cdc_on_boot=1
+mmdvms3.build.msc_on_boot=0
+mmdvms3.build.dfu_on_boot=0
+mmdvms3.build.f_cpu=240000000L
+mmdvms3.build.flash_size=16MB
+mmdvms3.build.flash_freq=80m
+mmdvms3.build.flash_mode=dio
+mmdvms3.build.boot=qio
+mmdvms3.build.boot_freq=80m
+mmdvms3.build.partitions=custom_16MB_s3
+mmdvms3.build.defines=-DBOARD_HAS_PSRAM
+mmdvms3.build.loop_core=-DARDUINO_RUNNING_CORE=1
+mmdvms3.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+mmdvms3.build.psram_type=opi
+mmdvms3.build.memory_type={build.boot}_{build.psram_type}
+
+## JTAG Adapter
+mmdvms3.menu.JTAGAdapter.default=Disabled
+mmdvms3.menu.JTAGAdapter.default.build.copy_jtag_files=0
+mmdvms3.menu.JTAGAdapter.builtin=Integrated USB JTAG
+mmdvms3.menu.JTAGAdapter.builtin.build.openocdscript=esp32s3-builtin.cfg
+mmdvms3.menu.JTAGAdapter.builtin.build.copy_jtag_files=1
+mmdvms3.menu.JTAGAdapter.external=FTDI Adapter
+mmdvms3.menu.JTAGAdapter.external.build.openocdscript=esp32s3-ftdi.cfg
+mmdvms3.menu.JTAGAdapter.external.build.copy_jtag_files=1
+mmdvms3.menu.JTAGAdapter.bridge=ESP USB Bridge
+mmdvms3.menu.JTAGAdapter.bridge.build.openocdscript=esp32s3-bridge.cfg
+mmdvms3.menu.JTAGAdapter.bridge.build.copy_jtag_files=1
+
+## PSRAM
+mmdvms3.menu.PSRAM.opi=OPI PSRAM
+mmdvms3.menu.PSRAM.opi.build.defines=-DBOARD_HAS_PSRAM
+mmdvms3.menu.PSRAM.opi.build.psram_type=opi
+mmdvms3.menu.PSRAM.enabled=QSPI PSRAM
+mmdvms3.menu.PSRAM.enabled.build.defines=-DBOARD_HAS_PSRAM
+mmdvms3.menu.PSRAM.enabled.build.psram_type=qspi
+mmdvms3.menu.PSRAM.disabled=Disabled
+mmdvms3.menu.PSRAM.disabled.build.defines=
+mmdvms3.menu.PSRAM.disabled.build.psram_type=qspi
+
+## Flash Mode
+mmdvms3.menu.FlashMode.qio=QIO 80MHz
+mmdvms3.menu.FlashMode.qio.build.flash_mode=dio
+mmdvms3.menu.FlashMode.qio.build.boot=qio
+mmdvms3.menu.FlashMode.qio.build.boot_freq=80m
+mmdvms3.menu.FlashMode.qio.build.flash_freq=80m
+mmdvms3.menu.FlashMode.qio120=QIO 120MHz
+mmdvms3.menu.FlashMode.qio120.build.flash_mode=dio
+mmdvms3.menu.FlashMode.qio120.build.boot=qio
+mmdvms3.menu.FlashMode.qio120.build.boot_freq=120m
+mmdvms3.menu.FlashMode.qio120.build.flash_freq=80m
+mmdvms3.menu.FlashMode.dio=DIO 80MHz
+mmdvms3.menu.FlashMode.dio.build.flash_mode=dio
+mmdvms3.menu.FlashMode.dio.build.boot=dio
+mmdvms3.menu.FlashMode.dio.build.boot_freq=80m
+mmdvms3.menu.FlashMode.dio.build.flash_freq=80m
+mmdvms3.menu.FlashMode.opi=OPI 80MHz
+mmdvms3.menu.FlashMode.opi.build.flash_mode=dout
+mmdvms3.menu.FlashMode.opi.build.boot=opi
+mmdvms3.menu.FlashMode.opi.build.boot_freq=80m
+mmdvms3.menu.FlashMode.opi.build.flash_freq=80m
+
+## Flash Size
+mmdvms3.menu.FlashSize.16M=16MB (128Mb)
+mmdvms3.menu.FlashSize.16M.build.flash_size=16MB
+mmdvms3.menu.FlashSize.8M=8MB (64Mb)
+mmdvms3.menu.FlashSize.8M.build.flash_size=8MB
+mmdvms3.menu.FlashSize.4M=4MB (32Mb)
+mmdvms3.menu.FlashSize.4M.build.flash_size=4MB
+mmdvms3.menu.FlashSize.32M=32MB (256Mb)
+mmdvms3.menu.FlashSize.32M.build.flash_size=32MB
+
+## Loop Core
+mmdvms3.menu.LoopCore.1=Core 1
+mmdvms3.menu.LoopCore.1.build.loop_core=-DARDUINO_RUNNING_CORE=1
+mmdvms3.menu.LoopCore.0=Core 0
+mmdvms3.menu.LoopCore.0.build.loop_core=-DARDUINO_RUNNING_CORE=0
+
+## Events Core
+mmdvms3.menu.EventsCore.1=Core 1
+mmdvms3.menu.EventsCore.1.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+mmdvms3.menu.EventsCore.0=Core 0
+mmdvms3.menu.EventsCore.0.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=0
+
+## USB Mode
+mmdvms3.menu.USBMode.hwcdc=Hardware CDC and JTAG
+mmdvms3.menu.USBMode.hwcdc.build.usb_mode=1
+mmdvms3.menu.USBMode.default=USB-OTG (TinyUSB)
+mmdvms3.menu.USBMode.default.build.usb_mode=0
+
+## CDC On Boot
+mmdvms3.menu.CDCOnBoot.cdc=Enabled
+mmdvms3.menu.CDCOnBoot.cdc.build.cdc_on_boot=1
+mmdvms3.menu.CDCOnBoot.default=Disabled
+mmdvms3.menu.CDCOnBoot.default.build.cdc_on_boot=0
+
+## MSC On Boot
+mmdvms3.menu.MSCOnBoot.default=Disabled
+mmdvms3.menu.MSCOnBoot.default.build.msc_on_boot=0
+mmdvms3.menu.MSCOnBoot.msc=Enabled (Requires USB-OTG Mode)
+mmdvms3.menu.MSCOnBoot.msc.build.msc_on_boot=1
+
+## DFU On Boot
+mmdvms3.menu.DFUOnBoot.default=Disabled
+mmdvms3.menu.DFUOnBoot.default.build.dfu_on_boot=0
+mmdvms3.menu.DFUOnBoot.dfu=Enabled (Requires USB-OTG Mode)
+mmdvms3.menu.DFUOnBoot.dfu.build.dfu_on_boot=1
+
+## Upload Mode
+mmdvms3.menu.UploadMode.default=UART0 / Hardware CDC
+mmdvms3.menu.UploadMode.default.upload.use_1200bps_touch=false
+mmdvms3.menu.UploadMode.default.upload.wait_for_upload_port=false
+mmdvms3.menu.UploadMode.cdc=USB-OTG CDC (TinyUSB)
+mmdvms3.menu.UploadMode.cdc.upload.use_1200bps_touch=true
+mmdvms3.menu.UploadMode.cdc.upload.wait_for_upload_port=true
+
+## Partition Scheme
+mmdvms3.menu.PartitionScheme.custom_16MB_s3=16MB Flash (8MB APP with OTA/192KB SPIFFS)
+mmdvms3.menu.PartitionScheme.custom_16MB_s3.build.partitions=custom_16MB_s3
+mmdvms3.menu.PartitionScheme.custom_16MB_s3.upload.maximum_size=8257536
+mmdvms3.menu.PartitionScheme.default=Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)
+mmdvms3.menu.PartitionScheme.default.build.partitions=default
+mmdvms3.menu.PartitionScheme.huge_app=Huge APP (3MB No OTA/1MB SPIFFS)
+mmdvms3.menu.PartitionScheme.huge_app.build.partitions=huge_app
+mmdvms3.menu.PartitionScheme.huge_app.upload.maximum_size=3145728
+mmdvms3.menu.PartitionScheme.app3M_fat9M_16MB=16M Flash (3MB APP/9.9MB FATFS)
+mmdvms3.menu.PartitionScheme.app3M_fat9M_16MB.build.partitions=app3M_fat9M_16MB
+mmdvms3.menu.PartitionScheme.app3M_fat9M_16MB.upload.maximum_size=3145728
+
+## CPU Frequency
+mmdvms3.menu.CPUFreq.240=240MHz (WiFi)
+mmdvms3.menu.CPUFreq.240.build.f_cpu=240000000L
+mmdvms3.menu.CPUFreq.160=160MHz (WiFi)
+mmdvms3.menu.CPUFreq.160.build.f_cpu=160000000L
+mmdvms3.menu.CPUFreq.80=80MHz (WiFi)
+mmdvms3.menu.CPUFreq.80.build.f_cpu=80000000L
+mmdvms3.menu.CPUFreq.40=40MHz
+mmdvms3.menu.CPUFreq.40.build.f_cpu=40000000L
+mmdvms3.menu.CPUFreq.20=20MHz
+mmdvms3.menu.CPUFreq.20.build.f_cpu=20000000L
+mmdvms3.menu.CPUFreq.10=10MHz
+mmdvms3.menu.CPUFreq.10.build.f_cpu=10000000L
+
+## Upload Speed
+mmdvms3.menu.UploadSpeed.921600=921600
+mmdvms3.menu.UploadSpeed.921600.upload.speed=921600
+mmdvms3.menu.UploadSpeed.115200=115200
+mmdvms3.menu.UploadSpeed.115200.upload.speed=115200
+mmdvms3.menu.UploadSpeed.256000.windows=256000
+mmdvms3.menu.UploadSpeed.256000.upload.speed=256000
+mmdvms3.menu.UploadSpeed.230400.windows.upload.speed=256000
+mmdvms3.menu.UploadSpeed.230400=230400
+mmdvms3.menu.UploadSpeed.230400.upload.speed=230400
+mmdvms3.menu.UploadSpeed.460800.linux=460800
+mmdvms3.menu.UploadSpeed.460800.macosx=460800
+mmdvms3.menu.UploadSpeed.460800.upload.speed=460800
+mmdvms3.menu.UploadSpeed.512000.windows=512000
+mmdvms3.menu.UploadSpeed.512000.upload.speed=512000
+
+## Debug Level
+mmdvms3.menu.DebugLevel.none=None
+mmdvms3.menu.DebugLevel.none.build.code_debug=0
+mmdvms3.menu.DebugLevel.error=Error
+mmdvms3.menu.DebugLevel.error.build.code_debug=1
+mmdvms3.menu.DebugLevel.warn=Warn
+mmdvms3.menu.DebugLevel.warn.build.code_debug=2
+mmdvms3.menu.DebugLevel.info=Info
+mmdvms3.menu.DebugLevel.info.build.code_debug=3
+mmdvms3.menu.DebugLevel.debug=Debug
+mmdvms3.menu.DebugLevel.debug.build.code_debug=4
+mmdvms3.menu.DebugLevel.verbose=Verbose
+mmdvms3.menu.DebugLevel.verbose.build.code_debug=5
+
+## Erase Flash
+mmdvms3.menu.EraseFlash.none=Disabled
+mmdvms3.menu.EraseFlash.none.upload.erase_cmd=
+mmdvms3.menu.EraseFlash.all=Enabled
+mmdvms3.menu.EraseFlash.all.upload.erase_cmd=-e
+
+## Zigbee Mode
+mmdvms3.menu.ZigbeeMode.default=Disabled
+mmdvms3.menu.ZigbeeMode.default.build.zigbee_mode=
+mmdvms3.menu.ZigbeeMode.default.build.zigbee_libs=
+mmdvms3.menu.ZigbeeMode.zczr=Zigbee ZCZR (coordinator/router)
+mmdvms3.menu.ZigbeeMode.zczr.build.zigbee_mode=-DZIGBEE_MODE_ZCZR
+mmdvms3.menu.ZigbeeMode.zczr.build.zigbee_libs=-lesp_zb_api.zczr -lzboss_stack.zczr -lzboss_port
+

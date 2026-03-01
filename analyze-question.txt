@@ -1,0 +1,16 @@
+I have an ESP32-based MMDVM (Multi-Mode Digital Voice Modem) hotspot project that handles DMR,
+D-STAR, and other digital radio modes. Please perform a comprehensive code review and architecture analysis.
+Maybe you have some advices and fixes
+-----
+I have an ESP32-based MMDVM (Multi-Mode Digital Voice Modem) hotspot project that supports DMR, D-STAR, 
+and other digital radio modes. Please perform a comprehensive code review and architecture analysis of 
+this project. 
+
+Exclude the following folders from your review: esp32_mmdvm_hotspot, mmdvm-software, and sharkrf.
+
+Focus on actionable advice, possible fixes, and suggestions for improving code quality, modularity, 
+performance, reliability, and maintainability in the rest of the codebase. If you identify any issues, 
+please highlight them and provide concrete solutions. Additionally, if you see opportunities to improve 
+the overall project architecture or scalability, include detailed recommendations.
+
+
