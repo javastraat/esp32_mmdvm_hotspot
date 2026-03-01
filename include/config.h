@@ -332,8 +332,13 @@ const int MMDVM_TX_LEVEL = 128;   // TX level (0-255)
 #define OTA_UPDATE_FACTORY_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/factory-setup.bin"
 #define OTA_FIRMWARE_BASE_URL "https://github.com/javastraat/esp32_mmdvm_hotspot/releases/download/"
 #define OTA_FIRMWARE_FACTORY_URL "https://github.com/javastraat/esp32_mmdvm_hotspot/raw/refs/heads/main/firmware/factory/factory-setup.ino.bin"
-#define OTA_FIRMWARE_RTOS_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update.bin"
-#define OTA_FIRMWARE_RTOS_URL_BETA "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update_beta.bin"
+//#define OTA_FIRMWARE_RTOS_URL "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update.bin"
+//#define OTA_FIRMWARE_RTOS_URL_BETA "http://192.168.2.220:3000/einstein/esp32-rtos-mmdvm/raw/branch/main/firmware/update_beta.bin"
+
+
+#define OTA_FIRMWARE_RTOS_URL "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update.bin"
+#define OTA_FIRMWARE_RTOS_URL_BETA "https://raw.githubusercontent.com/javastraat/esp32_mmdvm_hotspot/refs/heads/main/firmware/update_beta.bin"
+
 #define OTA_TIMEOUT 30000 // 30 seconds timeout for OTA downloads
 
 // Logger Configuration
