@@ -108,6 +108,9 @@ String dapnetAuthKey     = DAPNET_AUTH_KEY;
 uint32_t dapnetRic       = 0; // 0 = use userDmrId at runtime
 String pocsagWhitelist   = POCSAG_WHITELIST;
 String pocsagBlacklist   = POCSAG_BLACKLIST;
+String hampagerUser      = HAMPAGER_USER;
+String hampagerPassword  = HAMPAGER_PASSWORD;
+String hampagerTxGroup   = HAMPAGER_TXG;
 String userCallsign = DMR_CALLSIGN;
 uint32_t userDmrId = DMR_ID;
 uint8_t userDmrSsid = DMR_SSID;
@@ -313,6 +316,9 @@ void loadSettings()
     dapnetRic       = preferences.getUInt("dapnet_ric", 0);
     pocsagWhitelist = preferences.getString("pocsag_wlist", POCSAG_WHITELIST);
     pocsagBlacklist = preferences.getString("pocsag_blist", POCSAG_BLACKLIST);
+    hampagerUser     = preferences.getString("hp_user", HAMPAGER_USER);
+    hampagerPassword = preferences.getString("hp_pass", HAMPAGER_PASSWORD);
+    hampagerTxGroup  = preferences.getString("hp_txg",  HAMPAGER_TXG);
     userCallsign = getStringNonEmpty("callsign", DMR_CALLSIGN);
     userDmrId = preferences.getUInt("dmr_id", DMR_ID);
     userDmrSsid = preferences.getUChar("dmr_ssid", DMR_SSID);
@@ -680,6 +686,9 @@ void saveSettings()
   preferences.putUInt("dapnet_ric",      dapnetRic);
   preferences.putString("pocsag_wlist",  pocsagWhitelist);
   preferences.putString("pocsag_blist",  pocsagBlacklist);
+  preferences.putString("hp_user",       hampagerUser);
+  preferences.putString("hp_pass",       hampagerPassword);
+  preferences.putString("hp_txg",        hampagerTxGroup);
   preferences.putString("callsign", userCallsign);
   preferences.putUInt("dmr_id", userDmrId);
   preferences.putUChar("dmr_ssid", userDmrSsid);

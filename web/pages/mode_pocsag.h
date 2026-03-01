@@ -23,6 +23,9 @@ extern uint32_t dapnetRic;
 extern String pocsagWhitelist;
 extern String pocsagBlacklist;
 extern String userCallsign;
+extern String hampagerUser;
+extern String hampagerPassword;
+extern String hampagerTxGroup;
 
 String getModePocsagPageHTML()
 {
@@ -125,7 +128,67 @@ String getModePocsagPageHTML()
     html += "</div>";
   }
 
-  // Card 3: POCSAG Configuration (modem)
+  // Card 3: HamPager Credentials
+  {
+    html += "<div class='card'>";
+    html += "<h3>HamPager</h3>";
+    html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Credentials for the <a href='http://hampager.de' target='_blank' style='color:#007bff;'>HamPager</a> REST API.</p>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>Username:</span>";
+    html += "<input type='text' id='hp_user' value='" + hampagerUser + "' maxlength='32' autocomplete='username' style='width: 130px; padding-right: 8px;' placeholder='your-callsign'>";
+    html += "</div>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>Password:</span>";
+    html += "<input type='password' id='hp_pass' value='" + hampagerPassword + "' maxlength='64' autocomplete='current-password' style='width: 130px; padding-right: 8px;' placeholder='hampager password'>";
+    html += "</div>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>TX Group:</span>";
+    html += "<input type='text' id='hp_txg' value='" + hampagerTxGroup + "' maxlength='32' style='width: 130px; padding-right: 8px;' placeholder='all'>";
+    html += "</div>";
+    html += "<p style='font-size:0.80em;color:#888;margin-top:2px;margin-bottom:8px;'>E.g. <code>all</code>, <code>pa-nh</code>, <code>dl-all</code></p>";
+
+    html += "<div class='action-buttons-vertical' style='margin-top:12px;'>";
+    html += "<button class='btn btn-success' onclick='saveHampagerSettings()'>Save Credentials</button>";
+    html += "<button class='btn btn-danger' onclick='resetHampagerSettings()'>Reset to Defaults</button>";
+    html += "</div>";
+    html += "<div id='hampagerSaveResult' style='margin-top:6px;font-size:0.9em;'></div>";
+
+    html += "</div>"; // card
+  }
+
+  // Card 4: Send DAPNET Message via HamPager
+  {
+    html += "<div class='card'>";
+    html += "<h3>Send DAPNET Message</h3>";
+    html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Send a paging message to any callsign via HamPager.</p>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>To Callsign:</span>";
+    html += "<input type='text' id='hp_dest' value='" + userCallsign + "' maxlength='16' style='width: 130px; padding-right: 8px;' placeholder='N0CALL'>";
+    html += "</div>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>TX Group:</span>";
+    html += "<input type='text' id='hp_send_txg' value='" + hampagerTxGroup + "' maxlength='32' style='width: 130px; padding-right: 8px;' placeholder='all'>";
+    html += "</div>";
+
+    html += "<div class='metric' style='position:relative;'>";
+    html += "<span class='metric-label'>Message:</span>";
+    html += "<input type='text' id='hp_msg' value='' maxlength='160' style='width: 200px; padding-right: 8px;' placeholder='Your message here'>";
+    html += "</div>";
+
+    html += "<div class='action-buttons-vertical' style='margin-top:12px;'>";
+    html += "<button class='btn btn-primary' onclick='sendHampager()'>Send via HamPager</button>";
+    html += "</div>";
+    html += "<div id='hampagerSendResult' style='margin-top:6px;font-size:0.9em;'></div>";
+
+    html += "</div>"; // card
+  }
+
+  // Card 5: POCSAG Configuration (modem)
   {
     html += "<div class='card'>";
     html += "<h3>POCSAG Configuration</h3>";
@@ -163,7 +226,7 @@ String getModePocsagPageHTML()
     html += "</div>";
   }
 
-  // Card 4: Send Test POCSAG Message
+  // Card 5: Send Test POCSAG Message
   html += "<div class='card'>";
   html += "<h3>Send Test POCSAG Message</h3>";
   html += "<form id='pocsagTestForm' onsubmit='return sendPocsagTest(event)'>";
@@ -190,7 +253,7 @@ String getModePocsagPageHTML()
   html += "<p style='font-size:0.85em;color:#666;margin-top:10px;'>Frequency: <b>" + String(pocsagFrequency / 1000000.0, 6) + " MHz</b></p>";
   html += "</div>";
 
-  // Card 5: POCSAG Queue Monitor
+  // Card 6: POCSAG Queue Monitor
   html += "<div class='card'>";
   html += "<h3>POCSAG Queue</h3>";
   html += "<div class='metric'><span class='metric-label'>Pending:</span><span class='metric-value' id='queueCount'>-</span></div>";
@@ -200,7 +263,7 @@ String getModePocsagPageHTML()
   html += "</div>";
   html += "</div>";
 
-  // Card 6: DAPNET Received Message History
+  // Card 7: DAPNET Received Message History
   html += "<div class='card'>";
   html += "<h3>Last Received Messages</h3>";
   html += "<div id='historyTable' style='margin-top:6px;'><p style='color:#888;font-size:0.9em;'>Loading...</p></div>";
@@ -337,7 +400,7 @@ String getModePocsagPageHTML()
   html += "  });\n";
   html += "}\n";
 
-  // Card 4: Save POCSAG modem settings
+  // Card 5: Save POCSAG modem settings
   html += "function savePocsagModemSettings() {\n";
   html += "  var freqHz = Math.round(parseFloat(document.getElementById('pocsag_freq_mhz').value) * 1000000);\n";
   html += "  var body = 'dapnet_ric=' + encodeURIComponent(document.getElementById('dapnet_ric').value)\n";
@@ -349,7 +412,38 @@ String getModePocsagPageHTML()
   html += "    .catch(() => { document.getElementById('pocsagModemResult').innerHTML = '<span style=\\'color:red\\'>Save failed</span>'; });\n";
   html += "}\n";
 
-  // Cards 3 & 4: Reset all POCSAG/Dapnet settings to defaults
+  // Card 3: HamPager save/reset/send
+  html += "function saveHampagerSettings() {\n";
+  html += "  var body = 'hp_user=' + encodeURIComponent(document.getElementById('hp_user').value)\n";
+  html += "    + '&hp_pass=' + encodeURIComponent(document.getElementById('hp_pass').value)\n";
+  html += "    + '&hp_txg='  + encodeURIComponent(document.getElementById('hp_txg').value);\n";
+  html += "  fetch('/api/save-hampager-settings', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body })\n";
+  html += "    .then(r => r.text()).then(msg => { document.getElementById('hampagerSaveResult').innerHTML = '<span style=\\'color:green\\'>'+msg+'</span>'; })\n";
+  html += "    .catch(() => { document.getElementById('hampagerSaveResult').innerHTML = '<span style=\\'color:red\\'>Save failed</span>'; });\n";
+  html += "}\n";
+  html += "function resetHampagerSettings() {\n";
+  html += "  showConfirm('Reset HamPager settings to defaults?', function() {\n";
+  html += "    fetch('/api/reset-hampager-settings', { method: 'POST' })\n";
+  html += "      .then(r => r.text()).then(msg => { document.getElementById('hampagerSaveResult').innerHTML = '<span style=\\'color:green\\'>'+msg+'</span>'; })\n";
+  html += "      .catch(() => { document.getElementById('hampagerSaveResult').innerHTML = '<span style=\\'color:red\\'>Reset failed</span>'; });\n";
+  html += "  });\n";
+  html += "}\n";
+  html += "function sendHampager() {\n";
+  html += "  var dest = document.getElementById('hp_dest').value.trim();\n";
+  html += "  var msg  = document.getElementById('hp_msg').value.trim();\n";
+  html += "  var txg  = document.getElementById('hp_send_txg').value.trim();\n";
+  html += "  var result = document.getElementById('hampagerSendResult');\n";
+  html += "  if (!dest || !msg) { result.innerHTML = '<span style=\\'color:red\\'>Callsign and message are required</span>'; return; }\n";
+  html += "  result.innerHTML = 'Sending...';\n";
+  html += "  var body = 'callsign=' + encodeURIComponent(dest)\n";
+  html += "    + '&text=' + encodeURIComponent(msg)\n";
+  html += "    + '&txg='  + encodeURIComponent(txg);\n";
+  html += "  fetch('/api/send-hampager', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body })\n";
+  html += "    .then(r => r.ok ? r.text().then(t => { result.innerHTML = '<span style=\\'color:green\\'>Sent! ' + t + '</span>'; }) : r.text().then(t => { result.innerHTML = '<span style=\\'color:red\\'>' + t + '</span>'; }))\n";
+  html += "    .catch(() => { result.innerHTML = '<span style=\\'color:red\\'>Request failed</span>'; });\n";
+  html += "}\n";
+
+  // Cards 5 & 6: Reset all POCSAG/Dapnet settings to defaults
   html += "function resetPocsagNetSettings() {\n";
   html += "  showConfirm('Reset all POCSAG & Dapnet settings to defaults?', function() {\n";
   html += "    fetch('/api/reset-pocsag-settings', { method: 'POST' })\n";
@@ -358,7 +452,7 @@ String getModePocsagPageHTML()
   html += "  });\n";
   html += "}\n";
 
-  // Card 5: POCSAG Queue Monitor
+  // Card 6: POCSAG Queue Monitor
   html += "var queueRefreshTimer = null;\n";
   html += "function refreshQueue() {\n";
   html += "  fetch('/api/pocsag-queue')\n";
@@ -386,7 +480,7 @@ String getModePocsagPageHTML()
   html += "refreshQueue();\n";
   html += "queueRefreshTimer = setInterval(refreshQueue, 2000);\n";
 
-  // Card 6: DAPNET message history
+  // Card 7: DAPNET message history
   html += "var histRefreshTimer = null;\n";
   html += "function refreshHistory() {\n";
   html += "  fetch('/api/dapnet-history')\n";
@@ -435,9 +529,13 @@ String getModePocsagPageHTML()
   html += "      + '&dapnet_ric='    + encodeURIComponent(document.getElementById('dapnet_ric').value)\n";
   html += "      + '&pocsag_wlist='  + encodeURIComponent(document.getElementById('pocsag_wlist').value)\n";
   html += "      + '&pocsag_blist='  + encodeURIComponent(document.getElementById('pocsag_blist').value);\n";
+  html += "    var hpBody = 'hp_user=' + encodeURIComponent(document.getElementById('hp_user').value)\n";
+  html += "      + '&hp_pass=' + encodeURIComponent(document.getElementById('hp_pass').value)\n";
+  html += "      + '&hp_txg='  + encodeURIComponent(document.getElementById('hp_txg').value);\n";
   html += "    post('/api/mode-toggle', 'mode=pocsag&enable=' + pocsagOn)\n";
   html += "      .then(function() { return post('/api/mode-toggle', 'mode=dapnet&enable=' + dapnetOn); })\n";
   html += "      .then(function() { return post('/api/save-pocsag-settings', body); })\n";
+  html += "      .then(function() { return post('/api/save-hampager-settings', hpBody); })\n";
   html += "      .then(function() { saveAndReboot('All POCSAG settings saved.'); })\n";
   html += "      .catch(function() { showAlert('Failed to save settings.'); });\n";
   html += "  });\n";

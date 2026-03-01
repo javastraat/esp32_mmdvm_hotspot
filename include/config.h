@@ -276,6 +276,12 @@ const int MMDVM_TX_LEVEL = 128;   // TX level (0-255)
 #define POCSAG_WHITELIST    ""
 #define POCSAG_BLACKLIST    ""
 
+// HamPager — outgoing DAPNET messages via HTTP REST API (http://hampager.de)
+#define HAMPAGER_USER       ""
+#define HAMPAGER_PASSWORD   ""
+#define HAMPAGER_TXG        "all"   // default transmitter group
+#define HAMPAGER_URL        "http://hampager.de/api/calls"
+
 // ========================================
 // SD CARD DATABASE CONFIGURATION
 // ========================================

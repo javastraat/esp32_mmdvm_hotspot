@@ -136,6 +136,14 @@ All endpoints are served by the built-in HTTP server (default port 80). Write en
 | GET | `/api/dapnet-history` | JSON | Recent DAPNET received messages |
 | GET | `/api/pocsag-tx-history` | JSON | Recent POCSAG transmit history |
 
+### HamPager (outgoing DAPNET via HTTP)
+
+| Method | Path | Params | Description |
+|--------|------|--------|-------------|
+| POST | `/api/save-hampager-settings` | `hp_user`, `hp_pass`, `hp_txg` | Save HamPager credentials and default transmitter group |
+| POST | `/api/reset-hampager-settings` | — | Reset HamPager settings to `config.h` defaults |
+| POST | `/api/send-hampager` | `callsign`, `text`, `txg` | Send a DAPNET message to a callsign via the HamPager REST API |
+
 ---
 
 ## MQTT

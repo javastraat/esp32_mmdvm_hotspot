@@ -5,11 +5,14 @@
  * All routes registered here use the global `server` object (extern WebServer server).
  *
  * Routes:
- *   /api/send-pocsag        - send a POCSAG test message
+ *   /api/send-pocsag          - send a POCSAG test message
  *   /api/save-pocsag-settings - POCSAG/DAPNET settings
  *   /api/reset-pocsag-settings - reset POCSAG/DAPNET settings to config.h defaults
- *   /api/pocsag-queue       - current POCSAG queue contents (JSON)
- *   /api/dapnet-history     - recent DAPNET messages (JSON)
+ *   /api/pocsag-queue         - current POCSAG queue contents (JSON)
+ *   /api/dapnet-history       - recent DAPNET messages (JSON)
+ *   /api/save-hampager-settings - HamPager credentials and transmitter group
+ *   /api/reset-hampager-settings - reset HamPager settings to config.h defaults
+ *   /api/send-hampager        - send a DAPNET message via HamPager REST API
  */
 
 #include "system/web_handlers_pocsag.h"
@@ -19,6 +22,7 @@
 #include "mmdvm/mmdvm_dapnet.h"        // getDapnetMessageHistoryJson()
 #include "system/system_oled.h"        // getPocsagTxHistoryJson()
 #include "include/config.h"            // compile-time defaults
+#include <HTTPClient.h>                // outbound HTTP for HamPager API
 
 // Runtime settings (defined in esp32-rtos-mmdvm.ino)
 extern uint32_t pocsagFrequency;
@@ -29,6 +33,10 @@ extern String dapnetAuthKey;
 extern uint32_t dapnetRic;
 extern String pocsagWhitelist;
 extern String pocsagBlacklist;
+extern String userCallsign;
+extern String hampagerUser;
+extern String hampagerPassword;
+extern String hampagerTxGroup;
 extern void saveSettings();
 
 void registerPocsagRoutes()
@@ -83,5 +91,67 @@ void registerPocsagRoutes()
 
   server.on("/api/pocsag-tx-history", HTTP_GET, []() {
     server.send(200, "application/json", getPocsagTxHistoryJson());
+  });
+
+  // --- HamPager ---
+
+  server.on("/api/save-hampager-settings", HTTP_POST, []() {
+    if (server.hasArg("hp_user"))  hampagerUser     = server.arg("hp_user");
+    if (server.hasArg("hp_pass"))  hampagerPassword = server.arg("hp_pass");
+    if (server.hasArg("hp_txg"))   hampagerTxGroup  = server.arg("hp_txg");
+    saveSettings();
+    server.send(200, "text/plain", "HamPager settings saved");
+  });
+
+  server.on("/api/reset-hampager-settings", HTTP_POST, []() {
+    hampagerUser     = HAMPAGER_USER;
+    hampagerPassword = HAMPAGER_PASSWORD;
+    hampagerTxGroup  = HAMPAGER_TXG;
+    saveSettings();
+    server.send(200, "text/plain", "HamPager settings reset to defaults");
+  });
+
+  server.on("/api/send-hampager", HTTP_POST, []() {
+    if (!server.hasArg("text") || !server.hasArg("callsign")) {
+      server.send(400, "text/plain", "Missing text or callsign");
+      return;
+    }
+    if (hampagerUser.isEmpty() || hampagerPassword.isEmpty()) {
+      server.send(400, "text/plain", "HamPager credentials not configured");
+      return;
+    }
+
+    String text     = userCallsign + ": " + server.arg("text");
+    String callsign = server.arg("callsign");
+    String txg      = server.hasArg("txg") ? server.arg("txg") : hampagerTxGroup;
+
+    // Escape strings for JSON
+    text.replace("\\", "\\\\");
+    text.replace("\"", "\\\"");
+    callsign.replace("\"", "\\\"");
+    txg.replace("\"", "\\\"");
+
+    String body = "{\"text\":\"" + text + "\","
+                  "\"callSignNames\":[\"" + callsign + "\"],"
+                  "\"transmitterGroupNames\":[\"" + txg + "\"],"
+                  "\"emergency\":false}";
+
+    HTTPClient http;
+    http.begin(HAMPAGER_URL);
+    http.setAuthorization(hampagerUser.c_str(), hampagerPassword.c_str());
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
+
+    if (code > 0) {
+      String resp = http.getString();
+      http.end();
+      addLogMessage("[HamPager] Sent to " + callsign + " via " + txg + " (HTTP " + String(code) + ")");
+      server.send(200, "application/json", resp);
+    } else {
+      String err = http.errorToString(code);
+      http.end();
+      addLogMessage("[HamPager] Send failed: " + err);
+      server.send(502, "text/plain", "HamPager request failed: " + err);
+    }
   });
 }
