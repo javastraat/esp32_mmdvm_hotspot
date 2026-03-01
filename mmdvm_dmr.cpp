@@ -455,7 +455,8 @@ void handleDMRNetwork()
       addLogMessage("[DMR] Net→RF: " + String(srcId) + "→" +
                     (isGroup ? "TG" : "") + String(dstId) +
                     " slot=" + String(slotNo));
-      addLogMessage("[DMR] SRC UserInfo: " + userInfo);
+      if (userInfo.length() > 0)
+        addLogMessage("[DMR] SRC UserInfo: " + userInfo);
 
       // Store callsign for the "ended" event
       netRxCallsign = callsign;

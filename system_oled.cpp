@@ -166,11 +166,19 @@ void drawDmrTxUserInfo() {
   display.setTextColor(SSD1306_WHITE);
 
   // Callsign extra big, centered, near top
-  display.setTextSize(3);
+  // Fall back to DMR ID at size 2 while async lookup is still pending
   int16_t x1, y1; uint16_t w, h;
-  display.getTextBounds(dmrTxUserCallsign, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor((OLED_WIDTH - w) / 2, 2);
-  display.print(dmrTxUserCallsign);
+  if (dmrTxUserCallsign.length() > 0) {
+    display.setTextSize(3);
+    display.getTextBounds(dmrTxUserCallsign, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((OLED_WIDTH - w) / 2, 2);
+    display.print(dmrTxUserCallsign);
+  } else {
+    display.setTextSize(2);
+    display.getTextBounds(dmrTxUserId, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((OLED_WIDTH - w) / 2, 8);
+    display.print(dmrTxUserId);
+  }
 
   // Name, big, centered, moved down 5 pixels
   display.setTextSize(2);
