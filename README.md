@@ -39,7 +39,7 @@ A full-featured, FreeRTOS-based ESP32 firmware for a multi-mode digital voice mo
 - **DMR call history** — last 15 calls with callsign, name, city, country
 - **POCSAG paging transmitter** — numeric and alphanumeric, configurable frequency (~434 MHz)
 - **DAPNET TCP client** — subscribes to DAPNET paging network, filters by RIC
-- **CW ID** — periodic Morse code callsign transmission (configurable interval)
+- **CW ID** — periodic Morse code callsign transmission (configurable interval), with test trigger
 
 ### Network Connectivity
 - **WiFi** with 6 credential slots (auto-cycle on failure) + soft AP fallback (`MMDVM-Setup`)
@@ -55,16 +55,18 @@ A full-featured, FreeRTOS-based ESP32 firmware for a multi-mode digital voice mo
 - **19-page responsive web UI** — accessible from any browser on the local network
 - **Basic HTTP authentication** (default: `admin` / `pi-star`)
 - **Configurable port** (default: 80)
+- **PWA support** — installable as a progressive web app (manifest + icons)
 
 ### MQTT Integration
 - **Publish:** status, logs, hardware info, DMR activity, POCSAG messages, per-task health
 - **Subscribe:** command topic with optional token-based authorization
 - **Remote commands:** `reboot`, `get_hardware`, `get_status`
 - **Configurable:** broker, port, credentials, all topics individually
+- **Command announce** — publishes available commands and token requirement on connect
 
 ### Firmware Updates
 - **ESP32 OTA** — stable, beta, or factory firmware downloaded from GitHub
-- **MMDVM modem OTA** — UART bootloader flash (single/dual HAT support)
+- **MMDVM modem OTA** — UART bootloader flash (single/dual HAT support), from URL or file upload
 - **ArduinoOTA** — network upload from Arduino IDE (optional)
 - **Dual OTA partition** — switch between `app0` and `app1`
 
@@ -157,18 +159,23 @@ All pins are configurable via the web interface.
 | Page | URL | Description |
 |------|-----|-------------|
 | Home | `/` | Overview and first-time setup wizard |
-| Status | `/status` | System metrics, network, modem, MQTT, WireGuard |
+| Status | `/system-status` | System metrics, network, modem, MQTT, WireGuard |
+| Settings | `/system-settings` | Settings menu aggregator |
 | Mode Select | `/mode-select` | Enable/disable radio protocols |
 | DMR | `/mode-dmr` | Callsign, ID, SSID, server, frequencies, color code |
 | POCSAG / DAPNET | `/mode-pocsag` | Frequency, DAPNET server/auth, RIC, whitelist/blacklist |
-| WiFi | `/wifi` | 6-slot credential management, AP settings, WiFi scan |
-| Firmware | `/firmware` | OTA download/flash for ESP32 and modem |
-| Admin | `/admin` | Logs, factory reset, service restart, reboot |
-| MQTT | `/mqtt` | Broker, auth, topics, hardware interval, command token |
-| WireGuard | `/wireguard` | Keys, endpoint, DNS, allowed IPs |
-| SD Card | `/sdcard` | Status, database download/sync, file browser |
-| Serial | `/serial` | MMDVM UART settings, baud rate, pins |
-| System Info | `/info` | Chip model, memory, partitions |
+| D-Star | `/mode-dstar` | D-Star settings (not yet in firmware) |
+| YSF | `/mode-ysf` | YSF/Fusion settings (not yet in firmware) |
+| P25 | `/mode-p25` | P25 settings (not yet in firmware) |
+| NXDN | `/mode-nxdn` | NXDN settings (not yet in firmware) |
+| WiFi | `/system-wifi` | 6-slot credential management, AP settings, WiFi scan |
+| Firmware | `/system-firmware` | OTA download/flash for ESP32 and modem |
+| Admin | `/system-admin` | Logs, factory reset, service restart, reboot |
+| MQTT | `/system-mqtt` | Broker, auth, topics, hardware interval, command token |
+| WireGuard | `/system-wireguard` | Keys, endpoint, DNS, allowed IPs |
+| SD Card | `/system-sdcard` | Status, database download/sync, file browser |
+| Serial Monitor | `/system-serialmonitor` | MMDVM UART settings, baud rate, pins |
+| System Info | `/system-info` | Chip model, memory, partitions |
 | RF Settings | `/settings-mmdvm` | RX/TX frequency, color code, RF power, CW ID |
 
 > Screenshots for every page coming soon.
