@@ -88,7 +88,7 @@
 #define MQTT_HARDWARE_TOPIC "mmdvm/hardware" // Topic for hardware info messages
 #define MQTT_SUBSCRIBE_TOPIC "mmdvm/command" // Topic to subscribe to (leave empty to not subscribe)
 #define MQTT_CMD_ANNOUNCE true               // Publish available commands on connect (set to false to disable)
-#define MQTT_CMD_TOKEN ""                    // Command token (leave empty to disable token check, set via web UI)
+#define MQTT_CMD_TOKEN ""                    // Command token for mqtt commands (
 
 // System/Hardware Task Topics
 #define MQTT_LOGGER_TASK_TOPIC "mmdvm/task/logger"

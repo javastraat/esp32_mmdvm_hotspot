@@ -84,13 +84,14 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
       message += (char)payload[i];
   }
 
-  addLogMessage("[MQTT Task] Message received on " + String(topic) + ": " + message);
-
   // Skip announce/info messages published by this device itself
-  if (message.indexOf("\"info\"") >= 0 && message.indexOf("\"cmd\"") < 0)
+  // (the announce contains "cmd" inside usage/example fields, so don't rely on its absence)
+  if (message.indexOf("\"info\":") >= 0)
   {
     return;
   }
+
+  addLogMessage("[MQTT Task] Message received on " + String(topic) + ": " + message);
 
   // Extract a JSON string field value: finds "key":"value" and returns value
   auto extractJsonString = [](const String &json, const char *key) -> String {
@@ -106,15 +107,17 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     return json.substring(quote1 + 1, quote2);
   };
 
-  // Token check — if a token is configured, the message must carry it
-  if (mqttCommandToken.length() > 0)
+  // Token is always required — reject if none is configured or if it doesn't match
+  if (mqttCommandToken.length() == 0)
   {
-    String token = extractJsonString(message, "token");
-    if (token != mqttCommandToken)
-    {
-      addLogMessage("[MQTT Task] Command rejected: invalid or missing token");
-      return;
-    }
+    addLogMessage("[MQTT Task] Command rejected: no token configured (set one in MQTT settings)");
+    return;
+  }
+  String token = extractJsonString(message, "token");
+  if (token != mqttCommandToken)
+  {
+    addLogMessage("[MQTT Task] Command rejected: invalid or missing token");
+    return;
   }
 
   // Dispatch command
@@ -201,13 +204,12 @@ void reconnectMqtt()
       addLogMessage("[MQTT Task] Subscribed to: " + mqttSubscribeTopic);
 
 #if MQTT_CMD_ANNOUNCE
-      // Announce available commands on the command topic so users know what is accepted
-      bool tokenRequired = mqttCommandToken.length() > 0;
+      // Announce available commands — token is always required
       String announce = "{\"info\":\"Commands available\","
                         "\"commands\":[\"reboot\",\"get_hardware\",\"get_status\"],"
-                        "\"token_required\":" + String(tokenRequired ? "true" : "false") + ","
-                        "\"usage\":{\"cmd\":\"<command>\"" + String(tokenRequired ? ",\"token\":\"<your_token>\"" : "") + "},"
-                        "\"example\":{\"cmd\":\"reboot\"" + String(tokenRequired ? ",\"token\":\"<your_token>\"" : "") + "},"
+                        "\"token_required\":true,"
+                        "\"usage\":{\"cmd\":\"<command>\",\"token\":\"<your_token>\"},"
+                        "\"example\":{\"cmd\":\"reboot\",\"token\":\"<your_token>\"},"
                         "\"client\":\"" + clientId + "\"}";
       mqttClient.publish(mqttSubscribeTopic.c_str(), announce.c_str());
       addLogMessage("[MQTT Task] Command announce published to: " + mqttSubscribeTopic);
