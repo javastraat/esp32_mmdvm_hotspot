@@ -17,3 +17,6 @@ makedb.sh
 /esp32mmdvm/*
 /esp32mmdvm/.DS_Store
 /include/secrets.h
+esp32_mmdvm_hotspot/
+esp32_mmdvm_hotspot/*
+esp32_mmdvm_hotspot/.DS_Store
