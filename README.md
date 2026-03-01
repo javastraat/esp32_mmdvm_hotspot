@@ -4,7 +4,7 @@
   <img src="images/esp32-mmdvm-logo.png" alt="ESP32 MMDVM Hotspot Logo" width="200"/>
 </p>
 
-A full-featured, FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. Designed for amateur radio operators, it supports DMR, POCSAG, and DAPNET out of the box, with a responsive web interface, MQTT integration, WireGuard VPN, SD card database support, and over-the-air firmware updates.
+A FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. Designed for amateur radio operators, it currently supports DMR (network→RF transmit), POCSAG, and DAPNET, with a responsive web interface, MQTT integration, WireGuard VPN, SD card database support, and over-the-air firmware updates.
 
 ---
 
@@ -21,83 +21,95 @@ A full-featured, FreeRTOS-based ESP32 firmware for a multi-mode digital voice mo
 
 | Mode | Status | Notes |
 |------|--------|-------|
-| **DMR** | ✅ Implemented | BrandMeister network, RadioID lookup, call history |
+| **DMR** | ⚠️ Partial | Network→RF TX working. RF→Network RX is work in progress. |
 | **POCSAG** | ✅ Implemented | RF paging transmitter, queue management, whitelist/blacklist |
 | **DAPNET** | ✅ Implemented | TCP paging network, message history, RIC filtering |
-| D-Star | ⏳ Not yet in firmware | Framework in place |
-| YSF (System Fusion) | ⏳ Not yet in firmware | Framework in place |
-| P25 | ⏳ Not yet in firmware | Framework in place |
-| NXDN | ⏳ Not yet in firmware | Framework in place |
+| D-Star | ❌ Not in firmware | Framework stub only |
+| YSF (System Fusion) | ❌ Not in firmware | Framework stub only |
+| P25 | ❌ Not in firmware | Framework stub only |
+| NXDN | ❌ Not in firmware | Framework stub only |
 
 ---
 
 ## Features
 
 ### Radio & Protocols
-- **DMR via BrandMeister** — login, keepalive, incoming/outgoing call handling
-- **User database lookup** — in-memory cache (100 entries) + SD card SQLite + RadioID.net API fallback + QRZ.com integration
-- **DMR call history** — last 15 calls with callsign, name, city, country
-- **POCSAG paging transmitter** — numeric and alphanumeric, configurable frequency (~434 MHz)
-- **DAPNET TCP client** — subscribes to DAPNET paging network, filters by RIC
-- **CW ID** — periodic Morse code callsign transmission (configurable interval), with test trigger
+
+- **DMR via BrandMeister (network→RF)** — full login state machine (RPTL/RPTK/RPTC), keepalive (RPTPING/MSTPONG), incoming voice frame buffering and paced transmission to the MMDVM modem
+- **DMR RF→Network receive** — frame parsing from modem serial is in progress; not yet relayed back to BrandMeister
+- **DMR Talker Alias extraction** — embedded LC decoded in real time (QR(16,7,6) + Hamming(16,11,4) + CRC5) to display the caller's alias on the OLED before the database lookup completes
+- **DMR user lookup** — in-memory LRU cache (100 entries) → SD card SQLite → RadioID.net API fallback, all performed asynchronously so keepalives are not delayed
+- **DMR call history** — last 15 calls with callsign, name, city, and country
+- **POCSAG paging transmitter** — numeric and alphanumeric messages, BCH(32,21) encoding, configurable frequency and functional codes, up to 32-message queue with TX history
+- **DAPNET TCP client** — connects to DAPNET network, HMAC-MD5 authentication, RIC filtering, 15-message receive history
+- **CW ID** — periodic Morse code callsign transmission at a configurable interval, with a manual test trigger via the web UI
 
 ### Network Connectivity
-- **WiFi** with 6 credential slots (auto-cycle on failure) + soft AP fallback (`MMDVM-Setup`)
-- **Ethernet** (W5500 SPI module, configurable pins)
-- **mDNS** hostname (default: `esp32-mmdvm.local`)
-- **DNS fallback** server support
-- **WireGuard VPN** client — tunnel to remote networks with private/public key management
 
-### Time & Synchronization
-- **NTP** time sync with timezone, DST offset, and configurable sync interval
+- **WiFi** with 6 labeled credential slots, automatic slot cycling on failure, soft AP fallback (`MMDVM-Setup`)
+- **Ethernet** — W5500 SPI module with configurable pins
+- **mDNS** hostname resolution (default: `esp32-mmdvm.local`)
+- **DNS fallback** server support
+- **WireGuard VPN** client — ChaCha20-Poly1305 encrypted tunnel, configurable peer endpoint, allowed IPs, and DNS
+
+### Time & Synchronisation
+
+- **NTP** time sync with configurable server, GMT offset, DST offset, and sync interval
 
 ### Web Interface
-- **19-page responsive web UI** — accessible from any browser on the local network
-- **Basic HTTP authentication** (default: `admin` / `pi-star`)
-- **Configurable port** (default: 80)
+
+- **20-page responsive web UI** — accessible from any browser on the local network
+- **HTTP Basic Auth** (default: `admin` / `pi-star`, fully configurable)
+- **Configurable port** (default 80)
 - **PWA support** — installable as a progressive web app (manifest + icons)
 
 ### MQTT Integration
-- **Publish:** status, logs, hardware info, DMR activity, POCSAG messages, per-task health
-- **Subscribe:** command topic with optional token-based authorization
+
+- **Publish:** system status, log stream, hardware info, DMR activity, POCSAG events, per-task heartbeats
+- **Subscribe:** command topic — token authentication is enforced (a token must be configured and included with every command)
 - **Remote commands:** `reboot`, `get_hardware`, `get_status`
-- **Configurable:** broker, port, credentials, all topics individually
-- **Command announce** — publishes available commands and token requirement on connect
+- **Configurable:** broker address, port, credentials, all topic names individually, hardware info publish interval
+- **Command announce** — publishes available commands and token requirement on each connect
 
 ### Firmware Updates
-- **ESP32 OTA** — stable, beta, or factory firmware downloaded from GitHub
-- **MMDVM modem OTA** — UART bootloader flash (single/dual HAT support), from URL or file upload
-- **ArduinoOTA** — network upload from Arduino IDE (optional)
-- **Dual OTA partition** — switch between `app0` and `app1`
+
+- **ESP32 OTA** — stable, beta, or factory image downloaded from GitHub and flashed to the inactive OTA partition
+- **MMDVM modem OTA** — UART bootloader flash from URL or direct HTTP upload (single and dual-HAT support)
+- **ArduinoOTA** — optional network upload from the Arduino IDE
+- **Dual OTA partition** — manual partition switch (`app0` ↔ `app1`) via the web UI
 
 ### Storage
-- **SD card** (SPI, configurable pins) — DMR user database (CSV + SQLite)
-- **LittleFS** — configuration snapshots (internal flash)
-- **NVS (Preferences)** — all runtime settings persisted across reboots
-- **Factory reset** — clears NVS namespace, reboots to defaults
+
+- **SD card** (SPI, configurable pins) — DMR user database in CSV and SQLite formats
+- **LittleFS** — named configuration snapshots stored in internal flash
+- **NVS (Preferences)** — all runtime settings persisted across reboots under the `mmdvm` namespace
+- **Factory reset** — erases the NVS namespace and reboots to `config.h` defaults
 
 ### Display & Indicators
-- **OLED display** (I2C, 128×64, optional) — live call info and database lookups
-- **LED** status indicator (configurable GPIO pin)
-- **OLED frame buffer API** — export live display to web interface
+
+- **OLED display** (I2C, 128×64, SSD1306/SH1106, optional) — live call info, Talker Alias, and async database lookup results
+- **LED** status indicator on a configurable GPIO pin
+- **OLED frame buffer API** — the live 128×64 monochrome display can be fetched over HTTP
 
 ### Monitoring & Logging
-- **Circular log buffer** — 50 messages × 128 characters, thread-safe
-- **System health** — chip temperature, heap usage, PSRAM, per-task free stack
-- **NVS viewer & repair tools** — inspect and reset individual namespaces
+
+- **Circular log buffer** — 50 messages × 128 characters, thread-safe, accessible via API and the serial monitor page
+- **System health** — ESP32 chip temperature, heap usage, PSRAM, and per-task free stack space
+- **NVS viewer & repair tools** — inspect all NVS namespaces, add missing keys from defaults, or erase the `mmdvm` namespace
 
 ### Configuration Management
-- **Export/import** — download or upload all settings as a key=value text file
-- **Snapshots** — save and restore named configuration snapshots (SD or LittleFS)
+
+- **Export / import** — download or upload all settings as a `key=value` text file
+- **Named snapshots** — save and restore complete configuration snapshots to SD card or LittleFS
 
 ---
 
 ## Hardware Requirements
 
-- **ESP32** (dual-core, tested on ESP32-S3 and ESP32)
+- **ESP32** (dual-core; tested on ESP32 and ESP32-S3)
 - **MMDVM HAT** or compatible modem connected via UART
 - *(Optional)* W5500 Ethernet module (SPI)
-- *(Optional)* SSD1306 OLED display (I2C)
+- *(Optional)* SSD1306/SH1106 OLED display (I2C, 128×64)
 - *(Optional)* MicroSD card module (SPI)
 
 ---
@@ -148,9 +160,10 @@ All pins are configurable via the web interface.
 2. Connect to the `MMDVM-Setup` WiFi access point (password: `mmdvm1234`)
 3. Open a browser and navigate to `http://192.168.4.1`
 4. Log in with `admin` / `pi-star`
-5. Configure your WiFi credentials under **Network → WiFi**
-6. Set your callsign and DMR ID under **Modes → DMR**
-7. Enable DMR and reboot — the hotspot will connect to BrandMeister
+5. Go to **Network → WiFi** and configure your home WiFi credentials
+6. Go to **Modes → DMR** and set your callsign and DMR ID
+7. Go to **Mode Select** and enable DMR
+8. Reboot — the hotspot will connect to BrandMeister
 
 ---
 
@@ -161,13 +174,13 @@ All pins are configurable via the web interface.
 | Home | `/` | Overview and first-time setup wizard |
 | Status | `/system-status` | System metrics, network, modem, MQTT, WireGuard |
 | Settings | `/system-settings` | Settings menu aggregator |
-| Mode Select | `/mode-select` | Enable/disable radio protocols |
-| DMR | `/mode-dmr` | Callsign, ID, SSID, server, frequencies, color code |
+| Mode Select | `/mode-select` | Enable / disable radio protocols |
+| DMR | `/mode-dmr` | Callsign, DMR ID, SSID, server, frequencies, color code |
 | POCSAG / DAPNET | `/mode-pocsag` | Frequency, DAPNET server/auth, RIC, whitelist/blacklist |
-| D-Star | `/mode-dstar` | D-Star settings (not yet in firmware) |
-| YSF | `/mode-ysf` | YSF/Fusion settings (not yet in firmware) |
-| P25 | `/mode-p25` | P25 settings (not yet in firmware) |
-| NXDN | `/mode-nxdn` | NXDN settings (not yet in firmware) |
+| D-Star | `/mode-dstar` | Placeholder — not yet implemented |
+| YSF | `/mode-ysf` | Placeholder — not yet implemented |
+| P25 | `/mode-p25` | Placeholder — not yet implemented |
+| NXDN | `/mode-nxdn` | Placeholder — not yet implemented |
 | WiFi | `/system-wifi` | 6-slot credential management, AP settings, WiFi scan |
 | Firmware | `/system-firmware` | OTA download/flash for ESP32 and modem |
 | Admin | `/system-admin` | Logs, factory reset, service restart, reboot |
@@ -178,51 +191,47 @@ All pins are configurable via the web interface.
 | System Info | `/system-info` | Chip model, memory, partitions |
 | RF Settings | `/settings-mmdvm` | RX/TX frequency, color code, RF power, CW ID |
 
-> Screenshots for every page coming soon.
-
 ---
 
 ## MQTT Commands
 
-When MQTT is enabled, the device subscribes to the command topic (`mmdvm/command` by default) and processes commands in JSON format.
+When MQTT is enabled the device subscribes to the configured command topic. **A token is always required** — commands without a valid token are rejected. Configure a token under **System → MQTT → Command Token**.
 
-**Without token:**
 ```json
-{"cmd": "reboot"}
-```
-
-**With token (if configured):**
-```json
-{"cmd": "reboot", "token": "your_token_here"}
+{"cmd": "reboot", "token": "your_token"}
+{"cmd": "get_hardware", "token": "your_token"}
+{"cmd": "get_status", "token": "your_token"}
 ```
 
 | Command | Description |
 |---------|-------------|
 | `reboot` | Restart the ESP32 immediately |
-| `get_hardware` | Publish detailed hardware info to the hardware topic |
-| `get_status` | Publish current status and uptime to the status topic |
+| `get_hardware` | Publish hardware info JSON to the hardware topic |
+| `get_status` | Publish `{"status":"online","uptime_seconds":N}` to the status topic |
 
-On connect, the device publishes an announce message to the command topic describing all available commands and whether a token is required.
+On connect the device publishes an announce message listing all available commands and confirming that a token is required.
 
 ---
 
 ## RTOS Architecture
 
-The firmware runs on FreeRTOS with tasks distributed across both cores:
+The firmware runs on FreeRTOS with tasks pinned to specific cores:
 
 - **Core 0:** WiFi, Ethernet, Web Server, MQTT, NTP, SD Card, Logger, OLED, ArduinoOTA, WireGuard
-- **Core 1:** Modem serial, DMR, D-Star, YSF, P25, NXDN, POCSAG, DAPNET
+- **Core 1:** Modem serial, DMR, POCSAG, DAPNET, D-Star (stub), YSF (stub), P25 (stub), NXDN (stub)
+
+A separate low-priority **DMR Database** task runs on Core 0 and performs blocking SQLite / HTTP lookups asynchronously so DMR keepalives are never delayed.
 
 ---
 
 ## Configuration
 
-Settings are stored in NVS (Non-Volatile Storage) and persist across reboots. Compile-time defaults live in `include/config.h`. The priority order is:
+Settings are stored in NVS (Non-Volatile Storage) and persist across reboots. Compile-time defaults live in `include/config.h`. Priority order:
 
-1. NVS (set via web interface)
+1. NVS (set via web interface or config import)
 2. `config.h` defaults (compile-time fallback)
 
-Configuration can be exported as a key=value file and re-imported, or saved as named snapshots on SD card or LittleFS.
+Configuration can be exported as a `key=value` text file and re-imported, or saved as named snapshots on SD card or LittleFS.
 
 ---
 
