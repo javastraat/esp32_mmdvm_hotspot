@@ -36,6 +36,7 @@ String lookupDmrUserInfo(uint32_t dmrId, String &source);
 static void parseDmrUserInfo(const String &userInfo, String &callsign, String &name,
                               String &city, String &state, String &country);
 static QueueHandle_t dmrLookupQueue = nullptr;
+static String tryExtractTA(const uint8_t* frame33, bool isNewTx);
 
 // Escape a string for safe embedding in a JSON value
 static String jsonStr(const String &s) {
@@ -449,6 +450,20 @@ void handleDMRNetwork()
     String callsign, name, city, state, country;
     parseDmrUserInfo(userInfo, callsign, name, city, state, country);
     setDmrTxUserInfo(callsign, String(srcId), name, city, state, country);
+
+    // Talker Alias: extract from embedded LC and show while DB lookup is pending.
+    // tryExtractTA() maintains its own state machine across frames; it returns
+    // non-empty text only when a new TA block completes (roughly once per 4 frames).
+    {
+        static String lastTa;
+        if (isNewTx) lastTa = "";
+        String ta = tryExtractTA(&packet[20], isNewTx);
+        if (ta.length() > 0 && userInfo.isEmpty() && ta != lastTa) {
+            setDmrTxUserInfo(ta, String(srcId), "", "", "", "");
+            addLogMessage("[DMR-TA] Talker Alias: " + ta);
+            lastTa = ta;
+        }
+    }
 
     // Log and publish once per new transmission (after user info is parsed)
     if (isNewTx) {
@@ -974,6 +989,296 @@ void dmrLookupTask(void *parameter) {
             }
         }
     }
+}
+
+// ===== Talker Alias (TA) from Embedded LC — Self-contained port of MMDVMHost =====
+// Pipeline: DMRD voice frame → EMB → QR decode → LCSS → 4-block LC assembly
+//           → column deinterleave → Hamming(16,11,4) → CRC5 → FLCO → TA text
+
+// QR(16,7,6) error pattern lookup table indexed by 8-bit syndrome.
+// Source: DECODING_TABLE_1576 from MMDVMHost/QR1676.cpp (256 entries).
+static const uint16_t TA_QR_TABLE[256] = {
+    0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x4020,
+    0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x2081, 0x2080,
+    0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0C00, 0x0016, 0x0C02,
+    0x0018, 0x0120, 0x001A, 0x0122, 0x4102, 0x0124, 0x4100, 0x4101,
+    0x0020, 0x0021, 0x0022, 0x4004, 0x0024, 0x4002, 0x4001, 0x4000,
+    0x0028, 0x0110, 0x1800, 0x1801, 0x002C, 0x400A, 0x4009, 0x4008,
+    0x0030, 0x0108, 0x0240, 0x0241, 0x0034, 0x4012, 0x4011, 0x4010,
+    0x0101, 0x0100, 0x0103, 0x0102, 0x0105, 0x0104, 0x1401, 0x1400,
+    0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x4060,
+    0x0048, 0x0049, 0x0301, 0x0300, 0x004C, 0x1600, 0x0305, 0x0304,
+    0x0050, 0x0051, 0x0220, 0x0221, 0x3000, 0x4200, 0x3002, 0x4202,
+    0x0058, 0x1082, 0x1081, 0x1080, 0x3008, 0x4208, 0x2820, 0x1084,
+    0x0060, 0x0061, 0x0210, 0x0211, 0x0480, 0x0481, 0x4041, 0x4040,
+    0x0068, 0x2402, 0x2401, 0x2400, 0x0488, 0x3100, 0x2810, 0x2404,
+    0x0202, 0x0880, 0x0200, 0x0201, 0x0206, 0x0884, 0x0204, 0x0205,
+    0x0141, 0x0140, 0x0208, 0x0209, 0x2802, 0x0144, 0x2800, 0x2801,
+    0x0080, 0x0081, 0x0082, 0x0A00, 0x0084, 0x0085, 0x2009, 0x2008,
+    0x0088, 0x0089, 0x2005, 0x2004, 0x2003, 0x2002, 0x2001, 0x2000,
+    0x0090, 0x0091, 0x0092, 0x1048, 0x0602, 0x0C80, 0x0600, 0x0601,
+    0x0098, 0x1042, 0x1041, 0x1040, 0x2013, 0x2012, 0x2011, 0x2010,
+    0x00A0, 0x00A1, 0x00A2, 0x4084, 0x0440, 0x0441, 0x4081, 0x4080,
+    0x6000, 0x1200, 0x6002, 0x1202, 0x6004, 0x2022, 0x2021, 0x2020,
+    0x0841, 0x0840, 0x2104, 0x0842, 0x2102, 0x0844, 0x2100, 0x2101,
+    0x0181, 0x0180, 0x0B00, 0x0182, 0x5040, 0x0184, 0x2108, 0x2030,
+    0x00C0, 0x00C1, 0x4401, 0x4400, 0x0420, 0x0421, 0x0422, 0x4404,
+    0x0900, 0x0901, 0x1011, 0x1010, 0x0904, 0x2042, 0x2041, 0x2040,
+    0x0821, 0x0820, 0x1009, 0x1008, 0x4802, 0x0824, 0x4800, 0x4801,
+    0x1003, 0x1002, 0x1001, 0x1000, 0x0501, 0x0500, 0x1005, 0x1004,
+    0x0404, 0x0810, 0x1100, 0x1101, 0x0400, 0x0401, 0x0402, 0x0403,
+    0x040C, 0x0818, 0x1108, 0x1030, 0x0408, 0x0409, 0x040A, 0x2060,
+    0x0801, 0x0800, 0x0280, 0x0802, 0x0410, 0x0804, 0x0412, 0x0806,
+    0x0809, 0x0808, 0x1021, 0x1020, 0x5000, 0x2200, 0x5002, 0x2202
+};
+
+// TA state machine — persists across frames within one transmission
+enum TALCState : uint8_t { TA_LC_NONE, TA_LC_FIRST, TA_LC_SECOND, TA_LC_THIRD };
+static TALCState taLCState      = TA_LC_NONE;
+static bool      taRaw[128]     = {};  // 4 × 32 raw bits from the 4-block LCSS sequence
+static uint8_t   taBuf[28]      = {};  // assembled TA service bytes (4 blocks × 7 bytes)
+static bool      taHaveBlock[4] = {};  // which FLCO blocks (0=header, 1-3=continuations) received
+
+static void taReset() {
+    taLCState = TA_LC_NONE;
+    memset(taRaw,       0, sizeof(taRaw));
+    memset(taBuf,       0, sizeof(taBuf));
+    memset(taHaveBlock, 0, sizeof(taHaveBlock));
+}
+
+// Extract LCSS from the EMB field of a 33-byte DMR voice frame using QR(16,7,6) decode.
+// The EMB field is assembled from the upper nibbles of bytes 13-14 and 18-19.
+// Returns LCSS bits [1:0] of the decoded 7-bit data word.
+static uint8_t taGetLCSS(const uint8_t* f) {
+    uint8_t emb[2];
+    emb[0] = ((f[13] << 4) & 0xF0) | ((f[14] >> 4) & 0x0F);
+    emb[1] = ((f[18] << 4) & 0xF0) | ((f[19] >> 4) & 0x0F);
+
+    // Build 15-bit codeword: emb[0] in bits [14:7], emb[1]>>1 in bits [6:0]
+    uint32_t code = ((uint32_t)emb[0] << 7) | (emb[1] >> 1);
+
+    // Compute GF(2) polynomial remainder mod GENPOL = x^8+x^5+x^4+x^3+1 = 0x139
+    uint32_t pat = code;
+    uint32_t aux = 0x4000U;
+    if (pat >= 0x100U) {
+        while (pat & 0xFFFFFF00U) {
+            while (!(aux & pat))
+                aux >>= 1;
+            pat ^= (aux >> 8) * 0x139U;
+        }
+    }
+
+    // Apply error correction from lookup table, then extract decoded data bits
+    code ^= TA_QR_TABLE[pat & 0xFF];
+    uint8_t decoded = (uint8_t)(code >> 7);
+    // decoded layout: [CC3 CC2 CC1 CC0 PI LCSS1 LCSS0 P7]
+    return (decoded >> 1) & 0x03U;
+}
+
+// Hamming(16,11,4) single-bit error correction.
+// d[0..10] = data bits, d[11..15] = parity bits.
+// Returns false only for uncorrectable (2+ bit) errors.
+static bool taHamming16114(bool* d) {
+    bool c0 = d[0]^d[1]^d[2]^d[3]^d[5]^d[7]^d[8];
+    bool c1 = d[1]^d[2]^d[3]^d[4]^d[6]^d[8]^d[9];
+    bool c2 = d[2]^d[3]^d[4]^d[5]^d[7]^d[9]^d[10];
+    bool c3 = d[0]^d[1]^d[2]^d[4]^d[6]^d[7]^d[10];
+    bool c4 = d[0]^d[2]^d[5]^d[6]^d[8]^d[9]^d[10];
+    uint8_t n = 0;
+    n |= (c0 != d[11]) ? 0x01 : 0;
+    n |= (c1 != d[12]) ? 0x02 : 0;
+    n |= (c2 != d[13]) ? 0x04 : 0;
+    n |= (c3 != d[14]) ? 0x08 : 0;
+    n |= (c4 != d[15]) ? 0x10 : 0;
+    switch (n) {
+        case 0x00: return true;
+        case 0x01: d[11]=!d[11]; return true;
+        case 0x02: d[12]=!d[12]; return true;
+        case 0x04: d[13]=!d[13]; return true;
+        case 0x08: d[14]=!d[14]; return true;
+        case 0x10: d[15]=!d[15]; return true;
+        case 0x19: d[0] =!d[0];  return true;
+        case 0x0B: d[1] =!d[1];  return true;
+        case 0x1F: d[2] =!d[2];  return true;
+        case 0x07: d[3] =!d[3];  return true;
+        case 0x0E: d[4] =!d[4];  return true;
+        case 0x15: d[5] =!d[5];  return true;
+        case 0x1A: d[6] =!d[6];  return true;
+        case 0x0D: d[7] =!d[7];  return true;
+        case 0x13: d[8] =!d[8];  return true;
+        case 0x16: d[9] =!d[9];  return true;
+        case 0x1C: d[10]=!d[10]; return true;
+        default:   return false;
+    }
+}
+
+// Decode the 128-bit raw block (taRaw) into 9 LC bytes.
+// Steps: column deinterleave → Hamming(16,11,4) × 7 rows → column parity → CRC5.
+// Returns FLCO (lower 6 bits of lcOut[0]), or 0xFF on any error.
+static uint8_t taDecodeLC(uint8_t lcOut[9]) {
+    // Column deinterleave: taRaw was filled column-by-column, unpack row-by-row
+    bool data[128];
+    uint32_t b = 0;
+    for (uint32_t a = 0; a < 128; a++) {
+        data[b] = taRaw[a];
+        b += 16;
+        if (b > 127) b -= 127;
+    }
+
+    // Hamming(16,11,4) check rows 0-6 (16 bits each); row 7 (bits 112-127) is parity
+    for (uint32_t a = 0; a < 112; a += 16) {
+        if (!taHamming16114(data + a))
+            return 0xFF;
+    }
+
+    // Column parity: XOR of rows 0-7 for each of 16 columns must be zero
+    for (uint32_t a = 0; a < 16; a++) {
+        bool p = data[a]^data[a+16]^data[a+32]^data[a+48]^
+                 data[a+64]^data[a+80]^data[a+96]^data[a+112];
+        if (p) return 0xFF;
+    }
+
+    // Extract 72 payload bits (11 bits from each of the 7 data rows, columns 0-10)
+    bool bits72[72];
+    b = 0;
+    for (uint32_t a =  0; a < 11; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 16; a < 27; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 32; a < 42; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 48; a < 58; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 64; a < 74; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 80; a < 90; a++, b++) bits72[b] = data[a];
+    for (uint32_t a = 96; a <106; a++, b++) bits72[b] = data[a];
+
+    // 5-bit CRC is stored in column 10 of rows 2-6 (bits 42, 58, 74, 90, 106)
+    uint32_t crc = 0;
+    if (data[42])  crc += 16;
+    if (data[58])  crc +=  8;
+    if (data[74])  crc +=  4;
+    if (data[90])  crc +=  2;
+    if (data[106]) crc +=  1;
+
+    // CRC5 = sum of 9 decoded bytes mod 31
+    uint16_t total = 0;
+    for (uint32_t i = 0; i < 72; i += 8) {
+        uint8_t c = 0;
+        for (int j = 0; j < 8; j++)
+            c = (c << 1) | (bits72[i+j] ? 1 : 0);
+        total += c;
+        lcOut[i / 8] = c;
+    }
+    if ((total % 31) != crc) return 0xFF;
+
+    return lcOut[0] & 0x3F;  // FLCO = lower 6 bits of byte 0
+}
+
+// Accumulate one embedded LC block from a voice frame.
+// Advances the LCSS state machine (NONE → FIRST → SECOND → THIRD → NONE+decode).
+// frame33: 33-byte voice frame. lcss: 0-3 from taGetLCSS().
+// On 4-block completion, decodes and returns FLCO; otherwise returns 0xFF.
+static uint8_t taAccumulate(const uint8_t* frame33, uint8_t lcss, uint8_t lcOut[9]) {
+    // The embedded LC occupies: lower nibble of byte 14, all of bytes 15-17,
+    // upper nibble of byte 18 → 32 bits per LCSS block (skip first 4 bits).
+    bool raw[40];
+    for (int b = 0; b < 8; b++) raw[ 0+b] = (frame33[14] >> (7-b)) & 1;
+    for (int b = 0; b < 8; b++) raw[ 8+b] = (frame33[15] >> (7-b)) & 1;
+    for (int b = 0; b < 8; b++) raw[16+b] = (frame33[16] >> (7-b)) & 1;
+    for (int b = 0; b < 8; b++) raw[24+b] = (frame33[17] >> (7-b)) & 1;
+    for (int b = 0; b < 8; b++) raw[32+b] = (frame33[18] >> (7-b)) & 1;
+    // raw[4..35] are the 32 LC bits (raw[0..3] overlap with EMB upper nibble)
+
+    if (lcss == 1) {
+        for (int a = 0; a < 32; a++) taRaw[a] = raw[a+4];
+        taLCState = TA_LC_FIRST;
+        return 0xFF;
+    }
+    if (lcss == 3 && taLCState == TA_LC_FIRST) {
+        for (int a = 0; a < 32; a++) taRaw[32+a] = raw[a+4];
+        taLCState = TA_LC_SECOND;
+        return 0xFF;
+    }
+    if (lcss == 3 && taLCState == TA_LC_SECOND) {
+        for (int a = 0; a < 32; a++) taRaw[64+a] = raw[a+4];
+        taLCState = TA_LC_THIRD;
+        return 0xFF;
+    }
+    if (lcss == 2 && taLCState == TA_LC_THIRD) {
+        for (int a = 0; a < 32; a++) taRaw[96+a] = raw[a+4];
+        taLCState = TA_LC_NONE;
+        return taDecodeLC(lcOut);
+    }
+    return 0xFF;
+}
+
+// Decode TA text from the accumulated taBuf (4 blocks × 7 service bytes).
+// taBuf[0]: format (bits 7-6) + size in chars (bits 5-1).
+// Formats: 0=7-bit packed, 1=ISO-8859-1, 2=UTF-8, 3=UTF-16.
+static String taDecodeText() {
+    uint8_t fmt  = (taBuf[0] >> 6) & 0x03;
+    uint8_t size = (taBuf[0] >> 1) & 0x1F;
+    if (size == 0 || size > 27) return "";
+
+    String out;
+    if (fmt == 0) {
+        // 7-bit packed: stream of 7-bit characters packed MSB-first into bytes
+        uint32_t t1 = 0, t2 = 0;
+        uint8_t  c  = 0;
+        for (uint32_t i = 0; i < 32 && t2 < size; i++) {
+            for (int j = 7; j >= 0; j--) {
+                c = (c << 1) | ((taBuf[i] >> j) & 1);
+                if (++t1 == 7) {
+                    if (i > 0) {
+                        char ch = c & 0x7F;
+                        if (ch >= 0x20) out += ch;
+                        t2++;
+                    }
+                    t1 = 0; c = 0;
+                }
+            }
+        }
+    } else if (fmt == 1 || fmt == 2) {
+        // ISO-8859-1 or UTF-8: direct byte copy starting at taBuf[1]
+        for (uint32_t i = 1; i <= size && i < 28; i++) {
+            char ch = (char)taBuf[i];
+            if (ch == 0) break;
+            out += ch;
+        }
+    } else {
+        // UTF-16: simplified — take low byte of each 2-byte code unit if high byte is 0
+        uint32_t t2 = 0;
+        for (uint32_t i = 0; i < 15 && t2 < size; i++) {
+            out += (taBuf[2*i+1] == 0) ? (char)taBuf[2*i+2] : '?';
+            t2++;
+        }
+    }
+    return out;
+}
+
+// Main TA extraction entry point. Call once per incoming DMRD voice frame.
+// frame33: 33-byte voice frame (packet[20..52]).
+// isNewTx: true for the first frame of a new transmission (resets state).
+// Returns TA text when newly decoded, empty string while accumulating or on error.
+static String tryExtractTA(const uint8_t* frame33, bool isNewTx) {
+    if (isNewTx) taReset();
+
+    uint8_t lcss = taGetLCSS(frame33);
+    uint8_t lcBytes[9] = {};
+    uint8_t flco = taAccumulate(frame33, lcss, lcBytes);
+    if (flco == 0xFF) return "";
+
+    // FLCO 4 = TA header (first block), 5/6/7 = continuation blocks
+    if (flco < 4 || flco > 7) return "";
+
+    uint32_t blockId = flco - 4;
+    if (!taHaveBlock[blockId]) {
+        // Copy 7 service bytes (lcBytes[2..8], skipping FLCO byte and FID byte)
+        memcpy(taBuf + blockId * 7, lcBytes + 2, 7);
+        taHaveBlock[blockId] = true;
+    }
+
+    // Need at least block 0 (header) to know format and declared size
+    if (!taHaveBlock[0]) return "";
+
+    return taDecodeText();
 }
 
 void initDmrLookupTask() {
