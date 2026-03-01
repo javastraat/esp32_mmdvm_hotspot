@@ -439,8 +439,28 @@ String getModePocsagPageHTML()
   html += "    + '&text=' + encodeURIComponent(msg)\n";
   html += "    + '&txg='  + encodeURIComponent(txg);\n";
   html += "  fetch('/api/send-hampager', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body })\n";
-  html += "    .then(r => r.ok ? r.text().then(t => { result.innerHTML = '<span style=\\'color:green\\'>Sent! ' + t + '</span>'; }) : r.text().then(t => { result.innerHTML = '<span style=\\'color:red\\'>' + t + '</span>'; }))\n";
-  html += "    .catch(() => { result.innerHTML = '<span style=\\'color:red\\'>Request failed</span>'; });\n";
+  html += "    .then(function(r) {\n";
+  html += "      return r.json().then(function(j) {\n";
+  html += "        if (r.ok) {\n";
+  html += "          result.innerHTML = '<span style=\\'color:green\\'>Sent to ' + dest + '!</span>';\n";
+  html += "        } else {\n";
+  html += "          var errMsg = 'Send failed';\n";
+  html += "          if (j.violations && j.violations.length > 0) {\n";
+  html += "            var v = j.violations[0];\n";
+  html += "            if (v.constraint === 'ValidCallSignNames') {\n";
+  html += "              errMsg = 'Callsign <b>' + dest + '</b> is not registered in DAPNET.';\n";
+  html += "            } else {\n";
+  html += "              errMsg = v.message || j.message || 'Unknown error';\n";
+  html += "            }\n";
+  html += "          } else if (j.message) {\n";
+  html += "            errMsg = j.message;\n";
+  html += "          }\n";
+  html += "          result.innerHTML = '<span style=\\'color:red\\'>' + errMsg + '</span>';\n";
+  html += "          showAlert(errMsg);\n";
+  html += "        }\n";
+  html += "      });\n";
+  html += "    })\n";
+  html += "    .catch(function() { result.innerHTML = '<span style=\\'color:red\\'>Request failed</span>'; });\n";
   html += "}\n";
 
   // Cards 5 & 6: Reset all POCSAG/Dapnet settings to defaults

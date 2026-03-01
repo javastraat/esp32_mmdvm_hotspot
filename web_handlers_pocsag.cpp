@@ -146,7 +146,8 @@ void registerPocsagRoutes()
       String resp = http.getString();
       http.end();
       addLogMessage("[HamPager] Sent to " + callsign + " via " + txg + " (HTTP " + String(code) + ")");
-      server.send(200, "application/json", resp);
+      int fwdCode = (code >= 200 && code < 300) ? 200 : code;
+      server.send(fwdCode, "application/json", resp);
     } else {
       String err = http.errorToString(code);
       http.end();
