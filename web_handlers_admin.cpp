@@ -341,7 +341,7 @@ void registerAdminRoutes()
     json += "{\"id\":\"ntp\",\"label\":\"NTP\",\"enabled\":" + String(ntpEnabled ? "true" : "false") + ",\"connected\":" + String(ntpSynced ? "true" : "false") + "},";
     json += "{\"id\":\"wireguard\",\"label\":\"WireGuard\",\"enabled\":" + String(wgEnabled ? "true" : "false") + ",\"connected\":" + String(wireguardConnected ? "true" : "false") + "},";
     json += "{\"id\":\"oled\",\"label\":\"OLED\",\"enabled\":" + String(oledEnabled ? "true" : "false") + "},";
-    json += "{\"id\":\"pocsag\",\"label\":\"POCSAG\",\"enabled\":" + String(modePocsagEnabled ? "true" : "false") + "},";
+    json += "{\"id\":\"dapnet\",\"label\":\"DAPNET\",\"enabled\":" + String(dapnetEnabled ? "true" : "false") + ",\"connected\":" + String(dapnetLoggedIn ? "true" : "false") + "},";
     json += "{\"id\":\"telegram\",\"label\":\"Telegram\",\"enabled\":" + String(telegramEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"mdns\",\"label\":\"mDNS\",\"enabled\":" + String(mdnsEnabled ? "true" : "false") + "}";
     json += "]";
@@ -356,7 +356,7 @@ void registerAdminRoutes()
     json += "{\"id\":\"ysf\",\"label\":\"YSF\",\"enabled\":" + String(modeYsfEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"p25\",\"label\":\"P25\",\"enabled\":" + String(modeP25Enabled ? "true" : "false") + "},";
     json += "{\"id\":\"nxdn\",\"label\":\"NXDN\",\"enabled\":" + String(modeNxdnEnabled ? "true" : "false") + "},";
-    json += "{\"id\":\"dapnet\",\"label\":\"DAPNET\",\"enabled\":" + String(dapnetEnabled ? "true" : "false") + ",\"connected\":" + String(dapnetLoggedIn ? "true" : "false") + "}";
+    json += "{\"id\":\"pocsag\",\"label\":\"POCSAG\",\"enabled\":" + String(modePocsagEnabled ? "true" : "false") + "}";
     json += "]";
     server.send(200, "application/json", json); });
 }
