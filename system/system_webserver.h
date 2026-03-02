@@ -36,6 +36,8 @@ void handleModeYsf();
 void handleModeP25();
 void handleModeNxdn();
 void handleModePocsag();
+void handleSystemDapnet();
+void handleSystemHampager();
 void handleSystemSerial();
 void handleSystemStatus();
 void handleSystemInfo();

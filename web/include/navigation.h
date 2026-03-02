@@ -54,8 +54,10 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Messaging Config</span>";
   nav += "<div class='dropdown-submenu-menu'>";
-  nav += "<a href='/system-mqtt'>MQTT Config</a>";
+  nav += "<a href='/system-dapnet'>DAPNET</a>";
+  nav += "<a href='/system-hampager'>HamPager</a>";
   nav += "<a href='/system-telegram'>Telegram Config</a>";
+  nav += "<a href='/system-mqtt'>MQTT Config</a>";
   nav += "</div>";
   nav += "</div>";
   
