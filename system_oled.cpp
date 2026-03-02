@@ -17,6 +17,7 @@ volatile bool firmwareReadyMessageActive = false;
 #include "mmdvm/mmdvm_dmr.h"
 #include "mmdvm/mmdvm_dapnet.h"
 #include <WiFi.h>
+#include <LittleFS.h>
 
 // External runtime settings from .ino
 extern String userCallsign;
@@ -694,12 +695,24 @@ void oledTask(void *parameter)
   addLogMessage("[OLED Task] Display initialized");
   publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"init_ok\"}");
 
-  // Display boot logo
+  // Display boot logo — use custom /bootlogo.bin from LittleFS if present (1024 bytes, 128×64 1bpp)
   display.clearDisplay();
-  display.drawBitmap(0, 0, logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+  static uint8_t customLogo[LOGO_WIDTH * LOGO_HEIGHT / 8]; // 1024 bytes on stack
+  bool usedCustom = false;
+  File lf = LittleFS.open("/bootlogo.bin", "r");
+  if (lf && lf.size() == sizeof(customLogo)) {
+    lf.read(customLogo, sizeof(customLogo));
+    lf.close();
+    display.drawBitmap(0, 0, customLogo, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+    usedCustom = true;
+    addLogMessage("[OLED Task] Custom boot logo loaded from LittleFS");
+  } else {
+    if (lf) lf.close();
+    display.drawBitmap(0, 0, logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+  }
   display.display();
   addLogMessage("[OLED Task] Boot logo displayed");
-  publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"boot_logo\"}");
+  publishMqtt(mqttOledTaskTopic.c_str(), usedCustom ? "{\"event\":\"boot_logo\",\"custom\":true}" : "{\"event\":\"boot_logo\",\"custom\":false}");
 
   // Show logo for 3 seconds
   vTaskDelay(3000 / portTICK_PERIOD_MS);

@@ -1510,6 +1510,131 @@ void handleSDCardUpload()
   }
 }
 
+// ===== SD Card File Browser Handlers =====
+
+// GET /api/sdcard/ls?path=<dir>
+// Lists one directory level on the SD card (mutex protected).
+// Returns JSON: {"path":"/","mounted":true,"entries":[{"name":"config","size":0,"isDir":true,"path":"/config"},...]
+static void handleSdLs()
+{
+  if (!sdCardMounted) {
+    server.send(503, "application/json", "{\"error\":\"SD not mounted\",\"mounted\":false}");
+    return;
+  }
+  String path = server.arg("path");
+  if (path.length() == 0) path = "/";
+  if (!path.startsWith("/") || path.indexOf("..") >= 0) {
+    server.send(400, "application/json", "{\"error\":\"Invalid path\"}");
+    return;
+  }
+  if (path.length() > 1 && path.endsWith("/")) path.remove(path.length() - 1);
+
+  String json = "{\"path\":\"" + path + "\",\"mounted\":true,\"entries\":[";
+  bool first = true;
+
+  if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) == pdTRUE) {
+    File dir = SD.open(path);
+    if (dir && dir.isDirectory()) {
+      File entry = dir.openNextFile();
+      while (entry) {
+        // On SD, entry.name() returns the full path
+        String fullPath = String(entry.name());
+        if (!fullPath.startsWith("/")) fullPath = "/" + fullPath;
+        int lastSlash = fullPath.lastIndexOf('/');
+        String name = fullPath.substring(lastSlash + 1);
+        if (!first) json += ",";
+        json += "{\"name\":\"" + jsonEscape(name) + "\"";
+        json += ",\"size\":"  + String(entry.size());
+        json += ",\"isDir\":" + String(entry.isDirectory() ? "true" : "false");
+        json += ",\"path\":\"" + fullPath + "\"}";
+        first = false;
+        entry.close();
+        entry = dir.openNextFile();
+      }
+      dir.close();
+    }
+    xSemaphoreGive(sdCardMutex);
+  } else {
+    server.send(503, "application/json", "{\"error\":\"SD card busy\"}");
+    return;
+  }
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+// GET /api/sdcard/browse/download?path=<filepath>
+// Streams an SD file as a download attachment (mutex held for duration).
+static void handleSdBrowseDownload()
+{
+  if (!sdCardMounted) {
+    server.send(503, "text/plain", "ERROR: SD not mounted");
+    return;
+  }
+  String path = server.arg("path");
+  if (path.length() == 0 || !path.startsWith("/") || path.indexOf("..") >= 0) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+    server.send(503, "text/plain", "ERROR: SD card busy");
+    return;
+  }
+  File f = SD.open(path);
+  if (!f || f.isDirectory()) {
+    if (f) f.close();
+    xSemaphoreGive(sdCardMutex);
+    server.send(404, "text/plain", "ERROR: File not found: " + path);
+    return;
+  }
+  String fname = path;
+  int lastSlash = fname.lastIndexOf('/');
+  if (lastSlash >= 0) fname = fname.substring(lastSlash + 1);
+  server.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+  server.streamFile(f, "application/octet-stream");
+  f.close();
+  xSemaphoreGive(sdCardMutex);
+}
+
+// POST /api/sdcard/browse/delete?path=<filepath>
+// Deletes a single file from the SD card (directories refused).
+static void handleSdBrowseDelete()
+{
+  if (!sdCardMounted) {
+    server.send(503, "text/plain", "ERROR: SD not mounted");
+    return;
+  }
+  String path = server.arg("path");
+  if (path.length() == 0 || !path.startsWith("/") || path.indexOf("..") >= 0) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+    server.send(503, "text/plain", "ERROR: SD card busy");
+    return;
+  }
+  if (!SD.exists(path)) {
+    xSemaphoreGive(sdCardMutex);
+    server.send(404, "text/plain", "ERROR: Not found: " + path);
+    return;
+  }
+  File f = SD.open(path);
+  bool isDir = f && f.isDirectory();
+  if (f) f.close();
+  if (isDir) {
+    xSemaphoreGive(sdCardMutex);
+    server.send(400, "text/plain", "ERROR: Cannot delete a directory");
+    return;
+  }
+  bool ok = SD.remove(path);
+  xSemaphoreGive(sdCardMutex);
+  if (ok) {
+    addLogMessage("[SD] Browser deleted: " + path);
+    server.send(200, "text/plain", "Deleted: " + path);
+  } else {
+    server.send(500, "text/plain", "ERROR: Could not delete: " + path);
+  }
+}
+
 // ===== Setup Function =====
 
 void setupSDCardHandlers(WebServer &server)
@@ -1526,8 +1651,11 @@ void setupSDCardHandlers(WebServer &server)
   server.on("/api/sdcard/delete/csv", HTTP_GET, handleDeleteCSV);
   server.on("/api/sdcard/delete/sqlite", HTTP_GET, handleDeleteSQLite);
   server.on("/api/sdcard/delete/custom", HTTP_GET, handleDeleteCustomPath);
-  server.on("/api/sdcard/dirs", HTTP_GET, handleSDCardDirs);
-  server.on("/api/sdcard/upload", HTTP_POST, handleSDCardUploadFinish, handleSDCardUpload);
+  server.on("/api/sdcard/dirs",            HTTP_GET,  handleSDCardDirs);
+  server.on("/api/sdcard/upload",          HTTP_POST, handleSDCardUploadFinish, handleSDCardUpload);
+  server.on("/api/sdcard/ls",              HTTP_GET,  handleSdLs);
+  server.on("/api/sdcard/browse/download", HTTP_GET,  handleSdBrowseDownload);
+  server.on("/api/sdcard/browse/delete",   HTTP_POST, handleSdBrowseDelete);
   server.on("/api/dmr/user/", HTTP_GET, handleDMRUserSearch);
   server.on("/api/sqlite/search", HTTP_GET, handleSQLiteSearch);
 

@@ -162,6 +162,58 @@ String getSystemAdminPageHTML()
   html += "<div id='admin-lfs-result' style='margin-top:10px;font-size:0.9em;'></div>";
   html += "</div>";
 
+  // Card 7: LittleFS File Browser
+  html += "<div class='card'>";
+  html += "<h3>Internal Flash Browser</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the LittleFS partition (internal flash).</p>";
+  // Path bar
+  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px;'>";
+  html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
+  html += "  <span id='lfs-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
+  html += "  <button id='lfs-up-btn' class='btn btn-secondary' onclick='lfsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
+  html += "  <button class='btn btn-primary' onclick='lfsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
+  html += "</div>";
+  // File table
+  html += "<div style='overflow-x:auto;'>";
+  html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
+  html += "<thead><tr style='border-bottom:2px solid #444;color:#aaa;'>";
+  html += "  <th style='text-align:left;padding:6px;'>Name</th>";
+  html += "  <th style='text-align:left;padding:6px;'>Size</th>";
+  html += "  <th style='text-align:right;padding:6px;'>Actions</th>";
+  html += "</tr></thead>";
+  html += "<tbody id='lfs-browser-body'>";
+  html += "  <tr><td colspan='3' style='color:#aaa;padding:8px;text-align:center;'>Loading...</td></tr>";
+  html += "</tbody>";
+  html += "</table>";
+  html += "</div>";
+  html += "</div>"; // close card 7
+
+  // Card 8: SD Card File Browser
+  html += "<div class='card'>";
+  html += "<h3>SD Card Browser</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the SD card.</p>";
+  // Path bar
+  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px;'>";
+  html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
+  html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
+  html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
+  html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
+  html += "</div>";
+  // File table
+  html += "<div style='overflow-x:auto;'>";
+  html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
+  html += "<thead><tr style='border-bottom:2px solid #444;color:#aaa;'>";
+  html += "  <th style='text-align:left;padding:6px;'>Name</th>";
+  html += "  <th style='text-align:left;padding:6px;'>Size</th>";
+  html += "  <th style='text-align:right;padding:6px;'>Actions</th>";
+  html += "</tr></thead>";
+  html += "<tbody id='sd-browser-body'>";
+  html += "  <tr><td colspan='3' style='color:#aaa;padding:8px;text-align:center;'>Loading...</td></tr>";
+  html += "</tbody>";
+  html += "</table>";
+  html += "</div>";
+  html += "</div>"; // close card 8
+
   // End of grid
   html += "</div>"; // Close admin-grid
 
@@ -422,7 +474,7 @@ String getSystemAdminPageHTML()
   html += "  });";
   html += "}";
 
-  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); adminLoadSdDirs(); adminLoadLfsDirs(); };";
+  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); adminLoadSdDirs(); adminLoadLfsDirs(); lfsNavigate('/'); sdBrsNavigate('/'); };";
 
   // Card 5: SD card upload helpers
   html += "function adminLoadSdDirs() {";
@@ -528,6 +580,117 @@ String getSystemAdminPageHTML()
   html += "  };";
   html += "  xhr.open('POST', '/api/littlefs/upload?path=' + encodeURIComponent(folder));";
   html += "  xhr.send(formData);";
+  html += "}";
+
+  // Card 7: LittleFS browser JS
+  html += "var lfsCurrentPath = '/';";
+  html += "function lfsFormatSize(b) {";
+  html += "  if (b >= 1048576) return (b/1048576).toFixed(1) + ' MB';";
+  html += "  if (b >= 1024) return (b/1024).toFixed(1) + ' KB';";
+  html += "  return b + ' B';";
+  html += "}";
+  html += "function lfsParentPath(p) {";
+  html += "  if (p === '/') return '/';";
+  html += "  var t = p.endsWith('/') ? p.slice(0,-1) : p;";
+  html += "  var i = t.lastIndexOf('/');";
+  html += "  return i <= 0 ? '/' : t.substring(0, i);";
+  html += "}";
+  html += "function lfsRefresh() { lfsNavigate(lfsCurrentPath); }";
+  html += "function lfsGoUp() { lfsNavigate(lfsParentPath(lfsCurrentPath)); }";
+  html += "function lfsNavThis(el) { lfsNavigate(el.dataset.path); }";
+  html += "function lfsDelThis(el) { lfsDeleteFile(el.dataset.path); }";
+  html += "function lfsNavigate(path) {";
+  html += "  lfsCurrentPath = path;";
+  html += "  document.getElementById('lfs-browser-path').textContent = path;";
+  html += "  document.getElementById('lfs-up-btn').disabled = (path === '/');";
+  html += "  var tbody = document.getElementById('lfs-browser-body');";
+  html += "  tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Loading...</td></tr>';";
+  html += "  fetch('/api/littlefs/ls?path=' + encodeURIComponent(path))";
+  html += "    .then(function(r) { return r.json(); })";
+  html += "    .then(function(data) {";
+  html += "      var entries = data.entries || [];";
+  html += "      entries.sort(function(a,b) { if(a.isDir!==b.isDir) return a.isDir?-1:1; return a.name.localeCompare(b.name); });";
+  html += "      var rows = '';";
+  html += "      entries.forEach(function(e) {";
+  html += "        rows += '<tr style=\"border-bottom:1px solid #333\">';";
+  html += "        if (e.isDir) {";
+  html += "          rows += '<td style=\"padding:4px 6px;cursor:pointer;color:#5b9bd5\" data-path=\"' + e.path + '\" onclick=\"lfsNavThis(this)\">&#128193; ' + e.name + '/</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">dir</td>';";
+  html += "          rows += '<td></td>';";
+  html += "        } else {";
+  html += "          rows += '<td style=\"padding:4px 6px\">&#128196; ' + e.name + '</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + lfsFormatSize(e.size) + '</td>';";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right\">';";
+  html += "          rows += '<a href=\"/api/littlefs/download?path=' + encodeURIComponent(e.path) + '\" download=\"' + e.name + '\" class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px\">DL</a>';";
+  html += "          rows += '<button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"lfsDelThis(this)\">Del</button>';";
+  html += "          rows += '</td>';";
+  html += "        }";
+  html += "        rows += '</tr>';";
+  html += "      });";
+  html += "      if (!rows) rows = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Empty directory</td></tr>';";
+  html += "      tbody.innerHTML = rows;";
+  html += "    })";
+  html += "    .catch(function() { tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#dc3545;padding:8px\">Error loading directory</td></tr>'; });";
+  html += "}";
+  html += "function lfsDeleteFile(path) {";
+  html += "  showConfirm('Delete: ' + path + '?', function() {";
+  html += "    fetch('/api/littlefs/delete?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) { showAlert(msg); lfsRefresh(); })";
+  html += "      .catch(function() { showAlert('Error deleting file'); });";
+  html += "  });";
+  html += "}";
+
+  // Card 8: SD card browser JS
+  html += "var sdBrsCurrentPath = '/';";
+  html += "function sdBrsRefresh() { sdBrsNavigate(sdBrsCurrentPath); }";
+  html += "function sdBrsGoUp() { sdBrsNavigate(lfsParentPath(sdBrsCurrentPath)); }";
+  html += "function sdBrsNavThis(el) { sdBrsNavigate(el.dataset.path); }";
+  html += "function sdBrsDelThis(el) { sdBrsDeleteFile(el.dataset.path); }";
+  html += "function sdBrsNavigate(path) {";
+  html += "  sdBrsCurrentPath = path;";
+  html += "  document.getElementById('sd-browser-path').textContent = path;";
+  html += "  document.getElementById('sd-browser-up-btn').disabled = (path === '/');";
+  html += "  var tbody = document.getElementById('sd-browser-body');";
+  html += "  tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Loading...</td></tr>';";
+  html += "  fetch('/api/sdcard/ls?path=' + encodeURIComponent(path))";
+  html += "    .then(function(r) { return r.json(); })";
+  html += "    .then(function(data) {";
+  html += "      if (data.mounted === false) {";
+  html += "        tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#dc3545;padding:8px;text-align:center\">SD card not mounted</td></tr>';";
+  html += "        return;";
+  html += "      }";
+  html += "      var entries = data.entries || [];";
+  html += "      entries.sort(function(a,b) { if(a.isDir!==b.isDir) return a.isDir?-1:1; return a.name.localeCompare(b.name); });";
+  html += "      var rows = '';";
+  html += "      entries.forEach(function(e) {";
+  html += "        rows += '<tr style=\"border-bottom:1px solid #333\">';";
+  html += "        if (e.isDir) {";
+  html += "          rows += '<td style=\"padding:4px 6px;cursor:pointer;color:#5b9bd5\" data-path=\"' + e.path + '\" onclick=\"sdBrsNavThis(this)\">&#128193; ' + e.name + '/</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">dir</td>';";
+  html += "          rows += '<td></td>';";
+  html += "        } else {";
+  html += "          rows += '<td style=\"padding:4px 6px\">&#128196; ' + e.name + '</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + lfsFormatSize(e.size) + '</td>';";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right\">';";
+  html += "          rows += '<a href=\"/api/sdcard/browse/download?path=' + encodeURIComponent(e.path) + '\" download=\"' + e.name + '\" class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px\">DL</a>';";
+  html += "          rows += '<button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"sdBrsDelThis(this)\">Del</button>';";
+  html += "          rows += '</td>';";
+  html += "        }";
+  html += "        rows += '</tr>';";
+  html += "      });";
+  html += "      if (!rows) rows = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Empty directory</td></tr>';";
+  html += "      tbody.innerHTML = rows;";
+  html += "    })";
+  html += "    .catch(function() { tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#dc3545;padding:8px\">Error loading directory</td></tr>'; });";
+  html += "}";
+  html += "function sdBrsDeleteFile(path) {";
+  html += "  showConfirm('Delete: ' + path + '?', function() {";
+  html += "    fetch('/api/sdcard/browse/delete?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) { showAlert(msg); sdBrsRefresh(); })";
+  html += "      .catch(function() { showAlert('Error deleting file'); });";
+  html += "  });";
   html += "}";
 
   html += "</script>";

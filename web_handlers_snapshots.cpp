@@ -407,6 +407,123 @@ static void handleLfsDirs()
 }
 
 // ---------------------------------------------------------------------------
+// Path validation for LittleFS browser endpoints.
+// Accepts only paths that start with '/' and contain no '..' segments.
+// ---------------------------------------------------------------------------
+static bool isValidLfsPath(const String& path)
+{
+  if (path.length() == 0 || path.length() > 128) return false;
+  if (!path.startsWith("/")) return false;
+  if (path.indexOf("..") >= 0) return false;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/littlefs/ls?path=<dir>
+// Lists entries in a LittleFS directory.
+// Returns JSON: {"path":"/config","entries":[{"name":"foo.txt","size":1234,"isDir":false,"path":"/config/foo.txt"},...]}
+// ---------------------------------------------------------------------------
+static void handleLfsLs()
+{
+  String path = server.arg("path");
+  if (path.length() == 0) path = "/";
+  if (!isValidLfsPath(path)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid path\"}");
+    return;
+  }
+  // Normalise trailing slash
+  if (path.length() > 1 && path.endsWith("/")) path.remove(path.length() - 1);
+
+  File dir = LittleFS.open(path);
+  if (!dir || !dir.isDirectory()) {
+    if (dir) dir.close();
+    server.send(404, "application/json", "{\"error\":\"Not a directory\"}");
+    return;
+  }
+
+  String json = "{\"path\":\"" + path + "\",\"entries\":[";
+  bool first = true;
+  File entry = dir.openNextFile();
+  while (entry) {
+    String name = String(entry.name());
+    // entry.name() returns just the bare name (no path prefix) in LittleFS
+    int lastSlash = name.lastIndexOf('/');
+    if (lastSlash >= 0) name = name.substring(lastSlash + 1);
+
+    String fullPath = (path == "/") ? ("/" + name) : (path + "/" + name);
+
+    if (!first) json += ",";
+    json += "{\"name\":\"" + name + "\"";
+    json += ",\"size\":"  + String(entry.size());
+    json += ",\"isDir\":" + String(entry.isDirectory() ? "true" : "false");
+    json += ",\"path\":\"" + fullPath + "\"}";
+    first = false;
+    entry.close();
+    entry = dir.openNextFile();
+  }
+  dir.close();
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/littlefs/download?path=<filepath>
+// Streams a LittleFS file as a download attachment.
+// ---------------------------------------------------------------------------
+static void handleLfsDownload()
+{
+  String path = server.arg("path");
+  if (!isValidLfsPath(path)) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  File f = LittleFS.open(path, "r");
+  if (!f || f.isDirectory()) {
+    if (f) f.close();
+    server.send(404, "text/plain", "ERROR: File not found: " + path);
+    return;
+  }
+  String fname = path;
+  int lastSlash = fname.lastIndexOf('/');
+  if (lastSlash >= 0) fname = fname.substring(lastSlash + 1);
+
+  server.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+  server.streamFile(f, "application/octet-stream");
+  f.close();
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/littlefs/delete?path=<filepath>
+// Deletes a single file from LittleFS (directories not supported).
+// ---------------------------------------------------------------------------
+static void handleLfsDeleteFile()
+{
+  String path = server.arg("path");
+  if (!isValidLfsPath(path)) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (!LittleFS.exists(path)) {
+    server.send(404, "text/plain", "ERROR: Not found: " + path);
+    return;
+  }
+  // Refuse to delete directories
+  File f = LittleFS.open(path, "r");
+  bool isDir = f && f.isDirectory();
+  if (f) f.close();
+  if (isDir) {
+    server.send(400, "text/plain", "ERROR: Cannot delete a directory");
+    return;
+  }
+  if (LittleFS.remove(path)) {
+    addLogMessage("[LittleFS] Deleted: " + path);
+    server.send(200, "text/plain", "Deleted: " + path);
+  } else {
+    server.send(500, "text/plain", "ERROR: Could not delete: " + path);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // registerSnapshotRoutes() — called once from webServerTask()
 // ---------------------------------------------------------------------------
 void registerSnapshotRoutes()
@@ -418,4 +535,7 @@ void registerSnapshotRoutes()
   server.on("/api/snapshots/download", HTTP_GET,  handleSnapshotDownload);
   server.on("/api/littlefs/upload",    HTTP_POST, handleLfsUploadFinish, handleLfsUpload);
   server.on("/api/littlefs/dirs",      HTTP_GET,  handleLfsDirs);
+  server.on("/api/littlefs/ls",        HTTP_GET,  handleLfsLs);
+  server.on("/api/littlefs/download",  HTTP_GET,  handleLfsDownload);
+  server.on("/api/littlefs/delete",    HTTP_POST, handleLfsDeleteFile);
 }
