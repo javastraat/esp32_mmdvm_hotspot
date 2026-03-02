@@ -50,6 +50,8 @@
 #include "system/web_handlers_pocsag.h"
 #include "system/web_handlers_wifi.h"
 #include "system/web_handlers_snapshots.h"
+#include "system/web_handlers_telegram_settings.h"
+#include "web/pages/system_telegram.h"
 
 extern "C"
 {
@@ -218,8 +220,9 @@ void initWebServerTask()
     log_e("[WebServer] Task creation FAILED! Free heap: %u", ESP.getFreeHeap());
 }
 
-// Forward declaration for WireGuard page handler
+// Forward declarations for page handlers
 void handleSystemWireguard();
+void handleSystemTelegram();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -297,6 +300,7 @@ void webServerTask(void *parameter) {
   server.on("/settings-mmdvm", handleSettingsMmdvm);
   server.on("/system-wifi", handleSystemWifi);
   server.on("/system-mqtt", handleSystemMqtt);
+  server.on("/system-telegram", handleSystemTelegram);
   server.on("/system-wireguard", handleSystemWireguard);
   server.on("/system-sdcard", handleSystemSdcard);
   server.on("/system-firmware", handleSystemFirmware);
@@ -306,6 +310,7 @@ void webServerTask(void *parameter) {
 
   registerDmrSettingsRoutes();
   registerMqttSettingsRoutes();
+  registerTelegramSettingsRoutes();
   registerWgSettingsRoutes();
   registerNetworkSettingsRoutes();
   registerHwSettingsRoutes();
@@ -426,6 +431,12 @@ void handleSystemMqtt()
 {
   requestCount++;
   server.send(200, "text/html", getSystemMqttPageHTML());
+}
+
+void handleSystemTelegram()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemTelegramPageHTML());
 }
 
 void handleSystemWireguard()

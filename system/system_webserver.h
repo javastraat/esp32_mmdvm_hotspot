@@ -43,6 +43,7 @@ void handleSystemSettings();
 void handleSettingsMmdvm();
 void handleSystemWifi();
 void handleSystemMqtt();
+void handleSystemTelegram();
 void handleSystemSdcard();
 void handleSystemFirmware();
 void handleSystemAdmin();

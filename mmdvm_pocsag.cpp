@@ -15,6 +15,7 @@
 #include <vector>
 #include <cstdio>
 #include "system/system_mqtt.h"
+#include "system/system_telegram.h"
 
 // External references to runtime settings (defined in main .ino)
 extern String mqttPocsagTaskTopic;
@@ -431,6 +432,9 @@ bool queuePocsagMessage(uint32_t ric, const String& message, uint8_t functional)
     publishMqtt(mqttPocsagTaskTopic.c_str(), pocsagJson);
     return false;
   }
+
+  // Forward to Telegram if this RIC is in the watch list
+  checkTelegramRicForward(ric, functional, message.c_str());
 
   PocsagQueueItem item;
   item.ric = ric;

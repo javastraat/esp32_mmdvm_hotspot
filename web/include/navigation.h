@@ -62,9 +62,9 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
 
   nav += "<a href='/settings-mmdvm'>MMDVM Settings</a>";
   nav += "<a href='/system-settings'>Settings</a>";
-  nav += "<a href='/system-wifi'>WiFi Config</a>";
-  nav += "<a href='/system-mqtt'>MQTT Config</a>";
-  nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
+  // nav += "<a href='/system-wifi'>WiFi Config</a>";
+  // nav += "<a href='/system-mqtt'>MQTT Config</a>";
+  // nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
   if (sdcardEnabled) {
     nav += "<a href='/system-sdcard'>SD Card</a>";
   }
@@ -93,10 +93,14 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "if(!e.target.closest('.dropdown')){document.getElementById('menuDropdown').classList.remove('active');}";
   nav += "});";
   
-  // Submenu toggle
+  // Submenu toggle — close any other open submenus before opening the clicked one
   nav += "function toggleSubmenu(e){";
   nav += "e.stopPropagation();";
-  nav += "e.currentTarget.classList.toggle('active');";
+  nav += "var clicked=e.currentTarget;";
+  nav += "document.querySelectorAll('.dropdown-submenu.active').forEach(function(el){";
+  nav += "if(el!==clicked)el.classList.remove('active');";
+  nav += "});";
+  nav += "clicked.classList.toggle('active');";
   nav += "}";
   
   // Theme toggle

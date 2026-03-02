@@ -68,6 +68,7 @@ POCSAG protocol task (initPocsagTask)
 #include "system/system_logger.h"
 #include "system/system_ntp.h"
 #include "system/system_mqtt.h"
+#include "system/system_telegram.h"
 #include "system/system_firmware.h"
 #include "system/system_modem.h"
 #include "system/system_arduinoota.h"
@@ -214,6 +215,14 @@ String mqttSubscribeTopic = MQTT_SUBSCRIBE_TOPIC;
 uint16_t mqttSendHardwareInfo = MQTT_SEND_HARDWARE_INFO;
 bool mqttHardwareInfoLog = MQTT_HARDWARE_INFO_LOG;
 String mqttCommandToken = MQTT_CMD_TOKEN;
+
+// Telegram Settings (loaded from NVS or defaults from config.h)
+bool telegramEnabled = TELEGRAM_ENABLED;
+String telegramBotToken = TELEGRAM_BOT_TOKEN;
+String telegramChatId = TELEGRAM_CHAT_ID;
+bool telegramRicForwardEnabled = TELEGRAM_RIC_FORWARD_ENABLED;
+String telegramRicList = TELEGRAM_RIC_LIST;
+uint16_t telegramRicCooldown = TELEGRAM_RIC_COOLDOWN;
 
 // WireGuard VPN Settings (loaded from NVS or defaults from config.h)
 bool wgEnabled = WG_ENABLED;
@@ -381,6 +390,14 @@ void loadSettings()
     // Ethernet Settings
     ethEnabled = preferences.getBool("eth_enabled", ETH_ENABLED);
     ethDebug = preferences.getBool("eth_debug", ETH_DEBUG);
+
+    // Telegram Settings
+    telegramEnabled           = preferences.getBool("tg_en", TELEGRAM_ENABLED);
+    telegramBotToken          = preferences.getString("tg_token", TELEGRAM_BOT_TOKEN);
+    telegramChatId            = preferences.getString("tg_chat_id", TELEGRAM_CHAT_ID);
+    telegramRicForwardEnabled = preferences.getBool("tg_ric_en", TELEGRAM_RIC_FORWARD_ENABLED);
+    telegramRicList           = preferences.getString("tg_ric_list", TELEGRAM_RIC_LIST);
+    telegramRicCooldown       = preferences.getUShort("tg_ric_cool", TELEGRAM_RIC_COOLDOWN);
 
     // WireGuard VPN Settings
     wgEnabled = preferences.getBool("wg_en", WG_ENABLED);
@@ -752,6 +769,14 @@ void saveSettings()
   preferences.putBool("eth_enabled", ethEnabled);
   preferences.putBool("eth_debug", ethDebug);
 
+  // Telegram Settings
+  preferences.putBool("tg_en",        telegramEnabled);
+  preferences.putString("tg_token",   telegramBotToken);
+  preferences.putString("tg_chat_id", telegramChatId);
+  preferences.putBool("tg_ric_en",    telegramRicForwardEnabled);
+  preferences.putString("tg_ric_list",telegramRicList);
+  preferences.putUShort("tg_ric_cool",telegramRicCooldown);
+
   // WireGuard VPN Settings
   preferences.putBool("wg_en", wgEnabled);
   preferences.putString("wg_local_ip", wgLocalIp);
@@ -941,6 +966,9 @@ void setup()
     addLogMessage("[Setup] MQTT enabled - initializing MQTT client");
     initMqttTask();
   }
+  // Initialize Telegram task (always started so async queue is ready; sends only when enabled)
+  addLogMessage("[Setup] Initializing Telegram task");
+  initTelegramTask();
   // Initialize ArduinoOTA task (if enabled)
   if (arduinoOtaEnabled)
   {

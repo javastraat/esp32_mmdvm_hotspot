@@ -119,6 +119,14 @@
 #define MQTT_SEND_HARDWARE_INFO 30  // Seconds between sending hardware info messages
 #define MQTT_HARDWARE_INFO_LOG true // When true, exclude hardware info from serial log (reduce spam)
 
+// Telegram Bot Configuration
+#define TELEGRAM_ENABLED false
+#define TELEGRAM_BOT_TOKEN ""          // Bot token from @BotFather
+#define TELEGRAM_CHAT_ID ""            // Chat ID (user or group)
+#define TELEGRAM_RIC_FORWARD_ENABLED false
+#define TELEGRAM_RIC_LIST ""           // Comma-separated RICs to forward, e.g. "2041152,1234567"
+#define TELEGRAM_RIC_COOLDOWN 60       // Minimum seconds between forwards per RIC
+
 // WireGuard VPN Configuration
 #define WG_ENABLED false
 #define WG_LOCAL_IP "10.0.0.2"       // WireGuard interface IP address
@@ -386,6 +394,8 @@ const int ARDUINO_OTA_TASK_PRIORITY = 1;
 const int MODEM_TASK_PRIORITY = 5; // Very high priority - modem must be responsive
 // WireGuard Task Settings
 const int WG_TASK_PRIORITY = 1;
+const int TELEGRAM_TASK_PRIORITY = 1;
+const int TELEGRAM_TASK_STACK = 8192; // Needs extra headroom for TLS stack
 
 // MMDVM Protocol task priorities
 const int MMDVM_DMR_PRIORITY = 3; // High priority - real-time protocol
