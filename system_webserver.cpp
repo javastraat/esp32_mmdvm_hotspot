@@ -32,6 +32,7 @@
 #include "web/pages/system_wireguard.h"
 #include "web/pages/system_sdcard.h"
 #include "web/pages/system_settings.h"
+#include "web/pages/system_network.h"
 #include "web/pages/system_wifi.h"
 #include "web/pages/system_modem.h"
 #include "web/api/pocsag_send.h"
@@ -303,6 +304,7 @@ void webServerTask(void *parameter) {
   server.on("/system-status", handleSystemStatus);
   server.on("/system-info", handleSystemInfo);
   server.on("/system-settings", handleSystemSettings);
+  server.on("/system-network", handleSystemNetwork);
   server.on("/system-modem", handleSystemModem);
   server.on("/system-wifi", handleSystemWifi);
   server.on("/system-mqtt", handleSystemMqtt);
@@ -431,6 +433,12 @@ void handleSystemSettings()
 {
   requestCount++;
   server.send(200, "text/html", getSystemSettingsPageHTML());
+}
+
+void handleSystemNetwork()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemNetworkPageHTML());
 }
 
 void handleSystemHotspot()

@@ -16,6 +16,11 @@ extern String wifiSlotLabel[6];
 extern String wifiSlotSsid[6];
 extern String wifiSlotPass[6];
 
+extern String wifiApSsid;
+extern String wifiApPassword;
+extern uint8_t wifiApChannel;
+extern uint8_t wifiMaxRetries;
+
 inline String getSystemWifiPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
@@ -114,6 +119,45 @@ inline String getSystemWifiPageHTML()
   html += "<div id='scan-results' class='scan-results' style='display:none;'>";
   html += "<div id='networks'>Scanning...</div>";
   html += "</div>";
+  html += "</div>";
+
+  // Card 4: WiFi Access Point
+  html += "<div class='card'>";
+  html += "<h3>WiFi Access Point</h3>";
+  html += "<form onsubmit=\"return false;\">";
+  html += "<div class='metric' style='position:relative;'>";
+  html += "<span class='metric-label'>AP SSID:</span>";
+  html += "<input type='text' id='wifi-ap-ssid' value='" + wifiApSsid + "' maxlength='32' style='width: 120px; padding-right: 8px;' autocomplete='username'>";
+  html += "</div>";
+  html += "<div class='metric' style='position:relative;'>";
+  html += "<span class='metric-label'>AP Password:</span>";
+  html += "<input type='password' id='wifi-ap-password' value='" + wifiApPassword + "' minlength='8' maxlength='63' style='width: 104px; padding-right: 24px;' autocomplete='current-password'>";
+  html += "<span id='wifi-ap-password-eye' style=\"position:absolute; right:8px; top:50%; transform:translateY(-50%); cursor:pointer;\" onclick=\"togglePasswordVisibility('wifi-ap-password', this)\"><svg width=18 height=18 viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg></span>";
+  html += "</div>";
+  html += "<div class='metric' style='position:relative;'>";
+  html += "<span class='metric-label'>AP Channel:</span>";
+  html += "<input type='text' id='wifi-ap-channel' value='" + String(wifiApChannel) + "' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<div class='metric' style='position:relative;'>";
+  html += "<span class='metric-label'>Max Retries:</span>";
+  html += "<input type='text' id='wifi-max-retries' value='" + String(wifiMaxRetries) + "' style='width: 120px; padding-right: 8px;'>";
+  html += "</div>";
+  html += "<p style='font-size:0.85em;color:#666;margin-top:10px;'>WiFi AP is used as fallback when connection fails. Password must be at least 8 characters.</p>";
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' type='button' onclick='saveWifiApSettings()'>Save &amp; Reboot</button>";
+  html += "<button class='btn btn-danger' type='button' onclick='resetWifiApSettings()'>Reset to Default</button>";
+  html += "</div>";
+  html += "</form>";
+  html += "</div>";
+
+  html += "</div>"; // close admin-grid
+
+  // Save All & Reboot button
+  html += "<div class='action-buttons-vertical' style='margin-top:20px;'>";
+  html += "<button class='btn btn-success' onclick='saveAllWifiSettings()'>Save All &amp; Reboot</button>";
+  html += "</div>";
+  html += "<div class='info' style='margin-top:20px'>";
+  html += "<strong>Note:</strong> WiFi slot changes are saved immediately without a reboot. Use <b>Save All &amp; Reboot</b> to save the current slot and AP settings together, then reboot.";
   html += "</div>";
 
   html += "<script>\n";
@@ -318,6 +362,68 @@ inline String getSystemWifiPageHTML()
   html += "      }).catch(function(err) { showAlert('Error: ' + err); });\n";
   html += "    });\n";
   html += "  };\n";
+  // WiFi AP Settings
+  html += "  window.saveWifiApSettings = function() {\n";
+  html += "    var ssid = document.getElementById('wifi-ap-ssid').value;\n";
+  html += "    var password = document.getElementById('wifi-ap-password').value;\n";
+  html += "    var channel = document.getElementById('wifi-ap-channel').value;\n";
+  html += "    var retries = document.getElementById('wifi-max-retries').value;\n";
+  html += "    if (!ssid || ssid.length < 3) { showAlert('WiFi AP SSID must be at least 3 characters'); return; }\n";
+  html += "    if (!password || password.length < 8) { showAlert('WiFi AP password must be at least 8 characters'); return; }\n";
+  html += "    if (channel < 1 || channel > 13) { showAlert('WiFi AP channel must be 1-13'); return; }\n";
+  html += "    if (retries < 1 || retries > 20) { showAlert('Max retries must be 1-20'); return; }\n";
+  html += "    showConfirm('Save WiFi AP settings and reboot?', function() {\n";
+  html += "      fetch('/api/save-wifi-ap-settings', {\n";
+  html += "        method: 'POST',\n";
+  html += "        headers: {'Content-Type': 'application/x-www-form-urlencoded'},\n";
+  html += "        body: 'ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(password) + '&channel=' + channel + '&retries=' + retries\n";
+  html += "      }).then(r => r.text()).then(msg => {\n";
+  html += "        showAlert(msg + '<br><br>The device will now reboot.');\n";
+  html += "        fetch('/api/reboot', {method: 'POST'});\n";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';\n";
+  html += "        setTimeout(function() { location.reload(); }, 10000);\n";
+  html += "      });\n";
+  html += "    });\n";
+  html += "  };\n";
+
+  html += "  window.resetWifiApSettings = function() {\n";
+  html += "    showConfirm('Reset WiFi AP settings to default and reboot?', function() {\n";
+  html += "      fetch('/api/reset-wifi-ap-settings', {method: 'POST'}).then(r => r.text()).then(msg => {\n";
+  html += "        showAlert(msg + '<br><br>The device will now reboot.');\n";
+  html += "        fetch('/api/reboot', {method: 'POST'});\n";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';\n";
+  html += "        setTimeout(function() { location.reload(); }, 10000);\n";
+  html += "      });\n";
+  html += "    });\n";
+  html += "  };\n";
+
+  // Save All & Reboot: current slot + AP settings
+  html += "  window.saveAllWifiSettings = function() {\n";
+  html += "    var ssid = document.getElementById('wifi-ap-ssid').value;\n";
+  html += "    var password = document.getElementById('wifi-ap-password').value;\n";
+  html += "    var channel = document.getElementById('wifi-ap-channel').value;\n";
+  html += "    var retries = document.getElementById('wifi-max-retries').value;\n";
+  html += "    if (!ssid || ssid.length < 3) { showAlert('WiFi AP SSID must be at least 3 characters'); return; }\n";
+  html += "    if (!password || password.length < 8) { showAlert('WiFi AP password must be at least 8 characters'); return; }\n";
+  html += "    if (channel < 1 || channel > 13) { showAlert('WiFi AP channel must be 1-13'); return; }\n";
+  html += "    if (retries < 1 || retries > 20) { showAlert('Max retries must be 1-20'); return; }\n";
+  html += "    showConfirm('Save current WiFi slot and AP settings, then reboot?', function() {\n";
+  html += "      var slot = document.getElementById('currentSlot').value;\n";
+  html += "      var label = document.getElementById('labelInput').value;\n";
+  html += "      var slotSsid = document.getElementById('ssidInput').value;\n";
+  html += "      var slotPass = document.getElementById('passwordInput').value;\n";
+  html += "      var post = function(url, body) { return fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body}); };\n";
+  html += "      post('/api/save-wifi-slot', 'slot=' + slot + '&label=' + encodeURIComponent(label) + '&ssid=' + encodeURIComponent(slotSsid) + '&password=' + encodeURIComponent(slotPass))\n";
+  html += "      .then(function() { return post('/api/save-wifi-ap-settings', 'ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(password) + '&channel=' + channel + '&retries=' + retries); })\n";
+  html += "      .then(function() {\n";
+  html += "        showAlert('All WiFi settings saved.<br><br>The device will now reboot.');\n";
+  html += "        fetch('/api/reboot', {method: 'POST'});\n";
+  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';\n";
+  html += "        setTimeout(function() { location.reload(); }, 10000);\n";
+  html += "      }).catch(function(err) { showAlert('Error saving settings: ' + err); });\n";
+  html += "    });\n";
+  html += "  };\n";
+
   html += "};\n";
   html += "</script>";
   html += "</div>"; // Close container

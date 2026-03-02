@@ -43,6 +43,7 @@ void handleSystemSerial();
 void handleSystemStatus();
 void handleSystemInfo();
 void handleSystemSettings();
+void handleSystemNetwork();
 void handleSystemModem();
 void handleSystemWifi();
 void handleSystemMqtt();

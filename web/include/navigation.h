@@ -42,7 +42,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   
   // Submenu Mode Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
-  nav += "<span>Mode Config</span>";
+  nav += "<span>Modes</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   //nav += "<a href='/mode-select'>Mode Selection</a>";
   nav += "<a href='/mode-dmr'>DMR Mode</a>";
@@ -56,16 +56,17 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   
   //Submenu Network Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
-  nav += "<span>Network Config</span>";
+  nav += "<span>Network</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-wifi'>WiFi Config</a>";
+  nav += "<a href='/system-network'>Network Config</a>";
   nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
   nav += "</div>";
   nav += "</div>";
   
   //Submenu Message Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
-  nav += "<span>Messaging Config</span>";
+  nav += "<span>Messaging</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-dapnet'>DAPNET Config</a>";
   nav += "<a href='/system-hampager'>HamPager Config</a>";
@@ -76,7 +77,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   
   //Submenu Settings Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
-  nav += "<span>Settings Config</span>";
+  nav += "<span>Settings</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-hotspot'>Hotspot Config</a>";
   nav += "<a href='/system-modem'>Modem Settings</a>";
