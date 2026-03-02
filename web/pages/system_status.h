@@ -17,7 +17,8 @@
 extern bool softAPActive;
 extern volatile bool ethConnected;
 extern bool ethEnabled;
-#include "web/pages/system_settings.h"
+extern bool dnsFallbackEnabled;
+extern String dnsFallbackIp;
 
 // MMDVM / Modem
 extern bool mmdvmReady;

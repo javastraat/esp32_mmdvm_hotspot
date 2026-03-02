@@ -3,8 +3,8 @@
  * Async message sending via FreeRTOS queue + WiFiClientSecure
  */
 
-#ifndef SYSTEM_TELEGRAM_H
-#define SYSTEM_TELEGRAM_H
+#ifndef SERVICE_TELEGRAM_H
+#define SERVICE_TELEGRAM_H
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -34,4 +34,4 @@ bool sendTelegramSync(const String &message, String &errorOut);
 // Called from queuePocsagMessage to check RIC and forward if configured
 void checkTelegramRicForward(uint32_t ric, uint8_t functional, const char *message);
 
-#endif // SYSTEM_TELEGRAM_H
+#endif // SERVICE_TELEGRAM_H

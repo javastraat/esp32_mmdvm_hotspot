@@ -14,8 +14,8 @@
 #include "system/system_eth.h"
 #include <vector>
 #include <cstdio>
-#include "system/system_mqtt.h"
-#include "system/system_telegram.h"
+#include "system/service_mqtt.h"
+#include "system/service_telegram.h"
 
 // External references to runtime settings (defined in main .ino)
 extern String mqttPocsagTaskTopic;

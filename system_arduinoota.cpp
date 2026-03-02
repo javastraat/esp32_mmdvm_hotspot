@@ -7,7 +7,7 @@
 #include "system/system_logger.h"
 #include "system/system_eth.h"
 #include <WiFi.h>
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 
 extern String mqttArduinoOtaTaskTopic; // MQTT topic for OTA task status updates
 

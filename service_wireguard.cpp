@@ -1,10 +1,10 @@
 /*
- * system_wireguard.cpp - WireGuard VPN Client Implementation
+ * service_wireguard.cpp - WireGuard VPN Client Implementation
  */
 
-#include "system/system_wireguard.h"
+#include "system/service_wireguard.h"
 #include "system/system_logger.h"
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 #include "system/system_eth.h"
 #include "include/config.h"
 #include <WiFi.h>

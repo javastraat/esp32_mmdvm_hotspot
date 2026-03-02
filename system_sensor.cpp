@@ -4,7 +4,7 @@
 
 #include "system/system_sensor.h"
 #include "system/system_webserver.h" // For accessing cpuUsage variable
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 #include "system/system_logger.h"
 
 extern String mqttSensorTaskTopic; // MQTT topic for sensor task status updates

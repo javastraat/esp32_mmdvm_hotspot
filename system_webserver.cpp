@@ -19,8 +19,8 @@
 #include "web/pages/mode_nxdn.h"
 #include "web/pages/mode_pocsag.h"
 #include "web/pages/system_hotspot.h"
-#include "web/pages/system_dapnet.h"
-#include "web/pages/system_hampager.h"
+#include "web/pages/service_dapnet.h"
+#include "web/pages/service_hampager.h"
 #include "mmdvm/mmdvm_pocsag.h"
 #include "mmdvm/mmdvm_dapnet.h"
 #include "web/pages/system_serial.h"
@@ -28,10 +28,10 @@
 #include "web/pages/system_admin.h"
 #include "web/pages/system_firmware.h"
 #include "web/pages/system_info.h"
-#include "web/pages/system_mqtt.h"
-#include "web/pages/system_wireguard.h"
+#include "web/pages/service_mqtt.h"
+#include "web/pages/service_wireguard.h"
 #include "web/pages/system_sdcard.h"
-#include "web/pages/system_settings.h"
+#include "web/pages/system_hardware.h"
 #include "web/pages/system_network.h"
 #include "web/pages/system_wifi.h"
 #include "web/pages/system_modem.h"
@@ -55,7 +55,7 @@
 #include "system/web_handlers_wifi.h"
 #include "system/web_handlers_snapshots.h"
 #include "system/web_handlers_telegram_settings.h"
-#include "web/pages/system_telegram.h"
+#include "web/pages/service_telegram.h"
 
 extern "C"
 {
@@ -225,8 +225,8 @@ void initWebServerTask()
 }
 
 // Forward declarations for page handlers
-void handleSystemWireguard();
-void handleSystemTelegram();
+void handleServiceWireguard();
+void handleServiceTelegram();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -298,18 +298,18 @@ void webServerTask(void *parameter) {
   server.on("/mode-nxdn", handleModeNxdn);
   server.on("/mode-pocsag", handleModePocsag);
   server.on("/system-hotspot", handleSystemHotspot);
-  server.on("/system-dapnet", handleSystemDapnet);
-  server.on("/system-hampager", handleSystemHampager);
+  server.on("/service-dapnet", handleServiceDapnet);
+  server.on("/service-hampager", handleServiceHampager);
   server.on("/system-serialmonitor", handleSystemSerial);
   server.on("/system-status", handleSystemStatus);
   server.on("/system-info", handleSystemInfo);
-  server.on("/system-settings", handleSystemSettings);
+  server.on("/system-hardware", handleSystemHardware);
   server.on("/system-network", handleSystemNetwork);
   server.on("/system-modem", handleSystemModem);
   server.on("/system-wifi", handleSystemWifi);
-  server.on("/system-mqtt", handleSystemMqtt);
-  server.on("/system-telegram", handleSystemTelegram);
-  server.on("/system-wireguard", handleSystemWireguard);
+  server.on("/service-mqtt", handleServiceMqtt);
+  server.on("/service-telegram", handleServiceTelegram);
+  server.on("/service-wireguard", handleServiceWireguard);
   server.on("/system-sdcard", handleSystemSdcard);
   server.on("/system-firmware", handleSystemFirmware);
   server.on("/system-admin", handleSystemAdmin);
@@ -399,16 +399,16 @@ void handleModePocsag()
   server.send(200, "text/html", getModePocsagPageHTML());
 }
 
-void handleSystemDapnet()
+void handleServiceDapnet()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemDapnetPageHTML());
+  server.send(200, "text/html", getServiceDapnetPageHTML());
 }
 
-void handleSystemHampager()
+void handleServiceHampager()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemHampagerPageHTML());
+  server.send(200, "text/html", getServiceHampagerPageHTML());
 }
 
 void handleSystemSerial()
@@ -429,10 +429,10 @@ void handleSystemInfo()
   server.send(200, "text/html", getSystemInfoPageHTML());
 }
 
-void handleSystemSettings()
+void handleSystemHardware()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemSettingsPageHTML());
+  server.send(200, "text/html", getSystemHardwarePageHTML());
 }
 
 void handleSystemNetwork()
@@ -459,22 +459,22 @@ void handleSystemWifi()
   server.send(200, "text/html", getSystemWifiPageHTML());
 }
 
-void handleSystemMqtt()
+void handleServiceMqtt()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemMqttPageHTML());
+  server.send(200, "text/html", getServiceMqttPageHTML());
 }
 
-void handleSystemTelegram()
+void handleServiceTelegram()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemTelegramPageHTML());
+  server.send(200, "text/html", getServiceTelegramPageHTML());
 }
 
-void handleSystemWireguard()
+void handleServiceWireguard()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemWireguardPageHTML());
+  server.send(200, "text/html", getServiceWireguardPageHTML());
 }
 
 void handleSystemSdcard()

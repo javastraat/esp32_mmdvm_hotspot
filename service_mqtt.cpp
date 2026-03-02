@@ -1,8 +1,8 @@
 /*
- * system_mqtt.cpp - MQTT Client Implementation
+ * service_mqtt.cpp - MQTT Client Implementation
  */
 
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 #include "system/system_logger.h"
 #include "system/system_eth.h"
 #include "include/config.h"

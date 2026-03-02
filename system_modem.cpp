@@ -5,7 +5,7 @@
 #include "system/system_modem.h"
 #include "system/system_firmware.h"
 #include "system/system_logger.h"
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 #include "include/config.h"
 #include "mmdvm/mmdvm_pocsag.h"
 #include "mmdvm/mmdvm_dmr.h"

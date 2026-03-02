@@ -67,12 +67,12 @@ POCSAG protocol task (initPocsagTask)
 #include "system/system_sdcard.h"
 #include "system/system_logger.h"
 #include "system/system_ntp.h"
-#include "system/system_mqtt.h"
-#include "system/system_telegram.h"
+#include "system/service_mqtt.h"
+#include "system/service_telegram.h"
 #include "system/system_firmware.h"
 #include "system/system_modem.h"
 #include "system/system_arduinoota.h"
-#include "system/system_wireguard.h"
+#include "system/service_wireguard.h"
 
 
 // MMDVM Protocol modules

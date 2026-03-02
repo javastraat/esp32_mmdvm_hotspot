@@ -60,18 +60,18 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-wifi'>WiFi Config</a>";
   nav += "<a href='/system-network'>Network Config</a>";
-  nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
+  nav += "<a href='/service-wireguard'>WireGuard VPN</a>";
   nav += "</div>";
   nav += "</div>";
-  
-  //Submenu Message Config
+
+  //Submenu Services
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Messaging</span>";
   nav += "<div class='dropdown-submenu-menu'>";
-  nav += "<a href='/system-dapnet'>DAPNET Config</a>";
-  nav += "<a href='/system-hampager'>HamPager Config</a>";
-  nav += "<a href='/system-telegram'>Telegram Config</a>";
-  nav += "<a href='/system-mqtt'>MQTT Config</a>";
+  nav += "<a href='/service-dapnet'>DAPNET Config</a>";
+  nav += "<a href='/service-hampager'>HamPager Config</a>";
+  nav += "<a href='/service-telegram'>Telegram Config</a>";
+  nav += "<a href='/service-mqtt'>MQTT Config</a>";
   nav += "</div>";
   nav += "</div>";
   
@@ -81,21 +81,24 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-hotspot'>Hotspot Config</a>";
   nav += "<a href='/system-modem'>Modem Settings</a>";
-  nav += "<a href='/system-settings'>System Settings</a>";
+  nav += "<a href='/system-hardware'>Hardware Settings</a>";
   nav += "</div>";
   nav += "</div>";
   
 
-  // nav += "<a href='/system-modem'>Modem Settings</a>";
-  // nav += "<a href='/system-settings'>Other Settings</a>";
-  // nav += "<a href='/system-wifi'>WiFi Config</a>";
-  // nav += "<a href='/system-mqtt'>MQTT Config</a>";
-  // nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
+  //Admin Settings Config
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "<span>Admin</span>";
+  nav += "<div class='dropdown-submenu-menu'>";
   if (sdcardEnabled) {
     nav += "<a href='/system-sdcard'>SD Card</a>";
   }
   nav += "<a href='/system-firmware'>Firmware</a>";
   nav += "<a href='/system-admin'>Administration</a>";
+  nav += "</div>";
+  nav += "</div>";
+  
+
   nav += "</div>";
   nav += "</div>";
   

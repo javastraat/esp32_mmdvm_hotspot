@@ -6,7 +6,7 @@
 #include "system/system_eth.h"
 #include "system/system_logger.h"
 #include "include/config.h"
-#include "system/system_mqtt.h"
+#include "system/service_mqtt.h"
 #include "lwip/dns.h"
 
 #include <ESPmDNS.h>

@@ -16,7 +16,7 @@
 #include "system/web_handlers_telegram_settings.h"
 #include "system/system_webserver.h"
 #include "system/system_logger.h"
-#include "system/system_telegram.h"
+#include "system/service_telegram.h"
 #include "include/config.h"
 
 extern void saveSettings();

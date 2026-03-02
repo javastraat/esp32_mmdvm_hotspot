@@ -4,8 +4,8 @@
  * via the HamPager REST API (hampager.de).
  */
 
-#ifndef WEB_SYSTEM_HAMPAGER_H
-#define WEB_SYSTEM_HAMPAGER_H
+#ifndef WEB_SERVICE_HAMPAGER_H
+#define WEB_SERVICE_HAMPAGER_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -17,7 +17,7 @@ extern String hampagerUser;
 extern String hampagerPassword;
 extern String hampagerTxGroup;
 
-String getSystemHampagerPageHTML()
+String getServiceHampagerPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -25,7 +25,7 @@ String getSystemHampagerPageHTML()
   html += "<title>HamPager Configuration</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("system-hampager");
+  html += getNavigation("service-hampager");
   html += "<div class='container'>";
   html += "<h1>HamPager</h1>";
   html += "<p>Send outgoing paging messages to any callsign via the <a href='http://hampager.de' target='_blank' style='color:var(--link-color);'>HamPager</a> REST API.</p>";
@@ -146,4 +146,4 @@ String getSystemHampagerPageHTML()
   return html;
 }
 
-#endif // WEB_SYSTEM_HAMPAGER_H
+#endif // WEB_SERVICE_HAMPAGER_H

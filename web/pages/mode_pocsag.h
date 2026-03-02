@@ -1,8 +1,8 @@
 /*
  * POCSAG Mode Configuration Page
  * Configures the POCSAG radio modem mode (frequency, RIC, whitelist/blacklist).
- * DAPNET network settings → /system-dapnet
- * HamPager outgoing service → /system-hampager
+ * DAPNET network settings → /service-dapnet
+ * HamPager outgoing service → /service-hampager
  */
 
 #ifndef WEB_MODE_POCSAG_H
@@ -32,7 +32,7 @@ String getModePocsagPageHTML()
   html += getNavigation("mode-pocsag");
   html += "<div class='container'>";
   html += "<h1>POCSAG Configuration</h1>";
-  html += "<p>Configure POCSAG paging mode settings. For DAPNET network settings see <a href='/system-dapnet' style='color:var(--link-color);'>DAPNET</a>, for outgoing paging see <a href='/system-hampager' style='color:var(--link-color);'>HamPager</a>.</p>";
+  html += "<p>Configure POCSAG paging mode settings. For DAPNET network settings see <a href='/service-dapnet' style='color:var(--link-color);'>DAPNET</a>, for outgoing paging see <a href='/service-hampager' style='color:var(--link-color);'>HamPager</a>.</p>";
   html += "<div class='admin-grid'>";
 
   // Resolve RIC once — used by modem config and test send

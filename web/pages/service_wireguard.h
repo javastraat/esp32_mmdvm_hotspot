@@ -1,10 +1,10 @@
 /*
- * System WireGuard Page
+ * Service WireGuard Page
  * WireGuard VPN configuration and status
  */
 
-#ifndef WEB_SYSTEM_WIREGUARD_H
-#define WEB_SYSTEM_WIREGUARD_H
+#ifndef WEB_SERVICE_WIREGUARD_H
+#define WEB_SERVICE_WIREGUARD_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -22,7 +22,7 @@ extern String wgAllowedIps;
 extern uint16_t wgEndpointPort;
 extern bool wireguardConnected;
 
-String getSystemWireguardPageHTML()
+String getServiceWireguardPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -30,7 +30,7 @@ String getSystemWireguardPageHTML()
   html += "<title>WireGuard VPN</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("system-wireguard");
+  html += getNavigation("service-wireguard");
 
   html += "<div class='container'>";
   html += "<h1>WireGuard VPN</h1>";
@@ -261,4 +261,4 @@ String getSystemWireguardPageHTML()
   return html;
 }
 
-#endif // WEB_SYSTEM_WIREGUARD_H
+#endif // WEB_SERVICE_WIREGUARD_H

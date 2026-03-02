@@ -3,8 +3,8 @@
  * Telegram Bot integration configuration
  */
 
-#ifndef WEB_SYSTEM_TELEGRAM_H
-#define WEB_SYSTEM_TELEGRAM_H
+#ifndef WEB_SERVICE_TELEGRAM_H
+#define WEB_SERVICE_TELEGRAM_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -18,7 +18,7 @@ extern bool telegramRicForwardEnabled;
 extern String telegramRicList;
 extern uint16_t telegramRicCooldown;
 
-String getSystemTelegramPageHTML()
+String getServiceTelegramPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -26,7 +26,7 @@ String getSystemTelegramPageHTML()
   html += "<title>Telegram Configuration</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("system-telegram");
+  html += getNavigation("service-telegram");
 
   html += "<div class='container'>";
   html += "<h1>Telegram Configuration</h1>";
@@ -228,4 +228,4 @@ String getSystemTelegramPageHTML()
   return html;
 }
 
-#endif // WEB_SYSTEM_TELEGRAM_H
+#endif // WEB_SERVICE_TELEGRAM_H

@@ -5,8 +5,8 @@
  * and queues received calls for POCSAG transmission via the modem.
  */
 
-#ifndef WEB_SYSTEM_DAPNET_H
-#define WEB_SYSTEM_DAPNET_H
+#ifndef WEB_SERVICE_DAPNET_H
+#define WEB_SERVICE_DAPNET_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -21,7 +21,7 @@ extern String dapnetNodeCs;
 extern String dapnetAuthKey;
 extern String userCallsign;
 
-String getSystemDapnetPageHTML()
+String getServiceDapnetPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -29,7 +29,7 @@ String getSystemDapnetPageHTML()
   html += "<title>DAPNET Configuration</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("system-dapnet");
+  html += getNavigation("service-dapnet");
   html += "<div class='container'>";
   html += "<h1>DAPNET Configuration</h1>";
   html += "<p>DAPNET is an incoming paging network — messages received from DAPNET are queued for POCSAG transmission via the modem.</p>";
@@ -171,4 +171,4 @@ String getSystemDapnetPageHTML()
   return html;
 }
 
-#endif // WEB_SYSTEM_DAPNET_H
+#endif // WEB_SERVICE_DAPNET_H

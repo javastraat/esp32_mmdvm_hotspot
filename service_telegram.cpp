@@ -1,5 +1,5 @@
 /*
- * system_telegram.cpp - Telegram Bot Integration
+ * service_telegram.cpp - Telegram Bot Integration
  *
  * Provides async POCSAG-to-Telegram forwarding and a test-send endpoint.
  * Messages are queued to a background RTOS task that performs the HTTPS POST,
@@ -10,7 +10,7 @@
  * the connection to the correct Telegram server.
  */
 
-#include "system/system_telegram.h"
+#include "system/service_telegram.h"
 #include "system/system_logger.h"
 #include "include/config.h"
 #include <WiFi.h>

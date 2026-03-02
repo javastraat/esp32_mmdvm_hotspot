@@ -3,8 +3,8 @@
  * MQTT configuration and status
  */
 
-#ifndef WEB_SYSTEM_MQTT_H
-#define WEB_SYSTEM_MQTT_H
+#ifndef WEB_SERVICE_MQTT_H
+#define WEB_SERVICE_MQTT_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -23,7 +23,7 @@ extern String mqttHardwareTopic;
 extern String mqttSubscribeTopic;
 extern uint16_t mqttSendHardwareInfo;
 extern bool mqttHardwareInfoLog;
-String getSystemMqttPageHTML()
+String getServiceMqttPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -31,7 +31,7 @@ String getSystemMqttPageHTML()
   html += "<title>MQTT Configuration</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("system-mqtt");
+  html += getNavigation("service-mqtt");
 
   html += "<div class='container'>";
   html += "<h1>MQTT Configuration</h1>";
@@ -414,4 +414,4 @@ String getSystemMqttPageHTML()
   return html;
 }
 
-#endif // WEB_SYSTEM_MQTT_H
+#endif // WEB_SERVICE_MQTT_H

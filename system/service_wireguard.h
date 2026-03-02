@@ -1,9 +1,9 @@
 /*
- * system_wireguard.h - WireGuard VPN Client Task
+ * service_wireguard.h - WireGuard VPN Client Task
  */
 
-#ifndef SYSTEM_WIREGUARD_H
-#define SYSTEM_WIREGUARD_H
+#ifndef SERVICE_WIREGUARD_H
+#define SERVICE_WIREGUARD_H
 
 #include <Arduino.h>
 #include "../src/wireguard/WireGuardVPN.h"
@@ -18,4 +18,4 @@ void initWireguardTask();
 // WireGuard task function
 void wireguardTask(void *parameter);
 
-#endif // SYSTEM_WIREGUARD_H
+#endif // SERVICE_WIREGUARD_H

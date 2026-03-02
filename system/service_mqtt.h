@@ -1,9 +1,9 @@
 /*
- * system_mqtt.h - MQTT Client for publishing system data
+ * service_mqtt.h - MQTT Client for publishing system data
  */
 
-#ifndef SYSTEM_MQTT_H
-#define SYSTEM_MQTT_H
+#ifndef SERVICE_MQTT_H
+#define SERVICE_MQTT_H
 
 #include <Arduino.h>
 #include <PubSubClient.h>
