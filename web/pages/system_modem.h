@@ -3,8 +3,8 @@
  * Configure MMDVM hardware settings (frequency, color code, etc)
  */
 
-#ifndef WEB_SETTINGS_MMDVM_H
-#define WEB_SETTINGS_MMDVM_H
+#ifndef WEB_SYSTEM_MODEM_H
+#define WEB_SYSTEM_MODEM_H
 
 #include <Arduino.h>
 #include "web/include/styles.h"
@@ -30,7 +30,7 @@ extern int mmdvmResetPin;
 extern int mmdvmWakeupPin;
 extern int mmdvmBaudrate;
 
-String getSettingsMmdvmPageHTML()
+String getSystemModemPageHTML()
 {
   String html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
@@ -38,7 +38,7 @@ String getSettingsMmdvmPageHTML()
   html += "<title>MMDVM Settings</title>";
   html += getSharedStyles();
   html += "</head><body>";
-  html += getNavigation("settings-mmdvm");
+  html += getNavigation("system-modem");
 
   html += "<div class='container'>";
   html += "<h1>MMDVM Settings</h1>";
@@ -354,4 +354,4 @@ String getSettingsMmdvmPageHTML()
   return html;
 }
 
-#endif // WEB_SETTINGS_MMDVM_H
+#endif // WEB_SYSTEM_MODEM_H

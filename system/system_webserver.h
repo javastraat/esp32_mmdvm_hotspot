@@ -42,7 +42,7 @@ void handleSystemSerial();
 void handleSystemStatus();
 void handleSystemInfo();
 void handleSystemSettings();
-void handleSettingsMmdvm();
+void handleSystemModem();
 void handleSystemWifi();
 void handleSystemMqtt();
 void handleSystemTelegram();

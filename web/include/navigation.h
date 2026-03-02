@@ -54,16 +54,25 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Messaging Config</span>";
   nav += "<div class='dropdown-submenu-menu'>";
-  nav += "<a href='/system-dapnet'>DAPNET</a>";
-  nav += "<a href='/system-hampager'>HamPager</a>";
+  nav += "<a href='/system-dapnet'>DAPNET Config</a>";
+  nav += "<a href='/system-hampager'>HamPager Config</a>";
   nav += "<a href='/system-telegram'>Telegram Config</a>";
   nav += "<a href='/system-mqtt'>MQTT Config</a>";
   nav += "</div>";
   nav += "</div>";
   
+  //Submenu Settings Config
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "<span>Settings Config</span>";
+  nav += "<div class='dropdown-submenu-menu'>";
+  nav += "<a href='/system-modem'>Modem Settings</a>";
+  nav += "<a href='/system-settings'>System Settings</a>";
+  nav += "</div>";
+  nav += "</div>";
+  
 
-  nav += "<a href='/settings-mmdvm'>MMDVM Settings</a>";
-  nav += "<a href='/system-settings'>Settings</a>";
+  // nav += "<a href='/system-modem'>Modem Settings</a>";
+  // nav += "<a href='/system-settings'>Other Settings</a>";
   // nav += "<a href='/system-wifi'>WiFi Config</a>";
   // nav += "<a href='/system-mqtt'>MQTT Config</a>";
   // nav += "<a href='/system-wireguard'>WireGuard VPN</a>";

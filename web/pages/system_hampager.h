@@ -28,7 +28,7 @@ String getSystemHampagerPageHTML()
   html += getNavigation("system-hampager");
   html += "<div class='container'>";
   html += "<h1>HamPager</h1>";
-  html += "<p>Send outgoing paging messages to any callsign via the <a href='http://hampager.de' target='_blank' style='color:#007bff;'>HamPager</a> REST API.</p>";
+  html += "<p>Send outgoing paging messages to any callsign via the <a href='http://hampager.de' target='_blank' style='color:var(--link-color);'>HamPager</a> REST API.</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1: HamPager Credentials

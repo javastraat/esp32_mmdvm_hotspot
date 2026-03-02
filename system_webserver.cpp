@@ -32,7 +32,7 @@
 #include "web/pages/system_sdcard.h"
 #include "web/pages/system_settings.h"
 #include "web/pages/system_wifi.h"
-#include "web/pages/settings_mmdvm.h"
+#include "web/pages/system_modem.h"
 #include "web/api/pocsag_send.h"
 #include "include/sdcard_handlers.h"
 #include <Update.h>
@@ -301,7 +301,7 @@ void webServerTask(void *parameter) {
   server.on("/system-status", handleSystemStatus);
   server.on("/system-info", handleSystemInfo);
   server.on("/system-settings", handleSystemSettings);
-  server.on("/settings-mmdvm", handleSettingsMmdvm);
+  server.on("/system-modem", handleSystemModem);
   server.on("/system-wifi", handleSystemWifi);
   server.on("/system-mqtt", handleSystemMqtt);
   server.on("/system-telegram", handleSystemTelegram);
@@ -431,10 +431,10 @@ void handleSystemSettings()
   server.send(200, "text/html", getSystemSettingsPageHTML());
 }
 
-void handleSettingsMmdvm()
+void handleSystemModem()
 {
   requestCount++;
-  server.send(200, "text/html", getSettingsMmdvmPageHTML());
+  server.send(200, "text/html", getSystemModemPageHTML());
 }
 
 void handleSystemWifi()

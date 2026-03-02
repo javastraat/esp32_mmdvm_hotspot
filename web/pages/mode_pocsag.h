@@ -32,7 +32,7 @@ String getModePocsagPageHTML()
   html += getNavigation("mode-pocsag");
   html += "<div class='container'>";
   html += "<h1>POCSAG Configuration</h1>";
-  html += "<p>Configure POCSAG paging mode settings. For DAPNET network settings see <a href='/system-dapnet'>DAPNET</a>, for outgoing paging see <a href='/system-hampager'>HamPager</a>.</p>";
+  html += "<p>Configure POCSAG paging mode settings. For DAPNET network settings see <a href='/system-dapnet' style='color:var(--link-color);'>DAPNET</a>, for outgoing paging see <a href='/system-hampager' style='color:var(--link-color);'>HamPager</a>.</p>";
   html += "<div class='admin-grid'>";
 
   // Resolve RIC once — used by modem config and test send
