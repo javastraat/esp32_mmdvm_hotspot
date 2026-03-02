@@ -17,6 +17,8 @@
 #include "system/system_logger.h"      // addLogMessage()
 #include "include/config.h"            // DEFAULT_* compile-time constants
 #include <Preferences.h>
+#include <vector>
+#include <algorithm>
 
 extern "C"
 {
@@ -24,410 +26,135 @@ extern "C"
 #include <nvs.h>
 }
 
+// ---------------------------------------------------------------------------
+// buildNvsHtml() — shared helper used by both show-prefs and show-prefs-raw.
+// Enumerates all keys in the given NVS namespace and returns an HTML table.
+// Sensitive keys are masked with a lock/reveal button.
+// ---------------------------------------------------------------------------
+static String buildNvsHtml(const String& ns)
+{
+  // Keys whose values are masked in the UI (lock/reveal button)
+  static const char* SENSITIVE[] = {
+    "wifi_pass","wifi_pass1","wifi_pass2","wifi_pass3","wifi_pass4","wifi_pass5",
+    "wifi_ap_pass","dmr_pass","dapnet_key","mqtt_pass","web_pass","ota_pass","wg_pub_key",
+    "tg_token","mqtt_cmd_tok","hp_pass"
+  };
+
+  int keyCount = 0;
+  String html =
+    "<style>"
+      ".secret-dots{color:#888;letter-spacing:3px;font-family:monospace;}"
+      ".lock-btn{background:none;border:none;cursor:pointer;font-size:1.1em;"
+        "padding:0 4px;vertical-align:middle;}"
+    "</style>"
+    "<h2>NVS Preferences (" + ns + " namespace) &mdash; {{KEY_COUNT}} keys</h2>"
+    "<table><tr><th>#</th><th>Key</th><th>Type</th><th>Value</th></tr>";
+
+  nvs_handle_t handle;
+  esp_err_t err = nvs_open(ns.c_str(), NVS_READONLY, &handle);
+  if (err != ESP_OK) {
+    html += "<tr><td colspan='4'>Error opening NVS namespace (code: " + String(err) + ")</td></tr>";
+    html += "</table>";
+    html.replace("{{KEY_COUNT}}", "0");
+    return html;
+  }
+
+  // Collect all entries first, then sort by key name
+  struct NvsEntry { String key; String typeName; String value; };
+  std::vector<NvsEntry> entries;
+
+  nvs_iterator_t it = NULL;
+  err = nvs_entry_find("nvs", ns.c_str(), NVS_TYPE_ANY, &it);
+  while (err == ESP_OK) {
+    nvs_entry_info_t info;
+    nvs_entry_info(it, &info);
+
+    String typeName;
+    String value;
+    switch (info.type) {
+      case NVS_TYPE_U8:  { uint8_t  v = 0; nvs_get_u8 (handle, info.key, &v); typeName = "u8";  value = String(v); break; }
+      case NVS_TYPE_I8:  { int8_t   v = 0; nvs_get_i8 (handle, info.key, &v); typeName = "i8";  value = String(v); break; }
+      case NVS_TYPE_U16: { uint16_t v = 0; nvs_get_u16(handle, info.key, &v); typeName = "u16"; value = String(v); break; }
+      case NVS_TYPE_I16: { int16_t  v = 0; nvs_get_i16(handle, info.key, &v); typeName = "i16"; value = String(v); break; }
+      case NVS_TYPE_U32: { uint32_t v = 0; nvs_get_u32(handle, info.key, &v); typeName = "u32"; value = String(v); break; }
+      case NVS_TYPE_I32: { int32_t  v = 0; nvs_get_i32(handle, info.key, &v); typeName = "i32"; value = String(v); break; }
+      case NVS_TYPE_U64: {
+        uint64_t v = 0; nvs_get_u64(handle, info.key, &v);
+        char buf[21]; snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
+        typeName = "u64"; value = String(buf); break;
+      }
+      case NVS_TYPE_I64: {
+        int64_t v = 0; nvs_get_i64(handle, info.key, &v);
+        char buf[22]; snprintf(buf, sizeof(buf), "%lld", (long long)v);
+        typeName = "i64"; value = String(buf); break;
+      }
+      case NVS_TYPE_STR: {
+        size_t len = 0;
+        nvs_get_str(handle, info.key, NULL, &len);
+        if (len > 0) {
+          char* buf = (char*)malloc(len);
+          if (buf) { nvs_get_str(handle, info.key, buf, &len); value = String(buf); free(buf); }
+        }
+        typeName = "str"; break;
+      }
+      case NVS_TYPE_BLOB: { typeName = "blob"; value = "(binary data)"; break; }
+      default:            { typeName = "?";    value = "unknown";       break; }
+    }
+    entries.push_back({String(info.key), typeName, value});
+    err = nvs_entry_next(&it);
+  }
+  nvs_release_iterator(it);
+  nvs_close(handle);
+
+  std::sort(entries.begin(), entries.end(), [](const NvsEntry& a, const NvsEntry& b) {
+    return a.key.compareTo(b.key) < 0;
+  });
+
+  for (const auto& e : entries) {
+    keyCount++;
+    // Build value cell — wg_priv_key never shown, others masked via lock button
+    String cellContent;
+    if (e.key == "wg_priv_key") {
+      cellContent = e.value.isEmpty() ? "(not set)" : "&#x1F510; (never displayed)";
+    } else {
+      bool isSensitive = false;
+      for (const char* sk : SENSITIVE) { if (e.key == sk) { isSensitive = true; break; } }
+      if (isSensitive && !e.value.isEmpty()) {
+        String safe = e.value; safe.replace("&", "&amp;"); safe.replace("\"", "&quot;");
+        cellContent = "<span data-val=\"" + safe + "\" data-shown=\"0\" class=\"secret-dots\">"
+                      "&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span>"
+                      " <button"
+                      " onclick=\"var s=this.previousElementSibling;"
+                      "if(s.dataset.shown==='1'){s.textContent='\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022';"
+                      "s.dataset.shown='0';this.innerHTML='&#x1F512;';}else{s.textContent=s.dataset.val;"
+                      "s.dataset.shown='1';this.innerHTML='&#x1F513;';}\""
+                      " class=\"lock-btn\">&#x1F512;</button>";
+      } else {
+        cellContent = e.value;
+      }
+    }
+    html += "<tr><td>" + String(keyCount) + "</td><td>" + e.key +
+            "</td><td>" + e.typeName + "</td><td class='val'>" + cellContent + "</td></tr>";
+  }
+
+  html += "</table>";
+  html.replace("{{KEY_COUNT}}", String(keyCount));
+  return html;
+}
+
 void registerNvsRoutes()
 {
-  // Show Preferences - reads all NVS keys and returns formatted HTML
-  server.on("/api/show-prefs", HTTP_GET, []()
-            {
-    extern Preferences preferences;
-    preferences.begin("mmdvm", true);  // Read-only mode
-
-    int keyCount = 0;
-
-    // Helper: renders a table row with a masked password field + lock/reveal toggle.
-    // Inline onclick is used intentionally — browsers do NOT execute <script> tags
-    // injected via innerHTML (which is how showPrefsInline() inserts this content),
-    // but onclick attributes on individual elements are registered and fire correctly.
-    // The WireGuard private key is excluded — use a plain row for that one.
-    auto secretRow = [](const String& key, const String& val) -> String {
-      String row = "<tr><td>" + key + "</td><td class='val'>";
-      if (val.isEmpty()) { row += "(not set)"; }
-      else {
-        // Escape & and " so they don't break the data-val attribute
-        String safe = val; safe.replace("&", "&amp;"); safe.replace("\"", "&quot;");
-        // Span shows bullet dots; onclick swaps textContent with the stored value.
-        // \u2022 is the JS unicode escape for • — interpreted by JS, not the HTML parser.
-        row += "<span data-val=\"" + safe + "\" data-shown=\"0\" class=\"secret-dots\">"
-               "&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span>"
-               " <button"
-               " onclick=\"var s=this.previousElementSibling;"
-               "if(s.dataset.shown==='1'){s.textContent='\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022';"
-               "s.dataset.shown='0';this.innerHTML='&#x1F512;';}else{s.textContent=s.dataset.val;"
-               "s.dataset.shown='1';this.innerHTML='&#x1F513;';}\""
-               " class=\"lock-btn\" title=\"Show / hide\">&#x1F512;</button>";
-      }
-      return row + "</td></tr>";
-    };
-
-    String html =
-      "<style>"
-        ".secret-dots{color:#888;letter-spacing:3px;font-family:monospace;}"
-        ".lock-btn{background:none;border:none;cursor:pointer;font-size:1.1em;"
-          "padding:0 4px;vertical-align:middle;}"
-      "</style>"
-      "<h2>NVS Preferences (mmdvm namespace) - {{KEY_COUNT}} keys</h2>";
-
-    html += "<h3>Mode Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>initialized</td><td class='val'>" + String(preferences.getBool("initialized", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_dmr</td><td class='val'>" + String(preferences.getBool("mode_dmr", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_dstar</td><td class='val'>" + String(preferences.getBool("mode_dstar", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_ysf</td><td class='val'>" + String(preferences.getBool("mode_ysf", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_p25</td><td class='val'>" + String(preferences.getBool("mode_p25", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_nxdn</td><td class='val'>" + String(preferences.getBool("mode_nxdn", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mode_pocsag</td><td class='val'>" + String(preferences.getBool("mode_pocsag", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>dapnet_en</td><td class='val'>" + String(preferences.getBool("dapnet_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>cwid_en</td><td class='val'>" + String(preferences.getBool("cwid_en", false) ? "true" : "false") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>CW ID Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>cwid_int</td><td class='val'>" + String(preferences.getUChar("cwid_int", CWID_INTERVAL_MIN)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>DAPNET / POCSAG Network Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>pocsag_freq</td><td class='val'>" + String(preferences.getUInt("pocsag_freq", POCSAG_FREQUENCY)) + "</td></tr>";
-    html += "<tr><td>dapnet_server</td><td class='val'>" + preferences.getString("dapnet_server", "") + "</td></tr>";
-    html += "<tr><td>dapnet_port</td><td class='val'>" + String(preferences.getUShort("dapnet_port", 43434)) + "</td></tr>";
-    html += "<tr><td>dapnet_cs</td><td class='val'>" + preferences.getString("dapnet_cs", "") + "</td></tr>";
-    html += secretRow("dapnet_key", preferences.getString("dapnet_key", ""));
-    html += "<tr><td>dapnet_ric</td><td class='val'>" + String(preferences.getUInt("dapnet_ric", 0)) + "</td></tr>";
-    html += "<tr><td>pocsag_wlist</td><td class='val'>" + preferences.getString("pocsag_wlist", "") + "</td></tr>";
-    html += "<tr><td>pocsag_blist</td><td class='val'>" + preferences.getString("pocsag_blist", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Station Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>callsign</td><td class='val'>" + preferences.getString("callsign", "") + "</td></tr>";
-    html += "<tr><td>dmr_id</td><td class='val'>" + String(preferences.getUInt("dmr_id", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_ssid</td><td class='val'>" + String(preferences.getUChar("dmr_ssid", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>RF Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>dmr_rx_freq</td><td class='val'>" + String(preferences.getUInt("dmr_rx_freq", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_tx_freq</td><td class='val'>" + String(preferences.getUInt("dmr_tx_freq", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_color_code</td><td class='val'>" + String(preferences.getUChar("dmr_color_code", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_rf_power</td><td class='val'>" + String(preferences.getUChar("dmr_rf_power", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>DMR Server Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>dmr_server</td><td class='val'>" + preferences.getString("dmr_server", "") + "</td></tr>";
-    html += "<tr><td>dmr_port</td><td class='val'>" + String(preferences.getUShort("dmr_port", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_lport</td><td class='val'>" + String(preferences.getUShort("dmr_lport", 0)) + "</td></tr>";
-    html += secretRow("dmr_pass", preferences.getString("dmr_pass", ""));
-    html += "<tr><td>dmr_hist_size</td><td class='val'>" + String(preferences.getUShort("dmr_hist_size", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_act_tout</td><td class='val'>" + String(preferences.getUShort("dmr_act_tout", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_usr_cache</td><td class='val'>" + String(preferences.getUShort("dmr_usr_cache", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_cs_cache</td><td class='val'>" + String(preferences.getUShort("dmr_cs_cache", 0)) + "</td></tr>";
-    html += "<tr><td>dmr_api_tout</td><td class='val'>" + String(preferences.getUShort("dmr_api_tout", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Hotspot Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>hs_callsign</td><td class='val'>" + preferences.getString("hs_callsign", "") + "</td></tr>";
-    html += "<tr><td>hs_suffix</td><td class='val'>" + preferences.getString("hs_suffix", "") + "</td></tr>";
-    html += "<tr><td>hs_latitude</td><td class='val'>" + preferences.getString("hs_latitude", "0.0") + "</td></tr>";
-    html += "<tr><td>hs_longitude</td><td class='val'>" + preferences.getString("hs_longitude", "0.0") + "</td></tr>";
-    html += "<tr><td>hs_height</td><td class='val'>" + String(preferences.getInt("hs_height", 0)) + "</td></tr>";
-    html += "<tr><td>hs_location</td><td class='val'>" + preferences.getString("hs_location", "") + "</td></tr>";
-    html += "<tr><td>hs_desc</td><td class='val'>" + preferences.getString("hs_desc", "") + "</td></tr>";
-    html += "<tr><td>hs_url</td><td class='val'>" + preferences.getString("hs_url", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>DMR API Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>dmr_api_url</td><td class='val'>" + preferences.getString("dmr_api_url", "") + "</td></tr>";
-    html += "<tr><td>qrz_lookup_url</td><td class='val'>" + preferences.getString("qrz_lookup_url", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>WiFi Station Settings (6 slots)</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>wifi_s0_lbl</td><td class='val'>" + preferences.getString("wifi_s0_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid</td><td class='val'>" + preferences.getString("wifi_ssid", "") + "</td></tr>";
-    html += secretRow("wifi_pass",  preferences.getString("wifi_pass",  ""));
-    html += "<tr><td>wifi_s1_lbl</td><td class='val'>" + preferences.getString("wifi_s1_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid1</td><td class='val'>" + preferences.getString("wifi_ssid1", "") + "</td></tr>";
-    html += secretRow("wifi_pass1", preferences.getString("wifi_pass1", ""));
-    html += "<tr><td>wifi_s2_lbl</td><td class='val'>" + preferences.getString("wifi_s2_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid2</td><td class='val'>" + preferences.getString("wifi_ssid2", "") + "</td></tr>";
-    html += secretRow("wifi_pass2", preferences.getString("wifi_pass2", ""));
-    html += "<tr><td>wifi_s3_lbl</td><td class='val'>" + preferences.getString("wifi_s3_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid3</td><td class='val'>" + preferences.getString("wifi_ssid3", "") + "</td></tr>";
-    html += secretRow("wifi_pass3", preferences.getString("wifi_pass3", ""));
-    html += "<tr><td>wifi_s4_lbl</td><td class='val'>" + preferences.getString("wifi_s4_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid4</td><td class='val'>" + preferences.getString("wifi_ssid4", "") + "</td></tr>";
-    html += secretRow("wifi_pass4", preferences.getString("wifi_pass4", ""));
-    html += "<tr><td>wifi_s5_lbl</td><td class='val'>" + preferences.getString("wifi_s5_lbl", "") + "</td></tr>";
-    html += "<tr><td>wifi_ssid5</td><td class='val'>" + preferences.getString("wifi_ssid5", "") + "</td></tr>";
-    html += secretRow("wifi_pass5", preferences.getString("wifi_pass5", ""));
-    html += "</table>";
-
-    html += "<h3>WiFi AP Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>wifi_ap_ssid</td><td class='val'>" + preferences.getString("wifi_ap_ssid", "") + "</td></tr>";
-    html += secretRow("wifi_ap_pass", preferences.getString("wifi_ap_pass", ""));
-    html += "<tr><td>wifi_ap_ch</td><td class='val'>" + String(preferences.getUChar("wifi_ap_ch", 0)) + "</td></tr>";
-    html += "<tr><td>wifi_max_ret</td><td class='val'>" + String(preferences.getUChar("wifi_max_ret", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Ethernet Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>eth_enabled</td><td class='val'>" + String(preferences.getBool("eth_enabled", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>eth_debug</td><td class='val'>" + String(preferences.getBool("eth_debug", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>eth_miso</td><td class='val'>" + String(preferences.getInt("eth_miso", 0)) + "</td></tr>";
-    html += "<tr><td>eth_mosi</td><td class='val'>" + String(preferences.getInt("eth_mosi", 0)) + "</td></tr>";
-    html += "<tr><td>eth_sclk</td><td class='val'>" + String(preferences.getInt("eth_sclk", 0)) + "</td></tr>";
-    html += "<tr><td>eth_cs</td><td class='val'>" + String(preferences.getInt("eth_cs", 0)) + "</td></tr>";
-    html += "<tr><td>eth_int</td><td class='val'>" + String(preferences.getInt("eth_int", 0)) + "</td></tr>";
-    html += "<tr><td>eth_rst</td><td class='val'>" + String(preferences.getInt("eth_rst", 0)) + "</td></tr>";
-    html += "<tr><td>eth_addr</td><td class='val'>" + String(preferences.getInt("eth_addr", 0)) + "</td></tr>";
-    html += "<tr><td>eth_cto</td><td class='val'>" + String(preferences.getInt("eth_cto", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>WireGuard VPN Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>wg_en</td><td class='val'>" + String(preferences.getBool("wg_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>wg_local_ip</td><td class='val'>" + preferences.getString("wg_local_ip", "") + "</td></tr>";
-    html += "<tr><td>wg_priv_key</td><td class='val'>" + String(preferences.getString("wg_priv_key", "").isEmpty() ? "(not set)" : "&#x1F510; (set &mdash; never displayed)") + "</td></tr>";
-    html += secretRow("wg_pub_key", preferences.getString("wg_pub_key", ""));
-    html += "<tr><td>wg_endpoint</td><td class='val'>" + preferences.getString("wg_endpoint", "") + "</td></tr>";
-    html += "<tr><td>wg_ep_port</td><td class='val'>" + String(preferences.getUShort("wg_ep_port", 51820)) + "</td></tr>";
-    html += "<tr><td>wg_dns</td><td class='val'>" + preferences.getString("wg_dns", "") + "</td></tr>";
-    html += "<tr><td>wg_allowed_ips</td><td class='val'>" + preferences.getString("wg_allowed_ips", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>DNS Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>dns_fb_en</td><td class='val'>" + String(preferences.getBool("dns_fb_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>dns_fb_ip</td><td class='val'>" + preferences.getString("dns_fb_ip", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>mDNS Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>mdns_en</td><td class='val'>" + String(preferences.getBool("mdns_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mdns_host</td><td class='val'>" + preferences.getString("mdns_host", "") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>NTP Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>ntp_en</td><td class='val'>" + String(preferences.getBool("ntp_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>ntp_srv</td><td class='val'>" + preferences.getString("ntp_srv", "") + "</td></tr>";
-    html += "<tr><td>ntp_gmt</td><td class='val'>" + String(preferences.getInt("ntp_gmt", 0)) + "</td></tr>";
-    html += "<tr><td>ntp_dst</td><td class='val'>" + String(preferences.getInt("ntp_dst", 0)) + "</td></tr>";
-    html += "<tr><td>ntp_sync</td><td class='val'>" + String(preferences.getUInt("ntp_sync", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>MQTT Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>mqtt_en</td><td class='val'>" + String(preferences.getBool("mqtt_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>mqtt_broker</td><td class='val'>" + preferences.getString("mqtt_broker", "") + "</td></tr>";
-    html += "<tr><td>mqtt_port</td><td class='val'>" + String(preferences.getUShort("mqtt_port", 0)) + "</td></tr>";
-    html += "<tr><td>mqtt_user</td><td class='val'>" + preferences.getString("mqtt_user", "") + "</td></tr>";
-    html += secretRow("mqtt_pass", preferences.getString("mqtt_pass", ""));
-    html += "<tr><td>mqtt_status</td><td class='val'>" + preferences.getString("mqtt_status", "") + "</td></tr>";
-    html += "<tr><td>mqtt_logs</td><td class='val'>" + preferences.getString("mqtt_logs", "") + "</td></tr>";
-    html += "<tr><td>mqtt_hw</td><td class='val'>" + preferences.getString("mqtt_hw", "") + "</td></tr>";
-    html += "<tr><td>mq_log_task</td><td class='val'>" + preferences.getString("mq_log_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_oled_task</td><td class='val'>" + preferences.getString("mqtt_oled_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_led_task</td><td class='val'>" + preferences.getString("mqtt_led_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_wifi_task</td><td class='val'>" + preferences.getString("mqtt_wifi_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_eth_task</td><td class='val'>" + preferences.getString("mqtt_eth_task", "") + "</td></tr>";
-    html += "<tr><td>mq_ota_task</td><td class='val'>" + preferences.getString("mq_ota_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_ntp_task</td><td class='val'>" + preferences.getString("mqtt_ntp_task", "") + "</td></tr>";
-    html += "<tr><td>mq_mqttc_task</td><td class='val'>" + preferences.getString("mq_mqttc_task", "") + "</td></tr>";
-    html += "<tr><td>mq_web_task</td><td class='val'>" + preferences.getString("mq_web_task", "") + "</td></tr>";
-    html += "<tr><td>mq_sd_task</td><td class='val'>" + preferences.getString("mq_sd_task", "") + "</td></tr>";
-    html += "<tr><td>mq_sensor_task</td><td class='val'>" + preferences.getString("mq_sensor_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_wg_task</td><td class='val'>" + preferences.getString("mqtt_wg_task", "") + "</td></tr>";
-
-    html += "<tr><td>mqtt_modem_task</td><td class='val'>" + preferences.getString("mqtt_modem_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_dmr_task</td><td class='val'>" + preferences.getString("mqtt_dmr_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_dstar_task</td><td class='val'>" + preferences.getString("mqtt_dstar_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_ysf_task</td><td class='val'>" + preferences.getString("mqtt_ysf_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_p25_task</td><td class='val'>" + preferences.getString("mqtt_p25_task", "") + "</td></tr>";
-    html += "<tr><td>mqtt_nxdn_task</td><td class='val'>" + preferences.getString("mqtt_nxdn_task", "") + "</td></tr>";
-    html += "<tr><td>mq_pocsag_task</td><td class='val'>" + preferences.getString("mq_pocsag_task", "") + "</td></tr>";
-    html += "<tr><td>mq_dapnet_task</td><td class='val'>" + preferences.getString("mq_dapnet_task", "") + "</td></tr>";
-
-    html += "<tr><td>mqtt_sub</td><td class='val'>" + preferences.getString("mqtt_sub", "") + "</td></tr>";
-    html += "<tr><td>mqtt_hw_int</td><td class='val'>" + String(preferences.getUShort("mqtt_hw_int", 0)) + "</td></tr>";
-    html += "<tr><td>mqtt_hw_log</td><td class='val'>" + String(preferences.getBool("mqtt_hw_log", false) ? "true" : "false") + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Web Server Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>web_en</td><td class='val'>" + String(preferences.getBool("web_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>web_user</td><td class='val'>" + preferences.getString("web_user", "") + "</td></tr>";
-    html += secretRow("web_pass", preferences.getString("web_pass", ""));
-    html += "<tr><td>web_port</td><td class='val'>" + String(preferences.getUShort("web_port", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Hardware Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>led_pin</td><td class='val'>" + String(preferences.getInt("led_pin", 0)) + "</td></tr>";
-    html += "<tr><td>button_pin</td><td class='val'>" + String(preferences.getInt("button_pin", 0)) + "</td></tr>";
-    html += "<tr><td>oled_en</td><td class='val'>" + String(preferences.getBool("oled_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>i2c_sda</td><td class='val'>" + String(preferences.getInt("i2c_sda", 0)) + "</td></tr>";
-    html += "<tr><td>i2c_scl</td><td class='val'>" + String(preferences.getInt("i2c_scl", 0)) + "</td></tr>";
-    html += "<tr><td>oled_addr</td><td class='val'>" + String(preferences.getInt("oled_addr", 0)) + "</td></tr>";
-    html += "<tr><td>oled_w</td><td class='val'>" + String(preferences.getInt("oled_w", 0)) + "</td></tr>";
-    html += "<tr><td>oled_h</td><td class='val'>" + String(preferences.getInt("oled_h", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>SD Card Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>sdcard_en</td><td class='val'>" + String(preferences.getBool("sdcard_en", false) ? "true" : "false") + "</td></tr>";
-    html += "<tr><td>spi_miso</td><td class='val'>" + String(preferences.getInt("spi_miso", 0)) + "</td></tr>";
-    html += "<tr><td>spi_mosi</td><td class='val'>" + String(preferences.getInt("spi_mosi", 0)) + "</td></tr>";
-    html += "<tr><td>spi_sclk</td><td class='val'>" + String(preferences.getInt("spi_sclk", 0)) + "</td></tr>";
-    html += "<tr><td>sd_cs</td><td class='val'>" + String(preferences.getInt("sd_cs", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>MMDVM Serial Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>mmdvm_rx</td><td class='val'>" + String(preferences.getInt("mmdvm_rx", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_tx</td><td class='val'>" + String(preferences.getInt("mmdvm_tx", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_boot</td><td class='val'>" + String(preferences.getInt("mmdvm_boot", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_rst</td><td class='val'>" + String(preferences.getInt("mmdvm_rst", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_wakeup</td><td class='val'>" + String(preferences.getInt("mmdvm_wakeup", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_baud</td><td class='val'>" + String(preferences.getInt("mmdvm_baud", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>MMDVM RF Calibration</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>mmdvm_txdly</td><td class='val'>" + String(preferences.getInt("mmdvm_txdly", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_rxlvl</td><td class='val'>" + String(preferences.getInt("mmdvm_rxlvl", 0)) + "</td></tr>";
-    html += "<tr><td>mmdvm_txlvl</td><td class='val'>" + String(preferences.getInt("mmdvm_txlvl", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>ArduinoOTA Settings</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>ota_en</td><td class='val'>" + String(preferences.getBool("ota_en", false) ? "true" : "false") + "</td></tr>";
-    html += secretRow("ota_pass", preferences.getString("ota_pass", ""));
-    html += "<tr><td>ota_port</td><td class='val'>" + String(preferences.getInt("ota_port", 0)) + "</td></tr>";
-    html += "</table>";
-
-    html += "<h3>Firmware Info</h3><table><tr><th>Key</th><th>Value</th></tr>";
-    html += "<tr><td>fw_app0</td><td class='val'>" + preferences.getString("fw_app0", "(not set)") + "</td></tr>";
-    html += "</table>";
-
-    preferences.end();
-
-    // Count keys by counting table rows
-    int idx = 0;
-    while ((idx = html.indexOf("<tr><td>", idx)) != -1) { keyCount++; idx++; }
-    html.replace("{{KEY_COUNT}}", String(keyCount));
-
+  // Show Preferences — dynamic enumeration of all mmdvm NVS keys
+  server.on("/api/show-prefs", HTTP_GET, []() {
+    String html = buildNvsHtml("mmdvm");
     addLogMessage("[Admin] Show preferences requested");
-    server.send(200, "text/html", html); });
+    server.send(200, "text/html", html);
+  });
 
-
-  // Show Preferences RAW - enumerate all NVS keys using ESP-IDF iterator
+  // Show Preferences RAW — same logic, namespace selectable via ?namespace=
   server.on("/api/show-prefs-raw", HTTP_GET, []() {
     String ns = server.hasArg("namespace") ? server.arg("namespace") : String("mmdvm");
-    int keyCount = 0;
-    String html =
-      "<style>"
-        ".secret-dots{color:#888;letter-spacing:3px;font-family:monospace;}"
-        ".lock-btn{background:none;border:none;cursor:pointer;font-size:1.1em;"
-          "padding:0 4px;vertical-align:middle;}"
-      "</style>"
-      "<h2>NVS Preferences RAW (" + ns + " namespace) - {{KEY_COUNT}} keys</h2>";
-    html += "<table><tr><th>#</th><th>Key</th><th>Type</th><th>Value</th></tr>";
-
-    nvs_handle_t handle;
-    esp_err_t err = nvs_open(ns.c_str(), NVS_READONLY, &handle);
-    if (err == ESP_OK) {
-      nvs_iterator_t it = NULL;
-      err = nvs_entry_find("nvs", ns.c_str(), NVS_TYPE_ANY, &it);
-      while (err == ESP_OK) {
-        nvs_entry_info_t info;
-        nvs_entry_info(it, &info);
-        keyCount++;
-
-        String typeName;
-        String value;
-        switch (info.type) {
-          case NVS_TYPE_U8: {
-            uint8_t v; nvs_get_u8(handle, info.key, &v);
-            typeName = "u8"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_I8: {
-            int8_t v; nvs_get_i8(handle, info.key, &v);
-            typeName = "i8"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_U16: {
-            uint16_t v; nvs_get_u16(handle, info.key, &v);
-            typeName = "u16"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_I16: {
-            int16_t v; nvs_get_i16(handle, info.key, &v);
-            typeName = "i16"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_U32: {
-            uint32_t v; nvs_get_u32(handle, info.key, &v);
-            typeName = "u32"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_I32: {
-            int32_t v; nvs_get_i32(handle, info.key, &v);
-            typeName = "i32"; value = String(v);
-            break;
-          }
-          case NVS_TYPE_U64: {
-            uint64_t v; nvs_get_u64(handle, info.key, &v);
-            typeName = "u64"; value = String((uint32_t)v);
-            break;
-          }
-          case NVS_TYPE_I64: {
-            int64_t v; nvs_get_i64(handle, info.key, &v);
-            typeName = "i64"; value = String((int32_t)v);
-            break;
-          }
-          case NVS_TYPE_STR: {
-            size_t len = 0;
-            nvs_get_str(handle, info.key, NULL, &len);
-            if (len > 0) {
-              char* buf = (char*)malloc(len);
-              if (!buf) { server.send(500, "text/plain", "OOM"); return; }
-              nvs_get_str(handle, info.key, buf, &len);
-              value = String(buf);
-              free(buf);
-            }
-            typeName = "str";
-            break;
-          }
-          case NVS_TYPE_BLOB: {
-            typeName = "blob"; value = "(binary data)";
-            break;
-          }
-          default: {
-            typeName = "?"; value = "unknown";
-            break;
-          }
-        }
-        // Mask sensitive credentials in the value column
-        static const char* SENSITIVE_RAW[] = {
-          "wifi_pass","wifi_pass1","wifi_pass2","wifi_pass3","wifi_pass4","wifi_pass5",
-          "wifi_ap_pass","dmr_pass","dapnet_key","mqtt_pass","web_pass","ota_pass","wg_pub_key"
-        };
-        String cellContent;
-        if (strcmp(info.key, "wg_priv_key") == 0) {
-          cellContent = value.isEmpty() ? "(not set)" : "&#x1F510; (never displayed)";
-        } else {
-          bool isSensitive = false;
-          for (const char* sk : SENSITIVE_RAW) { if (strcmp(info.key, sk) == 0) { isSensitive = true; break; } }
-          if (isSensitive && !value.isEmpty()) {
-            String safe = value; safe.replace("&", "&amp;"); safe.replace("\"", "&quot;");
-            cellContent = "<span data-val=\"" + safe + "\" data-shown=\"0\" class=\"secret-dots\">"
-                          "&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span>"
-                          " <button"
-                          " onclick=\"var s=this.previousElementSibling;"
-                          "if(s.dataset.shown==='1'){s.textContent='\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022';"
-                          "s.dataset.shown='0';this.innerHTML='&#x1F512;';}else{s.textContent=s.dataset.val;"
-                          "s.dataset.shown='1';this.innerHTML='&#x1F513;';}\""
-                          " class=\"lock-btn\">&#x1F512;</button>";
-          } else {
-            cellContent = value;
-          }
-        }
-        html += "<tr><td>" + String(keyCount) + "</td><td>" + String(info.key) + "</td><td>" + typeName + "</td><td class='val'>" + cellContent + "</td></tr>";
-        err = nvs_entry_next(&it);
-      }
-      nvs_release_iterator(it);
-      nvs_close(handle);
-    } else {
-      html += "<tr><td colspan='4'>Error opening NVS namespace</td></tr>";
-    }
-
-    html += "</table>";
-    html.replace("{{KEY_COUNT}}", String(keyCount));
-
+    String html = buildNvsHtml(ns);
     addLogMessage("[Admin] Show preferences RAW requested for namespace: " + ns);
     server.send(200, "text/html", html);
   });

@@ -17,8 +17,6 @@
 #include <SD.h>
 #include <LittleFS.h>
 
-extern void saveSettings();
-
 #define SNAPSHOT_DIR "/config"
 
 // ---------------------------------------------------------------------------
@@ -209,7 +207,6 @@ static void handleSnapshotLoad()
   }
 
   int imported = applyConfigString(body);
-  saveSettings();
   addLogMessage("[Snapshots] Loaded '" + name + "' from " + (useSD ? "SD" : "flash") + " — " + String(imported) + " settings applied");
   server.send(200, "text/plain", "Loaded '" + name + "': " + String(imported) + " settings applied. Rebooting...");
 
