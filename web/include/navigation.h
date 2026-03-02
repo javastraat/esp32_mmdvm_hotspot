@@ -30,6 +30,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<a href='/system-status'>System Status</a>";
   nav += "<a href='/system-info'>System Info</a>";
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  // Submenu Mode Config
   nav += "<span>Mode Config</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   //nav += "<a href='/mode-select'>Mode Selection</a>";
@@ -41,6 +42,24 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<a href='/mode-pocsag'>POCSAG Mode</a>";
   nav += "</div>";
   nav += "</div>";
+  //Submenu Network Config
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "<span>Network Config</span>";
+  nav += "<div class='dropdown-submenu-menu'>";
+  nav += "<a href='/system-wifi'>WiFi Config</a>";
+  nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
+  nav += "</div>";
+  nav += "</div>";
+  //Submenu Message Config
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "<span>Messaging Config</span>";
+  nav += "<div class='dropdown-submenu-menu'>";
+  nav += "<a href='/system-mqtt'>MQTT Config</a>";
+  nav += "<a href='/system-telegram'>Telegram Config</a>";
+  nav += "</div>";
+  nav += "</div>";
+  
+
   nav += "<a href='/settings-mmdvm'>MMDVM Settings</a>";
   nav += "<a href='/system-settings'>Settings</a>";
   nav += "<a href='/system-wifi'>WiFi Config</a>";
