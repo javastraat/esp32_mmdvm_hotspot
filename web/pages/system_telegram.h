@@ -89,7 +89,7 @@ String getSystemTelegramPageHTML()
   html += "</div>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>RIC List:</span>";
-  html += "<input type='text' id='tg-ric-list' value='" + telegramRicList + "' placeholder='2041152,1234567' style='width:160px;padding-right:8px;'>";
+  html += "<input type='text' id='tg-ric-list' value='" + telegramRicList + "' placeholder='1234567,1123456' style='width:160px;padding-right:8px;'>";
   html += "</div>";
   html += "<p style='font-size:0.82em;color:#888;margin-top:4px;margin-bottom:8px;'>Comma-separated list of RICs to monitor</p>";
   html += "<div class='metric'>";
