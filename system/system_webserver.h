@@ -36,6 +36,7 @@ void handleModeYsf();
 void handleModeP25();
 void handleModeNxdn();
 void handleModePocsag();
+void handleSystemHotspot();
 void handleSystemDapnet();
 void handleSystemHampager();
 void handleSystemSerial();

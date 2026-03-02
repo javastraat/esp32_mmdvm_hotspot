@@ -101,6 +101,14 @@ String getSystemWireguardPageHTML()
 
   html += "</div>"; // Close admin-grid
 
+  // Save All & Reboot button
+  html += "<div class='action-buttons-vertical' style='margin-top:20px;'>";
+  html += "<button class='btn btn-success' onclick='saveAllWgSettings()'>Save All &amp; Reboot</button>";
+  html += "</div>";
+  html += "<div class='info' style='margin-top:20px'>";
+  html += "<strong>Note:</strong> WireGuard requires a reboot to apply changes. Use <b>Save All &amp; Reboot</b> to save both cards at once, or use the individual Save buttons on each card.";
+  html += "</div>";
+
   // JavaScript functions
   html += "<script>";
 
@@ -212,6 +220,36 @@ String getSystemWireguardPageHTML()
   html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
   html += "      setTimeout(function() { location.reload(); }, 10000);";
   html += "    });";
+  html += "  });";
+  html += "}";
+
+  // Save All & Reboot
+  html += "function saveAllWgSettings() {";
+  html += "  var localIp = document.getElementById('wg-local-ip').value;";
+  html += "  var privateKey = document.getElementById('wg-private-key').value;";
+  html += "  var publicKey = document.getElementById('wg-public-key').value;";
+  html += "  var endpoint = document.getElementById('wg-endpoint').value;";
+  html += "  var port = document.getElementById('wg-endpoint-port').value;";
+  html += "  if (!localIp) { showAlert('Local IP is required'); return; }";
+  html += "  if (!privateKey) { showAlert('Private key is required'); return; }";
+  html += "  if (!publicKey) { showAlert('Peer public key is required'); return; }";
+  html += "  if (!endpoint) { showAlert('Endpoint address is required'); return; }";
+  html += "  if (port < 1 || port > 65535) { showAlert('Port must be 1-65535'); return; }";
+  html += "  showConfirm('Save all WireGuard settings and reboot?', function() {";
+  html += "    var enabled = document.getElementById('wg-enabled').checked ? '1' : '0';";
+  html += "    var dns = document.getElementById('wg-dns').value;";
+  html += "    var allowedIps = document.getElementById('wg-allowed-ips').value;";
+  html += "    fetch('/api/save-wg-service', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'enabled='+enabled})";
+  html += "    .then(function() {";
+  html += "      return fetch('/api/save-wg-config', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},";
+  html += "        body:'local_ip='+encodeURIComponent(localIp)+'&private_key='+encodeURIComponent(privateKey)+'&public_key='+encodeURIComponent(publicKey)+'&endpoint='+encodeURIComponent(endpoint)+'&port='+port+'&dns='+encodeURIComponent(dns)+'&allowed_ips='+encodeURIComponent(allowedIps)});";
+  html += "    })";
+  html += "    .then(function() {";
+  html += "      showAlert('All WireGuard settings saved.<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    }).catch(function(err) { showAlert('Error saving settings: ' + err); });";
   html += "  });";
   html += "}";
 

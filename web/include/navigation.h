@@ -26,11 +26,22 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='nav-item dropdown' id='menuDropdown'>";
   nav += "<div class='nav-link dropdown-toggle' onclick='toggleDropdown()'>Menu</div>";
   nav += "<div class='dropdown-menu'>";
+  // nav += "<a href='/system-serialmonitor'>Serial Monitor</a>";
+  // nav += "<a href='/system-status'>System Status</a>";
+  // nav += "<a href='/system-info'>System Info</a>";
+  
+  //Submenu Info
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "<span>Information</span>";
+  nav += "<div class='dropdown-submenu-menu'>";
   nav += "<a href='/system-serialmonitor'>Serial Monitor</a>";
   nav += "<a href='/system-status'>System Status</a>";
   nav += "<a href='/system-info'>System Info</a>";
-  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
+  nav += "</div>";
+  nav += "</div>";
+  
   // Submenu Mode Config
+  nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Mode Config</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   //nav += "<a href='/mode-select'>Mode Selection</a>";
@@ -42,6 +53,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<a href='/mode-pocsag'>POCSAG Mode</a>";
   nav += "</div>";
   nav += "</div>";
+  
   //Submenu Network Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Network Config</span>";
@@ -50,6 +62,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<a href='/system-wireguard'>WireGuard VPN</a>";
   nav += "</div>";
   nav += "</div>";
+  
   //Submenu Message Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Messaging Config</span>";
@@ -65,6 +78,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
   nav += "<span>Settings Config</span>";
   nav += "<div class='dropdown-submenu-menu'>";
+  nav += "<a href='/system-hotspot'>Hotspot Config</a>";
   nav += "<a href='/system-modem'>Modem Settings</a>";
   nav += "<a href='/system-settings'>System Settings</a>";
   nav += "</div>";

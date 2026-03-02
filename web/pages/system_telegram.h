@@ -105,6 +105,14 @@ String getSystemTelegramPageHTML()
 
   html += "</div>"; // close admin-grid
 
+  // Save All button
+  html += "<div class='action-buttons-vertical' style='margin-top:20px;'>";
+  html += "<button class='btn btn-success' onclick='saveAllTelegram()'>Save All</button>";
+  html += "</div>";
+  html += "<div class='info' style='margin-top:20px'>";
+  html += "<strong>Note:</strong> Telegram settings are applied live &mdash; no reboot required. Use <b>Save All</b> to save all cards at once, or use the individual Save buttons on each card.";
+  html += "</div>";
+
   // ── JavaScript ────────────────────────────────────────────────────────────
   html += "<script>";
 
@@ -190,6 +198,26 @@ String getSystemTelegramPageHTML()
   html += "function resetTgRic(){";
   html += "showConfirm('Reset RIC forward settings to default?',function(){";
   html += "fetch('/api/reset-telegram-ric',{method:'POST'}).then(r=>r.text()).then(msg=>{showAlert(msg);location.reload();});});";
+  html += "}";
+
+  // Save All
+  html += "function saveAllTelegram(){";
+  html += "var token=document.getElementById('tg-token').value.trim();";
+  html += "var chatid=document.getElementById('tg-chatid').value.trim();";
+  html += "if(token.length>0&&token.length<10){showAlert('Bot token is too short');return;}";
+  html += "var cd=document.getElementById('tg-cooldown').value;";
+  html += "if(cd<10||cd>3600){showAlert('Cooldown must be 10-3600 seconds');return;}";
+  html += "showConfirm('Save all Telegram settings?',function(){";
+  html += "var post=function(url,body){return fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});};";
+  html += "var en=document.getElementById('tg-enabled').checked?'1':'0';";
+  html += "var ricEn=document.getElementById('tg-ric-en').checked?'1':'0';";
+  html += "var list=document.getElementById('tg-ric-list').value.trim();";
+  html += "post('/api/save-telegram-service','enabled='+en)";
+  html += ".then(function(){return post('/api/save-telegram-bot','token='+encodeURIComponent(token)+'&chatid='+encodeURIComponent(chatid));})";
+  html += ".then(function(){return post('/api/save-telegram-ric','ric_en='+ricEn+'&ric_list='+encodeURIComponent(list)+'&cooldown='+cd);})";
+  html += ".then(function(){showAlert('All Telegram settings saved.');})";
+  html += ".catch(function(err){showAlert('Error saving settings: '+err);});";
+  html += "});";
   html += "}";
 
   html += "</script>";

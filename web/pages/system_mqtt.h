@@ -149,6 +149,14 @@ String getSystemMqttPageHTML()
 
   html += "</div>"; // Close admin-grid
 
+  // Save All & Reboot button
+  html += "<div class='action-buttons-vertical' style='margin-top:20px;'>";
+  html += "<button class='btn btn-success' onclick='saveAllMqttSettings()'>Save All &amp; Reboot</button>";
+  html += "</div>";
+  html += "<div class='info' style='margin-top:20px'>";
+  html += "<strong>Note:</strong> MQTT requires a reboot to apply changes. Use <b>Save All &amp; Reboot</b> to save all cards at once, or use the individual Save buttons on each card. The Command Token card saves live without a reboot.";
+  html += "</div>";
+
   // JavaScript functions
   html += "<script>";
 
@@ -353,6 +361,38 @@ String getSystemMqttPageHTML()
   html += "  var el = document.getElementById('mqtt-cmd-token');";
   html += "  el.value = token;";
   html += "  el.readOnly = false;";
+  html += "}";
+
+  // Save All & Reboot
+  html += "function saveAllMqttSettings() {";
+  html += "  var broker = document.getElementById('mqtt-broker').value;";
+  html += "  var port = document.getElementById('mqtt-port').value;";
+  html += "  var interval = document.getElementById('mqtt-hw-interval').value;";
+  html += "  if (!broker || broker.length < 3) { showAlert('Broker address must be at least 3 characters'); return; }";
+  html += "  if (port < 1 || port > 65535) { showAlert('Port must be 1-65535'); return; }";
+  html += "  if (interval < 5 || interval > 3600) { showAlert('HW Info Interval must be 5-3600 seconds'); return; }";
+  html += "  showConfirm('Save all MQTT settings and reboot?', function() {";
+  html += "    var post = function(url, body) { return fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body}); };";
+  html += "    var enabled = document.getElementById('mqtt-enabled').checked ? '1' : '0';";
+  html += "    var user = document.getElementById('mqtt-user').value;";
+  html += "    var pass = document.getElementById('mqtt-pass').value;";
+  html += "    var status = document.getElementById('mqtt-topic-status').value;";
+  html += "    var logs = document.getElementById('mqtt-topic-logs').value;";
+  html += "    var hw = document.getElementById('mqtt-topic-hw').value;";
+  html += "    var sub = document.getElementById('mqtt-topic-sub').value;";
+  html += "    var hwLog = document.getElementById('mqtt-hw-log').checked ? '1' : '0';";
+  html += "    post('/api/save-mqtt-service', 'enabled=' + enabled)";
+  html += "    .then(function() { return post('/api/save-mqtt-broker', 'broker=' + encodeURIComponent(broker) + '&port=' + port); })";
+  html += "    .then(function() { return post('/api/save-mqtt-auth', 'user=' + encodeURIComponent(user) + '&pass=' + encodeURIComponent(pass)); })";
+  html += "    .then(function() { return post('/api/save-mqtt-topics', 'status=' + encodeURIComponent(status) + '&logs=' + encodeURIComponent(logs) + '&hw=' + encodeURIComponent(hw) + '&sub=' + encodeURIComponent(sub)); })";
+  html += "    .then(function() { return post('/api/save-mqtt-advanced', 'interval=' + interval + '&hwlog=' + hwLog); })";
+  html += "    .then(function() {";
+  html += "      showAlert('All MQTT settings saved.<br><br>The device will now reboot.');";
+  html += "      fetch('/api/reboot', {method: 'POST'});";
+  html += "      document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "      setTimeout(function() { location.reload(); }, 10000);";
+  html += "    }).catch(function(err) { showAlert('Error saving settings: ' + err); });";
+  html += "  });";
   html += "}";
 
   html += "function saveMqttToken() {";

@@ -18,6 +18,7 @@
 #include "web/pages/mode_p25.h"
 #include "web/pages/mode_nxdn.h"
 #include "web/pages/mode_pocsag.h"
+#include "web/pages/system_hotspot.h"
 #include "web/pages/system_dapnet.h"
 #include "web/pages/system_hampager.h"
 #include "mmdvm/mmdvm_pocsag.h"
@@ -295,6 +296,7 @@ void webServerTask(void *parameter) {
   server.on("/mode-p25", handleModeP25);
   server.on("/mode-nxdn", handleModeNxdn);
   server.on("/mode-pocsag", handleModePocsag);
+  server.on("/system-hotspot", handleSystemHotspot);
   server.on("/system-dapnet", handleSystemDapnet);
   server.on("/system-hampager", handleSystemHampager);
   server.on("/system-serialmonitor", handleSystemSerial);
@@ -429,6 +431,12 @@ void handleSystemSettings()
 {
   requestCount++;
   server.send(200, "text/html", getSystemSettingsPageHTML());
+}
+
+void handleSystemHotspot()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemHotspotPageHTML());
 }
 
 void handleSystemModem()
