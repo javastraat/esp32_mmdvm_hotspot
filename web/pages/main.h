@@ -19,6 +19,9 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   extern String mdnsHostname;
   extern bool modePocsagEnabled;
   extern bool dapnetEnabled;
+  extern bool modeDmrEnabled, modeDstarEnabled, modeYsfEnabled;
+  extern bool modeP25Enabled, modeNxdnEnabled;
+  bool anyVoiceModeEnabled = modeDmrEnabled || modeDstarEnabled || modeYsfEnabled || modeP25Enabled || modeNxdnEnabled;
   String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>" + userCallsign + " - " + mdnsHostname + "</title>";
 
   // Add shared styles
@@ -103,42 +106,51 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   //
   // Page after callsign is configured - stacked cards section
   // Stacked cards section
-  // Card 1:On Air
-  html += "<div class='feature' id='onair-card' style='transition:box-shadow 0.4s,border-color 0.4s;'>";
-  //html += "<h3 style='margin-top:0;margin-bottom:14px;'>On Air</h3>";
-  html += "<div style='display:flex;align-items:center;margin-bottom:16px;'>";
-  html += "<div style='flex:1;'></div>";
-  html += "<div id='onair-badge' style='display:inline-block;padding:6px 20px;border-radius:20px;font-size:1.1em;font-weight:bold;background:#555;color:#fff;'>IDLE</div>";
-  html += "<div style='flex:1;display:flex;justify-content:flex-end;'><span id='onair-timer' style='font-size:1.1em;font-weight:bold;letter-spacing:1px;'></span></div>";
-  html += "</div>";
-  html += "<div id='onair-info' style='display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;min-height:2em;'></div>";
-  html += "</div>";
+  if (anyVoiceModeEnabled) {
+    // Card 1: On Air
+    html += "<div class='feature' id='onair-card' style='transition:box-shadow 0.4s,border-color 0.4s;'>";
+    html += "<div style='display:flex;align-items:center;margin-bottom:16px;'>";
+    html += "<div style='flex:1;'></div>";
+    html += "<div id='onair-badge' style='display:inline-block;padding:6px 20px;border-radius:20px;font-size:1.1em;font-weight:bold;background:#555;color:#fff;'>IDLE</div>";
+    html += "<div style='flex:1;display:flex;justify-content:flex-end;'><span id='onair-timer' style='font-size:1.1em;font-weight:bold;letter-spacing:1px;'></span></div>";
+    html += "</div>";
+    html += "<div id='onair-info' style='display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;min-height:2em;'></div>";
+    html += "</div>";
 
-  // Card 2: Last 15 Calls
-  html += "<div class='feature'>";
-  html += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>";
-  html += "<h3 style='margin:0;'>Last 15 Calls</h3>";
-  html += "<select id='dur-filter' style='background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:6px;padding:3px 8px;font-size:0.8em;cursor:pointer;'>";
-  html += "<option value='0'>All</option>";
-  html += "<option value='1'>&gt; 1s</option>";
-  html += "<option value='2'>&gt; 2s</option>";
-  html += "<option value='3'>&gt; 3s</option>";
-  html += "<option value='4'>&gt; 4s</option>";
-  html += "<option value='5'>&gt; 5s</option>";
-  html += "</select>";
-  html += "</div>";
-  html += "<div style='overflow-x:auto;'>";
-  html += "<table style='width:100%;border-collapse:collapse;font-size:0.85em;'>";
-  html += "<thead><tr style='border-bottom:1px solid var(--border-color);'>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Time</th>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Dur.</th>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Callsign</th>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Name</th>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>City</th>";
-  html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Country</th>";
-  html += "</tr></thead>";
-  html += "<tbody id='call-history-body'><tr><td colspan='6' style='padding:8px 6px;color:var(--text-secondary);'>No calls yet</td></tr></tbody>";
-  html += "</table></div></div>";
+    // Card 2: Last 15 Calls
+    html += "<div class='feature'>";
+    html += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>";
+    html += "<h3 style='margin:0;'>Last 15 Calls</h3>";
+    html += "<select id='dur-filter' style='background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:6px;padding:3px 8px;font-size:0.8em;cursor:pointer;'>";
+    html += "<option value='0'>All</option>";
+    html += "<option value='1'>&gt; 1s</option>";
+    html += "<option value='2'>&gt; 2s</option>";
+    html += "<option value='3'>&gt; 3s</option>";
+    html += "<option value='4'>&gt; 4s</option>";
+    html += "<option value='5'>&gt; 5s</option>";
+    html += "</select>";
+    html += "</div>";
+    html += "<div style='overflow-x:auto;'>";
+    html += "<table style='width:100%;border-collapse:collapse;font-size:0.85em;'>";
+    html += "<thead><tr style='border-bottom:1px solid var(--border-color);'>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Time</th>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Dur.</th>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Callsign</th>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Name</th>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>City</th>";
+    html += "<th style='text-align:left;padding:4px 6px;color:var(--text-secondary);'>Country</th>";
+    html += "</tr></thead>";
+    html += "<tbody id='call-history-body'><tr><td colspan='6' style='padding:8px 6px;color:var(--text-secondary);'>No calls yet</td></tr></tbody>";
+    html += "</table></div></div>";
+  } else if (!dapnetEnabled && !modePocsagEnabled) {
+    // No voice mode, no DAPNET, no POCSAG — nothing else will render below, show the notice
+    html += "<div class='feature' style='text-align:center;padding:30px 20px;'>";
+    html += "<div style='font-size:2.4em;margin-bottom:12px;'>&#128263;</div>";
+    html += "<h3 style='margin-top:0;color:var(--text-secondary);'>No Mode Enabled</h3>";
+    html += "<p style='color:var(--text-secondary);margin-bottom:20px;'>Enable at least one digital voice mode &mdash; DMR, D-STAR, YSF, P25, or NXDN &mdash; or POCSAG / DAPNET to see live activity here.</p>";
+    html += "<button onclick=\"setTimeout(function(){document.getElementById('menuDropdown').classList.add('active');var s=document.querySelectorAll('.dropdown-submenu');s.forEach(function(e){e.classList.remove('active');});for(var i=0;i<s.length;i++){var sp=s[i].querySelector('span');if(sp&&sp.textContent.indexOf('Mode')>=0){s[i].classList.add('active');break;}}},0)\" style='padding:8px 22px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:0.95em;cursor:pointer;'>Go to Mode Settings</button>";
+    html += "</div>";
+  }
 
   if (modePocsagEnabled) {
     // Card 3: Last Received DAPNET Messages (only if DAPNET client is enabled)
@@ -262,7 +274,8 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "setInterval(pollOled, 500);";
   html += "pollOled();";
 
-  // DMR activity: state vars
+  // DMR activity JS — only injected when at least one voice mode is enabled
+  if (anyVoiceModeEnabled) {
   html += "var dmrHistory = [];";
   html += getCountryFlagJS();
   html += "var onairCallsign = '';";
@@ -377,6 +390,7 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "}";
   html += "setInterval(pollDmrActivity, 2000);";
   html += "pollDmrActivity();";
+  } // end anyVoiceModeEnabled JS block
 
   // POCSAG TX history polling
   html += "function pollPocsagTx() {";

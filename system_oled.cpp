@@ -847,7 +847,16 @@ void displaySystemInfo()
     iconX -= (ICON_WIDTH + 2);
   }
 
-    // 'T' = Telegram connected (drawn twice for bold effect)
+  // 'P' = POCSAG (drawn twice for bold effect)
+  if (modePocsagEnabled)
+  {
+    display.setCursor(iconX, 0);     display.print('P');
+    display.setCursor(iconX + 1, 0); display.print('P');
+    iconX -= (ICON_WIDTH + 2);
+  }
+
+
+  // 'T' = Telegram (drawn twice for bold effect)
   if (telegramEnabled)
   {
     display.setCursor(iconX, 0);     display.print('T');
