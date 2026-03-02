@@ -32,6 +32,10 @@ void registerTelegramSettingsRoutes()
     }
     telegramEnabled = (server.arg("enabled") == "1");
     saveSettings();
+    // Start the task on-demand if it was never initialized (disabled at boot)
+    if (telegramEnabled && telegramTaskHandle == NULL) {
+      initTelegramTask();
+    }
     addLogMessage("[Telegram] Service: " + String(telegramEnabled ? "Enabled" : "Disabled"));
     server.send(200, "text/plain", "Telegram " + String(telegramEnabled ? "enabled" : "disabled"));
   });

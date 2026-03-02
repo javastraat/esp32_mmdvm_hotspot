@@ -960,15 +960,19 @@ void setup()
     initWireguardTask();
   }
 
+  // Initialize Telegram task only if enabled at boot (can also be started on-demand via web UI)
+  if (telegramEnabled)
+  {
+    addLogMessage("[Setup] Initializing Telegram task");
+    initTelegramTask();
+  }
+
   // Initialize MQTT client (if enabled)
   if (mqttEnabled)
   {
     addLogMessage("[Setup] MQTT enabled - initializing MQTT client");
     initMqttTask();
   }
-  // Initialize Telegram task (always started so async queue is ready; sends only when enabled)
-  addLogMessage("[Setup] Initializing Telegram task");
-  initTelegramTask();
   // Initialize ArduinoOTA task (if enabled)
   if (arduinoOtaEnabled)
   {

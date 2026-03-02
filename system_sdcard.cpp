@@ -106,31 +106,40 @@ void sdCardTask(void *parameter)
   {
     if (sdCardMounted)
     {
-      // Update SD card statistics
-      uint8_t cardType = SD.cardType();
-      if (cardType != CARD_NONE)
+      // Try to acquire mutex before touching the SD/SPI bus.
+      // Use a short timeout so we skip this cycle rather than block
+      // if a download is currently holding the mutex.
+      if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(200)) == pdTRUE)
       {
-        sdCardSize = SD.cardSize() / (1024 * 1024);  // Convert to MB
-        sdCardUsed = SD.usedBytes() / (1024 * 1024); // Convert to MB
-
-        // Check if SQLite database exists (CSV not needed for operations)
-        bool filesExist = SD.exists(SDCARD_SQLITE_FILE);
-
-        // Only print warning if state changed from present to missing
-        if (!filesExist && lastFilesExist)
+        // Update SD card statistics
+        uint8_t cardType = SD.cardType();
+        if (cardType != CARD_NONE)
         {
-          addLogMessage("[SD Card Task] Warning: SQLite database missing!");
-          publishMqtt(mqttSdCardTaskTopic.c_str(), "{\"event\":\"db_missing_warning\"}");
+          sdCardSize = SD.cardSize() / (1024 * 1024);  // Convert to MB
+          sdCardUsed = SD.usedBytes() / (1024 * 1024); // Convert to MB
+
+          // Check if SQLite database exists (CSV not needed for operations)
+          bool filesExist = SD.exists(SDCARD_SQLITE_FILE);
+
+          // Only print warning if state changed from present to missing
+          if (!filesExist && lastFilesExist)
+          {
+            addLogMessage("[SD Card Task] Warning: SQLite database missing!");
+            publishMqtt(mqttSdCardTaskTopic.c_str(), "{\"event\":\"db_missing_warning\"}");
+          }
+          lastFilesExist = filesExist;
         }
-        lastFilesExist = filesExist;
+        else
+        {
+          addLogMessage("[SD Card Task] SD Card removed or disconnected");
+          publishMqtt(mqttSdCardTaskTopic.c_str(), "{\"event\":\"card_removed\"}");
+          sdCardMounted = false;
+          lastFilesExist = false; // Reset state when card removed
+        }
+
+        xSemaphoreGive(sdCardMutex);
       }
-      else
-      {
-        addLogMessage("[SD Card Task] SD Card removed or disconnected");
-        publishMqtt(mqttSdCardTaskTopic.c_str(), "{\"event\":\"card_removed\"}");
-        sdCardMounted = false;
-        lastFilesExist = false; // Reset state when card removed
-      }
+      // else: mutex busy (download in progress) - skip this monitoring cycle
     }
     else
     {

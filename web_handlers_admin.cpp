@@ -61,6 +61,7 @@ extern bool oledEnabled;
 extern bool ntpEnabled;
 extern volatile bool ntpSynced;
 extern bool mdnsEnabled;
+extern bool telegramEnabled;
 
 // API endpoint: Get logs as JSON
 void handleApiLogs()
@@ -341,6 +342,7 @@ void registerAdminRoutes()
     json += "{\"id\":\"wireguard\",\"label\":\"WireGuard\",\"enabled\":" + String(wgEnabled ? "true" : "false") + ",\"connected\":" + String(wireguardConnected ? "true" : "false") + "},";
     json += "{\"id\":\"oled\",\"label\":\"OLED\",\"enabled\":" + String(oledEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"pocsag\",\"label\":\"POCSAG\",\"enabled\":" + String(modePocsagEnabled ? "true" : "false") + "},";
+    json += "{\"id\":\"telegram\",\"label\":\"Telegram\",\"enabled\":" + String(telegramEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"mdns\",\"label\":\"mDNS\",\"enabled\":" + String(mdnsEnabled ? "true" : "false") + "}";
     json += "]";
     server.send(200, "application/json", json); });

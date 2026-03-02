@@ -99,6 +99,13 @@ void handleDMRUserSearch();
 // GET /api/sqlite/search?field=radio_id&value=1234567 - Search SQLite database
 void handleSQLiteSearch();
 
+// GET /api/sdcard/dirs - List all directories on SD card as JSON array
+void handleSDCardDirs();
+
+// POST /api/sdcard/upload?path=/folder - Upload a file to SD card
+void handleSDCardUploadFinish();
+void handleSDCardUpload();
+
 // ===== Download Processing Functions =====
 
 // Call these from main loop to process download requests

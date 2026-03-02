@@ -27,6 +27,7 @@ extern bool ethEnabled;
 extern int requestCount;
 extern String mqttOledTaskTopic; // MQTT topic for OLED task status updates
 extern bool dapnetEnabled;
+extern bool telegramEnabled;
 
 TaskHandle_t oledTaskHandle = NULL;
 
@@ -843,6 +844,14 @@ void displaySystemInfo()
   {
     display.setCursor(iconX, 0);     display.print('M');
     display.setCursor(iconX + 1, 0); display.print('M');
+    iconX -= (ICON_WIDTH + 2);
+  }
+
+    // 'T' = Telegram connected (drawn twice for bold effect)
+  if (telegramEnabled)
+  {
+    display.setCursor(iconX, 0);     display.print('T');
+    display.setCursor(iconX + 1, 0); display.print('T');
     iconX -= (ICON_WIDTH + 2);
   }
 

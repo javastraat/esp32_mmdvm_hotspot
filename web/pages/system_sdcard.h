@@ -107,7 +107,33 @@ String getSystemSdcardPageHTML()
   html += "<div id='delete-result' class='status-text' style='display:none'></div>";
   html += "</div>";
 
-  // Card 7: DMR Radio ID Search (CSV)
+  // Card 7: Upload File to SD Card
+  html += "<div class='card'>";
+  html += "<h3>Upload File to SD Card</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:12px;'>Choose a destination folder from the SD card and select a file to upload.</p>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>Destination folder:</label>";
+  html += "<div style='display:flex;gap:6px;margin-bottom:12px;'>";
+  html += "  <select id='upload-folder' style='flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color,#ccc);border-radius:4px;font-size:0.9em;'>";
+  html += "    <option value='/'>/ (root)</option>";
+  html += "  </select>";
+  html += "  <button class='btn btn-primary' id='refresh-dirs-btn' onclick='loadUploadDirs()' title='Refresh folder list' style='padding:5px 10px;flex-shrink:0;'>&#8635;</button>";
+  html += "</div>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>File to upload:</label>";
+  html += "<input type='file' id='upload-file' style='display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:12px;'>";
+
+  html += "<button class='btn btn-success' id='upload-btn' onclick='uploadFile()'>Upload</button>";
+  html += "<div id='upload-progress-container' style='display:none;margin-top:12px;'>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='upload-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='upload-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "<div id='upload-result' style='margin-top:10px;font-size:0.9em;'></div>";
+  html += "</div>";
+
+  // Card 8: DMR Radio ID Search (CSV)
   html += "<div class='card'>";
   html += "<h3>DMR Radio ID Search (CSV)</h3>";
   html += "<p>Search for a DMR user by Radio ID (7 digits):</p>";
@@ -116,7 +142,7 @@ String getSystemSdcardPageHTML()
   html += "<div id='search-result' style='margin-top:15px'></div>";
   html += "</div>";
 
-  // Card 8: DMR Radio ID Search (SQLite)
+  // Card 9: DMR Radio ID Search (SQLite)
   html += "<div class='card'>";
   html += "<h3>DMR Radio ID Search (SQLite)</h3>";
   html += "<p>Search for a DMR user by Radio ID (7 digits) in SQLite database:</p>";
@@ -192,6 +218,7 @@ String getSystemSdcardPageHTML()
   html += "      loadSDCardInfo();";
   html += "      refreshFileList();";
   html += "      loadOwnerInfo();";
+  html += "      loadUploadDirs();";
   html += "    } else {";
   html += "      statusEl.textContent = 'Not Available';";
   html += "      statusEl.style.color = '#dc3545';";
@@ -205,11 +232,11 @@ String getSystemSdcardPageHTML()
 
   // Helper functions to disable/enable all buttons during download
   html += "function disableAllButtons() {";
-  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn'];";
+  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn','upload-btn','refresh-dirs-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=true; });";
   html += "}";
   html += "function enableAllButtons() {";
-  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn'];";
+  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','save-owner-btn','delete-custom-btn','search-btn','sqlite-search-btn','upload-btn','refresh-dirs-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=false; });";
   html += "}";
 
@@ -465,6 +492,69 @@ String getSystemSdcardPageHTML()
   html += "      document.getElementById('delete-result').innerHTML = '<p style=\"color:#dc3545\">Error: ' + e.message + '</p>';";
   html += "    });";
   html += "  });";
+  html += "}";
+
+  // Load SD card directories into the upload folder selector
+  html += "function loadUploadDirs() {";
+  html += "  var sel = document.getElementById('upload-folder');";
+  html += "  if (!sel) return;";
+  html += "  var btn = document.getElementById('refresh-dirs-btn');";
+  html += "  if (btn) btn.disabled = true;";
+  html += "  fetch('/api/sdcard/dirs').then(r=>r.json()).then(function(dirs) {";
+  html += "    var prev = sel.value;";
+  html += "    sel.innerHTML = '';";
+  html += "    dirs.forEach(function(d) {";
+  html += "      var opt = document.createElement('option');";
+  html += "      opt.value = d;";
+  html += "      opt.textContent = d === '/' ? '/ (root)' : d;";
+  html += "      sel.appendChild(opt);";
+  html += "    });";
+  html += "    if (dirs.indexOf(prev) >= 0) sel.value = prev;";
+  html += "    if (btn) btn.disabled = false;";
+  html += "  }).catch(function() {";
+  html += "    if (btn) btn.disabled = false;";
+  html += "  });";
+  html += "}";
+
+  // Upload file to SD card
+  html += "function uploadFile() {";
+  html += "  var folder = document.getElementById('upload-folder').value || '/';";
+  html += "  var fileInput = document.getElementById('upload-file');";
+  html += "  if (!fileInput.files.length) { showAlert('Please select a file to upload'); return; }";
+  html += "  var file = fileInput.files[0];";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('file', file, file.name);";
+  html += "  document.getElementById('upload-btn').disabled = true;";
+  html += "  document.getElementById('upload-result').innerHTML = '';";
+  html += "  document.getElementById('upload-progress-container').style.display = 'block';";
+  html += "  document.getElementById('upload-progress-fill').style.width = '0%';";
+  html += "  document.getElementById('upload-progress-text').textContent = '0%';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var pct = Math.round(e.loaded * 100 / e.total);";
+  html += "      document.getElementById('upload-progress-fill').style.width = pct + '%';";
+  html += "      document.getElementById('upload-progress-text').textContent = pct + '%';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onload = function() {";
+  html += "    document.getElementById('upload-btn').disabled = false;";
+  html += "    document.getElementById('upload-progress-container').style.display = 'none';";
+  html += "    if (xhr.status === 200) {";
+  html += "      document.getElementById('upload-result').innerHTML = '<p style=\"color:#2e7d32\">' + xhr.responseText + '</p>';";
+  html += "      document.getElementById('upload-file').value = '';";
+  html += "      refreshFileList();";
+  html += "    } else {";
+  html += "      document.getElementById('upload-result').innerHTML = '<p style=\"color:#c62828\">' + xhr.responseText + '</p>';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    document.getElementById('upload-btn').disabled = false;";
+  html += "    document.getElementById('upload-progress-container').style.display = 'none';";
+  html += "    document.getElementById('upload-result').innerHTML = '<p style=\"color:#c62828\">Network error during upload</p>';";
+  html += "  };";
+  html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(folder));";
+  html += "  xhr.send(formData);";
   html += "}";
 
   html += "</script>";
