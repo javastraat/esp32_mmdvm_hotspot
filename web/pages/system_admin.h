@@ -109,6 +109,59 @@ String getSystemAdminPageHTML()
   html += "<div id='nvs-namespaces-list' style='margin-top:15px;'></div>";
   html += "</div>";
 
+  // Card 5: Upload to SD Card
+  html += "<div class='card'>";
+  html += "<h3>Upload to SD Card</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Upload any file to a folder on the SD card.</p>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>Destination folder:</label>";
+  html += "<div style='display:flex;gap:6px;margin-bottom:12px;'>";
+  html += "  <select id='admin-sd-folder' style='flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color,#ccc);border-radius:4px;font-size:0.9em;'>";
+  html += "    <option value='/'>/ (root)</option>";
+  html += "  </select>";
+  html += "  <button class='btn btn-primary' onclick='adminLoadSdDirs()' title='Refresh folders' style='padding:5px 10px;flex-shrink:0;'>&#8635;</button>";
+  html += "</div>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>File to upload:</label>";
+  html += "<input type='file' id='admin-sd-file' style='display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:12px;'>";
+
+  html += "<button class='btn btn-success' id='admin-sd-upload-btn' onclick='adminUploadSD()'>Upload to SD</button>";
+  html += "<div id='admin-sd-progress' style='display:none;margin-top:12px;'>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='admin-sd-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='admin-sd-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "<div id='admin-sd-result' style='margin-top:10px;font-size:0.9em;'></div>";
+  html += "</div>";
+
+  // Card 6: Upload to Internal Flash (LittleFS)
+  html += "<div class='card'>";
+  html += "<h3>Upload to Internal Flash</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Upload a config file directly to the LittleFS partition (internal flash).</p>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>Destination folder:</label>";
+  html += "<div style='display:flex;gap:6px;margin-bottom:12px;'>";
+  html += "  <select id='admin-lfs-folder' style='flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color,#ccc);border-radius:4px;font-size:0.9em;'>";
+  html += "    <option value='/config'>/config (snapshots)</option>";
+  html += "    <option value='/'>/ (root)</option>";
+  html += "  </select>";
+  html += "  <button class='btn btn-primary' onclick='adminLoadLfsDirs()' title='Refresh folders' style='padding:5px 10px;flex-shrink:0;'>&#8635;</button>";
+  html += "</div>";
+
+  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>File to upload:</label>";
+  html += "<input type='file' id='admin-lfs-file' style='display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:12px;'>";
+
+  html += "<button class='btn btn-success' id='admin-lfs-upload-btn' onclick='adminUploadLFS()'>Upload to Flash</button>";
+  html += "<div id='admin-lfs-progress' style='display:none;margin-top:12px;'>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='admin-lfs-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='admin-lfs-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "<div id='admin-lfs-result' style='margin-top:10px;font-size:0.9em;'></div>";
+  html += "</div>";
+
   // End of grid
   html += "</div>"; // Close admin-grid
 
@@ -369,7 +422,114 @@ String getSystemAdminPageHTML()
   html += "  });";
   html += "}";
 
-  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); };";
+  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); adminLoadSdDirs(); adminLoadLfsDirs(); };";
+
+  // Card 5: SD card upload helpers
+  html += "function adminLoadSdDirs() {";
+  html += "  fetch('/api/sdcard/dirs').then(function(r) { return r.json(); }).then(function(dirs) {";
+  html += "    var sel = document.getElementById('admin-sd-folder');";
+  html += "    var prev = sel.value;";
+  html += "    sel.innerHTML = '';";
+  html += "    dirs.forEach(function(d) {";
+  html += "      var opt = document.createElement('option');";
+  html += "      opt.value = d;";
+  html += "      opt.textContent = d === '/' ? '/ (root)' : d;";
+  html += "      sel.appendChild(opt);";
+  html += "    });";
+  html += "    if (dirs.indexOf(prev) >= 0) sel.value = prev;";
+  html += "  }).catch(function() {});";
+  html += "}";
+
+  html += "function adminUploadSD() {";
+  html += "  var folder = document.getElementById('admin-sd-folder').value || '/';";
+  html += "  var fileInput = document.getElementById('admin-sd-file');";
+  html += "  if (!fileInput.files.length) { showAlert('Please select a file to upload'); return; }";
+  html += "  var file = fileInput.files[0];";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('file', file, file.name);";
+  html += "  document.getElementById('admin-sd-upload-btn').disabled = true;";
+  html += "  document.getElementById('admin-sd-result').innerHTML = '';";
+  html += "  document.getElementById('admin-sd-progress').style.display = 'block';";
+  html += "  document.getElementById('admin-sd-progress-fill').style.width = '0%';";
+  html += "  document.getElementById('admin-sd-progress-text').textContent = '0%';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var pct = Math.round(e.loaded * 100 / e.total);";
+  html += "      document.getElementById('admin-sd-progress-fill').style.width = pct + '%';";
+  html += "      document.getElementById('admin-sd-progress-text').textContent = pct + '%';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onload = function() {";
+  html += "    document.getElementById('admin-sd-upload-btn').disabled = false;";
+  html += "    document.getElementById('admin-sd-progress').style.display = 'none';";
+  html += "    var color = xhr.status === 200 ? '#2e7d32' : '#c62828';";
+  html += "    document.getElementById('admin-sd-result').innerHTML = '<span style=\"color:' + color + '\">' + xhr.responseText + '</span>';";
+  html += "    if (xhr.status === 200) fileInput.value = '';";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    document.getElementById('admin-sd-upload-btn').disabled = false;";
+  html += "    document.getElementById('admin-sd-progress').style.display = 'none';";
+  html += "    document.getElementById('admin-sd-result').innerHTML = '<span style=\"color:#c62828\">Network error during upload</span>';";
+  html += "  };";
+  html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(folder));";
+  html += "  xhr.send(formData);";
+  html += "}";
+
+  // Card 6: LittleFS folder loader
+  html += "function adminLoadLfsDirs() {";
+  html += "  fetch('/api/littlefs/dirs').then(function(r) { return r.json(); }).then(function(dirs) {";
+  html += "    var sel = document.getElementById('admin-lfs-folder');";
+  html += "    var prev = sel.value;";
+  html += "    sel.innerHTML = '';";
+  html += "    dirs.forEach(function(d) {";
+  html += "      var opt = document.createElement('option');";
+  html += "      opt.value = d;";
+  html += "      opt.textContent = d === '/config' ? '/config (snapshots)' : d === '/' ? '/ (root)' : d;";
+  html += "      sel.appendChild(opt);";
+  html += "    });";
+  html += "    if (dirs.indexOf(prev) >= 0) sel.value = prev;";
+  html += "    else if (dirs.indexOf('/config') >= 0) sel.value = '/config';";
+  html += "  }).catch(function() {});";
+  html += "}";
+
+  // Card 6: LittleFS upload
+  html += "function adminUploadLFS() {";
+  html += "  var folder = document.getElementById('admin-lfs-folder').value || '/config';";
+  html += "  var fileInput = document.getElementById('admin-lfs-file');";
+  html += "  if (!fileInput.files.length) { showAlert('Please select a file to upload'); return; }";
+  html += "  var file = fileInput.files[0];";
+  html += "  var formData = new FormData();";
+  html += "  formData.append('file', file, file.name);";
+  html += "  document.getElementById('admin-lfs-upload-btn').disabled = true;";
+  html += "  document.getElementById('admin-lfs-result').innerHTML = '';";
+  html += "  document.getElementById('admin-lfs-progress').style.display = 'block';";
+  html += "  document.getElementById('admin-lfs-progress-fill').style.width = '0%';";
+  html += "  document.getElementById('admin-lfs-progress-text').textContent = '0%';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) {";
+  html += "    if (e.lengthComputable) {";
+  html += "      var pct = Math.round(e.loaded * 100 / e.total);";
+  html += "      document.getElementById('admin-lfs-progress-fill').style.width = pct + '%';";
+  html += "      document.getElementById('admin-lfs-progress-text').textContent = pct + '%';";
+  html += "    }";
+  html += "  };";
+  html += "  xhr.onload = function() {";
+  html += "    document.getElementById('admin-lfs-upload-btn').disabled = false;";
+  html += "    document.getElementById('admin-lfs-progress').style.display = 'none';";
+  html += "    var color = xhr.status === 200 ? '#2e7d32' : '#c62828';";
+  html += "    document.getElementById('admin-lfs-result').innerHTML = '<span style=\"color:' + color + '\">' + xhr.responseText + '</span>';";
+  html += "    if (xhr.status === 200) { fileInput.value = ''; loadSnapshotList('flash'); adminLoadLfsDirs(); }";
+  html += "  };";
+  html += "  xhr.onerror = function() {";
+  html += "    document.getElementById('admin-lfs-upload-btn').disabled = false;";
+  html += "    document.getElementById('admin-lfs-progress').style.display = 'none';";
+  html += "    document.getElementById('admin-lfs-result').innerHTML = '<span style=\"color:#c62828\">Network error during upload</span>';";
+  html += "  };";
+  html += "  xhr.open('POST', '/api/littlefs/upload?path=' + encodeURIComponent(folder));";
+  html += "  xhr.send(formData);";
+  html += "}";
+
   html += "</script>";
 
   html += "</div>"; // Close container

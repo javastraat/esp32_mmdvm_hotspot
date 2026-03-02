@@ -307,6 +307,106 @@ static void handleSnapshotDelete()
 }
 
 // ---------------------------------------------------------------------------
+// LittleFS file upload  —  POST /api/littlefs/upload
+// Accepts a multipart/form-data upload and writes the file to the root of
+// the LittleFS partition.  Used by the System Admin page upload card.
+// ---------------------------------------------------------------------------
+static File   lfsUploadFile;
+static String lfsUploadPath;
+static bool   lfsUploadError         = false;
+static size_t lfsUploadBytesWritten  = 0;
+
+static void handleLfsUploadFinish()
+{
+  if (lfsUploadError)
+    server.send(500, "text/plain", "ERROR: Upload failed — " + lfsUploadPath);
+  else
+    server.send(200, "text/plain", "OK: " + lfsUploadPath + " (" + String(lfsUploadBytesWritten) + " bytes)");
+}
+
+static void handleLfsUpload()
+{
+  HTTPUpload &upload = server.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    lfsUploadError        = false;
+    lfsUploadBytesWritten = 0;
+
+    // Strip any directory component from the browser-supplied filename
+    String filename = String(upload.filename.c_str());
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0) filename = filename.substring(slash + 1);
+    if (filename.length() == 0) filename = "upload.bin";
+
+    // Determine target directory from ?path= query arg (default: /config)
+    String targetDir = server.arg("path");
+    if (targetDir.length() == 0) targetDir = SNAPSHOT_DIR;
+    if (!targetDir.startsWith("/")) targetDir = "/" + targetDir;
+    if (targetDir[targetDir.length() - 1] == '/') targetDir.remove(targetDir.length() - 1);
+    if (!LittleFS.exists(targetDir.c_str()))
+      LittleFS.mkdir(targetDir.c_str());
+    lfsUploadPath = targetDir + "/" + filename;
+    addLogMessage("[LittleFS] Upload start: " + lfsUploadPath);
+
+    if (LittleFS.exists(lfsUploadPath.c_str()))
+      LittleFS.remove(lfsUploadPath.c_str());
+
+    lfsUploadFile = LittleFS.open(lfsUploadPath.c_str(), "w");
+    if (!lfsUploadFile) {
+      addLogMessage("[LittleFS] Upload ERROR: cannot open " + lfsUploadPath);
+      lfsUploadError = true;
+    }
+
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (!lfsUploadError && lfsUploadFile) {
+      size_t written = lfsUploadFile.write(upload.buf, upload.currentSize);
+      lfsUploadBytesWritten += written;
+      if (written != upload.currentSize) {
+        addLogMessage("[LittleFS] Upload write error at " + String(lfsUploadBytesWritten) + " bytes");
+        lfsUploadError = true;
+      }
+    }
+
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (lfsUploadFile) lfsUploadFile.close();
+    if (!lfsUploadError)
+      addLogMessage("[LittleFS] Upload complete: " + lfsUploadPath +
+                    " (" + String(lfsUploadBytesWritten) + " bytes)");
+
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    if (lfsUploadFile) lfsUploadFile.close();
+    lfsUploadError = true;
+    addLogMessage("[LittleFS] Upload aborted: " + lfsUploadPath);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/littlefs/dirs
+// Returns a JSON array of all directory paths on LittleFS, always starting
+// with "/" so the client always has at least a root option.
+// ---------------------------------------------------------------------------
+static void handleLfsDirs()
+{
+  String json = "[\"/\"";
+  File root = LittleFS.open("/");
+  if (root) {
+    File entry = root.openNextFile();
+    while (entry) {
+      if (entry.isDirectory()) {
+        String path = String(entry.name());
+        if (!path.startsWith("/")) path = "/" + path;
+        json += ",\"" + path + "\"";
+      }
+      entry.close();
+      entry = root.openNextFile();
+    }
+    root.close();
+  }
+  json += "]";
+  server.send(200, "application/json", json);
+}
+
+// ---------------------------------------------------------------------------
 // registerSnapshotRoutes() — called once from webServerTask()
 // ---------------------------------------------------------------------------
 void registerSnapshotRoutes()
@@ -316,4 +416,6 @@ void registerSnapshotRoutes()
   server.on("/api/snapshots/load",     HTTP_POST, handleSnapshotLoad);
   server.on("/api/snapshots/delete",   HTTP_POST, handleSnapshotDelete);
   server.on("/api/snapshots/download", HTTP_GET,  handleSnapshotDownload);
+  server.on("/api/littlefs/upload",    HTTP_POST, handleLfsUploadFinish, handleLfsUpload);
+  server.on("/api/littlefs/dirs",      HTTP_GET,  handleLfsDirs);
 }
