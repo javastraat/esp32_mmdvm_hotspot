@@ -112,8 +112,11 @@ done
 
 ## File Naming
 
-The gallery (`index.html`) auto-discovers files named `bootlogo_N.png` / `bootlogo_N.bin`
-(where N is 1–50). Name your custom logos accordingly to have them appear automatically.
+The local gallery (`index.html`) auto-discovers files named `bootlogo_N.png` / `bootlogo_N.bin`
+(where N is 1–50) — this is just for previewing options locally in your browser.
+
+The **ESP32 firmware only ever reads one file: `/bootlogo.bin` from the root of LittleFS.**
+Pick whichever logo you like, download the `.bin`, rename it to `bootlogo.bin`, and upload it to the LittleFS root.
 
 ---
 
