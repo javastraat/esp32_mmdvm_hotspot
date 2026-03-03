@@ -524,6 +524,29 @@ static void handleLfsDeleteFile()
 }
 
 // ---------------------------------------------------------------------------
+// POST /api/littlefs/mkdir?path=<newdirpath>
+// Creates a new directory on LittleFS.
+// ---------------------------------------------------------------------------
+static void handleLfsMkdir()
+{
+  String path = server.arg("path");
+  if (!isValidLfsPath(path)) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (LittleFS.exists(path)) {
+    server.send(409, "text/plain", "ERROR: Already exists: " + path);
+    return;
+  }
+  if (LittleFS.mkdir(path)) {
+    addLogMessage("[LittleFS] Directory created: " + path);
+    server.send(200, "text/plain", "Created: " + path);
+  } else {
+    server.send(500, "text/plain", "ERROR: Could not create directory: " + path);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // registerSnapshotRoutes() — called once from webServerTask()
 // ---------------------------------------------------------------------------
 void registerSnapshotRoutes()
@@ -538,4 +561,5 @@ void registerSnapshotRoutes()
   server.on("/api/littlefs/ls",        HTTP_GET,  handleLfsLs);
   server.on("/api/littlefs/download",  HTTP_GET,  handleLfsDownload);
   server.on("/api/littlefs/delete",    HTTP_POST, handleLfsDeleteFile);
+  server.on("/api/littlefs/mkdir",     HTTP_POST, handleLfsMkdir);
 }

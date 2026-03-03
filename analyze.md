@@ -1,429 +1,591 @@
-# ESP32 RTOS MMDVM — Code Review
-**Date:** 2026-02-28 · **Version:** `20260228_ESP32_BETA`
+# ESP32 MMDVM Hotspot — Code Review & Architecture Analysis
+
+> **Scope:** All source files in the project root except the `esp32_mmdvm_hotspot/`,
+> `mmdvm-software/`, and `sharkrf/` subdirectories.
+> Reviewed: March 2026 | ~13 400 lines across 38 `.cpp` files.
 
 ---
 
-## Quick-Reference: Easy Fixes
+## Table of Contents
 
-> Small, low-risk changes. Pick any row, go to the linked file, apply the fix, tick the checkbox in the Issue Tracker below.
-
-### 2–4 lines (same pattern each)
-
-| ID | File | What to change |
-|----|------|----------------|
-| **H-1** | [system_modem.cpp:657](system_modem.cpp#L657) | Add `unsigned long waitStart = millis();` + `&& (millis() - waitStart < 30000)` to the DMR guard `while` loop |
-| **H-6** | [mmdvm_pocsag.cpp:583](mmdvm_pocsag.cpp#L583) | Same timeout pattern on the `while (pocsagTxInProgress)` loop — 60-second deadline |
-| **H-7** | [mmdvm_pocsag.cpp:553](mmdvm_pocsag.cpp#L553) | Replace `while(true) { if (!dmrTxActive) break; … }` with `while (dmrTxActive && (millis()-waitStart < 30000))` |
-| **M-6** | [include/config.h:132](include/config.h#L132) | Change `const int WEB_SERVER_PORT` / `const int LED_PIN` etc. → `constexpr int` |
-| **M-16** | [mmdvm_dapnet.cpp:243](mmdvm_dapnet.cpp#L243) | Apply `jsonStr()` escaping to server response fields embedded in MQTT JSON |
-| **M-18** | [web_handlers_wifi.cpp:60](web_handlers_wifi.cpp#L60) | Apply `jsonStr()` escaping to `wifiSlotSsid`, `wifiSlotPass`, `wifiSlotLabel` before embedding in JSON response |
-| **L-5** | [mmdvm_dstar.cpp](mmdvm_dstar.cpp), [mmdvm_ysf.cpp](mmdvm_ysf.cpp), [mmdvm_p25.cpp](mmdvm_p25.cpp), [mmdvm_nxdn.cpp](mmdvm_nxdn.cpp) | Add `vTaskSuspend(NULL);` at top of each stub task loop body |
-
-### Skip for now — significant refactor required
-
-`H-2` `H-3` `H-4` `H-5` `H-8` `H-9` `H-11` `M-1` `M-2` `M-3` `M-4` `M-5` `M-7` `M-8` `M-9` `M-19` `L-1` `L-2` `L-6` `L-7` `L-8` `L-11`
+1. [Executive Summary](#1-executive-summary)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Critical Issues](#3-critical-issues)
+4. [Reliability & Safety](#4-reliability--safety)
+5. [Code Quality & Maintainability](#5-code-quality--maintainability)
+6. [Performance](#6-performance)
+7. [Security](#7-security)
+8. [Positive Patterns Worth Keeping](#8-positive-patterns-worth-keeping)
+9. [Recommended Roadmap](#9-recommended-roadmap)
 
 ---
 
-## Issue Tracker
+## 1. Executive Summary
 
-> Issues are listed once. Each entry has location, description, and concrete fix.
-> Tick the checkbox when resolved.
+The project is a capable, feature-rich MMDVM hotspot firmware with solid peripheral
+coverage (DMR, POCSAG, SD card, OTA, OLED, WireGuard, MQTT, Telegram, NTP, Ethernet).
+The FreeRTOS task model is well-suited to the ESP32 and the individual modules are
+generally readable.
 
----
+The three most impactful areas to address are:
 
-### 🔴 CRITICAL
-
----
-
-- [ ] **C-4 · OTA URLs point to internal dev server**
-  **File:** [include/config.h:325–334](include/config.h#L325)
-  ```cpp
-  #define OTA_VERSION_URL  "http://192.168.2.220:3000/..."   // ← only reachable on your LAN
-  ```
-  Any user who builds from source gets broken OTA. Swap the commented GitHub URLs back in as default; move the local URLs behind a `#ifdef DEV_BUILD`.
-
----
-
-- [ ] **C-5 · Credentials committed in `config.h`**
-  **File:** [include/config.h:29,54,135,152](include/config.h#L29)
-  ```cpp
-  #define WIFI_PASSWORD    "itoldyoualready"
-  #define WIFI_AP_PASSWORD "mmdvm1234"
-  #define WEB_PASSWORD     "pi-star"
-  #define DMR_PASSWORD     "passw0rd"
-  ```
-  Replace with `""` or `"CHANGE_ME"`. Move real credentials to `include/secrets.h` (which already exists and is in `.gitignore`).
+| Priority | Issue | Impact |
+|----------|-------|--------|
+| HIGH | ~200 global `extern` variables shared across all modules | Maintainability, correctness |
+| HIGH | Fake/simulated sensor data shipped in production | Incorrect UI data |
+| HIGH | Duplicate bootloader entry sequence (likely causes flash failures) | Reliability |
+| MEDIUM | Monolithic `loadSettings()` / `saveSettings()` (~430 combined lines) | Maintainability |
+| MEDIUM | `vTaskDelete()` without graceful teardown | Reliability / crash risk |
+| MEDIUM | JSON built by string concatenation everywhere | Correctness |
+| LOW | Hardcoded default WiFi password in `config.h` | Security |
 
 ---
 
-### 🟠 HIGH
+## 2. Architecture Overview
+
+```
+esp32_mmdvm_hotspot.ino          <- Main entry; defines ALL ~200 global runtime variables
+|
++-- system/                      <- Infrastructure services
+|   +-- system_wifi.cpp          WiFi connection manager (6-slot fallback + Soft AP)
+|   +-- system_eth.cpp           Ethernet via LAN8720
+|   +-- system_webserver.cpp     ESP32 WebServer + auth middleware
+|   +-- system_modem.cpp         MMDVM modem serial driver (Core 1)
+|   +-- system_sdcard.cpp        SD card task + mutex
+|   +-- system_oled.cpp          SSD1306 OLED display task
+|   +-- system_logger.cpp        Circular log buffer (50 x 128 chars)
+|   +-- system_sensor.cpp        !! STUB -- returns random data !!
+|   +-- system_firmware.cpp      Firmware version tracking
+|   +-- system_ntp.cpp           NTP time sync
+|   +-- service_mqtt.cpp         MQTT client
+|   +-- service_telegram.cpp     Telegram bot
+|   +-- service_wireguard.cpp    WireGuard VPN
+|
++-- mmdvm/                       <- Protocol implementations
+|   +-- mmdvm_dmr.cpp            DMR / BrandMeister (full implementation)
+|   +-- mmdvm_pocsag.cpp         POCSAG paging (full implementation)
+|   +-- mmdvm_dapnet.cpp         DAPNET paging
+|   +-- mmdvm_dstar/ysf/p25/nxdn.cpp   Partial / stub implementations
+|
++-- web/pages/*.h                <- Web UI pages (C++ string generation in .h files)
+|
++-- web_handlers_*.cpp           <- HTTP route handlers (9 files)
+```
+
+**Task map (all `xTaskCreatePinnedToCore`):**
+
+| Task | Core | Priority |
+|------|------|----------|
+| MODEM | 1 | High |
+| DMR / POCSAG / D-STAR / YSF / P25 / NXDN | 0 | Medium-High |
+| WiFi / Ethernet | 0 | High |
+| WebServer | 0 | Medium |
+| MQTT | 0 | Low-Medium |
+| SD Card / OLED / Sensor / NTP / Telegram / WireGuard | 0 | Low |
 
 ---
 
-- [ ] **H-1 · CW ID DMR guard — infinite wait, no timeout**
-  **File:** [system_modem.cpp:657](system_modem.cpp#L657)
-  ```cpp
-  while (dmrTxActive || dmrRfRxActive)   // ← no exit condition
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-  ```
-  If either flag gets stuck, modemTask waits forever — CW ID never fires again.
-  ```cpp
-  unsigned long waitStart = millis();
-  while ((dmrTxActive || dmrRfRxActive) && (millis() - waitStart < 30000))
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-  if (dmrTxActive || dmrRfRxActive)
-      addLogMessage("[MODEM Task] CW ID: DMR wait timed out, transmitting anyway");
-  ```
+## 3. Critical Issues
+
+### 3.1 Fake Sensor Data in Production (`system_sensor.cpp`)
+
+**File:** `system_sensor.cpp:46-47`
+
+```cpp
+reading = random(20, 30);
+cpuUsage = (float)random(0, 100) / 100.0;
+```
+
+The "CPU usage" value shown in the web status UI and published to MQTT is a **random
+number**. There is no real temperature sensor being read, and the `cpuUsage` global
+written here is the same variable read by the web status API. Every user sees random
+0-100% CPU and 20-30 degrees C "sensor" readings.
+
+**Fix:** Replace with real ESP32 metrics:
+
+```cpp
+// Real CPU temperature (ESP32 internal sensor)
+float tempC = temperatureRead();
+
+// Real free-heap-based load proxy (or remove cpuUsage entirely)
+float heapFrac = 1.0f - ((float)ESP.getFreeHeap() / (float)ESP.getHeapSize());
+cpuUsage = heapFrac;
+
+// For real per-task CPU load use uxTaskGetRunTimeStats() with
+// configGENERATE_RUN_TIME_STATS=1 in sdkconfig.
+```
 
 ---
 
-- [ ] **H-2 · DMR TX circular buffer — no atomic ops**
-  **File:** [mmdvm_dmr.cpp:118–127](mmdvm_dmr.cpp#L118)
-  ```cpp
-  static volatile int dmrTxHead = 0;
-  static volatile int dmrTxTail = 0;
-  ```
-  `volatile` alone does not provide read-modify-write atomicity. On a multi-core system a concurrent write can corrupt both values. Replace with a FreeRTOS `QueueHandle_t` (thread-safe, provides backpressure, no hand-rolled ring buffer needed).
+### 3.2 Duplicate Bootloader Entry Sequence (`modem_flasher.cpp`)
+
+**File:** `modem_flasher.cpp:325-342`
+
+The RESET + serial-init sequence is copy-pasted verbatim twice back-to-back inside
+`modemEnterBootloader()`. The second copy is dead code that re-initialises the serial
+port unnecessarily. More dangerously, the duplicate `MMDVM_SERIAL.begin()` call can
+confuse the ESP32 UART driver and has almost certainly caused unexplained modem flash
+failures.
+
+The following block appears twice starting at line 325 and again at line 337:
+
+```cpp
+digitalWrite(MMDVM_RESET_PIN, HIGH);
+delay(1000);
+MMDVM_SERIAL.begin(MMDVM_SERIAL_BAUD, SERIAL_8E1, MMDVM_RX_PIN, MMDVM_TX_PIN);
+delay(200);
+```
+
+**Fix:** Remove the duplicate block at lines 337-343. Keep only the first instance.
 
 ---
 
-- [ ] **H-3 · `MMDVM_SERIAL` has no mutex**
-  **Files:** [system_modem.cpp](system_modem.cpp), [mmdvm_pocsag.cpp](mmdvm_pocsag.cpp), [mmdvm_dmr.cpp](mmdvm_dmr.cpp)
-  Three tasks share Serial2 with no mutex — only the `pocsagTxInProgress` flag gates access. If the DMR task is mid-read when the flag is set, it still consumes the bytes.
-  Long-term fix: introduce `SemaphoreHandle_t mmdvmSerialMutex` and wrap all Serial2 read/write.
+### 3.3 Global `extern` Variable Coupling
+
+**Files:** All `mmdvm_*.cpp`, `system_*.cpp`, `service_*.cpp`, `web_handlers_*.cpp`
+
+Every module declares its dependencies via naked `extern` statements. There are over
+**200 global variables** defined in `esp32_mmdvm_hotspot.ino`, accessed by `extern`
+in every other file. For example, `mmdvm_dmr.cpp` alone has 18 file-scope externs.
+
+Consequences:
+- Renaming or retyping any variable requires finding and updating every `extern`
+- No compile-time check that a module is accessing the right namespace
+- `saveSettings()` and `loadSettings()` must manually list every key (~430 lines total)
+- Any task can mutate any setting at any time without synchronisation
+
+**Recommended fix (incremental):** Group related settings into structs and pass
+pointers or references:
+
+```cpp
+// include/settings.h
+struct DmrSettings {
+    String server;
+    uint16_t port;
+    String password;
+    uint32_t rxFreq, txFreq;
+    uint8_t colorCode, rfPower;
+};
+
+extern DmrSettings dmrSettings;  // one extern instead of six
+```
+
+Migrate one group at a time without requiring a full rewrite.
 
 ---
 
-- [ ] **H-4 · No CSRF protection on web forms**
-  **File:** [system_webserver.cpp](system_webserver.cpp) and all web handlers
-  POST endpoints for reboot, factory reset, mode change, POCSAG send, CW ID test have no CSRF token. Anyone on the same network who tricks the user into clicking a link can trigger these actions.
-  Generate a random token at boot, embed it as a hidden field in all forms, reject POSTs without a matching token.
+## 4. Reliability & Safety
+
+### 4.1 `vTaskDelete()` Without Graceful Teardown
+
+**File:** `web_handlers_admin.cpp:122-145, 219-250`
+
+The `/api/restart-mmdvm` and `/api/restart-services` handlers call `vTaskDelete()` on
+running protocol tasks without first signalling them to stop. A task deleted mid-flight
+may hold a semaphore, have a UDP socket in an inconsistent state, or be writing to the
+SD card. This can cause hard-to-reproduce crashes on the next restart.
+
+**Fix:** Add a per-task stop flag (`volatile bool dmrStopRequested`), signal it, wait
+up to 500 ms for the task to exit cleanly, then call `vTaskDelete()` only if it has
+not already self-deleted via `vTaskDelete(NULL)`.
+
+```cpp
+dmrStopRequested = true;
+unsigned long t = millis();
+while (dmrTaskHandle != NULL && millis() - t < 500)
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+if (dmrTaskHandle != NULL) { vTaskDelete(dmrTaskHandle); dmrTaskHandle = NULL; }
+```
 
 ---
 
-- [ ] **H-5 · WireGuard private key stored plaintext in NVS**
-  **File:** [esp32-rtos-mmdvm.ino:381](esp32-rtos-mmdvm.ino#L381)
-  NVS flash on the ESP32 is unencrypted by default. Physical flash dump exposes the WireGuard private key. Enable NVS encryption in the ESP-IDF partition table if the board supports it, or at minimum document this limitation.
+### 4.2 `millis()` Overflow in Timeout Loops
+
+**File:** `modem_flasher.cpp:71`, `modem_flasher.cpp:114`
+
+```cpp
+unsigned long timeout = millis() + 2000;
+while (millis() < timeout)  // WRONG: wraps around after ~49 days
+```
+
+The correct idiom is `while (millis() - start < 2000)` using unsigned subtraction
+which wraps safely. All other modules use the correct idiom. Only `modem_flasher.cpp`
+uses the broken pattern.
+
+**Fix:**
+```cpp
+unsigned long start = millis();
+while (millis() - start < 2000)
+```
 
 ---
 
-- [ ] **H-6 · POCSAG task — infinite wait on CW ID (no timeout)**
-  **File:** [mmdvm_pocsag.cpp:583](mmdvm_pocsag.cpp#L583)
-  ```cpp
-  while (pocsagTxInProgress)            // ← no exit condition
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-  ```
-  If the CW ID or modemTask leaves `pocsagTxInProgress` stuck true (crash, hang), the POCSAG task waits forever — no more paging messages ever transmitted.
-  ```cpp
-  unsigned long waitStart = millis();
-  while (pocsagTxInProgress && (millis() - waitStart < 60000))
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-  if (pocsagTxInProgress)
-      addLogMessage("[POCSAG] CW ID wait timed out — proceeding anyway");
-  ```
+### 4.3 SD Card Mutex Held During Full File Transfer
+
+**Files:** `sdcard_handlers.cpp` (browse download), `web_handlers_snapshots.cpp`
+
+`server.streamFile()` blocks until the entire HTTP transfer completes while
+`sdCardMutex` is held. During a large file download:
+- The SD card monitoring task cannot run
+- SQLite lookups (DMR ID queries) time out waiting for the mutex
+- Log messages that need SD access are silently dropped
+
+**Fix:** For small config files, copy to a memory buffer before releasing the mutex,
+then stream from the buffer. For large database files, stream in chunks with brief
+mutex releases between chunks.
 
 ---
 
-- [ ] **H-7 · POCSAG task — infinite nested loop waiting for DMR TX**
-  **File:** [mmdvm_pocsag.cpp:553–568](mmdvm_pocsag.cpp#L553)
-  The DMR-TX guard inside `pocsagTask()` is a `while(true)` loop with no outer timeout. If `dmrTxActive` gets stuck, the POCSAG task is permanently blocked:
-  ```cpp
-  while (true) {
-      if (!dmrTxActive) break;           // ← stuck if dmrTxActive never clears
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
-  ```
-  Apply the same pattern as H-1 and H-6 — add a 30-second deadline:
-  ```cpp
-  unsigned long waitStart = millis();
-  while (dmrTxActive && (millis() - waitStart < 30000))
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-  ```
+### 4.4 Log Messages Silently Dropped Under Contention
+
+**File:** `system_logger.cpp`
+
+```cpp
+if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    return;  // silently drops the message
+```
+
+Under heavy load (flash operations, DMR call bursts) log messages from multiple tasks
+are silently discarded. The developer has no way to know how many messages were lost.
+
+**Fix:** Add a dropped-message counter:
+
+```cpp
+static uint32_t logDropped = 0;
+if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+    logDropped++;
+    return;
+}
+```
+
+Expose `logDropped` in `/api/status` and `/api/logs`.
 
 ---
 
-- [ ] **H-8 · `publishMqtt()` called from multiple tasks — PubSubClient not thread-safe**
-  **Files:** [system_mqtt.cpp](system_mqtt.cpp), [mmdvm_dmr.cpp](mmdvm_dmr.cpp), [system_modem.cpp](system_modem.cpp), [mmdvm_pocsag.cpp](mmdvm_pocsag.cpp)
-  `publishMqtt()` is called by dmrTask, modemTask, and pocsagTask concurrently. PubSubClient uses a single internal write buffer with no synchronisation — concurrent calls corrupt the TCP stream, leading to dropped publishes or broker disconnects.
-  ```cpp
-  // system_mqtt.cpp — at file scope:
-  static SemaphoreHandle_t mqttMutex = xSemaphoreCreateMutex();
+### 4.5 MQTT Self-Message Filter Is Fragile
 
-  bool publishMqtt(const char *topic, const char *payload, bool retain) {
-      if (!mqttConnected) return false;
-      if (xSemaphoreTake(mqttMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
-      bool ok = mqttClient.publish(topic, payload, retain);
-      xSemaphoreGive(mqttMutex);
-      return ok;
-  }
-  ```
+**File:** `service_mqtt.cpp:89`
 
----
+```cpp
+if (message.indexOf("\"info\":") >= 0)
+    return;  // skip own announce
+```
 
-- [ ] **H-9 · DMR HTTP lookup — SSL certificate verification disabled**
-  **File:** [mmdvm_dmr.cpp:825](mmdvm_dmr.cpp#L825)
-  ```cpp
-  client.setInsecure();   // disables certificate validation
-  ```
-  Any network path between the ESP32 and RadioID.net can serve a forged response. Use `client.setCACert(radioid_root_ca)` with the RadioID.net root certificate pinned at compile time.
+Any inbound command from an external system that legitimately contains `"info":` in
+any JSON field is silently ignored. This is a content-based filter on a structural
+property.
+
+**Fix:** Filter by topic instead. Subscribe to a dedicated command topic (e.g.
+`hotspot/commands`) and publish status/announces to a separate status topic, making
+content-based filtering unnecessary.
 
 ---
 
-- [x] **H-10 · `ethConnected` — missing `volatile`, read from 18+ tasks**
-  **Files:** [system_eth.cpp:23](system_eth.cpp#L23), [system/system_eth.h:24](system/system_eth.h#L24)
-  `ethConnected` is written by the Ethernet event handler (invoked from the WiFi/lwIP event task on Core 0) and read unguarded from at least 18 other compilation units. Without `volatile`, the compiler may cache the value in a register and readers on a different core never see updates — Ethernet-only users appear permanently offline to all subsystems.
-  ```cpp
-  // system_eth.cpp line 23:
-  volatile bool ethConnected = false;
-  // system/system_eth.h line 24:
-  extern volatile bool ethConnected;
-  ```
+### 4.6 WireGuard Task Hangs Indefinitely Waiting for NTP
+
+**File:** `service_wireguard.cpp:74-84`
+
+If NTP never syncs (DNS failure, blocked UDP 123), the WireGuard task waits forever.
+The warning counter resets every 60 iterations so warning messages repeat indefinitely.
+
+**Fix:** Add a maximum retry limit and suspend the task after it is exceeded:
+
+```cpp
+if (timeWaitCount >= 180) {  // 3 minutes total
+    addLogMessage("[WireGuard] Aborting: NTP unavailable after 3 minutes");
+    vTaskSuspend(NULL);
+    return;
+}
+```
 
 ---
 
-- [ ] **H-11 · OLED call/TX history arrays — written by one task, read by another with no mutex**
-  **File:** [system_oled.cpp:64–100, 217–250](system_oled.cpp#L64)
-  `dmrCallHistory[]` is written by `setDmrTxUserInfo()` called from dmrTask (Core 1) and read by `getDmrActivityJson()` called from web server routes (Core 0). The Arduino `String` members inside the structs are especially unsafe — a concurrent write while a web response is building the JSON string can cause a heap-use-after-free crash.
-  ```cpp
-  // At file scope in system_oled.cpp:
-  static SemaphoreHandle_t oledHistoryMutex = xSemaphoreCreateMutex();
+## 5. Code Quality & Maintainability
 
-  // Wrap setDmrTxUserInfo(), getDmrActivityJson(),
-  //      setPocsagTxInfo(), getPocsagTxHistoryJson()
-  // with xSemaphoreTake/Give around the array accesses.
-  ```
+### 5.1 Monolithic `loadSettings()` and `saveSettings()` (~430 Lines)
+
+**File:** `esp32_mmdvm_hotspot.ino`
+
+Both functions are ~215 lines each, manually listing every NVS key. Adding a new
+setting requires touching both functions. There is no compile-time safety net if you
+add a key in `loadSettings()` but forget `saveSettings()`.
+
+Note: `web_handlers_config.cpp` already uses the ESP-IDF NVS iterator to enumerate
+all keys automatically. That same approach can partially replace the manual load/save.
+At a minimum, group the 80 keys into named sections with helper functions:
+
+```cpp
+void loadNetworkSettings(Preferences &prefs);
+void loadDmrSettings(Preferences &prefs);
+void loadMqttSettings(Preferences &prefs);
+```
 
 ---
 
-### 🟡 MEDIUM
+### 5.2 Web Page HTML Generated by C++ String Concatenation in Header Files
+
+**Directory:** `web/pages/*.h`
+
+All 26 web pages are generated by C++ string concatenation inside `.h` files. Two
+structural problems:
+
+1. **Duplicate symbol risk:** The headers define functions (not just declarations), so
+   they can only be `#include`d in one `.cpp` file each. The comment in
+   `web_handlers_admin.cpp` warns: _"the page headers define functions in the header
+   body, so including them in multiple .cpp files causes duplicate symbol errors"_.
+
+2. **Unmaintainable HTML:** Reading, diffing, or editing HTML embedded in C++ strings
+   is cumbersome, and page generation consumes significant heap at runtime.
+
+**Better approach:** Store HTML templates in LittleFS as `.html` files. The web server
+streams them directly without any runtime string building:
+
+```cpp
+server.on("/", HTTP_GET, []() {
+    File f = LittleFS.open("/index.html", "r");
+    server.streamFile(f, "text/html");
+    f.close();
+});
+```
+
+Dynamic values can be injected with a simple `{{token}}` replacement during streaming.
 
 ---
 
-- [ ] **M-1 · `saveSettings()` called unconditionally on every boot — NVS wear**
-  **File:** [esp32-rtos-mmdvm.ino:888](esp32-rtos-mmdvm.ino#L888)
-  ```cpp
-  loadSettings();
-  saveSettings();  // writes 80+ NVS keys every boot
-  ```
-  Use a schema version key — only write when the firmware version changes:
-  ```cpp
-  loadSettings();
-  {
-    Preferences mig;
-    mig.begin("mmdvm", false);
-    String schema = mig.getString("fw_schema", "");
-    bool needsMigration = (schema != String(FIRMWARE_VERSION));
-    if (needsMigration) mig.putString("fw_schema", FIRMWARE_VERSION);
-    mig.end();
-    if (needsMigration) {
-      saveSettings();
-      addLogMessage("[Settings] Schema migrated to " + String(FIRMWARE_VERSION));
+### 5.3 JSON Built by String Concatenation Throughout Codebase
+
+**Files:** `web_handlers_admin.cpp`, `service_mqtt.cpp`, `mmdvm_dmr.cpp`, and more
+
+```cpp
+json += "{\"id\":\"wifi\",\"label\":\"WiFi\",\"enabled\":true,\"connected\":" +
+        String(wifiConn ? "true" : "false") + "},";
+```
+
+If any string value contains a double-quote, backslash, or control character the JSON
+is malformed. The `jsonStr()` helper in `mmdvm_dmr.cpp:42-53` already does proper
+escaping but is not used everywhere.
+
+**Fix:** Use **ArduinoJson** for all JSON output. It handles escaping automatically:
+
+```cpp
+StaticJsonDocument<512> doc;
+doc["id"] = "wifi";
+doc["label"] = "WiFi";
+doc["connected"] = wifiConn;
+String out;
+serializeJson(doc, out);
+```
+
+---
+
+### 5.4 Repeated Task-Stop Code Block (DRY Violation)
+
+**File:** `web_handlers_admin.cpp`
+
+The 6-task deletion sequence appears verbatim in both `/api/restart-mmdvm` and
+`/api/restart-services`. Likewise the 6-task restart sequence is repeated.
+
+**Fix:** Extract a helper:
+
+```cpp
+static void stopAllModeTasks() {
+    TaskHandle_t *handles[] = {
+        &dmrTaskHandle, &dstarTaskHandle, &ysfTaskHandle,
+        &p25TaskHandle, &nxdnTaskHandle, &pocsagTaskHandle };
+    for (auto *h : handles) {
+        if (*h != NULL) { vTaskDelete(*h); *h = NULL; }
     }
-  }
-  ```
-
----
-
-- [ ] **M-2 · Frame parsing duplicated 3× in `setupMMDVM()`**
-  **File:** [system_modem.cpp:255–531](system_modem.cpp#L255)
-  The MMDVM version frame parser is copy-pasted for wakeup serial, main serial fallback, and post-init retry. Extract to: `bool readModemVersion(HardwareSerial &serial, unsigned long timeoutMs, String &version)` and call it from all three sites.
-
----
-
-- [ ] **M-3 · `restoreModemAfterCwid()` and `restoreModemAfterPocsag()` are near-identical**
-  **Files:** [system_modem.cpp:572](system_modem.cpp#L572), [mmdvm_pocsag.cpp](mmdvm_pocsag.cpp)
-  Both functions flush UART, re-send frequency, wait ACK, re-send the full 23-byte config, wait ACK. Merge into one:
-  ```cpp
-  static void restoreModem(uint32_t rxFreq, uint32_t txFreq);
-  ```
-
----
-
-- [ ] **M-4 · JSON escaping — three different implementations**
-  **Files:** [mmdvm_dmr.cpp:41](mmdvm_dmr.cpp#L41), [system_logger.cpp:82](system_logger.cpp#L82), [mmdvm_dapnet.cpp:68](mmdvm_dapnet.cpp#L68)
-  `jsonStr()` in DMR is correct. The two `String.replace()` versions in logger and dapnet are incomplete (miss `\t`, `\0`, control chars < 0x20).
-  Move `jsonStr()` to [web/include/utils.h](web/include/utils.h) and use it everywhere.
-
----
-
-- [ ] **M-5 · MQTT topic strings persisted to NVS unnecessarily**
-  **File:** [esp32-rtos-mmdvm.ino:loadSettings()](esp32-rtos-mmdvm.ino#L404)
-  ~20 MQTT topic strings are saved/loaded from NVS. End users never change topic names. Remove them from NVS — keep as compile-time constants in `config.h` only.
-
----
-
-- [ ] **M-6 · `const int` / `const String` defined in header — ODR violation**
-  **File:** [include/config.h:132,186](include/config.h#L132)
-  ```cpp
-  const int WEB_SERVER_PORT = 80;   // non-inline, included in multiple TUs
-  const int LED_PIN = 38;
-  ```
-  Change to `constexpr int` (C++11, safe in headers) or `#define`.
-
----
-
-- [ ] **M-7 · POCSAG shadow queue — enqueue/display update ordering**
-  **File:** [mmdvm_pocsag.cpp](mmdvm_pocsag.cpp) (queue management)
-  The shadow display array is updated *after* `xQueueSend`. If the POCSAG task dequeues the item before the shadow is written, the UI shows a ghost entry.
-  Fix: update shadow array *before* calling `xQueueSend`.
-
----
-
-- [ ] **M-8 · `initDmrLookupTask()` undocumented and unconfigured**
-  **File:** [esp32-rtos-mmdvm.ino:990](esp32-rtos-mmdvm.ino#L990), [mmdvm_dmr.cpp](mmdvm_dmr.cpp)
-  A second DMR task for SQLite/HTTP lookups is spawned alongside `dmrTask` but has no dedicated stack/priority constants in `config.h`.
-  Add `DMR_LOOKUP_TASK_STACK` / `DMR_LOOKUP_TASK_PRIORITY` to `config.h` and add the task to the header comment.
-
----
-
-- [ ] **M-9 · No input validation on web settings**
-  **Files:** [web_handlers_dmr_settings.cpp](web_handlers_dmr_settings.cpp), other handlers
-  User-supplied values (DMR ID, frequency, color code, callsign) are saved to NVS and passed to the modem without range/format checks. Validate at the HTTP handler boundary before saving.
-
----
-
-- [ ] **M-16 · DAPNET server response embedded in JSON without escaping**
-  **File:** [mmdvm_dapnet.cpp:243](mmdvm_dapnet.cpp#L243)
-  The DAPNET server sends free-form text (rubric names, message body) embedded directly into MQTT JSON payloads via string concatenation. If the server sends a `"` or `\`, the JSON is malformed. Apply `jsonStr()` escaping.
-
----
-
-- [ ] **M-18 · WiFi slot API — SSID/password/label returned in JSON without escaping**
-  **File:** [web_handlers_wifi.cpp:60–62, 101](web_handlers_wifi.cpp#L60)
-  ```cpp
-  json += "\"ssid\":\""     + wifiSlotSsid[slot] + "\",";
-  json += "\"password\":\"" + wifiSlotPass[slot] + "\"";
-  ```
-  A stored SSID or password containing `"` or `\` produces malformed JSON. Apply `jsonStr()`-style escaping to all three fields.
-
----
-
-- [ ] **M-19 · Config export (`generateConfigString()`) includes all credentials in plaintext**
-  **File:** [web_handlers_config.cpp:168, 188, 231, 269, 302, 358](web_handlers_config.cpp#L168)
-  Embeds every credential unredacted (WiFi passwords, WireGuard private key, DMR password, MQTT password, web admin password, DAPNET auth key, ArduinoOTA password). The SD card snapshot is unauthenticated — physical access to the card exposes all credentials.
-  Add a `bool redactSecrets` parameter and mask sensitive values when writing to SD card.
-
----
-
-### 🟢 LOW / NICE TO HAVE
-
----
-
-- [ ] **L-1 · `String` heap fragmentation in high-frequency RTOS tasks**
-  **Files:** [mmdvm_dmr.cpp](mmdvm_dmr.cpp), [mmdvm_pocsag.cpp](mmdvm_pocsag.cpp), MQTT publish calls
-  Arduino `String` operator `+` allocates on the heap. In tasks that run every 10 ms (DMR) this creates heap fragmentation over time. Replace MQTT payload building with `snprintf` into a fixed stack buffer.
-
----
-
-- [ ] **L-2 · PSRAM not utilised**
-  **File:** all tasks
-  No code uses `ps_malloc()` or `heap_caps_malloc(MALLOC_CAP_SPIRAM)`. If the board has PSRAM, move the DMR user cache and web page string buffers there.
-
----
-
-- [ ] **L-5 · Stub tasks (DSTAR/YSF/P25/NXDN) — consume stack with no function**
-  **Files:** [mmdvm_dstar.cpp](mmdvm_dstar.cpp), [mmdvm_ysf.cpp](mmdvm_ysf.cpp), [mmdvm_p25.cpp](mmdvm_p25.cpp), [mmdvm_nxdn.cpp](mmdvm_nxdn.cpp)
-  If a user enables an unimplemented mode they get a running task consuming stack with no behaviour. Each stub task should call `vTaskSuspend(NULL)` immediately after logging a warning.
-
----
-
-- [ ] **L-6 · Web handlers implemented in header files — slow incremental builds**
-  **Files:** [system/web_handlers_*.h](system/)
-  All handlers are `#include`d into [system_webserver.cpp](system_webserver.cpp), making it one massive translation unit. Move implementations to `.cpp` files; keep only declarations in `.h`.
-
----
-
-- [ ] **L-7 · `loadSettings()` / `saveSettings()` — same 80 keys listed three times**
-  **File:** [esp32-rtos-mmdvm.ino](esp32-rtos-mmdvm.ino)
-  Load, first-boot-write, and save each duplicate every key name. Define NVS key names as `#define NVS_KEY_CALLSIGN "callsign"` constants so each name is written once.
-
----
-
-- [ ] **L-8 · NVS single namespace may hit 126-entry limit**
-  **File:** [esp32-rtos-mmdvm.ino:loadSettings()](esp32-rtos-mmdvm.ino#L290)
-  All ~80 settings share namespace `"mmdvm"`. ESP32 NVS allows max 126 entries per namespace. Currently at ~80 entries (64% full). Split into `"mmdvm_net"`, `"mmdvm_hw"`, `"mmdvm_proto"` as the project grows.
-
----
-
-- [ ] **L-11 · DMR user cache — O(N) linear scan on every received packet**
-  **File:** [mmdvm_dmr.cpp:737–744](mmdvm_dmr.cpp#L737)
-  `getCachedDmrUserInfo()` scans all cache entries linearly on every DMRD packet. Replace the array with `std::unordered_map<uint32_t, DmrUserInfo>` for O(1) lookups, or at minimum sort the cache and use binary search.
-
----
-
-- [x] **L-15 · `ntpSynced` — missing `volatile`, written by ntpTask, read by oledTask**
-  **Files:** [system_ntp.cpp:16](system_ntp.cpp#L16), [system/system_ntp.h:13](system/system_ntp.h#L13)
-  ```cpp
-  // system_ntp.cpp:
-  volatile bool ntpSynced = false;
-  // system/system_ntp.h:
-  extern volatile bool ntpSynced;
-  ```
-
----
-
-## Architecture Overview (reference)
-
-### Task Map
-
-| Task | Core | Priority | Stack Free (observed) | Notes |
-|------|------|----------|-----------------------|-------|
-| MODEM Task | 1 | 5 | 37.9 KB | Owns MMDVM_SERIAL init + CW ID |
-| DMR Task | 1 | 3 | 30.8 KB | Real-time protocol, reads MMDVM_SERIAL every 10 ms |
-| Web Server | 0 | 2 | 26.2 KB | Near WiFi stack — correct |
-| WiFi Task | 0 | 2 | 29.3 KB | |
-| SD Card | 0 | 2 | 21.3 KB | |
-| OLED Task | 0 | 1 | 16.2 KB | |
-| NTP Task | 0 | 1 | 9.4 KB | |
-| MQTT Task | 0 | 1 | 6.8 KB | |
-| OTA Task | 0 | 1 | 7.9 KB | |
-| LED Task | 0 | 1 | 4.2 KB | |
-| DMR Database | 0 | 1 | 10.9 KB | SQLite/HTTP lookup — correct on Core 0 |
-| POCSAG Task | 1 | 2 | — | Must be Core 1 (MMDVM_SERIAL) |
-| DAPNET Task | 0 | 1 | — | Pure TCP I/O — correct on Core 0 ✓ |
-| arduino_events | 1 | 19 | — | Internal — can briefly preempt MODEM/DMR |
-
-**Core split is already well-optimised.** MODEM and DMR correctly isolated on Core 1. All network/IO tasks on Core 0 next to the WiFi stack.
-
-### MMDVM Serial Protocol Summary
-
-```
-Frame: [0xE0 | total_len | command | data...]
-ACK:   [0xE0, 0x03, 0x70]
-NAK:   [0xE0, 0x04, 0x7F, reason]
-
-Key commands:
-  0x00 GET_VERSION    0x02 SET_CONFIG    0x03 SET_MODE
-  0x04 SET_FREQ       0x0A SEND_CWID     0x50 POCSAG_DATA
-  0x18/0x1A DMR_DATA  0x70 ACK          0x7F NAK
-```
-
-### POCSAG / CW ID Sequencing (confirmed working)
-
-```
-POCSAG TX:  flush → SET_MODE(IDLE) → SET_FREQ(pocsag) → SET_CONFIG(POCSAG) → POCSAG_DATA → wait 1.1s → restore
-CW ID:      flush → SET_MODE(IDLE) → [retune if needed] → SEND_CWID → wait (len×600ms + 3s) → restore
-Guard:      pocsagTxInProgress=true gates DMR UART reads for both operations
+}
 ```
 
 ---
 
-## Positive Highlights
+### 5.5 `extern` Declarations Inside Function Bodies
 
-- **`waitForModemAck()` frame parser** — proper MMDVM frame state machine, correctly handles interleaved status frames.
-- **Logger mutex** — `xSemaphoreCreateMutex()` around the circular buffer is the right pattern.
-- **DMR SHA-256 auth** — mbedTLS implementation is correct.
-- **POCSAG BCH + parity** — matches MMDVMHost reference exactly.
-- **`jsonStr()` in DMR** — proper per-character JSON escaping.
-- **`pocsagTxInProgress` gate on DMR serial reads** — the root cause (DMR stealing ACKs) was correctly identified and fixed.
-- **CW ID full-wait strategy** — waiting the calculated TX duration regardless of ACK timing is the correct solution.
-- **6-slot WiFi with AP fallback** — thoughtful UX.
-- **WireGuard VPN integration** — impressive on an ESP32.
-- **Empty `loop()`** — RTOS architecture is properly used throughout.
-- **LittleFS for snapshots + NVS for live settings** — good separation of concerns.
-- **DMR lookup in separate task** — blocking I/O correctly isolated from real-time protocol loop.
+**Files:** `system_wifi.cpp:69-71`, `modem_flasher.cpp:260-268`
+
+```cpp
+void startSoftAP() {
+    extern String wifiApSsid;      // inside function body
+    extern String wifiApPassword;
+```
+
+Legal C++ but unusual and misleading. It obscures the file-level coupling.
+
+**Fix:** Move all `extern` declarations to file scope, after the includes.
 
 ---
 
-*Codebase version: `20260228_ESP32_BETA` · Last reviewed: 2026-02-28*
+### 5.6 D-STAR / YSF / P25 / NXDN Have No Connection State
+
+**Files:** `mmdvm_dstar.cpp`, `mmdvm_ysf.cpp`, `mmdvm_p25.cpp`, `mmdvm_nxdn.cpp`
+
+The `/api/mode-status` endpoint correctly reports `"connected"` for DMR but omits it
+for other modes. Users enabling D-STAR have no visibility into whether it is actually
+connected. If these modes are functional, add `volatile bool dstarLoggedIn = false;`
+etc. and expose in the API. If they are stubs, document that in the UI.
+
+---
+
+### 5.7 Config Import Has No Key Whitelist
+
+**File:** `web_handlers_config.cpp:132-186`
+
+`applyConfigString()` writes any `key:type=value` line to NVS without validating that
+the key is a known setting. A malformed or malicious config file could write unexpected
+keys or fill the NVS partition.
+
+**Fix:** Validate keys against a known-keys set before writing. The `loadSettings()`
+function already contains the canonical key list and can serve as a reference.
+
+---
+
+## 6. Performance
+
+### 6.1 `String` Heap Fragmentation
+
+The ESP32 Arduino `String` class uses heap allocation. The firmware makes heavy use of
+`String` concatenation in hot paths (every MQTT publish, every log message, every HTTP
+response). On a device with 320 KB SRAM and 16+ concurrent tasks, repeated small heap
+allocations lead to fragmentation over long uptimes.
+
+Good mitigations already exist in some places (`reserve()`, `snprintf` into fixed
+buffers). Apply them consistently in hot paths. Monitor `ESP.getMinFreeHeap()` over
+long uptimes -- a steadily shrinking minimum indicates fragmentation.
+
+---
+
+### 6.2 `publishHardwareInfo()` Builds a Large String via `+=`
+
+**File:** `service_mqtt.cpp:325-416`
+
+This function builds a ~600-byte JSON string via `+=` over 25+ fields. It is called
+both on connect and periodically. Using `StaticJsonDocument<1024>` would reduce
+allocations and guarantee correct escaping.
+
+---
+
+### 6.3 Sensor Task Logs Random Data Every 2 Seconds
+
+**File:** `system_sensor.cpp`
+
+Even ignoring the fake data, logging every 2 seconds adds 720 log entries/hour and
+720 MQTT publishes/hour for meaningless values. Increase the interval to 30-60 seconds
+as a minimum, and fix the data source.
+
+---
+
+## 7. Security
+
+### 7.1 Hardcoded Default WiFi Password in `config.h`
+
+**File:** `include/config.h`
+
+```cpp
+#define WIFI_PASSWORD "itoldyoualready"
+```
+
+This default password is visible in the source repository. Any device flashed without
+changing defaults will connect to a network using this known password.
+
+**Fix:** Set the default to an empty string. Force first-boot setup through the Soft AP
+fallback mode before the hotspot attempts to connect to any network.
+
+---
+
+### 7.2 No CSRF Protection on Destructive Endpoints
+
+**File:** `web_handlers_admin.cpp`
+
+`/api/factory-reset`, `/api/reboot`, `/api/restart-mmdvm` are plain HTTP POST endpoints
+protected only by Basic Auth. A malicious web page in the same browser session can
+trigger these via CSRF since the browser sends credentials automatically.
+
+**Fix:** Require a confirmation parameter for destructive endpoints:
+
+```cpp
+if (server.arg("confirm") != "yes") {
+    server.send(400, "text/plain", "Missing confirmation");
+    return;
+}
+```
+
+---
+
+### 7.3 MQTT Credentials Transmitted in Plaintext
+
+**File:** `service_mqtt.cpp:35`
+
+```cpp
+WiFiClient wifiClient;  // no TLS
+```
+
+MQTT credentials are sent in plaintext. For deployments using internet-facing brokers
+(WireGuard feature implies external connectivity), switch to `WiFiClientSecure` with
+certificate verification.
+
+---
+
+## 8. Positive Patterns Worth Keeping
+
+These areas are well-implemented and serve as reference patterns for the rest of the
+codebase.
+
+| Pattern | Location | Why it is good |
+|---------|----------|----------------|
+| NVS iterator config export | `web_handlers_config.cpp:33-125` | Zero-maintenance, picks up new keys automatically |
+| MMDVM frame parser with re-sync | `system_modem.cpp:143-200` | Correctly skips stale frames before ACK; documents the old bug |
+| Mutex + short timeout for SD monitoring | `system_sdcard.cpp:112` | Non-blocking skip rather than indefinite wait |
+| MQTT client ID with chip MAC suffix | `service_mqtt.cpp:177-180` | Unique per device, survives hostname collisions |
+| LittleFS path sanitization | `web_handlers_snapshots.cpp` | Blocks `..` traversal, enforces `/` prefix |
+| MMDVM keepalive wakeup serial | `system_modem.cpp:229-231` | Correctly keeps modem alive via dedicated UART |
+| `jsonStr()` helper for escaping | `mmdvm_dmr.cpp:42-53` | Proper JSON string escaping (needs wider adoption) |
+| 6-slot WiFi with Soft AP fallback | `system_wifi.cpp` | Clean state machine with Ethernet coexistence |
+| Config export/import shared helpers | `web_handlers_config.cpp` | HTTP routes and snapshot handlers reuse the same logic |
+
+---
+
+## 9. Recommended Roadmap
+
+### Immediate (bug fixes, low effort)
+
+1. **Remove duplicate bootloader sequence** in `modem_flasher.cpp:337-343` — likely
+   the root cause of intermittent flash failures.
+2. **Fix fake sensor data** in `system_sensor.cpp` — replace `random()` with
+   `temperatureRead()` and real heap metrics.
+3. **Fix `millis()` overflow** in `modem_flasher.cpp:71,114` — use elapsed-time idiom.
+4. **Remove duplicate task-stop code** in `web_handlers_admin.cpp` — extract
+   `stopAllModeTasks()` helper.
+5. **Move inline `extern` declarations** to file scope in `system_wifi.cpp` and
+   `modem_flasher.cpp`.
+
+### Short-term (reliability, medium effort)
+
+6. **Add graceful task shutdown** before `vTaskDelete()` in admin restart handlers.
+7. **Add dropped-message counter** to the logger, expose in status API.
+8. **Fix MQTT self-message filter** — filter by topic, not content substring.
+9. **Add maximum NTP wait** in WireGuard task to prevent infinite hang.
+10. **Add config import key whitelist** in `applyConfigString()`.
+
+### Medium-term (architecture, larger effort)
+
+11. **Adopt ArduinoJson** for all JSON output — eliminate string concatenation and
+    escaping bugs.
+12. **Group settings into structs** — reduce the 200-global-extern coupling
+    incrementally, starting with DMR and MQTT settings.
+13. **Split `loadSettings()` / `saveSettings()`** into per-module helpers.
+14. **Add CSRF confirmation parameter** to destructive API endpoints.
+15. **Add stack high-water mark monitoring** — call `uxTaskGetStackHighWaterMark()`
+    in the sensor task, log results, alert when any task is within 512 bytes of its limit.
+
+### Long-term (scalability)
+
+16. **Move web UI to LittleFS HTML files** — decouple UI from firmware, eliminate
+    duplicate-symbol risk in web page headers, enable live editing.
+17. **Implement connection state** for D-STAR / YSF / P25 / NXDN modes.
+18. **Enable TLS for MQTT** when connecting to internet-facing brokers.
+19. **Change default WiFi password** to empty and enforce first-boot credential setup.
+
+---
+
+*End of review.*

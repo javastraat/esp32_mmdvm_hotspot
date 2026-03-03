@@ -172,6 +172,13 @@ String getSystemAdminPageHTML()
   html += "  <span id='lfs-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
   html += "  <button id='lfs-up-btn' class='btn btn-secondary' onclick='lfsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
   html += "  <button class='btn btn-primary' onclick='lfsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
+  html += "  <button class='btn btn-success' onclick='lfsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
+  html += "</div>";
+  // Mkdir input row (hidden by default)
+  html += "<div id='lfs-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
+  html += "  <input id='lfs-mkdir-input' type='text' placeholder='New folder name' style='flex:1;padding:4px 8px;background:#1e1e1e;color:#fff;border:1px solid #555;border-radius:4px;font-size:13px;' onkeydown='if(event.key==\"Enter\")lfsMkdir();'>";
+  html += "  <button class='btn btn-success' onclick='lfsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
+  html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"lfs-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
   html += "</div>";
   // File table
   html += "<div style='overflow-x:auto;'>";
@@ -198,6 +205,13 @@ String getSystemAdminPageHTML()
   html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
   html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
   html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
+  html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
+  html += "</div>";
+  // Mkdir input row (hidden by default)
+  html += "<div id='sd-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
+  html += "  <input id='sd-mkdir-input' type='text' placeholder='New folder name' style='flex:1;padding:4px 8px;background:#1e1e1e;color:#fff;border:1px solid #555;border-radius:4px;font-size:13px;' onkeydown='if(event.key==\"Enter\")sdBrsMkdir();'>";
+  html += "  <button class='btn btn-success' onclick='sdBrsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
+  html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"sd-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
   html += "</div>";
   // File table
   html += "<div style='overflow-x:auto;'>";
@@ -691,6 +705,52 @@ String getSystemAdminPageHTML()
   html += "      .then(function(msg) { showAlert(msg); sdBrsRefresh(); })";
   html += "      .catch(function() { showAlert('Error deleting file'); });";
   html += "  });";
+  html += "}";
+
+  // LittleFS mkdir
+  html += "function lfsMkdirShow() {";
+  html += "  var row = document.getElementById('lfs-mkdir-row');";
+  html += "  if (row.style.display === 'none' || row.style.display === '') {";
+  html += "    row.style.display = 'flex';";
+  html += "    document.getElementById('lfs-mkdir-input').value = '';";
+  html += "    document.getElementById('lfs-mkdir-input').focus();";
+  html += "  } else { row.style.display = 'none'; }";
+  html += "}";
+  html += "function lfsMkdir() {";
+  html += "  var name = document.getElementById('lfs-mkdir-input').value.trim();";
+  html += "  if (!name) return;";
+  html += "  var path = (lfsCurrentPath === '/' ? '/' : lfsCurrentPath + '/') + name;";
+  html += "  fetch('/api/littlefs/mkdir?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "    .then(function(r) { return r.text(); })";
+  html += "    .then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "      document.getElementById('lfs-mkdir-row').style.display = 'none';";
+  html += "      lfsRefresh();";
+  html += "    })";
+  html += "    .catch(function() { showAlert('Error creating directory'); });";
+  html += "}";
+
+  // SD card mkdir
+  html += "function sdBrsMkdirShow() {";
+  html += "  var row = document.getElementById('sd-mkdir-row');";
+  html += "  if (row.style.display === 'none' || row.style.display === '') {";
+  html += "    row.style.display = 'flex';";
+  html += "    document.getElementById('sd-mkdir-input').value = '';";
+  html += "    document.getElementById('sd-mkdir-input').focus();";
+  html += "  } else { row.style.display = 'none'; }";
+  html += "}";
+  html += "function sdBrsMkdir() {";
+  html += "  var name = document.getElementById('sd-mkdir-input').value.trim();";
+  html += "  if (!name) return;";
+  html += "  var path = (sdBrsCurrentPath === '/' ? '/' : sdBrsCurrentPath + '/') + name;";
+  html += "  fetch('/api/sdcard/browse/mkdir?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "    .then(function(r) { return r.text(); })";
+  html += "    .then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "      document.getElementById('sd-mkdir-row').style.display = 'none';";
+  html += "      sdBrsRefresh();";
+  html += "    })";
+  html += "    .catch(function() { showAlert('Error creating directory'); });";
   html += "}";
 
   html += "</script>";

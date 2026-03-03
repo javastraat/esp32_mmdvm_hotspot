@@ -1635,6 +1635,37 @@ static void handleSdBrowseDelete()
   }
 }
 
+// POST /api/sdcard/browse/mkdir?path=<newdirpath>
+// Creates a new directory on the SD card (mutex protected).
+static void handleSdBrowseMkdir()
+{
+  if (!sdCardMounted) {
+    server.send(503, "text/plain", "ERROR: SD not mounted");
+    return;
+  }
+  String path = server.arg("path");
+  if (path.length() == 0 || !path.startsWith("/") || path.indexOf("..") >= 0 || path.length() > 128) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+    server.send(503, "text/plain", "ERROR: SD card busy");
+    return;
+  }
+  bool exists = SD.exists(path);
+  bool ok = false;
+  if (!exists) ok = SD.mkdir(path);
+  xSemaphoreGive(sdCardMutex);
+  if (exists) {
+    server.send(409, "text/plain", "ERROR: Already exists: " + path);
+  } else if (ok) {
+    addLogMessage("[SD] Directory created: " + path);
+    server.send(200, "text/plain", "Created: " + path);
+  } else {
+    server.send(500, "text/plain", "ERROR: Could not create directory: " + path);
+  }
+}
+
 // ===== Setup Function =====
 
 void setupSDCardHandlers(WebServer &server)
@@ -1656,6 +1687,7 @@ void setupSDCardHandlers(WebServer &server)
   server.on("/api/sdcard/ls",              HTTP_GET,  handleSdLs);
   server.on("/api/sdcard/browse/download", HTTP_GET,  handleSdBrowseDownload);
   server.on("/api/sdcard/browse/delete",   HTTP_POST, handleSdBrowseDelete);
+  server.on("/api/sdcard/browse/mkdir",    HTTP_POST, handleSdBrowseMkdir);
   server.on("/api/dmr/user/", HTTP_GET, handleDMRUserSearch);
   server.on("/api/sqlite/search", HTTP_GET, handleSQLiteSearch);
 

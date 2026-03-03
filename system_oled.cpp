@@ -714,17 +714,17 @@ void oledTask(void *parameter)
   addLogMessage("[OLED Task] Boot logo displayed");
   publishMqtt(mqttOledTaskTopic.c_str(), usedCustom ? "{\"event\":\"boot_logo\",\"custom\":true}" : "{\"event\":\"boot_logo\",\"custom\":false}");
 
-  // Show logo for 3 seconds
-  vTaskDelay(3000 / portTICK_PERIOD_MS);
+  // Show logo for 5 seconds
+  vTaskDelay(5000 / portTICK_PERIOD_MS);
 
   // Clear display
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println("ESP32 RTOS");
-  display.println("Initializing...");
-  display.display();
+  // display.clearDisplay();
+  // display.setTextSize(1);
+  // display.setTextColor(SSD1306_WHITE);
+  // display.setCursor(0, 0);
+  // display.println("ESP32 RTOS");
+  // display.println("Initializing...");
+  // display.display();
 
   // Wait for any network connection (WiFi OR Ethernet)
   while (WiFi.status() != WL_CONNECTED && !ethConnected)

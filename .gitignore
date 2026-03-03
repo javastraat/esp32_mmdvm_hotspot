@@ -21,3 +21,9 @@ makedb.sh
 esp32_mmdvm_hotspot/
 esp32_mmdvm_hotspot/*
 esp32_mmdvm_hotspot/.DS_Store
+/images/scripts/
+/images/scripts/*
+/images/scripts/.DS_Store
+/images/work/
+/images/work/*
+/images/work/.DS_Store
