@@ -1537,11 +1537,19 @@ static void handleSdLs()
     if (dir && dir.isDirectory()) {
       File entry = dir.openNextFile();
       while (entry) {
-        // On SD, entry.name() returns the full path
-        String fullPath = String(entry.name());
-        if (!fullPath.startsWith("/")) fullPath = "/" + fullPath;
-        int lastSlash = fullPath.lastIndexOf('/');
-        String name = fullPath.substring(lastSlash + 1);
+        // entry.name() may return a bare basename (no slash) on some SD library versions.
+        // If it contains a slash it's already a full path; otherwise build from the browsed path.
+        String rawName = String(entry.name());
+        String name;
+        String fullPath;
+        int lastSlash = rawName.lastIndexOf('/');
+        if (lastSlash >= 0) {
+          name = rawName.substring(lastSlash + 1);
+          fullPath = rawName.startsWith("/") ? rawName : "/" + rawName;
+        } else {
+          name = rawName;
+          fullPath = (path == "/") ? "/" + name : path + "/" + name;
+        }
         if (!first) json += ",";
         json += "{\"name\":\"" + jsonEscape(name) + "\"";
         json += ",\"size\":"  + String(entry.size());

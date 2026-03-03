@@ -524,6 +524,93 @@ static void handleLfsDeleteFile()
 }
 
 // ---------------------------------------------------------------------------
+// POST /api/littlefs/set-bootlogo?path=<filepath>
+// Copies a LittleFS file to /bootlogo.bin (must be exactly 1024 bytes).
+// ---------------------------------------------------------------------------
+static void handleLfsSetBootlogo()
+{
+  String path = server.arg("path");
+  if (!isValidLfsPath(path)) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  File src = LittleFS.open(path, "r");
+  if (!src || src.isDirectory()) {
+    if (src) src.close();
+    server.send(404, "text/plain", "ERROR: File not found: " + path);
+    return;
+  }
+  if (src.size() != 1024) {
+    size_t sz = src.size();
+    src.close();
+    server.send(400, "text/plain", "ERROR: Must be exactly 1024 bytes (got " + String(sz) + ")");
+    return;
+  }
+  uint8_t buf[1024];
+  src.read(buf, 1024);
+  src.close();
+  if (LittleFS.exists("/bootlogo.bin")) LittleFS.remove("/bootlogo.bin");
+  File dst = LittleFS.open("/bootlogo.bin", "w");
+  if (!dst) {
+    server.send(500, "text/plain", "ERROR: Cannot write /bootlogo.bin");
+    return;
+  }
+  dst.write(buf, 1024);
+  dst.close();
+  addLogMessage("[LittleFS] Boot logo set from: " + path);
+  server.send(200, "text/plain", "Boot logo set to: " + path);
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/sdcard/set-bootlogo?path=<filepath>
+// Reads a file from SD card and writes it to LittleFS /bootlogo.bin.
+// ---------------------------------------------------------------------------
+static void handleSdSetBootlogo()
+{
+  if (!sdCardMounted) {
+    server.send(503, "text/plain", "ERROR: SD not mounted");
+    return;
+  }
+  String path = server.arg("path");
+  if (path.length() == 0 || !path.startsWith("/") || path.indexOf("..") >= 0) {
+    server.send(400, "text/plain", "ERROR: Invalid path");
+    return;
+  }
+  if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+    server.send(503, "text/plain", "ERROR: SD card busy");
+    return;
+  }
+  File src = SD.open(path);
+  if (!src || src.isDirectory()) {
+    if (src) src.close();
+    xSemaphoreGive(sdCardMutex);
+    server.send(404, "text/plain", "ERROR: File not found: " + path);
+    return;
+  }
+  if (src.size() != 1024) {
+    size_t sz = src.size();
+    src.close();
+    xSemaphoreGive(sdCardMutex);
+    server.send(400, "text/plain", "ERROR: Must be exactly 1024 bytes (got " + String(sz) + ")");
+    return;
+  }
+  uint8_t buf[1024];
+  src.read(buf, 1024);
+  src.close();
+  xSemaphoreGive(sdCardMutex);
+  if (LittleFS.exists("/bootlogo.bin")) LittleFS.remove("/bootlogo.bin");
+  File dst = LittleFS.open("/bootlogo.bin", "w");
+  if (!dst) {
+    server.send(500, "text/plain", "ERROR: Cannot write /bootlogo.bin to flash");
+    return;
+  }
+  dst.write(buf, 1024);
+  dst.close();
+  addLogMessage("[SD->LittleFS] Boot logo set from SD: " + path);
+  server.send(200, "text/plain", "Boot logo set from SD: " + path);
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/littlefs/mkdir?path=<newdirpath>
 // Creates a new directory on LittleFS.
 // ---------------------------------------------------------------------------
@@ -560,6 +647,8 @@ void registerSnapshotRoutes()
   server.on("/api/littlefs/dirs",      HTTP_GET,  handleLfsDirs);
   server.on("/api/littlefs/ls",        HTTP_GET,  handleLfsLs);
   server.on("/api/littlefs/download",  HTTP_GET,  handleLfsDownload);
-  server.on("/api/littlefs/delete",    HTTP_POST, handleLfsDeleteFile);
-  server.on("/api/littlefs/mkdir",     HTTP_POST, handleLfsMkdir);
+  server.on("/api/littlefs/delete",        HTTP_POST, handleLfsDeleteFile);
+  server.on("/api/littlefs/mkdir",         HTTP_POST, handleLfsMkdir);
+  server.on("/api/littlefs/set-bootlogo",  HTTP_POST, handleLfsSetBootlogo);
+  server.on("/api/sdcard/set-bootlogo",    HTTP_POST, handleSdSetBootlogo);
 }

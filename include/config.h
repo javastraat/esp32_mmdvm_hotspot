@@ -8,7 +8,7 @@
 
 // Firmware version
 //#define FIRMWARE_VERSION "20260221_ESP32"
-#define FIRMWARE_VERSION "20260302_ESP32_BETA"
+#define FIRMWARE_VERSION "20260303_ESP32_BETA"
 
 // ========================================
 // Default User Settings

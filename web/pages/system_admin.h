@@ -634,7 +634,9 @@ String getSystemAdminPageHTML()
   html += "        } else {";
   html += "          rows += '<td style=\"padding:4px 6px\">&#128196; ' + e.name + '</td>';";
   html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + lfsFormatSize(e.size) + '</td>';";
-  html += "          rows += '<td style=\"padding:4px 2px;text-align:right\">';";
+  html += "          var isBootLogo = /^bootlogo.*\\.bin$/i.test(e.name) && e.path !== '/bootlogo.bin';";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right;white-space:nowrap\">';";
+  html += "          if (isBootLogo) rows += '<button class=\"btn btn-success\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px;margin-right:4px\" onclick=\"lfsSetBoot(this)\">&#x1F5A5; Boot</button>';";
   html += "          rows += '<a href=\"/api/littlefs/download?path=' + encodeURIComponent(e.path) + '\" download=\"' + e.name + '\" class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px\">DL</a>';";
   html += "          rows += '<button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"lfsDelThis(this)\">Del</button>';";
   html += "          rows += '</td>';";
@@ -686,7 +688,9 @@ String getSystemAdminPageHTML()
   html += "        } else {";
   html += "          rows += '<td style=\"padding:4px 6px\">&#128196; ' + e.name + '</td>';";
   html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + lfsFormatSize(e.size) + '</td>';";
-  html += "          rows += '<td style=\"padding:4px 2px;text-align:right\">';";
+  html += "          var isBootLogoSd = /^bootlogo.*\\.bin$/i.test(e.name);";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right;white-space:nowrap\">';";
+  html += "          if (isBootLogoSd) rows += '<button class=\"btn btn-success\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px;margin-right:4px\" onclick=\"sdBrsSetBoot(this)\">&#x1F5A5; Boot</button>';";
   html += "          rows += '<a href=\"/api/sdcard/browse/download?path=' + encodeURIComponent(e.path) + '\" download=\"' + e.name + '\" class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px\">DL</a>';";
   html += "          rows += '<button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"sdBrsDelThis(this)\">Del</button>';";
   html += "          rows += '</td>';";
@@ -705,6 +709,26 @@ String getSystemAdminPageHTML()
   html += "      .then(function(msg) { showAlert(msg); sdBrsRefresh(); })";
   html += "      .catch(function() { showAlert('Error deleting file'); });";
   html += "  });";
+  html += "}";
+
+  // Boot logo activation helpers (shared confirm+reboot flow)
+  html += "function doSetBootlogo(apiUrl, label) {";
+  html += "  showConfirm('Set \"' + label + '\" as boot logo?\\nThis overwrites /bootlogo.bin on flash.', function() {";
+  html += "    fetch(apiUrl, {method:'POST'})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) {";
+  html += "        showConfirm(msg + '\\n\\nReboot now to apply the new boot logo?', function() {";
+  html += "          fetch('/api/reboot', {method:'POST'});";
+  html += "        });";
+  html += "      })";
+  html += "      .catch(function() { showAlert('Error setting boot logo'); });";
+  html += "  });";
+  html += "}";
+  html += "function lfsSetBoot(el) {";
+  html += "  doSetBootlogo('/api/littlefs/set-bootlogo?path=' + encodeURIComponent(el.dataset.path), el.dataset.path);";
+  html += "}";
+  html += "function sdBrsSetBoot(el) {";
+  html += "  doSetBootlogo('/api/sdcard/set-bootlogo?path=' + encodeURIComponent(el.dataset.path), el.dataset.path);";
   html += "}";
 
   // LittleFS mkdir
