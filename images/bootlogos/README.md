@@ -3,8 +3,7 @@
 Boot logos for the SSD1306 128×64 OLED display on the ESP32 MMDVM Hotspot.
 Each logo ships as a **PNG preview** and a ready-to-flash **binary** (`.bin`).
 
-> 📂 **[Open the interactive gallery →](index.html)**
-> Open `index.html` in your browser to preview all logos and download the `.bin` files.
+> **Tip:** Download `index.html` along with the logo files and open it locally in your browser for an interactive gallery with one-click `.bin` downloads.
 
 ---
 
