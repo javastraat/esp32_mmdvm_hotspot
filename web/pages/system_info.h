@@ -18,56 +18,6 @@
 // External variables (if you have modem firmware version tracking)
 // extern String modemFirmwareVersion;
 
-// External task handles for stack monitoring
-extern TaskHandle_t wifiTaskHandle;
-extern TaskHandle_t ethTaskHandle;
-extern TaskHandle_t webServerTaskHandle;
-extern TaskHandle_t sdCardTaskHandle;
-extern TaskHandle_t oledTaskHandle;
-extern TaskHandle_t ledTaskHandle;
-extern TaskHandle_t sensorTaskHandle;
-extern TaskHandle_t ntpTaskHandle;
-extern TaskHandle_t mqttTaskHandle;
-extern TaskHandle_t arduinoOtaTaskHandle;
-extern TaskHandle_t modemTaskHandle;
-extern TaskHandle_t dmrTaskHandle;
-extern TaskHandle_t dstarTaskHandle;
-extern TaskHandle_t ysfTaskHandle;
-extern TaskHandle_t p25TaskHandle;
-extern TaskHandle_t nxdnTaskHandle;
-extern TaskHandle_t pocsagTaskHandle;
-extern TaskHandle_t wireguardTaskHandle;
-extern TaskHandle_t dapnetTaskHandle;
-
-// Helper function to get stack usage HTML for a task
-// Note: stackSize in config.h is in WORDS (despite comment saying bytes)
-// xTaskCreatePinnedToCore treats it as words, uxTaskGetStackHighWaterMark returns words
-String getTaskStackHTML(const char *name, TaskHandle_t handle, int stackSizeWords)
-{
-  if (handle == NULL)
-    return "";
-
-  UBaseType_t freeWords = uxTaskGetStackHighWaterMark(handle);
-  int usedWords = stackSizeWords - (int)freeWords;
-  int usedPercent = (usedWords * 100) / stackSizeWords;
-
-  // Convert to bytes for display
-  int freeBytes = freeWords * 4;
-
-  // Color based on usage: green < 70%, yellow 70-85%, red > 85%
-  String color = "#4CAF50"; // Green
-  if (usedPercent > 85)
-    color = "#f44336"; // Red
-  else if (usedPercent > 70)
-    color = "#ff9800"; // Orange
-
-  String html = "<div class='metric'>";
-  html += "<span class='metric-label'>" + String(name) + ":</span>";
-  html += "<span class='metric-value' style='color:" + color + "'>";
-  html += String(usedPercent) + "% (" + String(freeBytes / 1024.0, 1) + " KB free)";
-  html += "</span></div>";
-  return html;
-}
 
 String getSystemInfoPageHTML()
 {
@@ -135,28 +85,50 @@ String getSystemInfoPageHTML()
   html += "<div class='card'>";
   html += "<h3>Task Stack Usage</h3>";
 
-  // System tasks (in start order)
-  html += getTaskStackHTML("OLED", oledTaskHandle, OLED_TASK_STACK);
-  html += getTaskStackHTML("LED", ledTaskHandle, LED_TASK_STACK);
-  html += getTaskStackHTML("WiFi", wifiTaskHandle, WIFI_TASK_STACK);
-  html += getTaskStackHTML("Ethernet", ethTaskHandle, ETH_TASK_STACK);
-  html += getTaskStackHTML("WireGuard", wireguardTaskHandle, WG_TASK_STACK);
-  html += getTaskStackHTML("MQTT", mqttTaskHandle, MQTT_TASK_STACK);
-  html += getTaskStackHTML("ArduinoOTA", arduinoOtaTaskHandle, ARDUINO_OTA_TASK_STACK);
-  html += getTaskStackHTML("NTP", ntpTaskHandle, NTP_TASK_STACK);
-  html += getTaskStackHTML("Web Server", webServerTaskHandle, WEBSERVER_TASK_STACK);
-  html += getTaskStackHTML("SD Card", sdCardTaskHandle, SDCARD_TASK_STACK);
+  {
+    UBaseType_t taskCount = uxTaskGetNumberOfTasks();
+    TaskStatus_t *taskArray = (TaskStatus_t *)pvPortMalloc(taskCount * sizeof(TaskStatus_t));
+    if (taskArray != NULL) {
+      UBaseType_t actualCount = uxTaskGetSystemState(taskArray, taskCount, NULL);
 
-  // MMDVM protocol tasks (in start order)
-  html += getTaskStackHTML("Modem", modemTaskHandle, MODEM_TASK_STACK);
-  html += getTaskStackHTML("DMR", dmrTaskHandle, MMDVM_DMR_STACK);
-  html += getTaskStackHTML("D-Star", dstarTaskHandle, MMDVM_DSTAR_STACK);
-  html += getTaskStackHTML("YSF", ysfTaskHandle, MMDVM_YSF_STACK);
-  html += getTaskStackHTML("P25", p25TaskHandle, MMDVM_P25_STACK);
-  html += getTaskStackHTML("NXDN", nxdnTaskHandle, MMDVM_NXDN_STACK);
-  html += getTaskStackHTML("POCSAG", pocsagTaskHandle, MMDVM_POCSAG_STACK);
-  html += getTaskStackHTML("DAPNET", dapnetTaskHandle, MMDVM_DAPNET_STACK);
-  
+      // Collect matching tasks (name contains "Task" or equals "DMR Database")
+      struct { const char *name; int freeBytes; } matched[32];
+      int matchCount = 0;
+      for (UBaseType_t i = 0; i < actualCount && matchCount < 32; i++) {
+        const char *n = taskArray[i].pcTaskName;
+        bool include = (strstr(n, "Task") != NULL) || (strcmp(n, "DMR Database") == 0);
+        if (include) {
+          matched[matchCount].name = n;
+          matched[matchCount].freeBytes = (int)taskArray[i].usStackHighWaterMark * 4;
+          matchCount++;
+        }
+      }
+
+      // Sort by free bytes ascending (worst first)
+      for (int a = 0; a < matchCount - 1; a++) {
+        for (int b = a + 1; b < matchCount; b++) {
+          if (matched[b].freeBytes < matched[a].freeBytes) {
+            auto tmp = matched[a]; matched[a] = matched[b]; matched[b] = tmp;
+          }
+        }
+      }
+
+      for (int i = 0; i < matchCount; i++) {
+        int fb = matched[i].freeBytes;
+        String color = (fb < 512) ? "#f44336" : (fb < 1024) ? "#ff9800" : "#4CAF50";
+        String freeStr = (fb >= 1024) ? String(fb / 1024.0, 1) + " KB" : String(fb) + " B";
+        html += "<div class='metric'>";
+        html += "<span class='metric-label'>" + String(matched[i].name) + ":</span>";
+        html += "<span class='metric-value' style='color:" + color + "'>" + freeStr + " free</span>";
+        html += "</div>";
+      }
+
+      vPortFree(taskArray);
+    } else {
+      html += "<p style='color:red;'>Memory allocation failed.</p>";
+    }
+  }
+
   html += "</div>";
 
   // ==================== All Tasks Card ====================

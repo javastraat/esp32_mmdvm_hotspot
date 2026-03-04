@@ -72,36 +72,11 @@ String getSystemBackupPageHTML()
   html += "</div>";
   html += "</div>";
 
-   // Card 4: NVS Namespace Listing
-  html += "<div class='card'>";
-  html += "<h3>NVS Namespace Listing</h3>";
-  html += "<p>View all NVS namespaces stored on the ESP32</p>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "<button class='btn btn-info' onclick='showNvsNamespaces()'>Refresh</button>";
-  html += "</div>";
-  html += "<div id='nvs-namespaces-list' style='margin-top:15px;'></div>";
-  html += "</div>";
-
   // End of grid
   html += "</div>"; // Close admin-grid
 
   // JavaScript functions
   html += "<script>";
-  html += "function showNvsNamespaces() {";
-  html += "  fetch('/api/list-nvs-namespaces').then(r => r.json()).then(data => {";
-  html += "    var out = '<div style=\"display:flex;flex-direction:column;gap:8px\">';";
-  html += "    if (data.namespaces && data.namespaces.length > 0) {";
-  html += "      data.namespaces.forEach(ns => { out += '<button class=\"btn btn-primary\" style=\"font-family:monospace;font-size:13px;text-align:center\" onclick=\"showNvsContents(\\'' + ns + '\\')\">' + 'Show ' + ns + '</button>'; });";
-  html += "    } else { out += '<span>No namespaces found</span>'; }";
-  html += "    out += '</div>';";
-  html += "    document.getElementById('nvs-namespaces-list').innerHTML = out;";
-  html += "  }).catch(err => { document.getElementById('nvs-namespaces-list').innerHTML = '<span style=\"color:#dc3545\">Error loading namespaces</span>'; });";
-  html += "}";
-  html += "function showNvsContents(ns) {";
-  html += "  fetch('/api/show-prefs-raw?namespace=' + encodeURIComponent(ns)).then(r => r.text()).then(data => {";
-  html += "    showPrefsInline('NVS Namespace: ' + ns, data);";
-  html += "  }).catch(err => { showAlert('Error loading namespace: ' + ns); });";
-  html += "}";
   // Modal helpers (from system_wifi.h)
   html += "window.showModal = function(contentFn) { var overlay = document.createElement('div'); overlay.className = 'modal-overlay'; var box = document.createElement('div'); box.className = 'modal-box'; contentFn(box, function() { document.body.removeChild(overlay); }); overlay.appendChild(box); overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); }); document.body.appendChild(overlay); return overlay; };";
   html += "window.showAlert = function(msg) { showModal(function(box, close) { box.innerHTML = '<h4>' + msg + '</h4>'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var ok = document.createElement('button'); ok.textContent = 'OK'; ok.className = 'btn btn-primary'; ok.onclick = close; btns.appendChild(ok); box.appendChild(btns); }); };";
@@ -295,7 +270,7 @@ String getSystemBackupPageHTML()
   html += "  });";
   html += "}";
 
-  html += "window.onload = function() { showNvsNamespaces(); loadSnapshotList('sd'); loadSnapshotList('flash'); };";
+  html += "window.onload = function() { loadSnapshotList('sd'); loadSnapshotList('flash'); };";
 
   html += "</script>";
 
