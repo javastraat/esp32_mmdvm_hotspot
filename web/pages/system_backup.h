@@ -46,6 +46,7 @@ String getSystemBackupPageHTML()
   html += "</div>";
 
   // Card 2: SD Card Configurations
+  if (sdcardEnabled){
   html += "<div class='card'>";
   html += "<h3>SD Card Configurations</h3>";
   html += "<span id='sd-badge' style='display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#6c757d;color:#fff;margin-bottom:6px'>checking...</span>";
@@ -57,7 +58,7 @@ String getSystemBackupPageHTML()
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"sd\")'>Save to SD</button>";
   html += "</div>";
   html += "</div>";
-
+  }
   // Card 3: Internal Flash Configurations
   html += "<div class='card'>";
   html += "<h3>Flash Configurations</h3>";

@@ -196,7 +196,9 @@ void registerNvsRoutes()
       { "oled_en", OLED_ENABLED },
       { "sdcard_en", SDCARD_ENABLED },
       { "ota_en", ARDUINO_OTA_ENABLED },
-      { "web_en", WEB_ENABLED }
+      { "web_en", WEB_ENABLED },
+      { "tg_en", TELEGRAM_ENABLED },
+      { "tg_ric_en", TELEGRAM_RIC_FORWARD_ENABLED }
     };
     for (auto& p : boolPrefs) {
       total++;
@@ -287,7 +289,14 @@ void registerNvsRoutes()
       { "hs_desc", HOTSPOT_DESCRIPTION },
       { "hs_url", HOTSPOT_URL },
       { "dmr_api_url", DMR_API_URL },
-      { "qrz_lookup_url", QRZ_LOOKUP_URL }
+      { "qrz_lookup_url", QRZ_LOOKUP_URL },
+      { "hp_user", HAMPAGER_USER },
+      { "hp_pass", HAMPAGER_PASSWORD },
+      { "hp_txg", HAMPAGER_TXG },
+      { "tg_token", TELEGRAM_BOT_TOKEN },
+      { "tg_chat_id", TELEGRAM_CHAT_ID },
+      { "tg_ric_list", TELEGRAM_RIC_LIST },
+      { "mqtt_cmd_tok", MQTT_CMD_TOKEN }
     };
     for (auto& p : strPrefs) {
       total++;
@@ -350,7 +359,8 @@ void registerNvsRoutes()
       { "dmr_hist_size", DMR_HISTORY_SIZE }, { "dmr_act_tout", DMR_ACTIVITY_TIMEOUT },
       { "dmr_usr_cache", DMR_USER_CACHE_SIZE }, { "dmr_cs_cache", DMR_CALLSIGN_CACHE_SIZE },
       { "dmr_api_tout", DMR_API_TIMEOUT },
-      { "wg_ep_port", WG_ENDPOINT_PORT }
+      { "wg_ep_port", WG_ENDPOINT_PORT },
+      { "tg_ric_cool", TELEGRAM_RIC_COOLDOWN }
     };
     for (auto& p : ushortPrefs) {
       total++;
