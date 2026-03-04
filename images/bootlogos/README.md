@@ -44,6 +44,12 @@ To restore the built-in default logo, simply delete `/bootlogo.bin` from the Lit
 | 10 | <img src="bootlogo_10.png" width="256" alt="bootlogo_10"> | [bootlogo_10.bin](bootlogo_10.bin) |
 | 11 | <img src="bootlogo_11.png" width="256" alt="bootlogo_11"> | [bootlogo_11.bin](bootlogo_11.bin) |
 | 12 | <img src="bootlogo_12.png" width="256" alt="bootlogo_12"> | [bootlogo_12.bin](bootlogo_12.bin) |
+| 13 | <img src="bootlogo_13.png" width="256" alt="bootlogo_13"> | [bootlogo_13.bin](bootlogo_13.bin) |
+| 14 | <img src="bootlogo_14.png" width="256" alt="bootlogo_14"> | [bootlogo_14.bin](bootlogo_14.bin) |
+| 15 | <img src="bootlogo_15.png" width="256" alt="bootlogo_15"> | [bootlogo_15.bin](bootlogo_15.bin) |
+| 16 | <img src="bootlogo_16.png" width="256" alt="bootlogo_16"> | [bootlogo_16.bin](bootlogo_16.bin) |
+| 17 | <img src="bootlogo_17.png" width="256" alt="bootlogo_17"> | [bootlogo_17.bin](bootlogo_17.bin) |
+| 18 | <img src="bootlogo_18.png" width="256" alt="bootlogo_18"> | [bootlogo_18.bin](bootlogo_18.bin) |
 
 ---
 
