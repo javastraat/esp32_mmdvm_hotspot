@@ -1,3 +1,26 @@
+#include <SD.h>
+#include <LittleFS.h>
+
+// Helper to recursively delete files and directories in LittleFS
+static void deleteRecursiveLFS(const char *path) {
+  File entry = LittleFS.open(path);
+  if (!entry) return;
+  if (entry.isDirectory()) {
+    File file = entry.openNextFile();
+    while (file) {
+      String childPath = String(path) + "/" + String(file.name());
+      file.close();
+      deleteRecursiveLFS(childPath.c_str());
+      file = entry.openNextFile();
+    }
+    entry.close();
+    LittleFS.rmdir(path);
+  } else {
+    entry.close();
+    LittleFS.remove(path);
+  }
+}
+/*
 /*
  * web_handlers_snapshots.cpp — Configuration Snapshot Save/Load Routes
  *
@@ -507,12 +530,17 @@ static void handleLfsDeleteFile()
     server.send(404, "text/plain", "ERROR: Not found: " + path);
     return;
   }
-  // Refuse to delete directories
   File f = LittleFS.open(path, "r");
   bool isDir = f && f.isDirectory();
   if (f) f.close();
   if (isDir) {
-    server.send(400, "text/plain", "ERROR: Cannot delete a directory");
+    deleteRecursiveLFS(path.c_str());
+    if (!LittleFS.exists(path)) {
+      addLogMessage("[LittleFS] Deleted: " + path);
+      server.send(200, "text/plain", "Deleted: " + path);
+    } else {
+      server.send(500, "text/plain", "ERROR: Could not delete: " + path);
+    }
     return;
   }
   if (LittleFS.remove(path)) {
