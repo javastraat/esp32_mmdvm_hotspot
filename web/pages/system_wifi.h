@@ -33,6 +33,7 @@ inline String getSystemWifiPageHTML()
 
   html += "<div class='container'>";
   html += "<h1>WiFi Configuration</h1>";
+  html += "<p>Configure WiFi network connection and access point settings.</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1: Current WiFi Status

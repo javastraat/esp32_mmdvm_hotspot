@@ -40,7 +40,7 @@ String getSystemAdminPageHTML()
 
   html += "<div class='container'>";
   html += "<h1>System Administration</h1>";
-
+  html += "<p>Reboot, factory reset, and system control options.</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1: System Control

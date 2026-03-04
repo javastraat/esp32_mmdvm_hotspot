@@ -28,7 +28,7 @@ String getSystemBackupPageHTML()
 
   html += "<div class='container'>";
   html += "<h1>System Backup</h1>";
-
+  html += "<p>Export and import configuration, manage saved snapshots, and reset preferences.</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1: Configuration Management

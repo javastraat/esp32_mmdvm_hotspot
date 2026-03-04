@@ -28,7 +28,7 @@ String getSystemSdcardPageHTML()
 
   html += "<div class='container'>";
   html += "<h1>SD Card Management</h1>";
-
+  html += "<p>Configure and monitor the SD card used for logging and file storage.</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1: SD Card Status
@@ -44,12 +44,35 @@ String getSystemSdcardPageHTML()
   html += "</div>";
   html += "</div>";
 
-  // Card 2: Files on SD Card
+  // Card 2: SD Card File Browser
   html += "<div class='card'>";
-  html += "<h3>Files on SD Card</h3>";
-  html += "<button class='btn btn-primary' id='refresh-files-btn' onclick='refreshFileList()'>Refresh File List</button>";
-  html += "<pre id='file-list'>Click Refresh to load files...</pre>";
+  html += "<h3>SD Card Browser</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the SD card.</p>";
+  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px;'>";
+  html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
+  html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
+  html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
+  html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
+  html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
   html += "</div>";
+  html += "<div id='sd-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
+  html += "  <input id='sd-mkdir-input' type='text' placeholder='New folder name' style='flex:1;padding:4px 8px;background:#1e1e1e;color:#fff;border:1px solid #555;border-radius:4px;font-size:13px;' onkeydown='if(event.key==\"Enter\")sdBrsMkdir();'>";
+  html += "  <button class='btn btn-success' onclick='sdBrsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
+  html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"sd-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
+  html += "</div>";
+  html += "<div style='overflow-x:auto;'>";
+  html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
+  html += "<thead><tr style='border-bottom:2px solid #444;color:#aaa;'>";
+  html += "  <th style='text-align:left;padding:6px;'>Name</th>";
+  html += "  <th style='text-align:left;padding:6px;'>Size</th>";
+  html += "  <th style='text-align:right;padding:6px;'>Actions</th>";
+  html += "</tr></thead>";
+  html += "<tbody id='sd-browser-body'>";
+  html += "  <tr><td colspan='3' style='color:#aaa;padding:8px;text-align:center;'>Loading...</td></tr>";
+  html += "</tbody>";
+  html += "</table>";
+  html += "</div>";
+  html += "</div>"; // close SD browser card
 
   // Card 3: Owner Information
   html += "<div class='card'>";
@@ -201,6 +224,7 @@ String getSystemSdcardPageHTML()
 
   html += "window.onload = function() {";
   html += "  checkSDCardStatus();";
+  html += "  sdBrsNavigate('/');";
   html += "};";
 
   // Check SD card availability
@@ -555,6 +579,107 @@ String getSystemSdcardPageHTML()
   html += "  };";
   html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(folder));";
   html += "  xhr.send(formData);";
+  html += "}";
+
+  // SD card browser JS
+  html += "function sdBrsFormatSize(b) {";
+  html += "  if (b >= 1048576) return (b/1048576).toFixed(1) + ' MB';";
+  html += "  if (b >= 1024) return (b/1024).toFixed(1) + ' KB';";
+  html += "  return b + ' B';";
+  html += "}";
+  html += "function sdBrsParentPath(p) {";
+  html += "  if (p === '/') return '/';";
+  html += "  var t = p.endsWith('/') ? p.slice(0,-1) : p;";
+  html += "  var i = t.lastIndexOf('/');";
+  html += "  return i <= 0 ? '/' : t.substring(0, i);";
+  html += "}";
+  html += "var sdBrsCurrentPath = '/';";
+  html += "function sdBrsRefresh() { sdBrsNavigate(sdBrsCurrentPath); }";
+  html += "function sdBrsGoUp() { sdBrsNavigate(sdBrsParentPath(sdBrsCurrentPath)); }";
+  html += "function sdBrsNavThis(el) { sdBrsNavigate(el.dataset.path); }";
+  html += "function sdBrsDelThis(el) { sdBrsDeleteFile(el.dataset.path); }";
+  html += "function sdBrsNavigate(path) {";
+  html += "  sdBrsCurrentPath = path;";
+  html += "  document.getElementById('sd-browser-path').textContent = path;";
+  html += "  document.getElementById('sd-browser-up-btn').disabled = (path === '/');";
+  html += "  var tbody = document.getElementById('sd-browser-body');";
+  html += "  tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Loading...</td></tr>';";
+  html += "  fetch('/api/sdcard/ls?path=' + encodeURIComponent(path))";
+  html += "    .then(function(r) { return r.json(); })";
+  html += "    .then(function(data) {";
+  html += "      if (data.mounted === false) {";
+  html += "        tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#dc3545;padding:8px;text-align:center\">SD card not mounted</td></tr>';";
+  html += "        return;";
+  html += "      }";
+  html += "      var entries = data.entries || [];";
+  html += "      entries.sort(function(a,b) { if(a.isDir!==b.isDir) return a.isDir?-1:1; return a.name.localeCompare(b.name); });";
+  html += "      var rows = '';";
+  html += "      entries.forEach(function(e) {";
+  html += "        rows += '<tr style=\"border-bottom:1px solid #333\">';";
+  html += "        if (e.isDir) {";
+  html += "          rows += '<td style=\"padding:4px 6px;cursor:pointer;color:#5b9bd5\" data-path=\"' + e.path + '\" onclick=\"sdBrsNavThis(this)\">&#128193; ' + e.name + '/</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">dir</td>';";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right\"><button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"sdBrsDelThis(this)\">Del</button></td>';";
+  html += "        } else {";
+  html += "          rows += '<td style=\"padding:4px 6px\">&#128196; ' + e.name + '</td>';";
+  html += "          rows += '<td style=\"padding:4px 6px;color:#aaa;font-size:11px\">' + sdBrsFormatSize(e.size) + '</td>';";
+  html += "          var isBootLogoSd = /^bootlogo.*\\.bin$/i.test(e.name);";
+  html += "          rows += '<td style=\"padding:4px 2px;text-align:right;white-space:nowrap\">';";
+  html += "          if (isBootLogoSd) rows += '<button class=\"btn btn-success\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px;margin-right:4px\" onclick=\"sdBrsSetBoot(this)\">&#x1F5A5; Boot</button>';";
+  html += "          rows += '<a href=\"/api/sdcard/browse/download?path=' + encodeURIComponent(e.path) + '\" download=\"' + e.name + '\" class=\"btn btn-secondary\" style=\"padding:2px 8px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px\">DL</a>';";
+  html += "          rows += '<button class=\"btn btn-danger\" data-path=\"' + e.path + '\" style=\"padding:2px 8px;font-size:12px\" onclick=\"sdBrsDelThis(this)\">Del</button>';";
+  html += "          rows += '</td>';";
+  html += "        }";
+  html += "        rows += '</tr>';";
+  html += "      });";
+  html += "      if (!rows) rows = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Empty directory</td></tr>';";
+  html += "      tbody.innerHTML = rows;";
+  html += "    })";
+  html += "    .catch(function() { tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#dc3545;padding:8px\">Error loading directory</td></tr>'; });";
+  html += "}";
+  html += "function sdBrsDeleteFile(path) {";
+  html += "  showConfirm('Delete: ' + path + '?', function() {";
+  html += "    fetch('/api/sdcard/browse/delete?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) { showAlert(msg); sdBrsRefresh(); })";
+  html += "      .catch(function() { showAlert('Error deleting file'); });";
+  html += "  });";
+  html += "}";
+  html += "function doSetBootlogo(apiUrl, label) {";
+  html += "  showConfirm('Set \"' + label + '\" as boot logo?\\nThis overwrites /bootlogo.bin on flash.', function() {";
+  html += "    fetch(apiUrl, {method:'POST'})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) {";
+  html += "        showConfirm(msg + '\\n\\nReboot now to apply the new boot logo?', function() {";
+  html += "          fetch('/api/reboot', {method:'POST'});";
+  html += "        });";
+  html += "      })";
+  html += "      .catch(function() { showAlert('Error setting boot logo'); });";
+  html += "  });";
+  html += "}";
+  html += "function sdBrsSetBoot(el) {";
+  html += "  doSetBootlogo('/api/sdcard/set-bootlogo?path=' + encodeURIComponent(el.dataset.path), el.dataset.path);";
+  html += "}";
+  html += "function sdBrsMkdirShow() {";
+  html += "  var row = document.getElementById('sd-mkdir-row');";
+  html += "  if (row.style.display === 'none' || row.style.display === '') {";
+  html += "    row.style.display = 'flex';";
+  html += "    document.getElementById('sd-mkdir-input').value = '';";
+  html += "    document.getElementById('sd-mkdir-input').focus();";
+  html += "  } else { row.style.display = 'none'; }";
+  html += "}";
+  html += "function sdBrsMkdir() {";
+  html += "  var name = document.getElementById('sd-mkdir-input').value.trim();";
+  html += "  if (!name) return;";
+  html += "  var path = (sdBrsCurrentPath === '/' ? '/' : sdBrsCurrentPath + '/') + name;";
+  html += "  fetch('/api/sdcard/browse/mkdir?path=' + encodeURIComponent(path), {method:'POST'})";
+  html += "    .then(function(r) { return r.text(); })";
+  html += "    .then(function(msg) {";
+  html += "      showAlert(msg);";
+  html += "      document.getElementById('sd-mkdir-row').style.display = 'none';";
+  html += "      sdBrsRefresh();";
+  html += "    })";
+  html += "    .catch(function() { showAlert('Error creating directory'); });";
   html += "}";
 
   html += "</script>";

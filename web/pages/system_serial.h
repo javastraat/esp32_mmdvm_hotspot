@@ -81,6 +81,7 @@ String getSystemSerialPageHTML()
   html += getNavigation("system-serialmonitor");
   html += "<div class='container'>";
   html += "<h1>Serial Monitor</h1>";
+  html += "<p>Live serial output from the MMDVM modem for diagnostics and debugging.</p>";
   html += "<div class='log-container'>";
   html += "<div class='status-bar'>";
   html += "<span id='log-count'>Messages: 0</span> | ";

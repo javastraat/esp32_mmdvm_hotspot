@@ -86,7 +86,7 @@ String getSystemInfoPageHTML()
   html += getNavigation("system-info");
   html += "<div class='container'>";
   html += "<h1>System Information</h1>";
-
+  html += "<p>Hardware details, software versions, and build information.</p>";
   html += "<div class='admin-grid'>";
 
   // ==================== System Hardware Card ====================

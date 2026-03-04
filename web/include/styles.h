@@ -103,7 +103,7 @@ String getSharedStyles() {
   css += ".theme-toggle:hover{background:#007bff;color:white}";
 
   // ===== 5. Typography =====
-  css += "h1 { color: var(--text-color); border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; }";
+  css += "h1 { color: var(--text-color); border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; text-align: center; }";
   css += "h2 { color: var(--text-color); margin-top: 30px; }";
   css += "h3 { color: var(--text-color); }";
 

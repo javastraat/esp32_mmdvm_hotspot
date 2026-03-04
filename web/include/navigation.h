@@ -88,15 +88,15 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
 
   //Admin Settings Config
   nav += "<div class='dropdown-submenu' onclick='toggleSubmenu(event)'>";
-  nav += "<span>Admin</span>";
+  nav += "<span>System</span>";
   nav += "<div class='dropdown-submenu-menu'>";
   if (sdcardEnabled) {
     nav += "<a href='/system-sdcard'>SD Card</a>";
   }
   nav += "<a href='/system-firmware'>Firmware</a>";
   nav += "<a href='/system-admin'>Administration</a>";
-  nav += "<a href='/system-backup'>Backup</a>";
-  nav += "<a href='/system-files'>Files</a>";
+  nav += "<a href='/system-backup'>Backup/Restore</a>";
+  nav += "<a href='/system-files'>Filesystem</a>";
   nav += "</div>";
   nav += "</div>";
   

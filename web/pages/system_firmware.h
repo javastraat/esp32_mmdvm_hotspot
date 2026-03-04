@@ -37,8 +37,7 @@ String getSystemFirmwarePageHTML()
 
   html += "<div class='container'>";
   html += "<h1>Firmware Update</h1>";
-
-
+  html += "<p>Upload new firmware to update the device over the air (OTA).</p>";
   html += "<div class='admin-grid'>";
 
   // Card 1 : OTA Firmware Update

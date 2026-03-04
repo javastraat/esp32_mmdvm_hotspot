@@ -1686,12 +1686,13 @@ static void handleSdBrowseDelete()
   File f = SD.open(path);
   bool isDir = f && f.isDirectory();
   if (f) f.close();
+  bool ok = false;
   if (isDir) {
-    xSemaphoreGive(sdCardMutex);
-    server.send(400, "text/plain", "ERROR: Cannot delete a directory");
-    return;
+    deleteRecursiveSD(path.c_str());
+    ok = !SD.exists(path.c_str());
+  } else {
+    ok = SD.remove(path);
   }
-  bool ok = SD.remove(path);
   xSemaphoreGive(sdCardMutex);
   if (ok) {
     addLogMessage("[SD] Browser deleted: " + path);

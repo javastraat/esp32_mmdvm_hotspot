@@ -274,7 +274,7 @@ String getSystemStatusPageHTML()
   html += getNavigation("system-status");
   html += "<div class='container'>";
   html += "<h1>System Status</h1>";
-
+  html += "<p>Live overview of system resources, active connections, and modem state.</p>";
   html += "<div id='status-content'>";
   // Initial content
   html += "<div class='status-grid'>";
