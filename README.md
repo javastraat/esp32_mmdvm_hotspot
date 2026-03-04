@@ -6,7 +6,6 @@
 
 A FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. Designed for amateur radio operators, it currently supports DMR (network→RF transmit), POCSAG, and DAPNET, with a responsive web interface, MQTT integration, WireGuard VPN, SD card database support, and over-the-air firmware updates.
 
----
 
 ## Current Firmware Version
 
@@ -15,7 +14,6 @@ A FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. De
 | Stable  | `20260301_ESP32` |
 | Beta    | `20260301_ESP32_BETA` |
 
----
 
 ## Implemented Modes
 
@@ -29,90 +27,43 @@ A FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. De
 | P25 | ❌ Not in firmware | Framework stub only |
 | NXDN | ❌ Not in firmware | Framework stub only |
 
----
 
 ## Features
 
 ### Radio & Protocols
 
-- **DMR via BrandMeister (network→RF)** — full login state machine (RPTL/RPTK/RPTC), keepalive (RPTPING/MSTPONG), incoming voice frame buffering and paced transmission to the MMDVM modem
-- **DMR RF→Network receive** — frame parsing from modem serial is in progress; not yet relayed back to BrandMeister
-- **DMR Talker Alias extraction** — embedded LC decoded in real time (QR(16,7,6) + Hamming(16,11,4) + CRC5) to display the caller's alias on the OLED before the database lookup completes
-- **DMR user lookup** — in-memory LRU cache (100 entries) → SD card SQLite → RadioID.net API fallback, all performed asynchronously so keepalives are not delayed
-- **DMR call history** — last 15 calls with callsign, name, city, and country
-- **POCSAG paging transmitter** — numeric and alphanumeric messages, BCH(32,21) encoding, configurable frequency and functional codes, up to 32-message queue with TX history
-- **DAPNET TCP client** — connects to DAPNET network, HMAC-MD5 authentication, RIC filtering, 15-message receive history
-- **CW ID** — periodic Morse code callsign transmission at a configurable interval, with a manual test trigger via the web UI
 
 ### Network Connectivity
 
-- **WiFi** with 6 labeled credential slots, automatic slot cycling on failure, soft AP fallback (`MMDVM-Setup`)
-- **Ethernet** — W5500 SPI module with configurable pins
-- **mDNS** hostname resolution (default: `esp32-mmdvm.local`)
-- **DNS fallback** server support
-- **WireGuard VPN** client — ChaCha20-Poly1305 encrypted tunnel, configurable peer endpoint, allowed IPs, and DNS
 
 ### Time & Synchronisation
 
-- **NTP** time sync with configurable server, GMT offset, DST offset, and sync interval
 
 ### Web Interface
 
-- **20-page responsive web UI** — accessible from any browser on the local network
-- **HTTP Basic Auth** (default: `admin` / `pi-star`, fully configurable)
-- **Configurable port** (default 80)
-- **PWA support** — installable as a progressive web app (manifest + icons)
 
 ### MQTT Integration
 
-- **Publish:** system status, log stream, hardware info, DMR activity, POCSAG events, per-task heartbeats
-- **Subscribe:** command topic — token authentication is enforced (a token must be configured and included with every command)
-- **Remote commands:** `reboot`, `get_hardware`, `get_status`
-- **Configurable:** broker address, port, credentials, all topic names individually, hardware info publish interval
-- **Command announce** — publishes available commands and token requirement on each connect
 
 ### Firmware Updates
 
-- **ESP32 OTA** — stable, beta, or factory image downloaded from GitHub and flashed to the inactive OTA partition
-- **MMDVM modem OTA** — UART bootloader flash from URL or direct HTTP upload (single and dual-HAT support)
-- **ArduinoOTA** — optional network upload from the Arduino IDE
-- **Dual OTA partition** — manual partition switch (`app0` ↔ `app1`) via the web UI
 
 ### Storage
 
-- **SD card** (SPI, configurable pins) — DMR user database in CSV and SQLite formats
-- **LittleFS** — named configuration snapshots stored in internal flash
-- **NVS (Preferences)** — all runtime settings persisted across reboots under the `mmdvm` namespace
-- **Factory reset** — erases the NVS namespace and reboots to `config.h` defaults
 
 ### Display & Indicators
 
-- **OLED display** (I2C, 128×64, SSD1306/SH1106, optional) — live call info, Talker Alias, and async database lookup results
-- **LED** status indicator on a configurable GPIO pin
-- **OLED frame buffer API** — the live 128×64 monochrome display can be fetched over HTTP
 
 ### Monitoring & Logging
 
-- **Circular log buffer** — 50 messages × 128 characters, thread-safe, accessible via API and the serial monitor page
-- **System health** — ESP32 chip temperature, heap usage, PSRAM, and per-task free stack space
-- **NVS viewer & repair tools** — inspect all NVS namespaces, add missing keys from defaults, or erase the `mmdvm` namespace
 
 ### Configuration Management
 
-- **Export / import** — download or upload all settings as a `key=value` text file
-- **Named snapshots** — save and restore complete configuration snapshots to SD card or LittleFS
 
----
 
 ## Hardware Requirements
 
-- **ESP32** (dual-core; tested on ESP32 and ESP32-S3)
-- **MMDVM HAT** or compatible modem connected via UART
-- *(Optional)* W5500 Ethernet module (SPI)
-- *(Optional)* SSD1306/SH1106 OLED display (I2C, 128×64)
-- *(Optional)* MicroSD card module (SPI)
 
----
 
 ## Default Pin Configuration
 
@@ -138,7 +89,6 @@ A FreeRTOS-based ESP32 firmware for a multi-mode digital voice modem hotspot. De
 
 All pins are configurable via the web interface.
 
----
 
 ## Default Credentials
 
@@ -152,7 +102,6 @@ All pins are configurable via the web interface.
 | DMR callsign | `N0CALL` |
 | DMR ID | `1234567` |
 
----
 
 ## Getting Started
 
@@ -165,7 +114,6 @@ All pins are configurable via the web interface.
 7. Go to **Mode Select** and enable DMR
 8. Reboot — the hotspot will connect to BrandMeister
 
----
 
 ## Web Interface Pages
 
@@ -191,7 +139,6 @@ All pins are configurable via the web interface.
 | System Info | `/system-info` | Chip model, memory, partitions |
 | RF Settings | `/settings-mmdvm` | RX/TX frequency, color code, RF power, CW ID |
 
----
 
 ## MQTT Commands
 
@@ -211,18 +158,14 @@ When MQTT is enabled the device subscribes to the configured command topic. **A 
 
 On connect the device publishes an announce message listing all available commands and confirming that a token is required.
 
----
 
 ## RTOS Architecture
 
 The firmware runs on FreeRTOS with tasks pinned to specific cores:
 
-- **Core 0:** WiFi, Ethernet, Web Server, MQTT, NTP, SD Card, Logger, OLED, ArduinoOTA, WireGuard
-- **Core 1:** Modem serial, DMR, POCSAG, DAPNET, D-Star (stub), YSF (stub), P25 (stub), NXDN (stub)
 
 A separate low-priority **DMR Database** task runs on Core 0 and performs blocking SQLite / HTTP lookups asynchronously so DMR keepalives are never delayed.
 
----
 
 ## Configuration
 
@@ -233,8 +176,122 @@ Settings are stored in NVS (Non-Volatile Storage) and persist across reboots. Co
 
 Configuration can be exported as a `key=value` text file and re-imported, or saved as named snapshots on SD card or LittleFS.
 
----
 
 ## License
 
 Amateur radio use. See LICENSE file for details.
+ # ESP32 MMDVM Hotspot
+
+ A modular, web-configurable, multi-mode digital voice and paging hotspot for amateur radio, built on ESP32 with FreeRTOS. Supports DMR, D-STAR, YSF, P25, NXDN, POCSAG, DAPNET, MQTT, WireGuard VPN, and more.
+
+ ## Project Overview
+
+ - **Platform:** ESP32 (FreeRTOS, Arduino framework)
+ - **Web UI:** Responsive, modern interface for configuration, monitoring, and management
+ - **Storage:** Internal flash (LittleFS) and SD card support
+ - **Firmware Updates:** OTA for both ESP32 and MMDVM modem
+ - **Security:** WireGuard VPN, user authentication
+
+ ## Main Folders (excluding legacy, Python, and shell scripts)
+
+ ### web/pages/
+
+ #### Pages (UI Screens)
+ - **main.h**: Main dashboard and landing page. Shows callsign, device hostname, feature highlights, and setup wizard for first-time users.
+ - **system_files.h**: System Files page. File browsers for LittleFS and SD card, bootlogos installer, and file management tools.
+ - **system_status.h**: System Status page. Live status cards for station info, WiFi, Ethernet, MMDVM hardware, and more.
+ - **system_info.h**: System Information page. Hardware, firmware, memory, and task details.
+ - **system_hardware.h**: Hardware Settings page. Configure GPIO pins, OLED, SD card, and save/reboot controls.
+ - **mode_*.h, service_*.h**: Additional pages for each digital mode and service (DMR, D-STAR, YSF, P25, NXDN, POCSAG, DAPNET, MQTT, Telegram, WireGuard).
+
+ #### Cards (Dashboard/Info Cards)
+ - **Main Page**: "On Air" status, Last 15 Calls, DAPNET Messages, POCSAG Queue.
+ - **System Files**: LittleFS File Browser, SD Card Browser, Bootlogos Installer.
+ - **System Status**: Station Information, WiFi Status, Ethernet Status, MMDVM Hardware Status.
+ - **System Info**: System Hardware, Memory, Task Stack Usage, All Tasks.
+ - **System Hardware**: LED & Button Settings, OLED Settings, SD Card Settings.
+
+ ### system/
+
+ - **system_*.h/cpp**: Core system modules for WiFi, Ethernet, webserver, OLED, SD card, logger, NTP, firmware, modem, etc.
+ - **web_handlers_*.h/cpp**: HTTP API endpoint handlers for admin, config, WiFi, bootlogos, snapshots, and more.
+
+ ### include/
+
+ - **config.h**: Central configuration header for all system and hardware settings.
+
+ ### firmware/, mmdvm/, src/, images/, boards/, factory-setup/
+
+ - **firmware/**: MMDVM modem firmware.
+ - **mmdvm/**: Digital voice protocol implementations.
+ - **src/**: Additional source code (e.g., WireGuard).
+ - **images/**: Bootlogos and UI assets.
+ - **boards/**: Board definitions.
+ - **factory-setup/**: Factory setup sketches and configs.
+
+ ## Web UI Features
+
+ - **Navigation**: Sidebar/menu for all pages.
+ - **Live Status**: Real-time cards for radio activity, hardware, and network.
+ - **File Management**: Upload, download, delete, and organize files on both flash and SD card.
+ - **Bootlogos**: Download and install logo packs directly from the web UI.
+ - **Hardware Settings**: Configure pins and peripherals with instant feedback.
+ - **OTA Updates**: Update firmware for both ESP32 and modem from the browser.
+ - **Snapshots**: Save/load full configuration snapshots to flash or SD card.
+
+## License
+
+**Amateur Radio Non-Commercial License**
+
+This project is open source for amateur radio use only. 
+
+**You are free to:**
+- Use the software for amateur radio operations
+- Study, modify, and improve the code
+- Share and distribute modifications
+- Contribute improvements back to the project
+
+**Under the following conditions:**
+- **Non-Commercial:** You may NOT use this software for commercial purposes
+- **Amateur Radio Only:** This software is intended exclusively for licensed amateur radio operators
+- **Attribution:** You must give appropriate credit to the original authors (PD2EMC & PD8JO)
+- **Share Alike:** If you modify and distribute this software, you must use the same license
+
+**Specifically prohibited:**
+- Commercial sale of this software or derivatives
+- Commercial hardware products using this software without explicit permission
+- Use by unlicensed individuals for radio transmission
+- Any commercial exploitation of the codebase
+
+**Legal Requirements:**
+- Valid amateur radio license required for operation
+- Compliance with local radio regulations mandatory
+- Proper station identification required per your jurisdiction
+
+For commercial licensing inquiries, contact the authors.
+
+## Resources and Documentation
+
+### Official Resources
+- **MMDVM Project:** https://github.com/g4klx/MMDVM
+- **MMDVMHost:** https://github.com/g4klx/MMDVMHost  
+- **BrandMeister Network:** https://brandmeister.network/
+- **Pi-Star:** https://www.pistar.uk/
+- **ESP32 Arduino:** https://github.com/espressif/arduino-esp32
+
+### Hardware Vendors
+- **JumboSPOT:** https://www.amateurwireless.com/
+- **MMDVM_HS:** https://github.com/juribeparada/MMDVM_HS
+- **ZUMspot:** https://www.zumspot.com/
+
+### DMR Resources  
+- **RadioID.net Database:** https://radioid.net/
+- **BrandMeister Dashboard:** https://brandmeister.network/
+
+---
+
+**73 and enjoy your ESP32 MMDVM Hotspot!**
+
+*This project is for licensed amateur radio operators only. Not for commercial use.*
+
+**Developed by PD2EMC & PD8JO**
