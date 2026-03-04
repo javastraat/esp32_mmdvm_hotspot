@@ -16,12 +16,21 @@ If found (and exactly **1024 bytes**), it is displayed instead of the built-in l
 
 ---
 
+## Installing the Logo Pack (Web UI)
+
+The easiest way to get all 21 logos onto your device:
+
+1. Open the **System Admin** page in the web UI.
+2. In the **Bootlogos Package** card, click **Install to Flash (LittleFS)** or **Install to SD Card**.
+3. The firmware downloads `bootlogos.zip` from GitHub and extracts all `.bin` files to `/bootlogos/` automatically.
+
+---
+
 ## Activating a Logo
 
-1. Download the `.bin` file for the logo you want.
-2. **Rename it to `bootlogo.bin`.**
-3. Upload `bootlogo.bin` to the **root** of LittleFS (internal flash) using the **Internal Flash Browser** card in the System Admin page.
-4. Reboot — the new logo appears at startup.
+1. In the **Internal Flash Browser** (or SD Browser), navigate to `/bootlogos/`.
+2. Copy the `.bin` file you want to the **root** as `bootlogo.bin` — or download it, rename it, and upload via the browser.
+3. Reboot — the new logo appears at startup.
 
 To restore the built-in default logo, simply delete `/bootlogo.bin` from the LittleFS root.
 

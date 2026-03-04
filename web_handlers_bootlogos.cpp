@@ -151,64 +151,54 @@ static void doBootlogosInstall(bool toLittleFS)
     }
   }
 
-  // ── 4. Parse and extract each entry ─────────────────────────────────────
-  // Data descriptor signature: some tools append PK\x07\x08 + CRC + sizes
-  // after every compressed entry even when sizes are in the local header.
-  // We must skip those 16 bytes or the next PK\x03\x04 won't be found.
-  #define ZIP_SIG_DATADESC  0x08074b50UL
+  // ── 4. Parse ZIP via central directory (reliable even when local headers ──
+  //       have compSize=0/uncompSize=0 due to flag bit 3 / data descriptors)
   #define ZIP_SIG_CDIR_END  0x06054b50UL
 
-  uint32_t pos       = 0;
-  int      fileCount = 0;
+  int fileCount = 0;
 
-  while (pos + 30 <= zipSize) {
-    uint32_t sig = LE32(zipBuf + pos);
+  // Find EOCD by scanning backward from end of buffer
+  int32_t eocdPos = -1;
+  for (int32_t i = (int32_t)zipSize - 22; i >= 0; i--) {
+    if (LE32(zipBuf + i) == ZIP_SIG_CDIR_END) { eocdPos = i; break; }
+  }
+  if (eocdPos < 0) {
+    bootlogosInstallStatus = "ERROR: No EOCD in ZIP";
+    addLogMessage("[Bootlogos] ERROR: EOCD signature not found");
+    free(zipBuf); bootlogosInstallActive = false; return;
+  }
 
-    // Skip data descriptor blocks we may have landed on
-    if (sig == ZIP_SIG_DATADESC) {
-      pos += 16;  // 4 sig + 4 CRC + 4 compSize + 4 uncompSize
-      continue;
-    }
-    // Stop at central directory or end-of-central-directory
-    if (sig == ZIP_SIG_CDIR || sig == ZIP_SIG_CDIR_END) break;
-    // Unknown signature — log and stop
-    if (sig != ZIP_SIG_LOCAL) {
-      addLogMessage("[Bootlogos] Stopped at unknown sig 0x" +
-                    String(sig, HEX) + " after " + String(fileCount) + " files");
-      break;
-    }
+  uint16_t numEntries = LE16(zipBuf + eocdPos + 10);
+  uint32_t cdOffset   = LE32(zipBuf + eocdPos + 16);
+  addLogMessage("[Bootlogos] ZIP: " + String(numEntries) + " entries, CD @ " + String(cdOffset));
 
-    uint16_t flags      = LE16(zipBuf + pos + 6);
-    uint16_t method     = LE16(zipBuf + pos + 8);
-    uint32_t compSize   = LE32(zipBuf + pos + 18);
-    uint32_t uncompSize = LE32(zipBuf + pos + 22);
-    uint16_t fnLen      = LE16(zipBuf + pos + 26);
-    uint16_t extLen     = LE16(zipBuf + pos + 28);
-    pos += 30;
+  if (cdOffset + 46 > zipSize) {
+    bootlogosInstallStatus = "ERROR: CD out of range";
+    addLogMessage("[Bootlogos] ERROR: central directory offset out of bounds");
+    free(zipBuf); bootlogosInstallActive = false; return;
+  }
 
-    // Read filename
+  // Walk central directory entries — they always carry correct compSize/uncompSize
+  uint32_t cdPos = cdOffset;
+  for (uint16_t entry = 0; entry < numEntries && cdPos + 46 <= zipSize; entry++) {
+    if (LE32(zipBuf + cdPos) != ZIP_SIG_CDIR) break;
+
+    uint16_t method      = LE16(zipBuf + cdPos + 10);
+    uint32_t compSize    = LE32(zipBuf + cdPos + 20);
+    uint32_t uncompSize  = LE32(zipBuf + cdPos + 24);
+    uint16_t fnLen       = LE16(zipBuf + cdPos + 28);
+    uint16_t extLen      = LE16(zipBuf + cdPos + 30);
+    uint16_t commentLen  = LE16(zipBuf + cdPos + 32);
+    uint32_t localOffset = LE32(zipBuf + cdPos + 42);
+
+    // Read filename from CD entry
     char fname[256] = {};
     uint16_t copyLen = (fnLen < 255) ? fnLen : 254;
-    memcpy(fname, zipBuf + pos, copyLen);
-    pos += fnLen + extLen;
+    if (cdPos + 46 + copyLen <= zipSize)
+      memcpy(fname, zipBuf + cdPos + 46, copyLen);
 
-    uint8_t *dataPtr = zipBuf + pos;
-    pos += compSize;
-
-    // Bounds check
-    if (pos > zipSize) {
-      addLogMessage("[Bootlogos] WARNING: entry extends past buffer – stopping");
-      break;
-    }
-
-    // Skip data descriptor if bit 3 of flags is set (sizes follow compressed data)
-    // Signature is optional; check both forms.
-    if (flags & 0x08) {
-      if (pos + 4 <= zipSize && LE32(zipBuf + pos) == ZIP_SIG_DATADESC)
-        pos += 16;  // with signature
-      else if (pos + 12 <= zipSize)
-        pos += 12;  // without signature
-    }
+    // Advance past this CD entry
+    cdPos += 46 + fnLen + extLen + commentLen;
 
     // Skip directories
     size_t fnameLen = strlen(fname);
@@ -219,11 +209,21 @@ static void doBootlogosInstall(bool toLittleFS)
     base = base ? base + 1 : fname;
     if (strlen(base) == 0) continue;
 
-    String destPath = "/bootlogos/" + String(base);
-    bool writeOk    = false;
+    // Locate compressed data via local file header
+    if (localOffset + 30 > zipSize) continue;
+    uint16_t lhFnLen  = LE16(zipBuf + localOffset + 26);
+    uint16_t lhExtLen = LE16(zipBuf + localOffset + 28);
+    uint32_t dataOff  = localOffset + 30 + lhFnLen + lhExtLen;
+    if (dataOff + compSize > zipSize) {
+      addLogMessage("[Bootlogos] WARNING: data for " + String(base) + " out of bounds");
+      continue;
+    }
+
+    uint8_t *dataPtr  = zipBuf + dataOff;
+    String   destPath = "/bootlogos/" + String(base);
+    bool     writeOk  = false;
 
     // ── Decompress if needed ──────────────────────────────────────────────
-    // For deflated entries, decompress into a temporary heap buffer first.
     uint8_t *writeData = dataPtr;
     size_t   writeLen  = compSize;
     uint8_t *inflated  = nullptr;
@@ -231,7 +231,6 @@ static void doBootlogosInstall(bool toLittleFS)
     if (method == 8 && uncompSize > 0) {          // raw DEFLATE
       inflated = (uint8_t *)malloc(uncompSize);
       if (inflated) {
-        // tinfl_decompress_mem_to_mem uses no internal malloc (ROM function)
         size_t result = tinfl_decompress_mem_to_mem(
           inflated, uncompSize, dataPtr, compSize,
           TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
@@ -239,35 +238,24 @@ static void doBootlogosInstall(bool toLittleFS)
           writeData = inflated;
           writeLen  = result;
         } else {
-          free(inflated);
-          inflated = nullptr;
-          addLogMessage("[Bootlogos] WARNING: decompress failed for " + String(fname));
+          free(inflated); inflated = nullptr;
+          addLogMessage("[Bootlogos] WARNING: decompress failed for " + String(base));
         }
       } else {
-        addLogMessage("[Bootlogos] WARNING: malloc failed for " + String(fname));
+        addLogMessage("[Bootlogos] WARNING: malloc failed for " + String(base));
       }
     } else if (method != 0) {
-      addLogMessage("[Bootlogos] WARNING: unsupported compression method " +
-                    String(method) + " for " + String(fname));
+      addLogMessage("[Bootlogos] WARNING: unsupported method " +
+                    String(method) + " for " + String(base));
     }
 
     if (toLittleFS) {
-      // ── LittleFS write ────────────────────────────────────────────────
       File f = LittleFS.open(destPath, "w");
-      if (f) {
-        f.write(writeData, writeLen);
-        f.close();
-        writeOk = true;
-      }
+      if (f) { f.write(writeData, writeLen); f.close(); writeOk = true; }
     } else {
-      // ── SD card write ─────────────────────────────────────────────────
       if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) == pdTRUE) {
         File f = SD.open(destPath, FILE_WRITE);
-        if (f) {
-          f.write(writeData, writeLen);
-          f.close();
-          writeOk = true;
-        }
+        if (f) { f.write(writeData, writeLen); f.close(); writeOk = true; }
         xSemaphoreGive(sdCardMutex);
       }
     }
@@ -282,10 +270,9 @@ static void doBootlogosInstall(bool toLittleFS)
     }
 
     bootlogosFilesInstalled  = fileCount;
-    // Progress 50-99 during extraction, based on position in buffer
-    bootlogosInstallProgress = 50 + (int)((pos * 49UL) / zipSize);
+    bootlogosInstallProgress = 50 + (int)(((uint32_t)(entry + 1) * 49UL) / numEntries);
 
-    server.handleClient();   // keep web server responsive during extraction
+    server.handleClient();
   }
 
   free(zipBuf);

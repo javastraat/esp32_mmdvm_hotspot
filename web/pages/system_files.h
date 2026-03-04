@@ -160,7 +160,8 @@ String getSystemFilesPageHTML()
   // Card 5: Bootlogos installer
   html += "<div class='card'>";
   html += "<h3>Bootlogos Package</h3>";
-  html += "<p style='font-size:0.85em;color:#666;margin-bottom:12px;'>Download the official bootlogos package from GitHub and extract it to <code>/bootlogos</code> on the target filesystem. Existing files are overwritten.</p>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:12px;'>Download the official bootlogos package from GitHub and extract it to <code>/bootlogos</code> on the target filesystem. Existing files are overwritten. "
+          "<a href='https://github.com/javastraat/esp32_mmdvm_hotspot/tree/main/images/bootlogos' target='_blank' style='color:#1976d2;'>Preview available logos &rarr;</a></p>";
 
   html += "<button class='btn btn-primary' id='bl-lfs-btn' onclick='blInstall(\"littlefs\")' style='margin-right:8px;margin-bottom:8px;'>Install to Flash (LittleFS)</button>";
   if (sdcardEnabled) {
