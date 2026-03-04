@@ -98,7 +98,7 @@ static void doBootlogosInstall(bool toLittleFS)
   unsigned long lastDataMs = millis();
 
   while (totalRead < (size_t)bufLen) {
-    server.handleClient();   // keep web server alive during download
+
 
     size_t avail = stream->available();
     if (avail) {
@@ -272,7 +272,6 @@ static void doBootlogosInstall(bool toLittleFS)
     bootlogosFilesInstalled  = fileCount;
     bootlogosInstallProgress = 50 + (int)(((uint32_t)(entry + 1) * 49UL) / numEntries);
 
-    server.handleClient();
   }
 
   free(zipBuf);
@@ -326,13 +325,25 @@ static void handleBootlogosStatus()
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Called from the web-server loop (non-blocking check)
+// Spawns a dedicated FreeRTOS task so the decompressor (tinfl ~11 KB stack)
+// doesn't overflow the 10 KB web-server task stack.
 // ─────────────────────────────────────────────────────────────────────────────
+static void bootlogosInstallTask(void *param)
+{
+  bool toLittleFS = (bool)(intptr_t)param;
+  doBootlogosInstall(toLittleFS);
+  vTaskDelete(NULL);
+}
+
 void performBootlogosInstall()
 {
   if (!bootlogosInstallRequested) return;
   bootlogosInstallRequested = false;
   bool toLittleFS = (bootlogosInstallTarget == "littlefs");
-  doBootlogosInstall(toLittleFS);
+  xTaskCreate(bootlogosInstallTask, "BL Install",
+              24000,                          // 24 KB — tinfl needs ~11 KB alone
+              (void *)(intptr_t)toLittleFS,
+              1, NULL);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

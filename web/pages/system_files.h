@@ -38,10 +38,11 @@ String getSystemFilesPageHTML()
   html += "  <span id='lfs-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
   html += "</div>";
   // Path bar (row 2: buttons)
-  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
-  html += "  <button id='lfs-up-btn' class='btn btn-secondary' onclick='lfsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
-  html += "  <button class='btn btn-primary' onclick='lfsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
-  html += "  <button class='btn btn-success' onclick='lfsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
+  html += "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
+  html += "  <button id='lfs-up-btn' class='btn btn-secondary' onclick='lfsGoUp()' style='padding:3px 10px;font-size:0.85em;' disabled>&#8593; Up</button>";
+  html += "  <button class='btn btn-primary' onclick='lfsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
+  html += "  <button class='btn btn-success' onclick='lfsMkdirShow()' style='padding:3px 10px;font-size:0.85em;'>&#128193;+ Folder</button>";
+  html += "  <button class='btn btn-primary' onclick='lfsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
   html += "</div>";
   // Mkdir input row (hidden by default)
   html += "<div id='lfs-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
@@ -49,6 +50,13 @@ String getSystemFilesPageHTML()
   html += "  <button class='btn btn-success' onclick='lfsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
   html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"lfs-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
   html += "</div>";
+  // Upload row (hidden by default)
+  html += "<div id='lfs-upload-row' style='display:none;align-items:center;gap:6px;margin-bottom:4px;'>";
+  html += "  <input type='file' id='lfs-upload-file' style='flex:1;font-size:12px;min-width:0;'>";
+  html += "  <button class='btn btn-success' onclick='lfsUpload()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Upload</button>";
+  html += "  <button class='btn btn-secondary' onclick='lfsUploadHide()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
+  html += "</div>";
+  html += "<div id='lfs-upload-status' style='display:none;font-size:12px;margin-bottom:6px;padding:0 2px;'></div>";
   // File table
   html += "<div style='overflow-x:auto;'>";
   html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
@@ -75,10 +83,11 @@ String getSystemFilesPageHTML()
   html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
   html += "</div>";
   // Path bar (row 2: buttons)
-  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
-  html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
-  html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
-  html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
+  html += "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
+  html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;' disabled>&#8593; Up</button>";
+  html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
+  html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;'>&#128193;+ Folder</button>";
+  html += "  <button class='btn btn-primary' onclick='sdBrsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
   html += "</div>";
   // Mkdir input row (hidden by default)
   html += "<div id='sd-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
@@ -86,6 +95,13 @@ String getSystemFilesPageHTML()
   html += "  <button class='btn btn-success' onclick='sdBrsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
   html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"sd-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
   html += "</div>";
+  // Upload row (hidden by default)
+  html += "<div id='sd-upload-row' style='display:none;align-items:center;gap:6px;margin-bottom:4px;'>";
+  html += "  <input type='file' id='sd-upload-file' style='flex:1;font-size:12px;min-width:0;'>";
+  html += "  <button class='btn btn-success' onclick='sdBrsUpload()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Upload</button>";
+  html += "  <button class='btn btn-secondary' onclick='sdBrsUploadHide()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
+  html += "</div>";
+  html += "<div id='sd-upload-status' style='display:none;font-size:12px;margin-bottom:6px;padding:0 2px;'></div>";
   // File table
   html += "<div style='overflow-x:auto;'>";
   html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
@@ -102,62 +118,7 @@ String getSystemFilesPageHTML()
   html += "</div>"; // close card 2
   }
 
-  // Card 3: Upload to Internal Flash (LittleFS)
-  html += "<div class='card'>";
-  html += "<h3>Upload to Internal Flash</h3>";
-  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Upload a config file directly to the LittleFS partition (internal flash).</p>";
-
-  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>Destination folder:</label>";
-  html += "<div style='display:flex;gap:6px;margin-bottom:12px;'>";
-  html += "  <select id='admin-lfs-folder' style='flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color,#ccc);border-radius:4px;font-size:0.9em;'>";
-  html += "    <option value='/config'>/config (snapshots)</option>";
-  html += "    <option value='/'>/ (root)</option>";
-  html += "  </select>";
-  html += "  <button class='btn btn-primary' onclick='adminLoadLfsDirs()' title='Refresh folders' style='padding:5px 10px;flex-shrink:0;'>&#8635;</button>";
-  html += "</div>";
-
-  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>File to upload:</label>";
-  html += "<input type='file' id='admin-lfs-file' style='display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:12px;'>";
-
-  html += "<button class='btn btn-success' id='admin-lfs-upload-btn' onclick='adminUploadLFS()'>Upload to Flash</button>";
-  html += "<div id='admin-lfs-progress' style='display:none;margin-top:12px;'>";
-  html += "  <div class='progress-bar'>";
-  html += "    <div id='admin-lfs-progress-fill' class='progress-fill'></div>";
-  html += "    <div id='admin-lfs-progress-text' class='progress-text'>0%</div>";
-  html += "  </div>";
-  html += "</div>";
-  html += "<div id='admin-lfs-result' style='margin-top:10px;font-size:0.9em;'></div>";
-  html += "</div>";
-
-  // Card 4: Upload to SD Card
-  if (sdcardEnabled){
-  html += "<div class='card'>";
-  html += "<h3>Upload to SD Card</h3>";
-  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Upload any file to a folder on the SD card.</p>";
-
-  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>Destination folder:</label>";
-  html += "<div style='display:flex;gap:6px;margin-bottom:12px;'>";
-  html += "  <select id='admin-sd-folder' style='flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color,#ccc);border-radius:4px;font-size:0.9em;'>";
-  html += "    <option value='/'>/ (root)</option>";
-  html += "  </select>";
-  html += "  <button class='btn btn-primary' onclick='adminLoadSdDirs()' title='Refresh folders' style='padding:5px 10px;flex-shrink:0;'>&#8635;</button>";
-  html += "</div>";
-
-  html += "<label style='display:block;font-size:0.85em;font-weight:600;margin-bottom:4px;'>File to upload:</label>";
-  html += "<input type='file' id='admin-sd-file' style='display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:12px;'>";
-
-  html += "<button class='btn btn-success' id='admin-sd-upload-btn' onclick='adminUploadSD()'>Upload to SD</button>";
-  html += "<div id='admin-sd-progress' style='display:none;margin-top:12px;'>";
-  html += "  <div class='progress-bar'>";
-  html += "    <div id='admin-sd-progress-fill' class='progress-fill'></div>";
-  html += "    <div id='admin-sd-progress-text' class='progress-text'>0%</div>";
-  html += "  </div>";
-  html += "</div>";
-  html += "<div id='admin-sd-result' style='margin-top:10px;font-size:0.9em;'></div>";
-  html += "</div>";
-  }
-
-  // Card 5: Bootlogos installer
+  // Card 3: Bootlogos installer
   html += "<div class='card'>";
   html += "<h3>Bootlogos Package</h3>";
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:12px;'>Download the official bootlogos package from GitHub and extract it to <code>/bootlogos</code> on the target filesystem. Existing files are overwritten. "
@@ -187,115 +148,9 @@ String getSystemFilesPageHTML()
   html += "window.showAlert = function(msg) { showModal(function(box, close) { box.innerHTML = '<h4>' + msg + '</h4>'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var ok = document.createElement('button'); ok.textContent = 'OK'; ok.className = 'btn btn-primary'; ok.onclick = close; btns.appendChild(ok); box.appendChild(btns); }); };";
   html += "window.showConfirm = function(msg, onYes) { showModal(function(box, close) { box.innerHTML = '<h4>' + msg + '</h4>'; var btns = document.createElement('div'); btns.className = 'modal-buttons'; var yes = document.createElement('button'); yes.textContent = 'Yes'; yes.className = 'btn btn-success'; yes.onclick = function() { close(); onYes(); }; var no = document.createElement('button'); no.textContent = 'Cancel'; no.className = 'btn btn-danger'; no.onclick = close; btns.appendChild(yes); btns.appendChild(no); box.appendChild(btns); }); };";
 
-  html += "window.onload = function() { adminLoadSdDirs(); adminLoadLfsDirs(); lfsNavigate('/'); sdBrsNavigate('/'); };";
+  html += "window.onload = function() { lfsNavigate('/'); sdBrsNavigate('/'); };";
 
-  // Card 1: SD card upload helpers
-  html += "function adminLoadSdDirs() {";
-  html += "  fetch('/api/sdcard/dirs').then(function(r) { return r.json(); }).then(function(dirs) {";
-  html += "    var sel = document.getElementById('admin-sd-folder');";
-  html += "    var prev = sel.value;";
-  html += "    sel.innerHTML = '';";
-  html += "    dirs.forEach(function(d) {";
-  html += "      var opt = document.createElement('option');";
-  html += "      opt.value = d;";
-  html += "      opt.textContent = d === '/' ? '/ (root)' : d;";
-  html += "      sel.appendChild(opt);";
-  html += "    });";
-  html += "    if (dirs.indexOf(prev) >= 0) sel.value = prev;";
-  html += "  }).catch(function() {});";
-  html += "}";
-
-  html += "function adminUploadSD() {";
-  html += "  var folder = document.getElementById('admin-sd-folder').value || '/';";
-  html += "  var fileInput = document.getElementById('admin-sd-file');";
-  html += "  if (!fileInput.files.length) { showAlert('Please select a file to upload'); return; }";
-  html += "  var file = fileInput.files[0];";
-  html += "  var formData = new FormData();";
-  html += "  formData.append('file', file, file.name);";
-  html += "  document.getElementById('admin-sd-upload-btn').disabled = true;";
-  html += "  document.getElementById('admin-sd-result').innerHTML = '';";
-  html += "  document.getElementById('admin-sd-progress').style.display = 'block';";
-  html += "  document.getElementById('admin-sd-progress-fill').style.width = '0%';";
-  html += "  document.getElementById('admin-sd-progress-text').textContent = '0%';";
-  html += "  var xhr = new XMLHttpRequest();";
-  html += "  xhr.upload.onprogress = function(e) {";
-  html += "    if (e.lengthComputable) {";
-  html += "      var pct = Math.round(e.loaded * 100 / e.total);";
-  html += "      document.getElementById('admin-sd-progress-fill').style.width = pct + '%';";
-  html += "      document.getElementById('admin-sd-progress-text').textContent = pct + '%';";
-  html += "    }";
-  html += "  };";
-  html += "  xhr.onload = function() {";
-  html += "    document.getElementById('admin-sd-upload-btn').disabled = false;";
-  html += "    document.getElementById('admin-sd-progress').style.display = 'none';";
-  html += "    var color = xhr.status === 200 ? '#2e7d32' : '#c62828';";
-  html += "    document.getElementById('admin-sd-result').innerHTML = '<span style=\"color:' + color + '\">' + xhr.responseText + '</span>';";
-  html += "    if (xhr.status === 200) fileInput.value = '';";
-  html += "  };";
-  html += "  xhr.onerror = function() {";
-  html += "    document.getElementById('admin-sd-upload-btn').disabled = false;";
-  html += "    document.getElementById('admin-sd-progress').style.display = 'none';";
-  html += "    document.getElementById('admin-sd-result').innerHTML = '<span style=\"color:#c62828\">Network error during upload</span>';";
-  html += "  };";
-  html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(folder));";
-  html += "  xhr.send(formData);";
-  html += "}";
-
-  // Card 2: LittleFS folder loader
-  html += "function adminLoadLfsDirs() {";
-  html += "  fetch('/api/littlefs/dirs').then(function(r) { return r.json(); }).then(function(dirs) {";
-  html += "    var sel = document.getElementById('admin-lfs-folder');";
-  html += "    var prev = sel.value;";
-  html += "    sel.innerHTML = '';";
-  html += "    dirs.forEach(function(d) {";
-  html += "      var opt = document.createElement('option');";
-  html += "      opt.value = d;";
-  html += "      opt.textContent = d === '/config' ? '/config (snapshots)' : d === '/' ? '/ (root)' : d;";
-  html += "      sel.appendChild(opt);";
-  html += "    });";
-  html += "    if (dirs.indexOf(prev) >= 0) sel.value = prev;";
-  html += "    else if (dirs.indexOf('/config') >= 0) sel.value = '/config';";
-  html += "  }).catch(function() {});";
-  html += "}";
-
-  // Card 2: LittleFS upload
-  html += "function adminUploadLFS() {";
-  html += "  var folder = document.getElementById('admin-lfs-folder').value || '/config';";
-  html += "  var fileInput = document.getElementById('admin-lfs-file');";
-  html += "  if (!fileInput.files.length) { showAlert('Please select a file to upload'); return; }";
-  html += "  var file = fileInput.files[0];";
-  html += "  var formData = new FormData();";
-  html += "  formData.append('file', file, file.name);";
-  html += "  document.getElementById('admin-lfs-upload-btn').disabled = true;";
-  html += "  document.getElementById('admin-lfs-result').innerHTML = '';";
-  html += "  document.getElementById('admin-lfs-progress').style.display = 'block';";
-  html += "  document.getElementById('admin-lfs-progress-fill').style.width = '0%';";
-  html += "  document.getElementById('admin-lfs-progress-text').textContent = '0%';";
-  html += "  var xhr = new XMLHttpRequest();";
-  html += "  xhr.upload.onprogress = function(e) {";
-  html += "    if (e.lengthComputable) {";
-  html += "      var pct = Math.round(e.loaded * 100 / e.total);";
-  html += "      document.getElementById('admin-lfs-progress-fill').style.width = pct + '%';";
-  html += "      document.getElementById('admin-lfs-progress-text').textContent = pct + '%';";
-  html += "    }";
-  html += "  };";
-  html += "  xhr.onload = function() {";
-  html += "    document.getElementById('admin-lfs-upload-btn').disabled = false;";
-  html += "    document.getElementById('admin-lfs-progress').style.display = 'none';";
-  html += "    var color = xhr.status === 200 ? '#2e7d32' : '#c62828';";
-  html += "    document.getElementById('admin-lfs-result').innerHTML = '<span style=\"color:' + color + '\">' + xhr.responseText + '</span>';";
-  html += "    if (xhr.status === 200) { fileInput.value = ''; adminLoadLfsDirs(); lfsNavigate(lfsCurrentPath); }";
-  html += "  };";
-  html += "  xhr.onerror = function() {";
-  html += "    document.getElementById('admin-lfs-upload-btn').disabled = false;";
-  html += "    document.getElementById('admin-lfs-progress').style.display = 'none';";
-  html += "    document.getElementById('admin-lfs-result').innerHTML = '<span style=\"color:#c62828\">Network error during upload</span>';";
-  html += "  };";
-  html += "  xhr.open('POST', '/api/littlefs/upload?path=' + encodeURIComponent(folder));";
-  html += "  xhr.send(formData);";
-  html += "}";
-
-  // Card 3: LittleFS browser JS
+  // LittleFS browser JS
   html += "var lfsCurrentPath = '/';";
   html += "function lfsFormatSize(b) {";
   html += "  if (b >= 1048576) return (b/1048576).toFixed(1) + ' MB';";
@@ -474,6 +329,74 @@ String getSystemFilesPageHTML()
   html += "      sdBrsRefresh();";
   html += "    })";
   html += "    .catch(function() { showAlert('Error creating directory'); });";
+  html += "}";
+
+  // LittleFS browser upload
+  html += "function lfsUploadShow() {";
+  html += "  var row = document.getElementById('lfs-upload-row');";
+  html += "  if (!row) return;";
+  html += "  if (row.style.display === 'none' || !row.style.display) {";
+  html += "    document.getElementById('lfs-mkdir-row').style.display = 'none';";
+  html += "    row.style.display = 'flex';";
+  html += "    document.getElementById('lfs-upload-file').value = '';";
+  html += "    document.getElementById('lfs-upload-status').style.display = 'none';";
+  html += "  } else { row.style.display = 'none'; }";
+  html += "}";
+  html += "function lfsUploadHide() {";
+  html += "  document.getElementById('lfs-upload-row').style.display = 'none';";
+  html += "  document.getElementById('lfs-upload-status').style.display = 'none';";
+  html += "}";
+  html += "function lfsUpload() {";
+  html += "  var fi = document.getElementById('lfs-upload-file');";
+  html += "  if (!fi.files.length) { showAlert('Please select a file'); return; }";
+  html += "  var file = fi.files[0];";
+  html += "  var fd = new FormData(); fd.append('file', file, file.name);";
+  html += "  var st = document.getElementById('lfs-upload-status');";
+  html += "  st.style.display = 'block'; st.style.color = '#aaa'; st.textContent = 'Uploading...';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) { if (e.lengthComputable) st.textContent = 'Uploading ' + Math.round(e.loaded*100/e.total) + '%'; };";
+  html += "  xhr.onload = function() {";
+  html += "    var ok = xhr.status === 200;";
+  html += "    st.style.color = ok ? '#2e7d32' : '#c62828'; st.textContent = xhr.responseText;";
+  html += "    if (ok) { fi.value = ''; document.getElementById('lfs-upload-row').style.display = 'none'; lfsRefresh(); }";
+  html += "  };";
+  html += "  xhr.onerror = function() { st.style.color = '#c62828'; st.textContent = 'Network error'; };";
+  html += "  xhr.open('POST', '/api/littlefs/upload?path=' + encodeURIComponent(lfsCurrentPath));";
+  html += "  xhr.send(fd);";
+  html += "}";
+
+  // SD card browser upload
+  html += "function sdBrsUploadShow() {";
+  html += "  var row = document.getElementById('sd-upload-row');";
+  html += "  if (!row) return;";
+  html += "  if (row.style.display === 'none' || !row.style.display) {";
+  html += "    document.getElementById('sd-mkdir-row').style.display = 'none';";
+  html += "    row.style.display = 'flex';";
+  html += "    document.getElementById('sd-upload-file').value = '';";
+  html += "    document.getElementById('sd-upload-status').style.display = 'none';";
+  html += "  } else { row.style.display = 'none'; }";
+  html += "}";
+  html += "function sdBrsUploadHide() {";
+  html += "  document.getElementById('sd-upload-row').style.display = 'none';";
+  html += "  document.getElementById('sd-upload-status').style.display = 'none';";
+  html += "}";
+  html += "function sdBrsUpload() {";
+  html += "  var fi = document.getElementById('sd-upload-file');";
+  html += "  if (!fi.files.length) { showAlert('Please select a file'); return; }";
+  html += "  var file = fi.files[0];";
+  html += "  var fd = new FormData(); fd.append('file', file, file.name);";
+  html += "  var st = document.getElementById('sd-upload-status');";
+  html += "  st.style.display = 'block'; st.style.color = '#aaa'; st.textContent = 'Uploading...';";
+  html += "  var xhr = new XMLHttpRequest();";
+  html += "  xhr.upload.onprogress = function(e) { if (e.lengthComputable) st.textContent = 'Uploading ' + Math.round(e.loaded*100/e.total) + '%'; };";
+  html += "  xhr.onload = function() {";
+  html += "    var ok = xhr.status === 200;";
+  html += "    st.style.color = ok ? '#2e7d32' : '#c62828'; st.textContent = xhr.responseText;";
+  html += "    if (ok) { fi.value = ''; document.getElementById('sd-upload-row').style.display = 'none'; sdBrsRefresh(); }";
+  html += "  };";
+  html += "  xhr.onerror = function() { st.style.color = '#c62828'; st.textContent = 'Network error'; };";
+  html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(sdBrsCurrentPath));";
+  html += "  xhr.send(fd);";
   html += "}";
 
   // Bootlogos installer JS
