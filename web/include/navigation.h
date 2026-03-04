@@ -95,6 +95,8 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   }
   nav += "<a href='/system-firmware'>Firmware</a>";
   nav += "<a href='/system-admin'>Administration</a>";
+  nav += "<a href='/system-backup'>Backup</a>";
+  nav += "<a href='/system-files'>Files</a>";
   nav += "</div>";
   nav += "</div>";
   

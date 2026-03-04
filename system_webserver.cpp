@@ -26,6 +26,8 @@
 #include "web/pages/system_serial.h"
 #include "web/pages/system_status.h"
 #include "web/pages/system_admin.h"
+#include "web/pages/system_backup.h"
+#include "web/pages/system_files.h"
 #include "web/pages/system_firmware.h"
 #include "web/pages/system_info.h"
 #include "web/pages/service_mqtt.h"
@@ -313,6 +315,8 @@ void webServerTask(void *parameter) {
   server.on("/system-sdcard", handleSystemSdcard);
   server.on("/system-firmware", handleSystemFirmware);
   server.on("/system-admin", handleSystemAdmin);
+  server.on("/system-backup", handleSystemBackup);
+  server.on("/system-files", handleSystemFiles);
 
   registerOtaRoutes();
 
@@ -493,4 +497,16 @@ void handleSystemAdmin()
 {
   requestCount++;
   server.send(200, "text/html", getSystemAdminPageHTML());
+}
+
+void handleSystemBackup()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemBackupPageHTML());
+}
+
+void handleSystemFiles()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemFilesPageHTML());
 }

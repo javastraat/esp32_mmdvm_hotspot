@@ -51,6 +51,8 @@ void handleServiceTelegram();
 void handleSystemSdcard();
 void handleSystemFirmware();
 void handleSystemAdmin();
+void handleSystemBackup();
+void handleSystemFiles();
 
 
 // API handlers

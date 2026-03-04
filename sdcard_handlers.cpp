@@ -920,200 +920,229 @@ void performCSVDownload()
 
   addLogMessage("[SD] Starting CSV download");
   csvDownloadProgress = 0;
-  csvBytesTotal = 0;
-  csvBytesWritten = 0;
-  csvDownloadStatus = "Connecting...";
-  csvDownloadActive = true;
+  csvBytesTotal       = 0;
+  csvBytesWritten     = 0;
+  csvDownloadActive   = true;
 
-  HTTPClient http;
-  http.setTimeout(30000);     // 30 second timeout for large files
-  http.begin(SDCARD_CSV_URL); // HTTPClient handles HTTPS automatically
+  bool success    = false;
+  bool fatalError = false; // non-retryable (SD/mutex failure, HTTP 4xx/5xx)
 
-  addLogMessage("[SD] Connecting to: " + String(SDCARD_CSV_URL));
-  addLogMessage("[SD] Sending GET request...");
-
-  int httpCode = http.GET();
-  addLogMessage("[SD] HTTP response code: " + String(httpCode));
-
-  if (httpCode == HTTP_CODE_OK)
+  for (int attempt = 1; attempt <= 3 && !success && !fatalError; attempt++)
   {
-    csvBytesTotal = http.getSize();
-    csvDownloadProgress = 0;
-    addLogMessage("[SD] File size: " + String(csvBytesTotal) + " bytes");
-
-    // Create database directory if it doesn't exist
-    if (!SD.exists(SDCARD_DATABASE_DIR))
+    if (attempt > 1)
     {
-      SD.mkdir(SDCARD_DATABASE_DIR);
-      addLogMessage("[SD] Created directory: " + String(SDCARD_DATABASE_DIR));
-    }
-
-    // Delete old file if exists
-    if (SD.exists(SDCARD_CSV_FILE))
-    {
-      SD.remove(SDCARD_CSV_FILE);
-      addLogMessage("[SD] Deleted old file");
-    }
-
-    // Take SD card mutex before file operations
-    if (xSemaphoreTake(sdCardMutex, portMAX_DELAY) != pdTRUE)
-    {
-      csvDownloadStatus = "ERROR: Mutex timeout";
-      csvDownloadActive = false;
-      addLogMessage("[SD] ERROR: Could not acquire SD card mutex");
-      http.end();
-      return;
-    }
-
-    File outFile = SD.open(SDCARD_CSV_FILE, FILE_WRITE);
-    if (!outFile)
-    {
-      xSemaphoreGive(sdCardMutex); // Release mutex
-      csvDownloadStatus = "ERROR: File open failed";
-      csvDownloadActive = false;
-      addLogMessage("[SD] ERROR: Failed to open file for writing");
-      http.end();
-      return;
-    }
-
-    csvDownloadStatus = "Downloading...";
-    addLogMessage("[SD] Starting download...");
-
-    WiFiClient *stream = http.getStreamPtr();
-    uint8_t buffer[2048];
-    int lastPercent = 0;
-    int consecutiveWriteFails = 0;
-    unsigned long lastFlush = 0;
-    unsigned long lastDataMs = millis(); // track last time we received data
-    bool downloadError = false;
-
-    while (http.connected() && (csvBytesTotal <= 0 || csvBytesWritten < csvBytesTotal))
-    {
-      // Handle incoming web requests during download (important for status API)
-      server.handleClient();
-
-      size_t available = stream->available();
-
-      if (available)
-      {
-        lastDataMs = millis(); // reset timeout whenever data is available
-
-        int bytesToRead = min((int)available, (int)sizeof(buffer));
-        if (csvBytesTotal > 0)
-        {
-          bytesToRead = min(bytesToRead, (int)(csvBytesTotal - csvBytesWritten));
-        }
-
-        int bytesRead = stream->readBytes(buffer, bytesToRead);
-
-        if (bytesRead > 0)
-        {
-          // Critical: Check how many bytes were actually written
-          size_t bytesWritten = outFile.write(buffer, bytesRead);
-          csvBytesWritten += bytesWritten;
-
-          if (bytesWritten != (size_t)bytesRead)
-          {
-            consecutiveWriteFails++;
-            addLogMessage("[SD] WARNING: Write mismatch! Read: " + String(bytesRead) + " Written: " + String(bytesWritten) + " (fail #" + String(consecutiveWriteFails) + ")");
-            if (consecutiveWriteFails >= 3)
-            {
-              addLogMessage("[SD] ERROR: Repeated write failures - aborting CSV download");
-              csvDownloadStatus = "ERROR: Write failed";
-              downloadError = true;
-              break;
-            }
-          }
-          else
-          {
-            consecutiveWriteFails = 0; // reset on successful write
-          }
-
-          // Flush every 100KB to prevent buffer issues
-          if (csvBytesWritten - lastFlush >= 102400)
-          {
-            outFile.flush();
-            lastFlush = csvBytesWritten;
-          }
-
-          if (csvBytesTotal > 0)
-          {
-            csvDownloadProgress = (int)((csvBytesWritten * 100UL) / csvBytesTotal);
-
-            // Log every 10%
-            int currentPercent = (csvDownloadProgress / 10) * 10;
-            if (currentPercent > lastPercent && currentPercent % 10 == 0)
-            {
-              lastPercent = currentPercent;
-              String msg = "[SD] CSV Progress: " + String(currentPercent) + "% (" + String(csvBytesWritten) + " / " + String(csvBytesTotal) + " bytes)";
-              addLogMessage(msg);
-              Serial.println(msg);
-              Serial.flush();
-            }
-          }
-
-          yield(); // Use yield() instead of vTaskDelay()
-        }
-      }
-      else
-      {
-        // No data from stream - check for stall timeout (15 seconds)
-        if (millis() - lastDataMs > 15000)
-        {
-          addLogMessage("[SD] ERROR: Stream stalled (no data for 15s) - aborting CSV download");
-          csvDownloadStatus = "ERROR: Stream timeout";
-          downloadError = true;
-          break;
-        }
-        delay(1); // Use delay() instead of vTaskDelay()
-      }
-
-      // Safety check
-      if (csvBytesTotal > 0 && csvBytesWritten >= csvBytesTotal)
-      {
-        break;
-      }
-    }
-
-    outFile.close();
-    xSemaphoreGive(sdCardMutex); // Release mutex after file operations
-
-    if (!downloadError)
-    {
-      csvDownloadStatus = "Complete";
-      csvDownloadProgress = 100;
-      addLogMessage("[SD] CSV download complete: " + String(csvBytesWritten) + " bytes");
-
-      // Verify file size on SD card
-      if (SD.exists(SDCARD_CSV_FILE))
-      {
-        File verifyFile = SD.open(SDCARD_CSV_FILE);
-        if (verifyFile)
-        {
-          size_t fileSize = verifyFile.size();
-          verifyFile.close();
-          addLogMessage("[SD] Verified CSV file size on SD: " + String(fileSize) + " bytes");
-
-          if (fileSize != csvBytesTotal)
-          {
-            addLogMessage("[SD] WARNING: File size mismatch! Expected: " + String(csvBytesTotal) + " Got: " + String(fileSize));
-            csvDownloadStatus = "ERROR: File size mismatch";
-          }
-        }
-      }
+      addLogMessage("[SD] CSV download retry " + String(attempt) + "/3 (waiting 3s)");
+      csvDownloadStatus   = "Retry " + String(attempt) + "/3...";
+      csvBytesWritten     = 0;
+      csvDownloadProgress = 0;
+      delay(3000);
     }
     else
     {
-      addLogMessage("[SD] CSV download aborted after " + String(csvBytesWritten) + " bytes");
+      csvDownloadStatus = "Connecting...";
     }
-  }
-  else
-  {
-    csvDownloadStatus = "ERROR: HTTP " + String(httpCode);
-    addLogMessage("[SD] CSV download failed: HTTP " + String(httpCode));
+
+    HTTPClient http;
+    http.setTimeout(30000);
+    http.begin(SDCARD_CSV_URL);
+
+    addLogMessage("[SD] Connecting to: " + String(SDCARD_CSV_URL) + " (attempt " + String(attempt) + "/3)");
+    addLogMessage("[SD] Sending GET request...");
+
+    int httpCode = http.GET();
+    addLogMessage("[SD] HTTP response code: " + String(httpCode));
+
+    if (httpCode == HTTP_CODE_OK)
+    {
+      csvBytesTotal       = http.getSize();
+      csvDownloadProgress = 0;
+      addLogMessage("[SD] File size: " + String(csvBytesTotal) + " bytes");
+
+      // Create database directory if it doesn't exist
+      if (!SD.exists(SDCARD_DATABASE_DIR))
+      {
+        SD.mkdir(SDCARD_DATABASE_DIR);
+        addLogMessage("[SD] Created directory: " + String(SDCARD_DATABASE_DIR));
+      }
+
+      // Delete old/partial file before writing
+      if (SD.exists(SDCARD_CSV_FILE))
+      {
+        SD.remove(SDCARD_CSV_FILE);
+        addLogMessage("[SD] Deleted old/partial file");
+      }
+
+      // Take SD card mutex before file operations
+      if (xSemaphoreTake(sdCardMutex, portMAX_DELAY) != pdTRUE)
+      {
+        csvDownloadStatus = "ERROR: Mutex timeout";
+        addLogMessage("[SD] ERROR: Could not acquire SD card mutex");
+        http.end();
+        fatalError = true;
+        break;
+      }
+
+      File outFile = SD.open(SDCARD_CSV_FILE, FILE_WRITE);
+      if (!outFile)
+      {
+        xSemaphoreGive(sdCardMutex);
+        csvDownloadStatus = "ERROR: File open failed";
+        addLogMessage("[SD] ERROR: Failed to open file for writing");
+        http.end();
+        fatalError = true;
+        break;
+      }
+
+      csvDownloadStatus = "Downloading...";
+      addLogMessage("[SD] Starting download...");
+
+      WiFiClient *stream = http.getStreamPtr();
+      uint8_t buffer[2048];
+      int lastPercent           = 0;
+      int consecutiveWriteFails = 0;
+      unsigned long lastFlush   = 0;
+      unsigned long lastDataMs  = millis();
+      bool streamError          = false;
+
+      while (http.connected() && (csvBytesTotal <= 0 || csvBytesWritten < csvBytesTotal))
+      {
+        // Handle incoming web requests during download (important for status API)
+        server.handleClient();
+
+        size_t available = stream->available();
+
+        if (available)
+        {
+          lastDataMs = millis(); // reset timeout whenever data arrives
+
+          int bytesToRead = min((int)available, (int)sizeof(buffer));
+          if (csvBytesTotal > 0)
+            bytesToRead = min(bytesToRead, (int)(csvBytesTotal - csvBytesWritten));
+
+          int bytesRead = stream->readBytes(buffer, bytesToRead);
+
+          if (bytesRead > 0)
+          {
+            size_t bytesWritten = outFile.write(buffer, bytesRead);
+            csvBytesWritten += bytesWritten;
+
+            if (bytesWritten != (size_t)bytesRead)
+            {
+              consecutiveWriteFails++;
+              addLogMessage("[SD] WARNING: Write mismatch! Read: " + String(bytesRead) + " Written: " + String(bytesWritten) + " (fail #" + String(consecutiveWriteFails) + ")");
+              if (consecutiveWriteFails >= 3)
+              {
+                addLogMessage("[SD] ERROR: Repeated write failures - aborting CSV download");
+                csvDownloadStatus = "ERROR: Write failed";
+                streamError = true;
+                fatalError  = true; // SD write failure is not retryable
+                break;
+              }
+            }
+            else
+            {
+              consecutiveWriteFails = 0;
+            }
+
+            // Flush every 100KB to prevent buffer issues
+            if (csvBytesWritten - lastFlush >= 102400)
+            {
+              outFile.flush();
+              lastFlush = csvBytesWritten;
+            }
+
+            if (csvBytesTotal > 0)
+            {
+              csvDownloadProgress = (int)((csvBytesWritten * 100UL) / csvBytesTotal);
+
+              // Log every 10%
+              int currentPercent = (csvDownloadProgress / 10) * 10;
+              if (currentPercent > lastPercent && currentPercent % 10 == 0)
+              {
+                lastPercent = currentPercent;
+                String msg = "[SD] CSV Progress: " + String(currentPercent) + "% (" + String(csvBytesWritten) + " / " + String(csvBytesTotal) + " bytes)";
+                addLogMessage(msg);
+                Serial.println(msg);
+                Serial.flush();
+              }
+            }
+
+            yield();
+          }
+        }
+        else
+        {
+          // No data — check for stall timeout (15 seconds, retryable)
+          if (millis() - lastDataMs > 15000)
+          {
+            addLogMessage("[SD] ERROR: Stream stalled (no data for 15s) - attempt " + String(attempt) + "/3");
+            csvDownloadStatus = "ERROR: Stream timeout";
+            streamError = true;
+            break;
+          }
+          delay(1);
+        }
+
+        if (csvBytesTotal > 0 && csvBytesWritten >= csvBytesTotal)
+          break;
+      }
+
+      outFile.close();
+      xSemaphoreGive(sdCardMutex);
+
+      if (!streamError)
+      {
+        // Verify file size on SD card
+        if (SD.exists(SDCARD_CSV_FILE))
+        {
+          File verifyFile = SD.open(SDCARD_CSV_FILE);
+          if (verifyFile)
+          {
+            size_t fileSize = verifyFile.size();
+            verifyFile.close();
+            addLogMessage("[SD] Verified CSV file size on SD: " + String(fileSize) + " bytes");
+
+            if (fileSize != csvBytesTotal)
+            {
+              addLogMessage("[SD] WARNING: File size mismatch! Expected: " + String(csvBytesTotal) + " Got: " + String(fileSize));
+              csvDownloadStatus = "ERROR: File size mismatch";
+            }
+            else
+            {
+              csvDownloadStatus   = "Complete";
+              csvDownloadProgress = 100;
+              addLogMessage("[SD] CSV download complete: " + String(csvBytesWritten) + " bytes");
+              success = true;
+            }
+          }
+        }
+      }
+      else if (!fatalError)
+      {
+        // Stream timeout — will retry
+        addLogMessage("[SD] CSV download attempt " + String(attempt) + " aborted after " + String(csvBytesWritten) + " bytes");
+      }
+    }
+    else if (httpCode > 0)
+    {
+      // HTTP error (4xx/5xx) — not retryable
+      csvDownloadStatus = "ERROR: HTTP " + String(httpCode);
+      addLogMessage("[SD] CSV download failed: HTTP " + String(httpCode));
+      fatalError = true;
+    }
+    else
+    {
+      // Connection error (negative code) — retryable
+      addLogMessage("[SD] CSV connection error: " + http.errorToString(httpCode) + " (attempt " + String(attempt) + "/3)");
+      csvDownloadStatus = "ERROR: Connection failed";
+    }
+
+    http.end();
   }
 
-  http.end();
+  if (!success && !csvDownloadStatus.startsWith("Complete"))
+    addLogMessage("[SD] CSV download failed after all attempts: " + csvDownloadStatus);
+
   csvDownloadActive = false;
 }
 
@@ -1125,200 +1154,229 @@ void performSQLiteDownload()
 
   addLogMessage("[SD] Starting SQLite download");
   sqliteDownloadProgress = 0;
-  sqliteBytesTotal = 0;
-  sqliteBytesWritten = 0;
-  sqliteDownloadStatus = "Connecting...";
-  sqliteDownloadActive = true;
+  sqliteBytesTotal       = 0;
+  sqliteBytesWritten     = 0;
+  sqliteDownloadActive   = true;
 
-  HTTPClient http;
-  http.setTimeout(30000);        // 30 second timeout for large files
-  http.begin(SDCARD_SQLITE_URL); // HTTPClient handles HTTPS automatically
+  bool success    = false;
+  bool fatalError = false; // non-retryable (SD/mutex failure, HTTP 4xx/5xx)
 
-  addLogMessage("[SD] Connecting to: " + String(SDCARD_SQLITE_URL));
-  addLogMessage("[SD] Sending GET request...");
-
-  int httpCode = http.GET();
-  addLogMessage("[SD] HTTP response code: " + String(httpCode));
-
-  if (httpCode == HTTP_CODE_OK)
+  for (int attempt = 1; attempt <= 3 && !success && !fatalError; attempt++)
   {
-    sqliteBytesTotal = http.getSize();
-    sqliteDownloadProgress = 0;
-    addLogMessage("[SD] File size: " + String(sqliteBytesTotal) + " bytes");
-
-    // Create database directory if it doesn't exist
-    if (!SD.exists(SDCARD_DATABASE_DIR))
+    if (attempt > 1)
     {
-      SD.mkdir(SDCARD_DATABASE_DIR);
-      addLogMessage("[SD] Created directory: " + String(SDCARD_DATABASE_DIR));
-    }
-
-    // Delete old file if exists
-    if (SD.exists(SDCARD_SQLITE_FILE))
-    {
-      SD.remove(SDCARD_SQLITE_FILE);
-      addLogMessage("[SD] Deleted old file");
-    }
-
-    // Take SD card mutex before file operations
-    if (xSemaphoreTake(sdCardMutex, portMAX_DELAY) != pdTRUE)
-    {
-      sqliteDownloadStatus = "ERROR: Mutex timeout";
-      sqliteDownloadActive = false;
-      addLogMessage("[SD] ERROR: Could not acquire SD card mutex");
-      http.end();
-      return;
-    }
-
-    File outFile = SD.open(SDCARD_SQLITE_FILE, FILE_WRITE);
-    if (!outFile)
-    {
-      xSemaphoreGive(sdCardMutex); // Release mutex
-      sqliteDownloadStatus = "ERROR: File open failed";
-      sqliteDownloadActive = false;
-      addLogMessage("[SD] ERROR: Failed to open file for writing");
-      http.end();
-      return;
-    }
-
-    sqliteDownloadStatus = "Downloading...";
-    addLogMessage("[SD] Starting download...");
-
-    WiFiClient *stream = http.getStreamPtr();
-    uint8_t buffer[2048];
-    int lastPercent = 0;
-    int consecutiveWriteFails = 0;
-    unsigned long lastFlush = 0;
-    unsigned long lastDataMs = millis(); // track last time we received data
-    bool downloadError = false;
-
-    while (http.connected() && (sqliteBytesTotal <= 0 || sqliteBytesWritten < sqliteBytesTotal))
-    {
-      // Handle incoming web requests during download (important for status API)
-      server.handleClient();
-
-      size_t available = stream->available();
-
-      if (available)
-      {
-        lastDataMs = millis(); // reset timeout whenever data is available
-
-        int bytesToRead = min((int)available, (int)sizeof(buffer));
-        if (sqliteBytesTotal > 0)
-        {
-          bytesToRead = min(bytesToRead, (int)(sqliteBytesTotal - sqliteBytesWritten));
-        }
-
-        int bytesRead = stream->readBytes(buffer, bytesToRead);
-
-        if (bytesRead > 0)
-        {
-          // Critical: Check how many bytes were actually written
-          size_t bytesWritten = outFile.write(buffer, bytesRead);
-          sqliteBytesWritten += bytesWritten;
-
-          if (bytesWritten != (size_t)bytesRead)
-          {
-            consecutiveWriteFails++;
-            addLogMessage("[SD] WARNING: Write mismatch! Read: " + String(bytesRead) + " Written: " + String(bytesWritten) + " (fail #" + String(consecutiveWriteFails) + ")");
-            if (consecutiveWriteFails >= 3)
-            {
-              addLogMessage("[SD] ERROR: Repeated write failures - aborting SQLite download");
-              sqliteDownloadStatus = "ERROR: Write failed";
-              downloadError = true;
-              break;
-            }
-          }
-          else
-          {
-            consecutiveWriteFails = 0; // reset on successful write
-          }
-
-          // Flush every 100KB to prevent buffer issues
-          if (sqliteBytesWritten - lastFlush >= 102400)
-          {
-            outFile.flush();
-            lastFlush = sqliteBytesWritten;
-          }
-
-          if (sqliteBytesTotal > 0)
-          {
-            sqliteDownloadProgress = (int)((sqliteBytesWritten * 100UL) / sqliteBytesTotal);
-
-            // Log every 10%
-            int currentPercent = (sqliteDownloadProgress / 10) * 10;
-            if (currentPercent > lastPercent && currentPercent % 10 == 0)
-            {
-              lastPercent = currentPercent;
-              String msg = "[SD] SQLite Progress: " + String(currentPercent) + "% (" + String(sqliteBytesWritten) + " / " + String(sqliteBytesTotal) + " bytes)";
-              addLogMessage(msg);
-              Serial.println(msg);
-              Serial.flush();
-            }
-          }
-
-          yield(); // Use yield() instead of vTaskDelay()
-        }
-      }
-      else
-      {
-        // No data from stream - check for stall timeout (15 seconds)
-        if (millis() - lastDataMs > 15000)
-        {
-          addLogMessage("[SD] ERROR: Stream stalled (no data for 15s) - aborting SQLite download");
-          sqliteDownloadStatus = "ERROR: Stream timeout";
-          downloadError = true;
-          break;
-        }
-        delay(1); // Use delay() instead of vTaskDelay()
-      }
-
-      // Safety check
-      if (sqliteBytesTotal > 0 && sqliteBytesWritten >= sqliteBytesTotal)
-      {
-        break;
-      }
-    }
-
-    outFile.close();
-    xSemaphoreGive(sdCardMutex); // Release mutex after file operations
-
-    if (!downloadError)
-    {
-      sqliteDownloadStatus = "Complete";
-      sqliteDownloadProgress = 100;
-      addLogMessage("[SD] SQLite download complete: " + String(sqliteBytesWritten) + " bytes");
-
-      // Verify file size on SD card
-      if (SD.exists(SDCARD_SQLITE_FILE))
-      {
-        File verifyFile = SD.open(SDCARD_SQLITE_FILE);
-        if (verifyFile)
-        {
-          size_t fileSize = verifyFile.size();
-          verifyFile.close();
-          addLogMessage("[SD] Verified SQLite file size on SD: " + String(fileSize) + " bytes");
-
-          if (fileSize != sqliteBytesTotal)
-          {
-            addLogMessage("[SD] WARNING: File size mismatch! Expected: " + String(sqliteBytesTotal) + " Got: " + String(fileSize));
-            sqliteDownloadStatus = "ERROR: File size mismatch";
-          }
-        }
-      }
+      addLogMessage("[SD] SQLite download retry " + String(attempt) + "/3 (waiting 3s)");
+      sqliteDownloadStatus   = "Retry " + String(attempt) + "/3...";
+      sqliteBytesWritten     = 0;
+      sqliteDownloadProgress = 0;
+      delay(3000);
     }
     else
     {
-      addLogMessage("[SD] SQLite download aborted after " + String(sqliteBytesWritten) + " bytes");
+      sqliteDownloadStatus = "Connecting...";
     }
-  }
-  else
-  {
-    sqliteDownloadStatus = "ERROR: HTTP " + String(httpCode);
-    addLogMessage("[SD] SQLite download failed: HTTP " + String(httpCode));
+
+    HTTPClient http;
+    http.setTimeout(30000);
+    http.begin(SDCARD_SQLITE_URL);
+
+    addLogMessage("[SD] Connecting to: " + String(SDCARD_SQLITE_URL) + " (attempt " + String(attempt) + "/3)");
+    addLogMessage("[SD] Sending GET request...");
+
+    int httpCode = http.GET();
+    addLogMessage("[SD] HTTP response code: " + String(httpCode));
+
+    if (httpCode == HTTP_CODE_OK)
+    {
+      sqliteBytesTotal       = http.getSize();
+      sqliteDownloadProgress = 0;
+      addLogMessage("[SD] File size: " + String(sqliteBytesTotal) + " bytes");
+
+      // Create database directory if it doesn't exist
+      if (!SD.exists(SDCARD_DATABASE_DIR))
+      {
+        SD.mkdir(SDCARD_DATABASE_DIR);
+        addLogMessage("[SD] Created directory: " + String(SDCARD_DATABASE_DIR));
+      }
+
+      // Delete old/partial file before writing
+      if (SD.exists(SDCARD_SQLITE_FILE))
+      {
+        SD.remove(SDCARD_SQLITE_FILE);
+        addLogMessage("[SD] Deleted old/partial file");
+      }
+
+      // Take SD card mutex before file operations
+      if (xSemaphoreTake(sdCardMutex, portMAX_DELAY) != pdTRUE)
+      {
+        sqliteDownloadStatus = "ERROR: Mutex timeout";
+        addLogMessage("[SD] ERROR: Could not acquire SD card mutex");
+        http.end();
+        fatalError = true;
+        break;
+      }
+
+      File outFile = SD.open(SDCARD_SQLITE_FILE, FILE_WRITE);
+      if (!outFile)
+      {
+        xSemaphoreGive(sdCardMutex);
+        sqliteDownloadStatus = "ERROR: File open failed";
+        addLogMessage("[SD] ERROR: Failed to open file for writing");
+        http.end();
+        fatalError = true;
+        break;
+      }
+
+      sqliteDownloadStatus = "Downloading...";
+      addLogMessage("[SD] Starting download...");
+
+      WiFiClient *stream = http.getStreamPtr();
+      uint8_t buffer[2048];
+      int lastPercent           = 0;
+      int consecutiveWriteFails = 0;
+      unsigned long lastFlush   = 0;
+      unsigned long lastDataMs  = millis();
+      bool streamError          = false;
+
+      while (http.connected() && (sqliteBytesTotal <= 0 || sqliteBytesWritten < sqliteBytesTotal))
+      {
+        // Handle incoming web requests during download (important for status API)
+        server.handleClient();
+
+        size_t available = stream->available();
+
+        if (available)
+        {
+          lastDataMs = millis(); // reset timeout whenever data arrives
+
+          int bytesToRead = min((int)available, (int)sizeof(buffer));
+          if (sqliteBytesTotal > 0)
+            bytesToRead = min(bytesToRead, (int)(sqliteBytesTotal - sqliteBytesWritten));
+
+          int bytesRead = stream->readBytes(buffer, bytesToRead);
+
+          if (bytesRead > 0)
+          {
+            size_t bytesWritten = outFile.write(buffer, bytesRead);
+            sqliteBytesWritten += bytesWritten;
+
+            if (bytesWritten != (size_t)bytesRead)
+            {
+              consecutiveWriteFails++;
+              addLogMessage("[SD] WARNING: Write mismatch! Read: " + String(bytesRead) + " Written: " + String(bytesWritten) + " (fail #" + String(consecutiveWriteFails) + ")");
+              if (consecutiveWriteFails >= 3)
+              {
+                addLogMessage("[SD] ERROR: Repeated write failures - aborting SQLite download");
+                sqliteDownloadStatus = "ERROR: Write failed";
+                streamError = true;
+                fatalError  = true; // SD write failure is not retryable
+                break;
+              }
+            }
+            else
+            {
+              consecutiveWriteFails = 0;
+            }
+
+            // Flush every 100KB to prevent buffer issues
+            if (sqliteBytesWritten - lastFlush >= 102400)
+            {
+              outFile.flush();
+              lastFlush = sqliteBytesWritten;
+            }
+
+            if (sqliteBytesTotal > 0)
+            {
+              sqliteDownloadProgress = (int)((sqliteBytesWritten * 100UL) / sqliteBytesTotal);
+
+              // Log every 10%
+              int currentPercent = (sqliteDownloadProgress / 10) * 10;
+              if (currentPercent > lastPercent && currentPercent % 10 == 0)
+              {
+                lastPercent = currentPercent;
+                String msg = "[SD] SQLite Progress: " + String(currentPercent) + "% (" + String(sqliteBytesWritten) + " / " + String(sqliteBytesTotal) + " bytes)";
+                addLogMessage(msg);
+                Serial.println(msg);
+                Serial.flush();
+              }
+            }
+
+            yield();
+          }
+        }
+        else
+        {
+          // No data — check for stall timeout (15 seconds, retryable)
+          if (millis() - lastDataMs > 15000)
+          {
+            addLogMessage("[SD] ERROR: Stream stalled (no data for 15s) - attempt " + String(attempt) + "/3");
+            sqliteDownloadStatus = "ERROR: Stream timeout";
+            streamError = true;
+            break;
+          }
+          delay(1);
+        }
+
+        if (sqliteBytesTotal > 0 && sqliteBytesWritten >= sqliteBytesTotal)
+          break;
+      }
+
+      outFile.close();
+      xSemaphoreGive(sdCardMutex);
+
+      if (!streamError)
+      {
+        // Verify file size on SD card
+        if (SD.exists(SDCARD_SQLITE_FILE))
+        {
+          File verifyFile = SD.open(SDCARD_SQLITE_FILE);
+          if (verifyFile)
+          {
+            size_t fileSize = verifyFile.size();
+            verifyFile.close();
+            addLogMessage("[SD] Verified SQLite file size on SD: " + String(fileSize) + " bytes");
+
+            if (fileSize != sqliteBytesTotal)
+            {
+              addLogMessage("[SD] WARNING: File size mismatch! Expected: " + String(sqliteBytesTotal) + " Got: " + String(fileSize));
+              sqliteDownloadStatus = "ERROR: File size mismatch";
+            }
+            else
+            {
+              sqliteDownloadStatus   = "Complete";
+              sqliteDownloadProgress = 100;
+              addLogMessage("[SD] SQLite download complete: " + String(sqliteBytesWritten) + " bytes");
+              success = true;
+            }
+          }
+        }
+      }
+      else if (!fatalError)
+      {
+        // Stream timeout — will retry
+        addLogMessage("[SD] SQLite download attempt " + String(attempt) + " aborted after " + String(sqliteBytesWritten) + " bytes");
+      }
+    }
+    else if (httpCode > 0)
+    {
+      // HTTP error (4xx/5xx) — not retryable
+      sqliteDownloadStatus = "ERROR: HTTP " + String(httpCode);
+      addLogMessage("[SD] SQLite download failed: HTTP " + String(httpCode));
+      fatalError = true;
+    }
+    else
+    {
+      // Connection error (negative code) — retryable
+      addLogMessage("[SD] SQLite connection error: " + http.errorToString(httpCode) + " (attempt " + String(attempt) + "/3)");
+      sqliteDownloadStatus = "ERROR: Connection failed";
+    }
+
+    http.end();
   }
 
-  http.end();
+  if (!success && !sqliteDownloadStatus.startsWith("Complete"))
+    addLogMessage("[SD] SQLite download failed after all attempts: " + sqliteDownloadStatus);
+
   sqliteDownloadActive = false;
 }
 
