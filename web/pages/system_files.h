@@ -32,10 +32,13 @@ String getSystemFilesPageHTML()
   html += "<div class='card'>";
   html += "<h3>Internal Flash Browser</h3>";
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the LittleFS partition (internal flash).</p>";
-  // Path bar
-  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px;'>";
+  // Path bar (row 1: label + path)
+  html += "<div style='display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px 2px 10px;'>";
   html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
   html += "  <span id='lfs-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
+  html += "</div>";
+  // Path bar (row 2: buttons)
+  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
   html += "  <button id='lfs-up-btn' class='btn btn-secondary' onclick='lfsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
   html += "  <button class='btn btn-primary' onclick='lfsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
   html += "  <button class='btn btn-success' onclick='lfsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
@@ -66,10 +69,13 @@ String getSystemFilesPageHTML()
   html += "<div class='card'>";
   html += "<h3>SD Card Browser</h3>";
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the SD card.</p>";
-  // Path bar
-  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px;'>";
+  // Path bar (row 1: label + path)
+  html += "<div style='display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px 2px 10px;'>";
   html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
   html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
+  html += "</div>";
+  // Path bar (row 2: buttons)
+  html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
   html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;' disabled>&#8593; Up</button>";
   html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#8635; Refresh</button>";
   html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>&#128193;+ Folder</button>";
