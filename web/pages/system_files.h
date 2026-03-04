@@ -157,6 +157,25 @@ String getSystemFilesPageHTML()
   html += "</div>";
   }
 
+  // Card 5: Bootlogos installer
+  html += "<div class='card'>";
+  html += "<h3>Bootlogos Package</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:12px;'>Download the official bootlogos package from GitHub and extract it to <code>/bootlogos</code> on the target filesystem. Existing files are overwritten.</p>";
+
+  html += "<button class='btn btn-primary' id='bl-lfs-btn' onclick='blInstall(\"littlefs\")' style='margin-right:8px;margin-bottom:8px;'>Install to Flash (LittleFS)</button>";
+  if (sdcardEnabled) {
+    html += "<button class='btn btn-primary' id='bl-sd-btn' onclick='blInstall(\"sdcard\")' style='margin-bottom:8px;'>Install to SD Card</button>";
+  }
+
+  html += "<div id='bl-progress' style='display:none;margin-top:12px;'>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='bl-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='bl-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "<div id='bl-status' style='margin-top:10px;font-size:0.9em;color:#aaa;'></div>";
+  html += "</div>"; // close card 5
+
   // End of grid
   html += "</div>"; // Close admin-grid
 
@@ -454,6 +473,58 @@ String getSystemFilesPageHTML()
   html += "      sdBrsRefresh();";
   html += "    })";
   html += "    .catch(function() { showAlert('Error creating directory'); });";
+  html += "}";
+
+  // Bootlogos installer JS
+  html += "var blPollTimer = null;";
+  html += "function blSetBusy(busy) {";
+  html += "  var lfsBtn = document.getElementById('bl-lfs-btn');";
+  html += "  if (lfsBtn) lfsBtn.disabled = busy;";
+  html += "  var sdBtn = document.getElementById('bl-sd-btn');";
+  html += "  if (sdBtn) sdBtn.disabled = busy;";
+  html += "  document.getElementById('bl-progress').style.display = busy ? 'block' : 'none';";
+  html += "}";
+  html += "function blUpdateStatus(data) {";
+  html += "  var fill = document.getElementById('bl-progress-fill');";
+  html += "  var txt  = document.getElementById('bl-progress-text');";
+  html += "  var stat = document.getElementById('bl-status');";
+  html += "  if (fill) fill.style.width = data.progress + '%';";
+  html += "  if (txt)  txt.textContent  = data.progress + '%';";
+  html += "  if (stat) stat.textContent = data.status + (data.active && data.files > 0 ? ' (' + data.files + ' files)' : '');";
+  html += "  if (!data.active) {";
+  html += "    if (blPollTimer) { clearInterval(blPollTimer); blPollTimer = null; }";
+  html += "    blSetBusy(false);";
+  html += "    var isDone = data.status && data.status.indexOf('Done') === 0;";
+  html += "    if (stat) stat.style.color = isDone ? '#2e7d32' : '#c62828';";
+  html += "    if (isDone) { lfsNavigate(lfsCurrentPath); sdBrsRefresh && sdBrsRefresh(); }";
+  html += "  }";
+  html += "}";
+  html += "function blPoll() {";
+  html += "  fetch('/api/bootlogos/status').then(function(r){return r.json();}).then(blUpdateStatus).catch(function(){});";
+  html += "}";
+  html += "function blInstall(target) {";
+  html += "  blSetBusy(true);";
+  html += "  document.getElementById('bl-status').textContent = 'Starting...';";
+  html += "  document.getElementById('bl-status').style.color = '#aaa';";
+  html += "  document.getElementById('bl-progress-fill').style.width = '0%';";
+  html += "  document.getElementById('bl-progress-text').textContent = '0%';";
+  html += "  fetch('/api/bootlogos/install?target=' + target, {method:'POST'})";
+  html += "    .then(function(r){return r.json();})";
+  html += "    .then(function(d){";
+  html += "      if (d.status === 'started') {";
+  html += "        if (blPollTimer) clearInterval(blPollTimer);";
+  html += "        blPollTimer = setInterval(blPoll, 1000);";
+  html += "      } else {";
+  html += "        blSetBusy(false);";
+  html += "        document.getElementById('bl-status').textContent = d.message || d.status;";
+  html += "        document.getElementById('bl-status').style.color = '#c62828';";
+  html += "      }";
+  html += "    })";
+  html += "    .catch(function(){";
+  html += "      blSetBusy(false);";
+  html += "      document.getElementById('bl-status').textContent = 'Network error';";
+  html += "      document.getElementById('bl-status').style.color = '#c62828';";
+  html += "    });";
   html += "}";
 
   html += "</script>";

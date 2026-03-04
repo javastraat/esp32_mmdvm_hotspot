@@ -58,6 +58,7 @@
 #include "system/web_handlers_snapshots.h"
 #include "system/web_handlers_telegram_settings.h"
 #include "web/pages/service_telegram.h"
+#include "system/web_handlers_bootlogos.h"
 
 extern "C"
 {
@@ -331,6 +332,7 @@ void webServerTask(void *parameter) {
   registerConfigRoutes();
   registerNvsRoutes();
   registerSnapshotRoutes();
+  registerBootlogosRoutes();
 
   server.onNotFound(handleNotFound);
   server.begin(webServerPort);
@@ -342,6 +344,7 @@ void webServerTask(void *parameter) {
     // Process SD card downloads if requested
     performCSVDownload();
     performSQLiteDownload();
+    performBootlogosInstall();
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
