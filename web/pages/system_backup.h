@@ -184,10 +184,12 @@ String getSystemBackupPageHTML()
   html += "    var reader = new FileReader();";
   html += "    reader.onload = function(e) {";
   html += "      fetch('/api/import-config', {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: e.target.result}).then(function(r) { return r.text(); }).then(function(msg) {";
-  html += "        showAlert(msg + '\\n\\nThe device will now reboot.');";
-  html += "        fetch('/api/reboot', {method: 'POST'});";
-  html += "        document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Configuration imported. Rebooting... Page will reload in 10 seconds.</div>';";
-  html += "        setTimeout(function() { location.reload(); }, 10000);";
+  html += "        showConfirm(msg + '\\n\\nDo you want to reboot now?', function() {";
+  html += "          fetch('/api/reboot', {method: 'POST'}).then(function() {";
+  html += "            document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Configuration imported. Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "            setTimeout(function() { location.reload(); }, 10000);";
+  html += "          });";
+  html += "        }, function() { showAlert('Configuration imported. Please review settings before rebooting.'); });";
   html += "      });";
   html += "    };";
   html += "    reader.readAsText(file);";
@@ -203,6 +205,22 @@ String getSystemBackupPageHTML()
   html += "  }";
   html += "  importConfig();";
   html += "});";
+
+  // Preferences Reset (Reset All Settings)
+  html += "function prefsReset() {";
+  html += "  showConfirm('Reset All Settings\\n\\nThis will clear ALL preferences in NVS.\\n\\nAre you sure you want to proceed?', function() {";
+  html += "    showConfirm('FINAL CONFIRMATION\\n\\nAll preferences will be erased.\\n\\nProceed with reset?', function() {";
+  html += "      fetch('/api/prefs-reset', {method: 'POST'}).then(function() {";
+  html += "        showConfirm('Preferences have been cleared.\\n\\nDo you want to reboot now?', function() {";
+  html += "          fetch('/api/reboot', {method: 'POST'}).then(function() {";
+  html += "            document.body.innerHTML = '<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';";
+  html += "            setTimeout(function() { location.reload(); }, 10000);";
+  html += "          });";
+  html += "        }, function() { showAlert('Preferences have been cleared. Please review settings before rebooting.'); });";
+  html += "      });";
+  html += "    });";
+  html += "  });";
+  html += "}";
 
   // Snapshot functions
   html += "function formatKB(kb) {";
