@@ -31,13 +31,12 @@ String getSystemBackupPageHTML()
 
   html += "<div class='admin-grid'>";
 
-  // Card 2: Configuration Management
+  // Card 1: Configuration Management
   html += "<div class='card'>";
   html += "<h3>Configuration Management</h3>";
   html += "<p>Manage system configuration and preferences</p>";
   html += "<div class='action-buttons-vertical'>";
   html += "<button class='btn btn-primary' onclick='showPreferences()'>Show Preferences</button>";
-  html += "<button class='btn btn-primary' onclick='showPreferencesRaw()'>Show Preferences RAW</button>";
   html += "<button class='btn btn-success' onclick='exportConfig()'>Export Config</button>";
   html += "<button class='btn btn-secondary' onclick='document.getElementById(\"config-file\").click()'>Import Config</button>";
   html += "<button class='btn btn-warning' onclick='repairPreferences()'>Repair Preferences</button>";
@@ -46,30 +45,31 @@ String getSystemBackupPageHTML()
   html += "<input type='file' id='config-file' accept='.txt,.cfg,.conf' style='display:none;'>";
   html += "</div>";
 
-  // Card 3: Saved Configurations (snapshots to SD card and internal flash)
+  // Card 2: SD Card Configurations
   html += "<div class='card'>";
-  html += "<h3>Saved Configurations</h3>";
-  html += "<p>Save and restore named configuration snapshots to SD card or internal flash</p>";
-
-  // SD Card section
-  html += "<h4 style='margin-top:10px;margin-bottom:2px'>SD Card <span id='sd-badge' style='font-size:12px;padding:2px 8px;border-radius:10px;background:#6c757d;color:#fff'>checking...</span></h4>";
-  html += "<div id='sd-storage-info' style='font-size:11px;color:#aaa;margin-top:8px;margin-bottom:6px'></div>";
-  html += "<div id='sd-snapshot-list' style='margin-bottom:8px'><small style='color:#aaa'>Loading...</small></div>";
-  html += "<div style='display:flex;gap:6px;align-items:center;margin-bottom:14px'>";
+  html += "<h3>SD Card Configurations</h3>";
+  html += "<span id='sd-badge' style='display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#6c757d;color:#fff;margin-bottom:6px'>checking...</span>";
+  html += "<p>Save and restore named configuration snapshots to the SD card</p>";
+  html += "<div id='sd-storage-info' style='font-size:11px;color:#aaa;margin-bottom:8px'></div>";
+  html += "<div id='sd-snapshot-list' style='margin-bottom:10px'><small style='color:#aaa'>Loading...</small></div>";
+  html += "<div style='display:flex;gap:6px;align-items:center'>";
   html += "<input type='text' id='sd-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"sd\")'>Save to SD</button>";
   html += "</div>";
+  html += "</div>";
 
-  // Internal Flash section
-  html += "<h4 style='margin-top:8px;margin-bottom:2px'>Internal Flash <span style='font-size:12px;padding:2px 8px;border-radius:10px;background:#28a745;color:#fff'>always available</span></h4>";
-  html += "<div id='flash-storage-info' style='font-size:11px;color:#aaa;margin-top:8px;margin-bottom:6px'></div>";
-  html += "<div id='flash-snapshot-list' style='margin-bottom:8px'><small style='color:#aaa'>Loading...</small></div>";
+  // Card 3: Internal Flash Configurations
+  html += "<div class='card'>";
+  html += "<h3>Flash Configurations</h3>";
+  html += "<span style='display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#28a745;color:#fff;margin-bottom:6px'>always available</span>";
+  html += "<p>Save and restore named configuration snapshots to internal flash</p>";
+  html += "<div id='flash-storage-info' style='font-size:11px;color:#aaa;margin-bottom:8px'></div>";
+  html += "<div id='flash-snapshot-list' style='margin-bottom:10px'><small style='color:#aaa'>Loading...</small></div>";
   html += "<div style='display:flex;gap:6px;align-items:center'>";
   html += "<input type='text' id='flash-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"flash\")'>Save to Flash</button>";
   html += "</div>";
-
-  html += "</div>"; // close card
+  html += "</div>";
 
    // Card 4: NVS Namespace Listing
   html += "<div class='card'>";
