@@ -11,7 +11,6 @@
 #include <HTTPClient.h>
 #include <PubSubClient.h>
 #include "web/pages/main.h"
-#include "web/pages/mode_select.h"
 #include "web/pages/mode_dmr.h"
 #include "web/pages/mode_dstar.h"
 #include "web/pages/mode_ysf.h"
@@ -28,6 +27,7 @@
 #include "web/pages/system_admin.h"
 #include "web/pages/system_backup.h"
 #include "web/pages/system_files.h"
+#include "web/pages/system_littlefs.h"
 #include "web/pages/system_firmware.h"
 #include "web/pages/system_info.h"
 #include "web/pages/service_mqtt.h"
@@ -232,6 +232,7 @@ void initWebServerTask()
 void handleServiceWireguard();
 void handleServiceTelegram();
 void handleSystemDatabase();
+void handleSystemLittlefs();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -295,7 +296,6 @@ void webServerTask(void *parameter) {
     server.send(200, "application/json", json);
   });
   server.on("/", handleRoot);
-  server.on("/mode-select", handleModeSelect);
   server.on("/mode-dmr", handleModeDmr);
   server.on("/mode-dstar", handleModeDstar);
   server.on("/mode-ysf", handleModeYsf);
@@ -321,6 +321,7 @@ void webServerTask(void *parameter) {
   server.on("/system-admin", handleSystemAdmin);
   server.on("/system-backup", handleSystemBackup);
   server.on("/system-files", handleSystemFiles);
+  server.on("/system-littlefs", handleSystemLittlefs);
 
   registerOtaRoutes();
 
@@ -365,12 +366,6 @@ void handleRoot()
 void handleNotFound()
 {
   server.send(404, "text/plain", "404: Not Found");
-}
-
-void handleModeSelect()
-{
-  requestCount++;
-  server.send(200, "text/html", getModeSelectPageHTML());
 }
 
 void handleModeDmr()
@@ -521,4 +516,10 @@ void handleSystemFiles()
 {
   requestCount++;
   server.send(200, "text/html", getSystemFilesPageHTML());
+}
+
+void handleSystemLittlefs()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemLittlefsPageHTML());
 }

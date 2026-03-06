@@ -1,6 +1,8 @@
 #include <SD.h>
 #include <LittleFS.h>
 
+extern String userCallsign;
+
 // Helper to recursively delete files and directories in LittleFS
 static void deleteRecursiveLFS(const char *path) {
   File entry = LittleFS.open(path);
@@ -662,6 +664,68 @@ static void handleLfsMkdir()
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/littlefs/owner
+// Returns the contents of /owner.txt from LittleFS as plain text.
+// ---------------------------------------------------------------------------
+static void handleLfsOwner()
+{
+  if (!LittleFS.exists("/owner.txt")) {
+    server.send(200, "text/plain", "owner.txt not found");
+    return;
+  }
+  File f = LittleFS.open("/owner.txt", "r");
+  if (!f) {
+    server.send(200, "text/plain", "Could not open owner.txt");
+    return;
+  }
+  String content = "";
+  while (f.available()) content += (char)f.read();
+  f.close();
+  server.send(200, "text/plain", content);
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/littlefs/writeowner
+// Writes callsign-based owner info to /owner.txt on LittleFS.
+// ---------------------------------------------------------------------------
+static void handleLfsWriteOwner()
+{
+  String callsign = userCallsign;
+  String content = "Property of " + callsign + "\n";
+  content += "This device contains ESP32 MMDVM configuration and files\n";
+
+  if (LittleFS.exists("/owner.txt")) LittleFS.remove("/owner.txt");
+
+  File f = LittleFS.open("/owner.txt", "w");
+  if (!f) {
+    server.send(200, "application/json", "{\"success\":false,\"message\":\"Failed to open owner.txt for writing\"}");
+    return;
+  }
+  f.print(content);
+  f.close();
+
+  addLogMessage("[LittleFS] Wrote /owner.txt: " + callsign);
+  server.send(200, "application/json", "{\"success\":true,\"message\":\"owner.txt written\"}");
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/littlefs/info
+// Returns LittleFS partition usage as JSON.
+// ---------------------------------------------------------------------------
+static void handleLfsInfo()
+{
+  uint32_t totalKB = (uint32_t)(LittleFS.totalBytes() / 1024);
+  uint32_t usedKB  = (uint32_t)(LittleFS.usedBytes()  / 1024);
+  uint32_t freeKB  = totalKB > usedKB ? totalKB - usedKB : 0;
+  String json = "{";
+  json += "\"totalKB\":" + String(totalKB) + ",";
+  json += "\"usedKB\":"  + String(usedKB)  + ",";
+  json += "\"freeKB\":"  + String(freeKB);
+  json += "}";
+  server.send(200, "application/json", json);
+}
+
+// ---------------------------------------------------------------------------
 // registerSnapshotRoutes() — called once from webServerTask()
 // ---------------------------------------------------------------------------
 void registerSnapshotRoutes()
@@ -671,6 +735,9 @@ void registerSnapshotRoutes()
   server.on("/api/snapshots/load",     HTTP_POST, handleSnapshotLoad);
   server.on("/api/snapshots/delete",   HTTP_POST, handleSnapshotDelete);
   server.on("/api/snapshots/download", HTTP_GET,  handleSnapshotDownload);
+  server.on("/api/littlefs/owner",      HTTP_GET,  handleLfsOwner);
+  server.on("/api/littlefs/writeowner", HTTP_POST, handleLfsWriteOwner);
+  server.on("/api/littlefs/info",       HTTP_GET,  handleLfsInfo);
   server.on("/api/littlefs/upload",    HTTP_POST, handleLfsUploadFinish, handleLfsUpload);
   server.on("/api/littlefs/dirs",      HTTP_GET,  handleLfsDirs);
   server.on("/api/littlefs/ls",        HTTP_GET,  handleLfsLs);

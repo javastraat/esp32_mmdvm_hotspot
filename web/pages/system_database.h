@@ -59,26 +59,7 @@ String getSystemDatabasePageHTML()
   html += "<div id='sd-upload-status' style='display:none;font-size:12px;margin-top:4px;padding:0 2px;'></div>";
   html += "</div>"; // close SD browser card
 
-  // Card 2: CSV Database Download
-  html += "<div class='card'>";
-  html += "<h3>CSV Database Download</h3>";
-  html += "<div id='csv-db-info'><p>Loading...</p></div>";
-  html += "<div class='action-buttons-vertical'>";
-  html += "  <button class='btn btn-primary' id='check-csv-btn' onclick='checkCSVUpdate()'>Check for Updates</button>";
-  html += "  <button class='btn btn-success' id='download-csv-btn' onclick='startDownloadCSV()'>Download CSV Database</button>";
-  html += "  <button class='btn btn-danger' id='delete-csv-btn' onclick='deleteCSVDatabase()' style='display:none'>Delete CSV Database</button>";
-  html += "</div>";
-  html += "<div id='csv-progress-container' class='progress-container'>";
-  html += "  <div class='progress-bar'>";
-  html += "    <div id='csv-progress-fill' class='progress-fill'></div>";
-  html += "    <div id='csv-progress-text' class='progress-text'>0%</div>";
-  html += "  </div>";
-  html += "  <p id='csv-bytes' style='margin-top:5px; font-size:0.9em'>0 / 0 bytes</p>";
-  html += "  <p id='csv-status-text' style='margin-top:5px; font-size:0.9em'>Starting...</p>";
-  html += "</div>";
-  html += "</div>";
-
-  // Card 3: SQLite Database Download
+  // Card 2: SQLite Database Download
   html += "<div class='card'>";
   html += "<h3>SQLite Database Download</h3>";
   html += "<div id='sqlite-db-info'><p>Loading...</p></div>";
@@ -97,22 +78,41 @@ String getSystemDatabasePageHTML()
   html += "</div>";
   html += "</div>";
 
-  // Card 4: DMR Radio ID Search (CSV)
+  // Card 3: CSV Database Download
   html += "<div class='card'>";
-  html += "<h3>DMR Radio ID Search (CSV)</h3>";
-  html += "<p>Search for a DMR user by Radio ID (7 digits):</p>";
-  html += "<input type='text' id='search-id' placeholder='1234567' maxlength='7' autocomplete='off'>";
-  html += "<button class='btn btn-primary' id='search-btn' onclick='searchRadioId()'>Search</button>";
-  html += "<div id='search-result' style='margin-top:15px'></div>";
+  html += "<h3>CSV Database Download</h3>";
+  html += "<div id='csv-db-info'><p>Loading...</p></div>";
+  html += "<div class='action-buttons-vertical'>";
+  html += "  <button class='btn btn-primary' id='check-csv-btn' onclick='checkCSVUpdate()'>Check for Updates</button>";
+  html += "  <button class='btn btn-success' id='download-csv-btn' onclick='startDownloadCSV()'>Download CSV Database</button>";
+  html += "  <button class='btn btn-danger' id='delete-csv-btn' onclick='deleteCSVDatabase()' style='display:none'>Delete CSV Database</button>";
+  html += "</div>";
+  html += "<div id='csv-progress-container' class='progress-container'>";
+  html += "  <div class='progress-bar'>";
+  html += "    <div id='csv-progress-fill' class='progress-fill'></div>";
+  html += "    <div id='csv-progress-text' class='progress-text'>0%</div>";
+  html += "  </div>";
+  html += "  <p id='csv-bytes' style='margin-top:5px; font-size:0.9em'>0 / 0 bytes</p>";
+  html += "  <p id='csv-status-text' style='margin-top:5px; font-size:0.9em'>Starting...</p>";
+  html += "</div>";
   html += "</div>";
 
-  // Card 5: DMR Radio ID Search (SQLite)
+  // Card 4: DMR Radio ID Search (SQLite)
   html += "<div class='card'>";
   html += "<h3>DMR Radio ID Search (SQLite)</h3>";
   html += "<p>Search for a DMR user by Radio ID (7 digits) in SQLite database:</p>";
   html += "<input type='text' id='sqlite-search-id' placeholder='1234567' maxlength='7' autocomplete='off'>";
   html += "<button class='btn btn-primary' id='sqlite-search-btn' onclick='searchSQLite()'>Search</button>";
   html += "<div id='sqlite-result' style='margin-top:15px'></div>";
+  html += "</div>";
+
+  // Card 5: DMR Radio ID Search (CSV)
+  html += "<div class='card'>";
+  html += "<h3>DMR Radio ID Search (CSV)</h3>";
+  html += "<p>Search for a DMR user by Radio ID (7 digits):</p>";
+  html += "<input type='text' id='search-id' placeholder='1234567' maxlength='7' autocomplete='off'>";
+  html += "<button class='btn btn-primary' id='search-btn' onclick='searchRadioId()'>Search</button>";
+  html += "<div id='search-result' style='margin-top:15px'></div>";
   html += "</div>";
 
   html += "</div>"; // Close admin-grid
