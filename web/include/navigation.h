@@ -94,10 +94,10 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
     nav += "<a href='/system-sdcard'>SD Card</a>";
     nav += "<a href='/system-database'>DMR Database</a>";
   }
+  nav += "<a href='/system-littlefs'>LittleFS</a>";
   nav += "<a href='/system-firmware'>Firmware</a>";
   nav += "<a href='/system-backup'>Backup/Restore</a>";
-  nav += "<a href='/system-files'>Filesystem</a>";
-  nav += "<a href='/system-littlefs'>LittleFS</a>";
+  nav += "<a href='/system-extra'>Extras</a>";
   nav += "<a href='/system-admin'>Administration</a>";
   nav += "</div>";
   nav += "</div>";

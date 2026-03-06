@@ -26,7 +26,7 @@
 #include "web/pages/system_status.h"
 #include "web/pages/system_admin.h"
 #include "web/pages/system_backup.h"
-#include "web/pages/system_files.h"
+#include "web/pages/system_extra.h"
 #include "web/pages/system_littlefs.h"
 #include "web/pages/system_firmware.h"
 #include "web/pages/system_info.h"
@@ -233,6 +233,7 @@ void handleServiceWireguard();
 void handleServiceTelegram();
 void handleSystemDatabase();
 void handleSystemLittlefs();
+void handleSystemExtra();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -320,7 +321,7 @@ void webServerTask(void *parameter) {
   server.on("/system-firmware", handleSystemFirmware);
   server.on("/system-admin", handleSystemAdmin);
   server.on("/system-backup", handleSystemBackup);
-  server.on("/system-files", handleSystemFiles);
+  server.on("/system-extra", handleSystemExtra);
   server.on("/system-littlefs", handleSystemLittlefs);
 
   registerOtaRoutes();
@@ -512,10 +513,10 @@ void handleSystemBackup()
   server.send(200, "text/html", getSystemBackupPageHTML());
 }
 
-void handleSystemFiles()
+void handleSystemExtra()
 {
   requestCount++;
-  server.send(200, "text/html", getSystemFilesPageHTML());
+  server.send(200, "text/html", getSystemExtraPageHTML());
 }
 
 void handleSystemLittlefs()
