@@ -41,16 +41,8 @@ String getSystemDatabasePageHTML()
   html += "</div>";
   // Path bar (row 2: buttons)
   html += "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
-  html += "  <button id='sd-browser-up-btn' class='btn btn-secondary' onclick='sdBrsGoUp()' style='padding:3px 10px;font-size:0.85em;' disabled>&#8593; Up</button>";
-  html += "  <button class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
-  html += "  <button class='btn btn-success' onclick='sdBrsMkdirShow()' style='padding:3px 10px;font-size:0.85em;'>&#128193;+ Folder</button>";
-  html += "  <button class='btn btn-primary' onclick='sdBrsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
-  html += "</div>";
-  // Mkdir input row (hidden by default)
-  html += "<div id='sd-mkdir-row' style='display:none;align-items:center;gap:6px;margin-bottom:8px;'>";
-  html += "  <input id='sd-mkdir-input' type='text' placeholder='New folder name' style='flex:1;padding:4px 8px;background:#1e1e1e;color:#fff;border:1px solid #555;border-radius:4px;font-size:13px;' onkeydown='if(event.key==\"Enter\")sdBrsMkdir();'>";
-  html += "  <button class='btn btn-success' onclick='sdBrsMkdir()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Create</button>";
-  html += "  <button class='btn btn-secondary' onclick='document.getElementById(\"sd-mkdir-row\").style.display=\"none\"' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
+  html += "  <button id='sd-browser-refresh-btn' class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
+  html += "  <button id='sd-browser-upload-btn' class='btn btn-primary' onclick='sdBrsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
   html += "</div>";
   // Upload row (hidden by default)
   html += "<div id='sd-upload-row' style='display:none;align-items:center;gap:6px;margin-bottom:4px;'>";
@@ -186,11 +178,11 @@ String getSystemDatabasePageHTML()
 
   // Helper functions to disable/enable all buttons during download
   html += "function disableAllButtons() {";
-  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
+  html += "  var btns = ['sd-browser-refresh-btn','sd-browser-upload-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=true; });";
   html += "}";
   html += "function enableAllButtons() {";
-  html += "  var btns = ['refresh-files-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
+  html += "  var btns = ['sd-browser-refresh-btn','sd-browser-upload-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=false; });";
   html += "}";
 
@@ -407,21 +399,13 @@ String getSystemDatabasePageHTML()
   html += "  if (b >= 1024) return (b/1024).toFixed(1) + ' KB';";
   html += "  return b + ' B';";
   html += "}";
-  html += "function sdBrsParentPath(p) {";
-  html += "  if (p === '/') return '/';";
-  html += "  var t = p.endsWith('/') ? p.slice(0,-1) : p;";
-  html += "  var i = t.lastIndexOf('/');";
-  html += "  return i <= 0 ? '/' : t.substring(0, i);";
-  html += "}";
   html += "var sdBrsCurrentPath = '/';";
   html += "function sdBrsRefresh() { sdBrsNavigate(sdBrsCurrentPath); }";
-  html += "function sdBrsGoUp() { sdBrsNavigate(sdBrsParentPath(sdBrsCurrentPath)); }";
   html += "function sdBrsNavThis(el) { sdBrsNavigate(el.dataset.path); }";
   html += "function sdBrsDelThis(el) { sdBrsDeleteFile(el.dataset.path); }";
   html += "function sdBrsNavigate(path) {";
   html += "  sdBrsCurrentPath = path;";
   html += "  document.getElementById('sd-browser-path').textContent = path;";
-  html += "  document.getElementById('sd-browser-up-btn').disabled = (path === '/');";
   html += "  var tbody = document.getElementById('sd-browser-body');";
   html += "  tbody.innerHTML = '<tr><td colspan=\"3\" style=\"color:#aaa;padding:8px;text-align:center\">Loading...</td></tr>';";
   html += "  fetch('/api/sdcard/ls?path=' + encodeURIComponent(path))";
@@ -480,20 +464,9 @@ String getSystemDatabasePageHTML()
   html += "function sdBrsSetBoot(el) {";
   html += "  doSetBootlogo('/api/sdcard/set-bootlogo?path=' + encodeURIComponent(el.dataset.path), el.dataset.path);";
   html += "}";
-  html += "function sdBrsMkdirShow() {";
-  html += "  var row = document.getElementById('sd-mkdir-row');";
-  html += "  if (row.style.display === 'none' || row.style.display === '') {";
-  html += "    document.getElementById('sd-upload-row').style.display = 'none';";
-  html += "    document.getElementById('sd-upload-status').style.display = 'none';";
-  html += "    row.style.display = 'flex';";
-  html += "    document.getElementById('sd-mkdir-input').value = '';";
-  html += "    document.getElementById('sd-mkdir-input').focus();";
-  html += "  } else { row.style.display = 'none'; }";
-  html += "}";
   html += "function sdBrsUploadShow() {";
   html += "  var row = document.getElementById('sd-upload-row');";
   html += "  if (row.style.display === 'none' || !row.style.display) {";
-  html += "    document.getElementById('sd-mkdir-row').style.display = 'none';";
   html += "    row.style.display = 'flex';";
   html += "    document.getElementById('sd-upload-file').value = '';";
   html += "    document.getElementById('sd-upload-status').style.display = 'none';";
@@ -520,19 +493,6 @@ String getSystemDatabasePageHTML()
   html += "  xhr.onerror = function() { st.style.color = '#c62828'; st.textContent = 'Network error'; };";
   html += "  xhr.open('POST', '/api/sdcard/upload?path=' + encodeURIComponent(sdBrsCurrentPath));";
   html += "  xhr.send(fd);";
-  html += "}";
-  html += "function sdBrsMkdir() {";
-  html += "  var name = document.getElementById('sd-mkdir-input').value.trim();";
-  html += "  if (!name) return;";
-  html += "  var path = (sdBrsCurrentPath === '/' ? '/' : sdBrsCurrentPath + '/') + name;";
-  html += "  fetch('/api/sdcard/browse/mkdir?path=' + encodeURIComponent(path), {method:'POST'})";
-  html += "    .then(function(r) { return r.text(); })";
-  html += "    .then(function(msg) {";
-  html += "      showAlert(msg);";
-  html += "      document.getElementById('sd-mkdir-row').style.display = 'none';";
-  html += "      sdBrsRefresh();";
-  html += "    })";
-  html += "    .catch(function() { showAlert('Error creating directory'); });";
   html += "}";
 
   html += "</script>";
