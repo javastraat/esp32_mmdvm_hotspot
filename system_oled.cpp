@@ -714,8 +714,80 @@ void oledTask(void *parameter)
   addLogMessage("[OLED Task] Boot logo displayed");
   publishMqtt(mqttOledTaskTopic.c_str(), usedCustom ? "{\"event\":\"boot_logo\",\"custom\":true}" : "{\"event\":\"boot_logo\",\"custom\":false}");
 
-  // Show logo for 5 seconds
-  vTaskDelay(5000 / portTICK_PERIOD_MS);
+  // Show logo for 5 seconds — triple-press during this window triggers recovery reset
+  {
+    const int    PRESS_NEEDED  = 3;
+    const TickType_t SLICE     = 50 / portTICK_PERIOD_MS;
+    const unsigned long LOGO_MS     = 5000;
+    const unsigned long CONFIRM_MS  = 5000;
+
+    int pressCount = 0;
+    unsigned long logoStart = millis();
+
+    while (millis() - logoStart < LOGO_MS) {
+      if (buttonPressed) {
+        buttonPressed = false;
+        pressCount++;
+
+        if (pressCount >= PRESS_NEEDED) {
+          // --- Phase 2: ask for confirmation ---
+          addLogMessage("[OLED] Recovery: triple-press detected, asking for confirm");
+          display.clearDisplay();
+          display.setTextSize(1);
+          display.setTextColor(SSD1306_WHITE);
+          display.setCursor(0, 10);
+          display.println("  === RECOVERY ===");
+          display.setCursor(0, 28);
+          display.println("Reset all settings?");
+          display.setCursor(0, 42);
+          display.println("Press 3x to confirm");
+          display.setCursor(0, 54);
+          display.println("  Wait to cancel");
+          display.display();
+
+          int confirmCount = 0;
+          unsigned long confirmStart = millis();
+
+          while (millis() - confirmStart < CONFIRM_MS) {
+            if (buttonPressed) {
+              buttonPressed = false;
+              confirmCount++;
+              if (confirmCount >= PRESS_NEEDED) {
+                // --- Confirmed: clear NVS and reboot ---
+                addLogMessage("[OLED] Recovery: confirmed — clearing NVS and rebooting");
+                display.clearDisplay();
+                display.setCursor(0, 20);
+                display.println("  Clearing NVS...");
+                display.setCursor(0, 36);
+                display.println("   Rebooting...");
+                display.display();
+                extern Preferences preferences;
+                preferences.begin("mmdvm", false);
+                preferences.clear();
+                preferences.end();
+                delay(1500);
+                ESP.restart();
+              }
+            }
+            vTaskDelay(SLICE);
+          }
+
+          // Confirmation timed out — restore logo and resume normal boot
+          addLogMessage("[OLED] Recovery: confirm timed out, continuing normal boot");
+          display.clearDisplay();
+          if (usedCustom) {
+            display.drawBitmap(0, 0, customLogo, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+          } else {
+            display.drawBitmap(0, 0, logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+          }
+          display.display();
+          pressCount = 0;
+          logoStart = millis(); // restart the logo timer
+        }
+      }
+      vTaskDelay(SLICE);
+    }
+  }
 
   // Clear display
   // display.clearDisplay();
