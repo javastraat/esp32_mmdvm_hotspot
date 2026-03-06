@@ -926,22 +926,6 @@ void displaySystemInfo()
   //   display.drawBitmap(iconX, 0, icon_antenna, ICON_WIDTH, ICON_HEIGHT, SSD1306_WHITE);
   //   iconX -= (ICON_WIDTH + 2);
   // }
-  // 'M' = MQTT connected (drawn twice for bold effect)
-  if (mqttConnected)
-  {
-    display.setCursor(iconX, 0);     display.print('M');
-    display.setCursor(iconX + 1, 0); display.print('M');
-    iconX -= (ICON_WIDTH + 2);
-  }
-
-  // 'P' = POCSAG (drawn twice for bold effect)
-  if (modePocsagEnabled)
-  {
-    display.setCursor(iconX, 0);     display.print('P');
-    display.setCursor(iconX + 1, 0); display.print('P');
-    iconX -= (ICON_WIDTH + 2);
-  }
-
 
   // 'T' = Telegram (drawn twice for bold effect)
   if (telegramEnabled)
@@ -951,11 +935,11 @@ void displaySystemInfo()
     iconX -= (ICON_WIDTH + 2);
   }
 
-  // 'B' = BrandMeister/DMR logged in (drawn twice for bold effect)
-  if (dmrLoggedIn)
+  // 'M' = MQTT connected (drawn twice for bold effect)
+  if (mqttConnected)
   {
-    display.setCursor(iconX, 0);     display.print('B');
-    display.setCursor(iconX + 1, 0); display.print('B');
+    display.setCursor(iconX, 0);     display.print('M');
+    display.setCursor(iconX + 1, 0); display.print('M');
     iconX -= (ICON_WIDTH + 2);
   }
 
@@ -964,6 +948,22 @@ void displaySystemInfo()
   {
     display.setCursor(iconX, 0);     display.print('D');
     display.setCursor(iconX + 1, 0); display.print('D');
+    iconX -= (ICON_WIDTH + 2);
+  }
+
+    // 'P' = POCSAG (drawn twice for bold effect)
+  if (modePocsagEnabled)
+  {
+    display.setCursor(iconX, 0);     display.print('P');
+    display.setCursor(iconX + 1, 0); display.print('P');
+    iconX -= (ICON_WIDTH + 2);
+  }
+
+  // 'B' = BrandMeister/DMR logged in (drawn twice for bold effect)
+  if (dmrLoggedIn)
+  {
+    display.setCursor(iconX, 0);     display.print('B');
+    display.setCursor(iconX + 1, 0); display.print('B');
     iconX -= (ICON_WIDTH + 2);
   }
 

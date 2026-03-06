@@ -282,7 +282,8 @@ String getSystemBackupPageHTML()
   html += "      .catch(function() { showAlert('Upload failed'); });";
   html += "  });";
   html += "}";
-  html += "document.getElementById('sd-zip-file').addEventListener('change', function(e) {";
+  html += "var _sdZipInput = document.getElementById('sd-zip-file');";
+  html += "if (_sdZipInput) _sdZipInput.addEventListener('change', function(e) {";
   html += "  handleZipUpload('sd', e.target.files[0]); e.target.value = '';";
   html += "});";
   html += "document.getElementById('flash-zip-file').addEventListener('change', function(e) {";
