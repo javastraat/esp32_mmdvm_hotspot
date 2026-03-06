@@ -57,7 +57,11 @@ String getSystemBackupPageHTML()
   html += "<input type='text' id='sd-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"sd\")'>Save to SD</button>";
   html += "</div>";
-  html += "<button class='btn btn-secondary' style='margin-top:8px;width:100%' onclick='downloadAllSnapshots(\"sd\")'>Download All as ZIP</button>";
+  html += "<div style='display:flex;gap:6px;margin-top:8px'>";
+  html += "<button class='btn btn-secondary' style='flex:1' onclick='downloadAllSnapshots(\"sd\")'>Download All (ZIP)</button>";
+  html += "<button class='btn btn-info' style='flex:1' onclick='document.getElementById(\"sd-zip-file\").click()'>Upload ZIP</button>";
+  html += "</div>";
+  html += "<input type='file' id='sd-zip-file' accept='.zip' style='display:none'>";
   html += "</div>";
   }
   // Card 3: Internal Flash Configurations
@@ -71,7 +75,11 @@ String getSystemBackupPageHTML()
   html += "<input type='text' id='flash-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"flash\")'>Save to Flash</button>";
   html += "</div>";
-  html += "<button class='btn btn-secondary' style='margin-top:8px;width:100%' onclick='downloadAllSnapshots(\"flash\")'>Download All as ZIP</button>";
+  html += "<div style='display:flex;gap:6px;margin-top:8px'>";
+  html += "<button class='btn btn-secondary' style='flex:1' onclick='downloadAllSnapshots(\"flash\")'>Download All (ZIP)</button>";
+  html += "<button class='btn btn-info' style='flex:1' onclick='document.getElementById(\"flash-zip-file\").click()'>Upload ZIP</button>";
+  html += "</div>";
+  html += "<input type='file' id='flash-zip-file' accept='.zip' style='display:none'>";
   html += "</div>";
 
   // End of grid
@@ -261,6 +269,25 @@ String getSystemBackupPageHTML()
   html += "  a.download = mdns + '-snapshots-' + storage + '.zip';";
   html += "  a.click();";
   html += "}";
+
+  html += "function handleZipUpload(storage, file) {";
+  html += "  if (!file) return;";
+  html += "  var label = storage === 'sd' ? 'SD card' : 'internal flash';";
+  html += "  showConfirm('Upload \"' + file.name + '\" to ' + label + '?\\n\\nSnapshots in the ZIP will be added. Existing snapshots with the same name will be overwritten.', function() {";
+  html += "    var fd = new FormData();";
+  html += "    fd.append('file', file);";
+  html += "    fetch('/api/snapshots/upload-zip?storage=' + storage, {method: 'POST', body: fd})";
+  html += "      .then(function(r) { return r.text(); })";
+  html += "      .then(function(msg) { showAlert(msg); loadSnapshotList(storage); })";
+  html += "      .catch(function() { showAlert('Upload failed'); });";
+  html += "  });";
+  html += "}";
+  html += "document.getElementById('sd-zip-file').addEventListener('change', function(e) {";
+  html += "  handleZipUpload('sd', e.target.files[0]); e.target.value = '';";
+  html += "});";
+  html += "document.getElementById('flash-zip-file').addEventListener('change', function(e) {";
+  html += "  handleZipUpload('flash', e.target.files[0]); e.target.value = '';";
+  html += "});";
 
   html += "function loadSnapshot(storage, name) {";
   html += "  showConfirm('Load snapshot \"' + name + '\" from ' + (storage==='sd'?'SD card':'internal flash') + '?\\n\\nThis will overwrite ALL current settings and reboot the device.', function() {";

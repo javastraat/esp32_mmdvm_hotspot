@@ -1,6 +1,9 @@
 #include <SD.h>
 #include <LittleFS.h>
 #include <vector>
+extern "C" {
+#include "miniz.h"   // ESP-IDF ROM miniz — provides tinfl_decompress_mem_to_mem()
+}
 
 extern String userCallsign;
 
@@ -329,6 +332,192 @@ static void handleSnapshotDelete()
     server.send(200, "text/plain", "Deleted '" + name + "'");
   } else {
     server.send(404, "text/plain", "ERROR: Could not delete '" + name + "' (not found?)");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/snapshots/upload-zip?storage=sd|flash
+// Receives a ZIP file (multipart), buffers it, then extracts all .txt entries
+// (STORE mode only — matches what download-all produces) to /config/ on the
+// selected storage.  Compressed entries are skipped with a warning.
+// ---------------------------------------------------------------------------
+static std::vector<uint8_t> zipUploadBuf;
+static bool   zipUploadError   = false;
+static String zipUploadStorage = "";
+
+static void handleSnapshotUploadZipFinish()
+{
+  if (zipUploadError) {
+    zipUploadBuf.clear();
+    zipUploadBuf.shrink_to_fit();
+    server.send(500, "text/plain", "ERROR: ZIP upload failed or file too large (max 512 KB)");
+    return;
+  }
+
+  bool useSD = (zipUploadStorage == "sd");
+  if (useSD && !sdCardMounted) {
+    zipUploadBuf.clear();
+    zipUploadBuf.shrink_to_fit();
+    server.send(503, "text/plain", "ERROR: SD card not mounted");
+    return;
+  }
+
+  const uint8_t* data = zipUploadBuf.data();
+  size_t         size = zipUploadBuf.size();
+  int extracted = 0, skipped = 0;
+
+// ZIP helper macros (same as web_handlers_bootlogos.cpp)
+#define ZU16(p) ((uint16_t)((p)[0] | ((p)[1] << 8)))
+#define ZU32(p) ((uint32_t)((p)[0] | ((p)[1]<<8) | ((p)[2]<<16) | ((p)[3]<<24)))
+
+  // --- Locate end-of-central-directory to find the central directory ---
+  int32_t eocdPos = -1;
+  for (int32_t i = (int32_t)size - 22; i >= 0; i--) {
+    if (ZU32(data + i) == 0x06054b50UL) { eocdPos = i; break; }
+  }
+  if (eocdPos < 0) {
+    zipUploadBuf.clear(); zipUploadBuf.shrink_to_fit();
+    server.send(400, "text/plain", "ERROR: Not a valid ZIP file (no EOCD found)");
+    return;
+  }
+  uint16_t numEntries = ZU16(data + eocdPos + 10);
+  uint32_t cdOffset   = ZU32(data + eocdPos + 16);
+  if (cdOffset + 46 > size) {
+    zipUploadBuf.clear(); zipUploadBuf.shrink_to_fit();
+    server.send(400, "text/plain", "ERROR: ZIP central directory out of bounds");
+    return;
+  }
+
+  // --- Walk central directory (sizes here are always correct, even with data descriptors) ---
+  uint32_t cdPos = cdOffset;
+  for (uint16_t entry = 0; entry < numEntries && cdPos + 46 <= size; entry++) {
+    if (ZU32(data + cdPos) != 0x02014b50UL) break;
+
+    uint16_t method      = ZU16(data + cdPos + 10);
+    uint32_t compSize    = ZU32(data + cdPos + 20);
+    uint32_t uncompSize  = ZU32(data + cdPos + 24);
+    uint16_t fnLen       = ZU16(data + cdPos + 28);
+    uint16_t extLen      = ZU16(data + cdPos + 30);
+    uint16_t commentLen  = ZU16(data + cdPos + 32);
+    uint32_t localOffset = ZU32(data + cdPos + 42);
+
+    // Read filename, strip directory prefix for safety
+    char fname[256] = {};
+    uint16_t copyLen = (fnLen < 255) ? fnLen : 254;
+    if (cdPos + 46 + copyLen <= size) memcpy(fname, data + cdPos + 46, copyLen);
+    cdPos += 46 + fnLen + extLen + commentLen;
+
+    size_t fnLen2 = strlen(fname);
+    if (fnLen2 == 0 || fname[fnLen2 - 1] == '/') continue; // directory entry
+    const char* base = strrchr(fname, '/');
+    base = base ? base + 1 : fname;
+    if (strlen(base) == 0) continue;
+
+    // Only extract .txt snapshot files; skip dot-files (macOS metadata), unsupported compression
+    String sbase(base);
+    if (sbase.startsWith("."))    { skipped++; continue; }
+    if (!sbase.endsWith(".txt"))  { skipped++; continue; }
+    if (method != 0 && method != 8) { skipped++; continue; }
+
+    // Locate compressed data via local file header
+    if (localOffset + 30 > size) { skipped++; continue; }
+    uint16_t lhFnLen  = ZU16(data + localOffset + 26);
+    uint16_t lhExtLen = ZU16(data + localOffset + 28);
+    uint32_t dataOff  = localOffset + 30 + lhFnLen + lhExtLen;
+    if (dataOff + compSize > size) { skipped++; continue; }
+
+    uint8_t* dataPtr  = (uint8_t*)(data + dataOff);
+    uint8_t* writePtr = dataPtr;
+    uint32_t writeLen = compSize;
+    uint8_t* inflated = nullptr;
+
+    if (method == 8 && uncompSize > 0) {
+      // Allocate BOTH buffers on the heap — tinfl_decompressor is ~11 KB and
+      // would overflow the web server task's stack if placed there.
+      inflated = (uint8_t*)malloc(uncompSize);
+      tinfl_decompressor* decomp = (tinfl_decompressor*)malloc(sizeof(tinfl_decompressor));
+      if (inflated && decomp) {
+        tinfl_init(decomp);
+        size_t srcLen = compSize;
+        size_t dstLen = uncompSize;
+        tinfl_status status = tinfl_decompress(
+          decomp, dataPtr, &srcLen, inflated, inflated, &dstLen,
+          TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+        free(decomp); decomp = nullptr;
+        if (status == TINFL_STATUS_DONE) {
+          writePtr = inflated;
+          writeLen = (uint32_t)dstLen;
+        } else {
+          free(inflated); inflated = nullptr;
+          skipped++;
+          continue;
+        }
+      } else {
+        if (decomp)   { free(decomp);   decomp   = nullptr; }
+        if (inflated) { free(inflated); inflated = nullptr; }
+        skipped++;
+        continue;
+      }
+    }
+
+    String path = String(SNAPSHOT_DIR) + "/" + sbase;
+    bool ok = false;
+    if (useSD) {
+      if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) == pdTRUE) {
+        if (!SD.exists(SNAPSHOT_DIR)) SD.mkdir(SNAPSHOT_DIR);
+        File f = SD.open(path, FILE_WRITE);
+        if (f) { f.write(writePtr, writeLen); f.close(); ok = true; }
+        xSemaphoreGive(sdCardMutex);
+      }
+    } else {
+      if (!LittleFS.exists(SNAPSHOT_DIR)) LittleFS.mkdir(SNAPSHOT_DIR);
+      File f = LittleFS.open(path, "w");
+      if (f) { f.write(writePtr, writeLen); f.close(); ok = true; }
+    }
+
+    if (inflated) { free(inflated); inflated = nullptr; }
+    ok ? extracted++ : skipped++;
+  }
+
+#undef ZU16
+#undef ZU32
+
+  zipUploadBuf.clear();
+  zipUploadBuf.shrink_to_fit();
+
+  if (extracted == 0) {
+    server.send(200, "text/plain",
+      "WARNING: No .txt snapshot files found in ZIP. Skipped: " + String(skipped) + ". Only .txt files are extracted (STORE and DEFLATE supported).");
+    return;
+  }
+  addLogMessage("[Snapshots] ZIP import: " + String(extracted) + " files to " + zipUploadStorage);
+  server.send(200, "text/plain",
+    "Extracted " + String(extracted) + " snapshot(s) to " + zipUploadStorage +
+    (skipped > 0 ? " (" + String(skipped) + " entries skipped)" : ""));
+}
+
+static void handleSnapshotUploadZip()
+{
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    zipUploadError   = false;
+    zipUploadStorage = server.arg("storage");
+    zipUploadBuf.clear();
+    addLogMessage("[Snapshots] ZIP upload start: " + String(upload.filename.c_str()) +
+                  " -> " + zipUploadStorage);
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (!zipUploadError) {
+      if (zipUploadBuf.size() + upload.currentSize > 512 * 1024) {
+        addLogMessage("[Snapshots] ZIP upload aborted: exceeds 512 KB limit");
+        zipUploadError = true;
+      } else {
+        zipUploadBuf.insert(zipUploadBuf.end(), upload.buf, upload.buf + upload.currentSize);
+      }
+    }
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    zipUploadError = true;
+    zipUploadBuf.clear();
+    addLogMessage("[Snapshots] ZIP upload aborted");
   }
 }
 
@@ -879,6 +1068,7 @@ void registerSnapshotRoutes()
   server.on("/api/snapshots/delete",       HTTP_POST, handleSnapshotDelete);
   server.on("/api/snapshots/download",     HTTP_GET,  handleSnapshotDownload);
   server.on("/api/snapshots/download-all", HTTP_GET,  handleSnapshotDownloadAll);
+  server.on("/api/snapshots/upload-zip",   HTTP_POST, handleSnapshotUploadZipFinish, handleSnapshotUploadZip);
   server.on("/api/littlefs/owner",      HTTP_GET,  handleLfsOwner);
   server.on("/api/littlefs/writeowner", HTTP_POST, handleLfsWriteOwner);
   server.on("/api/littlefs/info",       HTTP_GET,  handleLfsInfo);
