@@ -54,6 +54,30 @@ void registerHwSettingsRoutes()
       server.send(503, "text/plain", "OLED not initialized");
     } });
 
+  // OLED power toggle — mirrors button-press behaviour
+  server.on("/api/oled-power", HTTP_POST, []()
+  {
+    extern volatile bool oledDisplayOn;
+    oledDisplayOn = !oledDisplayOn;
+    if (oledDisplayOn) {
+      display.ssd1306_command(SSD1306_DISPLAYON);
+      addLogMessage("[OLED] Display turned ON via web");
+    } else {
+      display.ssd1306_command(SSD1306_DISPLAYOFF);
+      addLogMessage("[OLED] Display turned OFF via web");
+    }
+    server.send(200, "application/json",
+                String("{\"on\":") + (oledDisplayOn ? "true" : "false") + "}");
+  });
+
+  // OLED power state query
+  server.on("/api/oled-power", HTTP_GET, []()
+  {
+    extern volatile bool oledDisplayOn;
+    server.send(200, "application/json",
+                String("{\"on\":") + (oledDisplayOn ? "true" : "false") + "}");
+  });
+
   // LED/Button Settings endpoints
   server.on("/api/save-led-button-settings", HTTP_POST, []()
             {

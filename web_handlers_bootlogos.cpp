@@ -209,6 +209,9 @@ static void doBootlogosInstall(bool toLittleFS)
     base = base ? base + 1 : fname;
     if (strlen(base) == 0) continue;
 
+    // Skip macOS resource fork files (._filename)
+    if (base[0] == '.') continue;
+
     // Locate compressed data via local file header
     if (localOffset + 30 > zipSize) continue;
     uint16_t lhFnLen  = LE16(zipBuf + localOffset + 26);

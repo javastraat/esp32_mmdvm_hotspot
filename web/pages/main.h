@@ -214,6 +214,13 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "<canvas id='oled-canvas' width='256' height='128' style='display:block;border-radius:4px;image-rendering:pixelated;'></canvas>";
   html += "</div>";
   html += "</div>";
+  html += "<div style='display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;'>";
+  html += "<span style='font-size:0.85em;color:var(--text-secondary);'>Display power</span>";
+  html += "<label style='position:relative;display:inline-block;width:44px;height:24px;'>";
+  html += "<input type='checkbox' id='oled-power-toggle' style='opacity:0;width:0;height:0;' onchange='toggleOledPower(this.checked)'>";
+  html += "<span id='oled-power-slider' style='position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#555;border-radius:24px;transition:0.3s;'>";
+  html += "<span style='position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;display:block;' id='oled-power-knob'></span></span></label>";
+  html += "</div>";
   html += "</div>";
 
   // Card 6: Mode Status
@@ -273,6 +280,18 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "}";
   html += "setInterval(pollOled, 500);";
   html += "pollOled();";
+  html += "function setOledToggleState(on) {";
+  html += "  var cb = document.getElementById('oled-power-toggle'); if(!cb) return;";
+  html += "  cb.checked = on;";
+  html += "  var sl = document.getElementById('oled-power-slider');";
+  html += "  var kn = document.getElementById('oled-power-knob');";
+  html += "  if(sl) sl.style.background = on ? '#28a745' : '#555';";
+  html += "  if(kn) kn.style.transform = on ? 'translateX(20px)' : 'translateX(0)';";
+  html += "}";
+  html += "function toggleOledPower(on) {";
+  html += "  fetch('/api/oled-power', {method:'POST'}).then(function(r){return r.json();}).then(function(d){ setOledToggleState(d.on); }).catch(function(){});";
+  html += "}";
+  html += "fetch('/api/oled-power').then(function(r){return r.json();}).then(function(d){ setOledToggleState(d.on); }).catch(function(){});";
 
   // DMR activity JS — only injected when at least one voice mode is enabled
   if (anyVoiceModeEnabled) {

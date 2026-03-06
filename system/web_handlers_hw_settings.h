@@ -2,6 +2,7 @@
  * web_handlers_hw_settings.h - Hardware Settings Routes (LED, OLED, SD card, OTA, Security, Ethernet SPI) Registration
  *
  * Declares registerHwSettingsRoutes() which registers HTTP routes for:
+  *   /api/oled-power (GET/POST)       - query / toggle OLED display power
   *   /api/save-led-button-settings + reset
   *   /api/save-oled-settings + reset
   *   /reboot
