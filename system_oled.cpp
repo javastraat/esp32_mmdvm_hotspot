@@ -766,6 +766,8 @@ void oledTask(void *parameter)
                 preferences.clear();
                 preferences.end();
                 delay(1500);
+                display.clearDisplay();
+                display.display();
                 ESP.restart();
               }
             }
