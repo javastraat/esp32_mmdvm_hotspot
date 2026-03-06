@@ -996,7 +996,9 @@ static void handleSnapshotDownloadAll()
   {
     String hdr  = "HTTP/1.1 200 OK\r\n";
     hdr += "Content-Type: application/zip\r\n";
-    hdr += "Content-Disposition: attachment; filename=\"snapshots-" + storage + ".zip\"\r\n";
+    String dlName = server.arg("filename");
+    if (dlName.length() == 0) dlName = "snapshots-" + storage + ".zip";
+    hdr += "Content-Disposition: attachment; filename=\"" + dlName + "\"\r\n";
     hdr += "Content-Length: " + String(zipSize) + "\r\n";
     hdr += "Connection: close\r\n\r\n";
     client.print(hdr);

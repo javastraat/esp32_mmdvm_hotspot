@@ -13,6 +13,8 @@
 
 // External references to runtime settings
 extern String mdnsHostname;
+extern String userCallsign;
+extern uint8_t userDmrSsid;
 
 String getSystemBackupPageHTML()
 {
@@ -22,7 +24,7 @@ String getSystemBackupPageHTML()
   html += "<title>System Backup</title>";
   html += getSharedStyles();
   // Inject mdnsHostname as JS variable for export filename
-  html += "<script>window.mdnsHostname = '" + mdnsHostname + "';</script>";
+  html += "<script>window.mdnsHostname = '" + mdnsHostname + "'; window.userCallsign = '" + userCallsign + "'; window.userDmrSsid = " + String(userDmrSsid) + ";</script>";
   html += "</head><body>";
   html += getNavigation("system-backup");
 
@@ -263,11 +265,17 @@ String getSystemBackupPageHTML()
   html += "}";
 
   html += "function downloadAllSnapshots(storage) {";
-  html += "  var mdns = window.mdnsHostname || 'mmdvm';";
-  html += "  var a = document.createElement('a');";
-  html += "  a.href = '/api/snapshots/download-all?storage=' + storage;";
-  html += "  a.download = mdns + '-snapshots-' + storage + '.zip';";
-  html += "  a.click();";
+  html += "  var callsign = (window.userCallsign || 'config').toUpperCase().replace(/[^A-Z0-9]/gi, '');";
+  html += "  var ssid = window.userDmrSsid || 0;";
+  html += "  var label = storage === 'sd' ? 'sd' : 'flash';";
+  html += "  var defaultName = 'config-' + callsign + '-' + ssid + '-' + label + '.zip';";
+  html += "  window.showFilenamePrompt(defaultName, function(fname) {";
+  html += "    if (!fname.toLowerCase().endsWith('.zip')) fname += '.zip';";
+  html += "    var a = document.createElement('a');";
+  html += "    a.href = '/api/snapshots/download-all?storage=' + storage + '&filename=' + encodeURIComponent(fname);";
+  html += "    a.download = fname;";
+  html += "    a.click();";
+  html += "  });";
   html += "}";
 
   html += "function handleZipUpload(storage, file) {";
