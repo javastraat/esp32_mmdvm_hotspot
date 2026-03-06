@@ -60,15 +60,15 @@
 #define ETH_DEBUG false   // Set to true to enable Ethernet debug messages
 
 // Fallback DNS Server (added after DHCP, used if primary DNS fails)
-#define DNS_FALLBACK_ENABLED false
+#define DNS_FALLBACK_ENABLED true
 #define DNS_FALLBACK_IP "8.8.8.8" // Google DNS (or use "1.1.1.1" for Cloudflare)
 
 // mDNS Settings
-#define ENABLE_MDNS false           // Enable mDNS (find hotspot by hostname)
+#define ENABLE_MDNS true           // Enable mDNS (find hotspot by hostname)
 #define MDNS_HOSTNAME "esp32-mmdvm" // mDNS hostname
 
 // NTP Time Synchronization Configuration
-#define NTP_ENABLED false
+#define NTP_ENABLED true
 #define NTP_SERVER "ntp.time.nl"     // NTP server to sync with (can be pool.ntp.org or your local NTP server)
 #define NTP_GMT_OFFSET_SEC 3600      // GMT+1 (1 hour = 3600 seconds)
 #define NTP_DAYLIGHT_OFFSET_SEC 0    // Daylight saving time offset in seconds
@@ -200,7 +200,7 @@ const int LED_PIN = 38;
 const int BUTTON_PIN = 0;
 
 // OLED Configuration
-#define OLED_ENABLED false
+#define OLED_ENABLED true
 const int I2C_SDA_PIN = 17;
 const int I2C_SCL_PIN = 18;
 const int OLED_I2C_ADDRESS = 0x3C; // I2C address for OLED display (0x3C or 0x3D)
@@ -208,7 +208,7 @@ const int OLED_WIDTH = 128;        // OLED display width
 const int OLED_HEIGHT = 64;        // OLED display height
 
 // SD Card Configuration
-#define SDCARD_ENABLED false
+#define SDCARD_ENABLED true
 #define SPI_MISO_PIN 9
 #define SPI_MOSI_PIN 11
 #define SPI_SCLK_PIN 10
@@ -329,7 +329,7 @@ const int MMDVM_TX_LEVEL = 128;   // TX level (0-255)
 // ========================================
 
 // ArduinoOTA - Upload from Arduino IDE over network
-#define ARDUINO_OTA_ENABLED false
+#define ARDUINO_OTA_ENABLED true
 #define ARDUINO_OTA_PASSWORD "mmdvm" // Leave empty for no password, or set like "admin"
 #define ARDUINO_OTA_PORT 3232        // Default ArduinoOTA port
 
