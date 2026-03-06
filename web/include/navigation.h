@@ -92,6 +92,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<div class='dropdown-submenu-menu'>";
   if (sdcardEnabled) {
     nav += "<a href='/system-sdcard'>SD Card</a>";
+    nav += "<a href='/system-database'>Database</a>";
   }
   nav += "<a href='/system-firmware'>Firmware</a>";
   nav += "<a href='/system-backup'>Backup/Restore</a>";

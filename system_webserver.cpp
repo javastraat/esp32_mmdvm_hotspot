@@ -33,6 +33,7 @@
 #include "web/pages/service_mqtt.h"
 #include "web/pages/service_wireguard.h"
 #include "web/pages/system_sdcard.h"
+#include "web/pages/system_database.h"
 #include "web/pages/system_hardware.h"
 #include "web/pages/system_network.h"
 #include "web/pages/system_wifi.h"
@@ -230,6 +231,7 @@ void initWebServerTask()
 // Forward declarations for page handlers
 void handleServiceWireguard();
 void handleServiceTelegram();
+void handleSystemDatabase();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -314,6 +316,7 @@ void webServerTask(void *parameter) {
   server.on("/service-telegram", handleServiceTelegram);
   server.on("/service-wireguard", handleServiceWireguard);
   server.on("/system-sdcard", handleSystemSdcard);
+  server.on("/system-database", handleSystemDatabase);
   server.on("/system-firmware", handleSystemFirmware);
   server.on("/system-admin", handleSystemAdmin);
   server.on("/system-backup", handleSystemBackup);
@@ -488,6 +491,12 @@ void handleSystemSdcard()
 {
   requestCount++;
   server.send(200, "text/html", getSystemSdcardPageHTML());
+}
+
+void handleSystemDatabase()
+{
+  requestCount++;
+  server.send(200, "text/html", getSystemDatabasePageHTML());
 }
 
 void handleSystemFirmware()

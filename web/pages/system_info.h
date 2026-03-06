@@ -96,7 +96,7 @@ String getSystemInfoPageHTML()
       int matchCount = 0;
       for (UBaseType_t i = 0; i < actualCount && matchCount < 32; i++) {
         const char *n = taskArray[i].pcTaskName;
-        bool include = (strstr(n, "Task") != NULL) || (strcmp(n, "DMR Database") == 0);
+        bool include = (strstr(n, " Task") != NULL) || (strcmp(n, "DMR Database") == 0);
         if (include) {
           matched[matchCount].name = n;
           matched[matchCount].freeBytes = (int)taskArray[i].usStackHighWaterMark * 4;
