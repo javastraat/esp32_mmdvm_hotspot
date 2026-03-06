@@ -180,10 +180,12 @@ String getSystemDatabasePageHTML()
   html += "function disableAllButtons() {";
   html += "  var btns = ['sd-browser-refresh-btn','sd-browser-upload-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=true; });";
+  html += "  document.querySelectorAll('#sd-browser-body button, #sd-browser-body a.btn').forEach(function(b){ b.disabled=true; b.style.pointerEvents='none'; b.style.opacity='0.4'; });";
   html += "}";
   html += "function enableAllButtons() {";
   html += "  var btns = ['sd-browser-refresh-btn','sd-browser-upload-btn','check-csv-btn','download-csv-btn','delete-csv-btn','check-sqlite-btn','download-sqlite-btn','delete-sqlite-btn','search-btn','sqlite-search-btn'];";
   html += "  btns.forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=false; });";
+  html += "  document.querySelectorAll('#sd-browser-body button, #sd-browser-body a.btn').forEach(function(b){ b.disabled=false; b.style.pointerEvents=''; b.style.opacity=''; });";
   html += "}";
 
   // Load SD card info (CSV and SQLite database status)
