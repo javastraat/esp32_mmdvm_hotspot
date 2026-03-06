@@ -33,25 +33,9 @@ String getSystemDatabasePageHTML()
   // Card 1: SD Card File Browser
   html += "<div class='card'>";
   html += "<h3>SD Card Browser</h3>";
-  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Browse, download and delete files on the SD card.</p>";
-  // Path bar (row 1: label + path)
-  html += "<div style='display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 10px 2px 10px;'>";
-  html += "  <span style='color:#aaa;font-size:0.85em;flex-shrink:0;'>Path:</span>";
-  html += "  <span id='sd-browser-path' style='font-family:monospace;font-size:0.9em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>/</span>";
-  html += "</div>";
-  // Path bar (row 2: buttons)
-  html += "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;padding:2px 10px 6px 10px;'>";
-  html += "  <button id='sd-browser-refresh-btn' class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
-  html += "  <button id='sd-browser-upload-btn' class='btn btn-primary' onclick='sdBrsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
-  html += "</div>";
-  // Upload row (hidden by default)
-  html += "<div id='sd-upload-row' style='display:none;align-items:center;gap:6px;margin-bottom:4px;'>";
-  html += "  <input type='file' id='sd-upload-file' style='flex:1;font-size:12px;min-width:0;'>";
-  html += "  <button class='btn btn-success' onclick='sdBrsUpload()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Upload</button>";
-  html += "  <button class='btn btn-secondary' onclick='sdBrsUploadHide()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
-  html += "</div>";
-  html += "<div id='sd-upload-status' style='display:none;font-size:12px;margin-bottom:6px;padding:0 2px;'></div>";
-  html += "<div style='overflow-x:auto;'>";
+  html += "<span id='sd-browser-path' style='display:inline-block;font-size:12px;font-family:monospace;padding:2px 8px;border-radius:10px;background:#1565c0;color:#fff;margin-bottom:6px'>/</span>";
+  html += "<p>Browse, download and delete files on the SD card</p>";
+  html += "<div style='overflow-x:auto;margin-bottom:10px;'>";
   html += "<table style='width:100%;border-collapse:collapse;font-size:13px;'>";
   html += "<thead><tr style='border-bottom:2px solid #444;color:#aaa;'>";
   html += "  <th style='text-align:left;padding:6px;'>Name</th>";
@@ -63,6 +47,16 @@ String getSystemDatabasePageHTML()
   html += "</tbody>";
   html += "</table>";
   html += "</div>";
+  html += "<div style='display:flex;gap:6px;align-items:center;flex-wrap:wrap;'>";
+  html += "  <button id='sd-browser-refresh-btn' class='btn btn-primary' onclick='sdBrsRefresh()' style='padding:3px 10px;font-size:0.85em;'>&#8635; Refresh</button>";
+  html += "  <button id='sd-browser-upload-btn' class='btn btn-primary' onclick='sdBrsUploadShow()' style='padding:3px 10px;font-size:0.85em;background:#1565c0;border-color:#1565c0;'>&#8679; Upload</button>";
+  html += "</div>";
+  html += "<div id='sd-upload-row' style='display:none;align-items:center;gap:6px;margin-top:6px;'>";
+  html += "  <input type='file' id='sd-upload-file' style='flex:1;font-size:12px;min-width:0;'>";
+  html += "  <button class='btn btn-success' onclick='sdBrsUpload()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Upload</button>";
+  html += "  <button class='btn btn-secondary' onclick='sdBrsUploadHide()' style='padding:3px 10px;font-size:0.85em;flex-shrink:0;'>Cancel</button>";
+  html += "</div>";
+  html += "<div id='sd-upload-status' style='display:none;font-size:12px;margin-top:4px;padding:0 2px;'></div>";
   html += "</div>"; // close SD browser card
 
   // Card 2: CSV Database Download
