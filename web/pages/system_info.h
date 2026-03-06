@@ -104,10 +104,10 @@ String getSystemInfoPageHTML()
         }
       }
 
-      // Sort by free bytes ascending (worst first)
+      // Sort by name ascending (alphabetical)
       for (int a = 0; a < matchCount - 1; a++) {
         for (int b = a + 1; b < matchCount; b++) {
-          if (matched[b].freeBytes < matched[a].freeBytes) {
+          if (strcmp(matched[b].name, matched[a].name) < 0) {
             auto tmp = matched[a]; matched[a] = matched[b]; matched[b] = tmp;
           }
         }

@@ -83,6 +83,18 @@ String getSystemExtraPageHTML()
   html += "  fetch('/api/bootlogos/status').then(function(r){return r.json();}).then(blUpdateStatus).catch(function(){});";
   html += "}";
   html += "function blInstall(target) {";
+  html += "  var dest = target === 'sdcard' ? 'SD Card' : 'Flash (LittleFS)';";
+  html += "  showModal(function(box, close) {";
+  html += "    box.innerHTML = '<h4>Install Bootlogos Package?</h4><p style=\"margin:8px 0 16px;font-size:0.9em;color:#666;\">This will download the bootlogos package from GitHub and extract it to <b>' + dest + '</b>. Existing files will be overwritten.</p>';";
+  html += "    var btns = document.createElement('div'); btns.className = 'modal-buttons';";
+  html += "    var ok = document.createElement('button'); ok.textContent = 'Install'; ok.className = 'btn btn-primary';";
+  html += "    var cancel = document.createElement('button'); cancel.textContent = 'Cancel'; cancel.className = 'btn btn-secondary'; cancel.style.marginLeft = '8px';";
+  html += "    ok.onclick = function() { close(); blDoInstall(target); };";
+  html += "    cancel.onclick = close;";
+  html += "    btns.appendChild(ok); btns.appendChild(cancel); box.appendChild(btns);";
+  html += "  });";
+  html += "}";
+  html += "function blDoInstall(target) {";
   html += "  blSetBusy(true);";
   html += "  document.getElementById('bl-status').textContent = 'Starting...';";
   html += "  document.getElementById('bl-status').style.color = '#aaa';";
