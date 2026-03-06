@@ -1,5 +1,6 @@
 #include <SD.h>
 #include <LittleFS.h>
+#include <vector>
 
 extern String userCallsign;
 
@@ -726,15 +727,158 @@ static void handleLfsInfo()
 }
 
 // ---------------------------------------------------------------------------
+// CRC-32 (ZIP standard, reflected polynomial 0xEDB88320)
+// ---------------------------------------------------------------------------
+static uint32_t zipCRC32(const uint8_t* data, size_t len)
+{
+  uint32_t crc = 0xFFFFFFFF;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (int j = 0; j < 8; j++)
+      crc = (crc >> 1) ^ ((crc & 1) ? 0xEDB88320u : 0u);
+  }
+  return ~crc;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/snapshots/download-all?storage=sd|flash
+// Streams all /config/*.txt files as a ZIP (STORE, no compression).
+// ---------------------------------------------------------------------------
+static void handleSnapshotDownloadAll()
+{
+  String storage = server.arg("storage");
+  bool useSD = (storage == "sd");
+
+  if (useSD && !sdCardMounted) {
+    server.send(503, "text/plain", "ERROR: SD card not mounted");
+    return;
+  }
+
+  struct Entry { String name; String data; uint32_t crc; uint32_t localOffset; };
+  std::vector<Entry> entries;
+
+  // --- Collect files ---
+  auto collect = [&](fs::FS& fs_) {
+    File dir = fs_.open(SNAPSHOT_DIR);
+    if (!dir) return;
+    File f = dir.openNextFile();
+    while (f) {
+      String fname = String(f.name());
+      if (!f.isDirectory() && fname.endsWith(".txt")) {
+        int slash = fname.lastIndexOf('/');
+        if (slash >= 0) fname = fname.substring(slash + 1);
+        Entry e;
+        e.name = fname;
+        e.data = f.readString();
+        e.crc  = zipCRC32((const uint8_t*)e.data.c_str(), e.data.length());
+        e.localOffset = 0;
+        entries.push_back(e);
+      }
+      f.close();
+      f = dir.openNextFile();
+    }
+    dir.close();
+  };
+
+  if (useSD) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+      server.send(503, "text/plain", "ERROR: SD card busy");
+      return;
+    }
+    collect(SD);
+    xSemaphoreGive(sdCardMutex);
+  } else {
+    collect(LittleFS);
+  }
+
+  if (entries.empty()) {
+    server.send(200, "text/plain", "No snapshots found on " + storage);
+    return;
+  }
+
+  // Pre-calculate total ZIP size for Content-Length header
+  uint32_t zipSize = 22; // end-of-central-directory record
+  for (auto& e : entries)
+    zipSize += (30 + e.name.length() + e.data.length())  // local header + data
+             + (46 + e.name.length());                    // central dir entry
+
+  // Stream response: write HTTP headers then raw ZIP bytes directly to client
+  WiFiClient client = server.client();
+  {
+    String hdr  = "HTTP/1.1 200 OK\r\n";
+    hdr += "Content-Type: application/zip\r\n";
+    hdr += "Content-Disposition: attachment; filename=\"snapshots-" + storage + ".zip\"\r\n";
+    hdr += "Content-Length: " + String(zipSize) + "\r\n";
+    hdr += "Connection: close\r\n\r\n";
+    client.print(hdr);
+  }
+
+  // Little-endian write helpers
+  auto wU16 = [&](uint16_t v) {
+    uint8_t b[2] = {(uint8_t)v, (uint8_t)(v >> 8)};
+    client.write(b, 2);
+  };
+  auto wU32 = [&](uint32_t v) {
+    uint8_t b[4] = {(uint8_t)v, (uint8_t)(v>>8), (uint8_t)(v>>16), (uint8_t)(v>>24)};
+    client.write(b, 4);
+  };
+
+  // --- Local file entries ---
+  uint32_t offset = 0;
+  for (auto& e : entries) {
+    e.localOffset = offset;
+    uint32_t sz = e.data.length();
+    client.write((const uint8_t*)"PK\x03\x04", 4);
+    wU16(20); wU16(0); wU16(0);           // version needed, flags, compression (STORE)
+    wU16(0);  wU16(0);                    // mod time, mod date
+    wU32(e.crc); wU32(sz); wU32(sz);      // CRC-32, compressed size, uncompressed size
+    wU16((uint16_t)e.name.length()); wU16(0); // filename length, extra field length
+    client.write((const uint8_t*)e.name.c_str(), e.name.length());
+    client.write((const uint8_t*)e.data.c_str(), sz);
+    offset += 30 + e.name.length() + sz;
+  }
+
+  // --- Central directory ---
+  uint32_t cdOffset = offset;
+  for (auto& e : entries) {
+    uint32_t sz = e.data.length();
+    client.write((const uint8_t*)"PK\x01\x02", 4);
+    wU16(20); wU16(20); wU16(0); wU16(0); // version by, version need, flags, compression
+    wU16(0);  wU16(0);                    // mod time, mod date
+    wU32(e.crc); wU32(sz); wU32(sz);      // CRC-32, compressed size, uncompressed size
+    wU16((uint16_t)e.name.length());      // filename length
+    wU16(0); wU16(0); wU16(0); wU16(0);  // extra, comment, disk start, internal attrs
+    wU32(0);                              // external attrs
+    wU32(e.localOffset);                  // local header offset
+    client.write((const uint8_t*)e.name.c_str(), e.name.length());
+    offset += 46 + e.name.length();
+  }
+
+  // --- End of central directory ---
+  uint32_t cdSize = offset - cdOffset;
+  uint16_t count  = (uint16_t)entries.size();
+  client.write((const uint8_t*)"PK\x05\x06", 4);
+  wU16(0); wU16(0);           // disk number, start disk
+  wU16(count); wU16(count);   // entries on this disk, total entries
+  wU32(cdSize);               // central directory size
+  wU32(cdOffset);             // central directory offset
+  wU16(0);                    // ZIP comment length
+
+  addLogMessage("[Snapshots] ZIP download: " + String(count) + " files from " +
+                (useSD ? "SD" : "flash") + " (" + String(zipSize) + " bytes)");
+}
+
+// ---------------------------------------------------------------------------
 // registerSnapshotRoutes() — called once from webServerTask()
 // ---------------------------------------------------------------------------
 void registerSnapshotRoutes()
 {
-  server.on("/api/snapshots/list",     HTTP_GET,  handleSnapshotList);
-  server.on("/api/snapshots/save",     HTTP_POST, handleSnapshotSave);
-  server.on("/api/snapshots/load",     HTTP_POST, handleSnapshotLoad);
-  server.on("/api/snapshots/delete",   HTTP_POST, handleSnapshotDelete);
-  server.on("/api/snapshots/download", HTTP_GET,  handleSnapshotDownload);
+  server.on("/api/snapshots/list",         HTTP_GET,  handleSnapshotList);
+  server.on("/api/snapshots/save",         HTTP_POST, handleSnapshotSave);
+  server.on("/api/snapshots/load",         HTTP_POST, handleSnapshotLoad);
+  server.on("/api/snapshots/delete",       HTTP_POST, handleSnapshotDelete);
+  server.on("/api/snapshots/download",     HTTP_GET,  handleSnapshotDownload);
+  server.on("/api/snapshots/download-all", HTTP_GET,  handleSnapshotDownloadAll);
   server.on("/api/littlefs/owner",      HTTP_GET,  handleLfsOwner);
   server.on("/api/littlefs/writeowner", HTTP_POST, handleLfsWriteOwner);
   server.on("/api/littlefs/info",       HTTP_GET,  handleLfsInfo);

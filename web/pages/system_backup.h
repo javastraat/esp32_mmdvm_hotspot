@@ -57,6 +57,7 @@ String getSystemBackupPageHTML()
   html += "<input type='text' id='sd-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"sd\")'>Save to SD</button>";
   html += "</div>";
+  html += "<button class='btn btn-secondary' style='margin-top:8px;width:100%' onclick='downloadAllSnapshots(\"sd\")'>Download All as ZIP</button>";
   html += "</div>";
   }
   // Card 3: Internal Flash Configurations
@@ -70,6 +71,7 @@ String getSystemBackupPageHTML()
   html += "<input type='text' id='flash-save-name' placeholder='my-config' maxlength='48' class='form-control' style='flex:1'>";
   html += "<button class='btn btn-success' onclick='saveSnapshot(\"flash\")'>Save to Flash</button>";
   html += "</div>";
+  html += "<button class='btn btn-secondary' style='margin-top:8px;width:100%' onclick='downloadAllSnapshots(\"flash\")'>Download All as ZIP</button>";
   html += "</div>";
 
   // End of grid
@@ -249,6 +251,14 @@ String getSystemBackupPageHTML()
   html += "  var a = document.createElement('a');";
   html += "  a.href = '/api/snapshots/download?storage=' + storage + '&name=' + encodeURIComponent(name);";
   html += "  a.download = name + '.txt';";
+  html += "  a.click();";
+  html += "}";
+
+  html += "function downloadAllSnapshots(storage) {";
+  html += "  var mdns = window.mdnsHostname || 'mmdvm';";
+  html += "  var a = document.createElement('a');";
+  html += "  a.href = '/api/snapshots/download-all?storage=' + storage;";
+  html += "  a.download = mdns + '-snapshots-' + storage + '.zip';";
   html += "  a.click();";
   html += "}";
 
