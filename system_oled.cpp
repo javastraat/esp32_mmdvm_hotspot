@@ -886,19 +886,43 @@ void oledTask(void *parameter)
     if (buttonPressed)
     {
       buttonPressed = false;
-      oledDisplayOn = !oledDisplayOn;
-
-      if (oledDisplayOn)
+      // Cycle: Full(255) → Mid(102) → Dim(26) → Off → Full ...
+      if (!oledDisplayOn)
       {
-        addLogMessage("[OLED Task] Display turned ON");
-        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_on\"}");
+        // Off → Full
+        oledDisplayOn = true;
+        oledContrast = 255;
         display.ssd1306_command(SSD1306_DISPLAYON);
+        display.ssd1306_command(SSD1306_SETCONTRAST);
+        display.ssd1306_command(255);
+        addLogMessage("[OLED Task] Display ON (Full)");
+        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_full\"}");
+      }
+      else if (oledContrast > 102)
+      {
+        // Full → Mid
+        oledContrast = 102;
+        display.ssd1306_command(SSD1306_SETCONTRAST);
+        display.ssd1306_command(102);
+        addLogMessage("[OLED Task] Display brightness Mid");
+        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_mid\"}");
+      }
+      else if (oledContrast > 26)
+      {
+        // Mid → Dim
+        oledContrast = 26;
+        display.ssd1306_command(SSD1306_SETCONTRAST);
+        display.ssd1306_command(26);
+        addLogMessage("[OLED Task] Display brightness Dim");
+        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_dim\"}");
       }
       else
       {
-        addLogMessage("[OLED Task] Display turned OFF");
-        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_off\"}");
+        // Dim → Off
+        oledDisplayOn = false;
         display.ssd1306_command(SSD1306_DISPLAYOFF);
+        addLogMessage("[OLED Task] Display OFF");
+        publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"display_off\"}");
       }
     }
 
