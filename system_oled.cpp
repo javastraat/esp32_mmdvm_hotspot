@@ -44,8 +44,11 @@ Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 volatile bool oledDisplayOn = true;
 volatile uint8_t oledContrast = 255; // Dim=64, Mid=128, Full=255
 volatile bool buttonPressed = false;
+volatile bool buttonLongPressed = false;
+volatile unsigned long buttonDownTime = 0;
 unsigned long lastButtonPress = 0;
-const unsigned long BUTTON_DEBOUNCE = 200; // 200ms debounce
+const unsigned long BUTTON_DEBOUNCE = 200;   // 200ms debounce
+const unsigned long BUTTON_HOLD_MS  = 1000;  // 1s hold = long press
 
 // DMR TX user info display state
 volatile bool dmrTxUserActive = false;
@@ -344,14 +347,28 @@ int oledBottomCycle = 0;
 unsigned long lastBottomCycle = 0;
 const unsigned long BOTTOM_CYCLE_INTERVAL = 5000; // 5 seconds
 
-// ISR for button press
+// ISR for button — fires on CHANGE (press + release)
 void IRAM_ATTR buttonISR()
 {
-  unsigned long currentTime = millis();
-  if (currentTime - lastButtonPress > BUTTON_DEBOUNCE)
+  unsigned long now = millis();
+  if (digitalRead(BUTTON_PIN) == LOW)
   {
-    buttonPressed = true;
-    lastButtonPress = currentTime;
+    // Falling edge — button pressed down
+    if (now - lastButtonPress > BUTTON_DEBOUNCE)
+      buttonDownTime = now;
+  }
+  else
+  {
+    // Rising edge — button released
+    if (buttonDownTime > 0 && now - lastButtonPress > BUTTON_DEBOUNCE)
+    {
+      lastButtonPress = now;
+      if (now - buttonDownTime >= BUTTON_HOLD_MS)
+        buttonLongPressed = true;
+      else
+        buttonPressed = true;
+      buttonDownTime = 0;
+    }
   }
 }
 
@@ -748,7 +765,7 @@ void oledTask(void *parameter)
 
   // Initialize button with pullup
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, CHANGE);
   addLogMessage("[OLED Task] Button interrupt attached to pin " + String(BUTTON_PIN));
   publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"button_init\",\"pin\":" + String(BUTTON_PIN) + "}");
 
@@ -882,7 +899,30 @@ void oledTask(void *parameter)
 
   while (true)
   {
-    // Check for button press
+    // Long press → trigger CW ID (same as web test button)
+    if (buttonLongPressed)
+    {
+      buttonLongPressed = false;
+      extern volatile bool cwidTestRequested;
+      cwidTestRequested = true;
+      addLogMessage("[OLED Task] CW ID triggered by button hold");
+      publishMqtt(mqttOledTaskTopic.c_str(), "{\"event\":\"cwid_button\"}");
+      // Brief confirmation on display
+      if (oledDisplayOn)
+      {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(20, 20);
+        display.println("CW ID Queued");
+        display.setCursor(14, 34);
+        display.println(userCallsign);
+        display.display();
+        vTaskDelay(1500 / portTICK_PERIOD_MS);
+      }
+    }
+
+    // Short press → cycle brightness
     if (buttonPressed)
     {
       buttonPressed = false;
