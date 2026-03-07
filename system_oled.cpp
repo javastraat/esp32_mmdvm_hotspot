@@ -28,7 +28,12 @@ extern bool ethEnabled;
 extern int requestCount;
 extern String mqttOledTaskTopic; // MQTT topic for OLED task status updates
 extern bool dapnetEnabled;
+extern String dapnetServer;
 extern bool telegramEnabled;
+extern bool wgEnabled;
+extern bool wireguardConnected;
+extern String wgLocalIp;
+extern String mqttBroker;
 
 TaskHandle_t oledTaskHandle = NULL;
 
@@ -652,29 +657,65 @@ void drawPOCSAGmiddle()
 
 void drawDAPNETmiddle()
 {
-  // Uptime at y=26
+  display.setCursor(0, 26);
+  display.print("Status: ");
+  display.println(dapnetLoggedIn ? "Connected" : "Disconnected");
+
+  display.setCursor(0, 38);
+  String srv = dapnetServer;
+  if (srv.length() > 13) srv = srv.substring(0, 13);
+  display.print("Server: ");
+  display.println(srv);
+}
+
+void drawMQTTmiddle()
+{
+  display.setCursor(0, 26);
+  display.print("Status: ");
+  display.println(mqttConnected ? "Connected" : "Disconnected");
+
+  display.setCursor(0, 38);
+  String broker = mqttBroker;
+  if (broker.length() > 18) broker = broker.substring(0, 18);
+  display.print("Broker: ");
+  display.println(broker);
+}
+
+void drawTelegramMiddle()
+{
+  //display.setCursor(0, 24);
+  //display.println("Status: Active");
+
   unsigned long uptimeSec = millis() / 1000;
   unsigned long hrs = uptimeSec / 3600;
   unsigned long mins = (uptimeSec % 3600) / 60;
   unsigned long secs = uptimeSec % 60;
   display.setCursor(0, 26);
   display.print("Up: ");
-  if (hrs > 0)
-  {
-    display.print(hrs);
-    display.print("h ");
-  }
-  display.print(mins);
-  display.print("m ");
-  display.print(secs);
-  display.println("s");
+  if (hrs > 0) { display.print(hrs); display.print("h "); }
+  display.print(mins); display.print("m ");
+  display.print(secs); display.println("s");
 
-  // Free heap + request count at y=38
   display.setCursor(0, 38);
   display.print("Heap:");
   display.print(ESP.getFreeHeap() / 1024);
   display.print("KB Req:");
   display.println(requestCount);
+}
+
+void drawWireGuardMiddle()
+{
+  display.setCursor(0, 26);
+  display.print("Status: ");
+  display.println(wireguardConnected ? "Connected" : "Disconnected");
+
+  display.setCursor(0, 38);
+  if (wireguardConnected && wgLocalIp.length() > 0) {
+    display.print("IP: ");
+    display.println(wgLocalIp);
+  } else {
+    display.println("Tunnel down");
+  }
 }
 
 void initOledTask()
@@ -1002,15 +1043,18 @@ void displaySystemInfo()
 
   // ===== MIDDLE SECTION (y=12 to y=48) =====
   // --- Smarter mode cycling: show all enabled modes, cycling if more than one ---
-  int enabledModes[6];
+  int enabledModes[10];
   int enabledCount = 0;
-  if (modeDmrEnabled)    enabledModes[enabledCount++] = 0;
-  if (modeDstarEnabled)  enabledModes[enabledCount++] = 1;
-  if (modeYsfEnabled)    enabledModes[enabledCount++] = 2;
-  if (modeP25Enabled)    enabledModes[enabledCount++] = 3;
-  if (modeNxdnEnabled)   enabledModes[enabledCount++] = 4;
-  if (modePocsagEnabled) enabledModes[enabledCount++] = 5;
-  if (dapnetEnabled)     enabledModes[enabledCount++] = 6;
+  if (modeDmrEnabled)      enabledModes[enabledCount++] = 0;
+  if (modeDstarEnabled)    enabledModes[enabledCount++] = 1;
+  if (modeYsfEnabled)      enabledModes[enabledCount++] = 2;
+  if (modeP25Enabled)      enabledModes[enabledCount++] = 3;
+  if (modeNxdnEnabled)     enabledModes[enabledCount++] = 4;
+  if (modePocsagEnabled)   enabledModes[enabledCount++] = 5;
+  if (dapnetEnabled)       enabledModes[enabledCount++] = 6;
+  if (mqttEnabled)         enabledModes[enabledCount++] = 7;
+  if (telegramEnabled)     enabledModes[enabledCount++] = 8;
+  if (wgEnabled)           enabledModes[enabledCount++] = 9;
 
   static unsigned long lastModeCycle = 0;
   static int modeCycleIdx = 0;
@@ -1075,8 +1119,23 @@ void displaySystemInfo()
         break;
       case 6:
         display.setCursor(0, 14);
-        display.println("DAPNET Mode Active");
+        display.println("DAPNET Service");
         drawDAPNETmiddle();
+        break;
+      case 7:
+        display.setCursor(0, 14);
+        display.println("MQTT Service");
+        drawMQTTmiddle();
+        break;
+      case 8:
+        display.setCursor(0, 14);
+        display.println("Telegram Bot Active");
+        drawTelegramMiddle();
+        break;
+      case 9:
+        display.setCursor(0, 14);
+        display.println("WireGuard VPN");
+        drawWireGuardMiddle();
         break;
       }
   }
