@@ -319,7 +319,10 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "  var minDur = parseInt(document.getElementById('dur-filter').value, 10);";
   html += "  var tbody = document.getElementById('call-history-body');";
   html += "  if (!tbody) return;";
-  html += "  var filtered = dmrHistory.filter(function(h) { return h.duration >= minDur; });";
+  html += "  var filtered = dmrHistory.filter(function(h, i) {";
+  html += "    var isActiveLive = (i === 0 && onairStart > 0 && h.duration === 0);";
+  html += "    return isActiveLive || h.duration >= minDur;";
+  html += "  });";
   html += "  if (filtered.length === 0) {";
   html += "    tbody.innerHTML = '<tr><td colspan=\"6\" style=\"padding:8px 6px;color:var(--text-secondary);\">'+(dmrHistory.length===0?'No calls yet':'No calls match filter')+'</td></tr>';";
   html += "    return;";

@@ -69,8 +69,24 @@ static int dmrCallHistoryHead = 0; // next write position
 static unsigned long dmrCallStartMillis = 0; // millis() when current call started
 
 void setDmrTxUserInfo(const String& callsign, const String& id, const String& name, const String& city, const String& state, const String& country) {
-  // Detect new call: callsign changed or no call was active
-  if (callsign.length() > 0 && (callsign != dmrTxUserCallsign || !dmrTxUserActive)) {
+  // Detect new call by DMR ID change (not callsign), so a history entry is always
+  // created even when the user is not yet in the cache (callsign still empty).
+  bool isNewCall = (!dmrTxUserActive || id != dmrTxUserId);
+
+  if (isNewCall) {
+    // Late async lookup after call ended: update the last entry in place rather
+    // than creating a duplicate, if it belongs to the same DMR ID.
+    if (!dmrTxUserActive && callsign.length() > 0 && dmrCallHistoryCount > 0) {
+      int lastIdx = (dmrCallHistoryHead - 1 + DMR_CALL_HISTORY_SIZE) % DMR_CALL_HISTORY_SIZE;
+      if (dmrCallHistory[lastIdx].id == id) {
+        dmrCallHistory[lastIdx].callsign = callsign;
+        if (name.length()    > 0) dmrCallHistory[lastIdx].name    = name;
+        if (city.length()    > 0) dmrCallHistory[lastIdx].city    = city;
+        if (country.length() > 0) dmrCallHistory[lastIdx].country = country;
+        // No new entry — just fall through to update current state
+        goto update_state;
+      }
+    }
     // Backfill duration into the previous history entry
     if (dmrTxUserActive && dmrCallHistoryCount > 0) {
       int prevIdx = (dmrCallHistoryHead - 1 + DMR_CALL_HISTORY_SIZE) % DMR_CALL_HISTORY_SIZE;
@@ -81,11 +97,25 @@ void setDmrTxUserInfo(const String& callsign, const String& id, const String& na
     time_t now = time(nullptr);
     struct tm* t = localtime(&now);
     snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", t->tm_hour, t->tm_min, t->tm_sec);
-    dmrCallHistory[dmrCallHistoryHead] = {callsign, id, name, city, country, String(timeBuf), 0};
+    // Use callsign if resolved, fall back to DMR ID as a placeholder
+    String display = callsign.length() > 0 ? callsign : id;
+    dmrCallHistory[dmrCallHistoryHead] = {display, id, name, city, country, String(timeBuf), 0};
     dmrCallHistoryHead = (dmrCallHistoryHead + 1) % DMR_CALL_HISTORY_SIZE;
     if (dmrCallHistoryCount < DMR_CALL_HISTORY_SIZE) dmrCallHistoryCount++;
     dmrCallStartMillis = millis();
+  } else if (callsign.length() > 0 && dmrCallHistoryCount > 0) {
+    // Same ongoing call — lookup resolved or TA arrived. Update the history entry
+    // in place so name/city/country and the resolved callsign are shown immediately.
+    int lastIdx = (dmrCallHistoryHead - 1 + DMR_CALL_HISTORY_SIZE) % DMR_CALL_HISTORY_SIZE;
+    if (dmrCallHistory[lastIdx].id == id) {
+      dmrCallHistory[lastIdx].callsign = callsign;
+      if (name.length()    > 0) dmrCallHistory[lastIdx].name    = name;
+      if (city.length()    > 0) dmrCallHistory[lastIdx].city    = city;
+      if (country.length() > 0) dmrCallHistory[lastIdx].country = country;
+    }
   }
+
+update_state:
   dmrTxUserCallsign = callsign;
   dmrTxUserId = id;
   dmrTxUserName = name;
