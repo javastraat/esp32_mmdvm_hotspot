@@ -221,6 +221,12 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "<span id='oled-power-slider' style='position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#555;border-radius:24px;transition:0.3s;'>";
   html += "<span style='position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;display:block;' id='oled-power-knob'></span></span></label>";
   html += "</div>";
+  html += "<div style='display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;'>";
+  html += "<span style='font-size:0.85em;color:var(--text-secondary);'>Brightness</span>";
+  html += "<button id='oled-br-dim'  onclick='setOledBrightness(\"dim\")'  style='padding:3px 10px;border-radius:6px;border:1px solid #555;cursor:pointer;font-size:0.8em;'>Dim</button>";
+  html += "<button id='oled-br-mid'  onclick='setOledBrightness(\"mid\")'  style='padding:3px 10px;border-radius:6px;border:1px solid #555;cursor:pointer;font-size:0.8em;'>Mid</button>";
+  html += "<button id='oled-br-full' onclick='setOledBrightness(\"full\")' style='padding:3px 10px;border-radius:6px;border:1px solid #555;cursor:pointer;font-size:0.8em;'>Full</button>";
+  html += "</div>";
   html += "</div>";
 
   // Card 6: Mode Status
@@ -292,6 +298,19 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "  fetch('/api/oled-power', {method:'POST'}).then(function(r){return r.json();}).then(function(d){ setOledToggleState(d.on); }).catch(function(){});";
   html += "}";
   html += "fetch('/api/oled-power').then(function(r){return r.json();}).then(function(d){ setOledToggleState(d.on); }).catch(function(){});";
+  html += "function setOledBrightnessState(level) {";
+  html += "  var btns = {dim:'oled-br-dim',mid:'oled-br-mid',full:'oled-br-full'};";
+  html += "  Object.keys(btns).forEach(function(k) {";
+  html += "    var b = document.getElementById(btns[k]); if(!b) return;";
+  html += "    b.style.background = (k === level) ? '#28a745' : '';";
+  html += "    b.style.color      = (k === level) ? '#fff'    : '';";
+  html += "    b.style.borderColor= (k === level) ? '#28a745' : '#555';";
+  html += "  });";
+  html += "}";
+  html += "function setOledBrightness(level) {";
+  html += "  fetch('/api/oled-brightness?level='+level, {method:'POST'}).then(function(r){return r.json();}).then(function(d){ setOledBrightnessState(d.level); }).catch(function(){});";
+  html += "}";
+  html += "fetch('/api/oled-brightness').then(function(r){return r.json();}).then(function(d){ setOledBrightnessState(d.level); }).catch(function(){});";
 
   // DMR activity JS — only injected when at least one voice mode is enabled
   if (anyVoiceModeEnabled) {

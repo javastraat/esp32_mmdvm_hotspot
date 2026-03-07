@@ -42,6 +42,7 @@ Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 
 // OLED display state
 volatile bool oledDisplayOn = true;
+volatile uint8_t oledContrast = 255; // Dim=64, Mid=128, Full=255
 volatile bool buttonPressed = false;
 unsigned long lastButtonPress = 0;
 const unsigned long BUTTON_DEBOUNCE = 200; // 200ms debounce

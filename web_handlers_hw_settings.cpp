@@ -78,6 +78,32 @@ void registerHwSettingsRoutes()
                 String("{\"on\":") + (oledDisplayOn ? "true" : "false") + "}");
   });
 
+  // OLED brightness control (3 steps: dim=64, mid=128, full=255)
+  server.on("/api/oled-brightness", HTTP_POST, []()
+  {
+    extern volatile uint8_t oledContrast;
+    String level = server.arg("level");
+    uint8_t val;
+    if      (level == "dim")  val = 26;   // ~10%
+    else if (level == "mid")  val = 102;  // ~40%
+    else if (level == "full") val = 255;  // 100%
+    else { server.send(400, "text/plain", "level must be dim|mid|full"); return; }
+    oledContrast = val;
+    display.ssd1306_command(SSD1306_SETCONTRAST);
+    display.ssd1306_command(val);
+    addLogMessage("[OLED] Brightness set to " + level + " (" + String(val) + ")");
+    server.send(200, "application/json",
+                String("{\"contrast\":") + val + ",\"level\":\"" + level + "\"}");
+  });
+
+  server.on("/api/oled-brightness", HTTP_GET, []()
+  {
+    extern volatile uint8_t oledContrast;
+    String level = oledContrast <= 64 ? "dim" : oledContrast <= 128 ? "mid" : "full";
+    server.send(200, "application/json",
+                String("{\"contrast\":") + oledContrast + ",\"level\":\"" + level + "\"}");
+  });
+
   // LED/Button Settings endpoints
   server.on("/api/save-led-button-settings", HTTP_POST, []()
             {
