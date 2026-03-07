@@ -20,6 +20,7 @@ extern String wifiApSsid;
 extern String wifiApPassword;
 extern uint8_t wifiApChannel;
 extern uint8_t wifiMaxRetries;
+extern bool softAPActive;
 
 inline String getSystemWifiPageHTML()
 {
@@ -54,6 +55,15 @@ inline String getSystemWifiPageHTML()
     html += "<div class='metric'><span class='metric-label'>Signal Strength:</span><span class='metric-value'>" + String(rssi) + " dBm (" + signalQuality + ")</span></div>";
     html += "<div class='metric'><span class='metric-label'>Channel:</span><span class='metric-value'>" + String(WiFi.channel()) + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.macAddress() + "</span></div>";
+  }
+  else if (softAPActive)
+  {
+    html += "<div class='status warning'>Status: Access Point Mode</div>";
+    html += "<div class='metric'><span class='metric-label'>SSID:</span><span class='metric-value'>" + WiFi.softAPSSID() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>AP IP:</span><span class='metric-value'>" + WiFi.softAPIP().toString() + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Clients:</span><span class='metric-value'>" + String(WiFi.softAPgetStationNum()) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Channel:</span><span class='metric-value'>" + String(WiFi.channel()) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>MAC Address:</span><span class='metric-value'>" + WiFi.softAPmacAddress() + "</span></div>";
   }
   else
   {

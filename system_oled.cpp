@@ -801,7 +801,7 @@ void oledTask(void *parameter)
   // display.display();
 
   // Wait for any network connection (WiFi OR Ethernet)
-  while (WiFi.status() != WL_CONNECTED && !ethConnected)
+  while (WiFi.status() != WL_CONNECTED && !ethConnected && !softAPActive)
   {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }

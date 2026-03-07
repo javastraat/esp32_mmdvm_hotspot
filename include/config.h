@@ -26,8 +26,8 @@
 
 // ===== WiFi Configuration =====
 #define WIFI_SLOT_LABEL "Default"       // WiFi Slot Label
-#define WIFI_SSID "TechInc"             // Your WiFi SSID
-#define WIFI_PASSWORD "itoldyoualready" // Your WiFi password
+#define WIFI_SSID ""             // Your WiFi SSID
+#define WIFI_PASSWORD "" // Your WiFi password
 
 #define WIFI_SLOT1_LABEL "Home" // WiFi Slot 1 Label
 #define WIFI_SSID1 ""           // Your WiFi SSID
