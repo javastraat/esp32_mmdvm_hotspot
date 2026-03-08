@@ -1003,9 +1003,11 @@ void setup()
     addLogMessage("[Setup] ArduinoOTA enabled - initializing ArduinoOTA task");
     initArduinoOtaTask();
   }
-  if (espnowSenderEnabled)
+  if (espnowSenderEnabled || espnowReceiverEnabled)
   {
-    addLogMessage("[Setup] ESP-NOW sender enabled - initializing");
+    addLogMessage("[Setup] ESP-NOW enabled (sender=" +
+                  String(espnowSenderEnabled ? "yes" : "no") +
+                  " receiver=" + String(espnowReceiverEnabled ? "yes" : "no") + ")");
     initEspNow();
   }
   // Initialize NTP time synchronization

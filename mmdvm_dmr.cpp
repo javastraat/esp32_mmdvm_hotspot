@@ -302,9 +302,143 @@ void sendDMRKeepalive()
   dmrUdp.endPacket();
 }
 
-// ===== DMR Network: Handle incoming UDP packets =====
+// ===== DMR Network: Process a validated DMRD packet =====
+// Called from both the UDP receive path and the ESP-NOW receiver inject path.
+// Does NOT forward over ESP-NOW (only the UDP path does that, to avoid loops).
+static void processDMRDPacket(const uint8_t* packet, int len)
+{
+  uint8_t seqNo = packet[4];
+  uint32_t srcId = (packet[5] << 16) | (packet[6] << 8) | packet[7];
+  uint32_t dstId = (packet[8] << 16) | (packet[9] << 8) | packet[10];
+  uint8_t slotBits = packet[15];
+  uint8_t slotNo = (slotBits & 0x80) ? 2 : 1;
+  bool isGroup = (slotBits & 0x40) != 0;
+
+  // New transmission = different station, OR no network packet for 3s.
+  // Using netRxActive/netRxLastPktTime (network layer) instead of dmrTxActive
+  // (modem layer) avoids re-triggering the log/MQTT every time POCSAG holds
+  // the modem and the 500ms modem-idle timeout fires mid-conversation.
+  unsigned long nowPkt = millis();
+  bool isNewTx = !netRxActive ||
+                 (nowPkt - netRxLastPktTime > NET_RX_IDLE_MS) ||
+                 netRxSrcId != srcId ||
+                 netRxDstId != dstId;
+
+  // Always update network RX tracking
+  netRxActive = true;
+  netRxLastPktTime = nowPkt;
+  if (isNewTx) {
+    netRxSrcId = srcId;
+    netRxDstId = dstId;
+    netRxSlot  = slotNo;
+  }
+
+  // Get user info — cache only (fast). If not cached, queue an async lookup.
+  // The lookup task will update the OLED when it completes without blocking
+  // the DMR task, which would otherwise delay keepalives and cause disconnects.
+  String userInfo = getCachedDmrUserInfo(srcId);
+  if (isNewTx) {
+    if (!userInfo.isEmpty()) {
+      addLogMessage("[DMR-LOOKUP] Found in cache: " + userInfo);
+    } else if (dmrLookupQueue != nullptr) {
+      // Skip if this ID was already queued recently (avoids duplicate lookups when
+      // the same station calls back while the first async lookup is still running)
+      static uint32_t lastQueuedId = 0;
+      if (srcId != lastQueuedId) {
+        xQueueSend(dmrLookupQueue, &srcId, 0);  // non-blocking, drop if queue full
+        lastQueuedId = srcId;
+      }
+    }
+  }
+  String callsign, name, city, state, country;
+  parseDmrUserInfo(userInfo, callsign, name, city, state, country);
+  setDmrTxUserInfo(callsign, String(srcId), name, city, state, country);
+
+  // Talker Alias: extract from embedded LC and show while DB lookup is pending.
+  // tryExtractTA() maintains its own state machine across frames; it returns
+  // non-empty text only when a new TA block completes (roughly once per 4 frames).
+  {
+      static String lastTa;
+      if (isNewTx) lastTa = "";
+      String ta = tryExtractTA(&packet[20], isNewTx);
+      if (ta.length() > 0 && userInfo.isEmpty() && ta != lastTa) {
+          setDmrTxUserInfo(ta, String(srcId), "", "", "", "");
+          addLogMessage("[DMR-TA] Talker Alias: " + ta);
+          lastTa = ta;
+      }
+  }
+
+  // Log and publish once per new transmission (after user info is parsed)
+  if (isNewTx) {
+    addLogMessage("[DMR] Net→RF: " + String(srcId) + "→" +
+                  (isGroup ? "TG" : "") + String(dstId) +
+                  " slot=" + String(slotNo));
+    if (userInfo.length() > 0)
+      addLogMessage("[DMR] SRC UserInfo: " + userInfo);
+
+    // Store callsign for the "ended" event
+    netRxCallsign = callsign;
+
+    // Publish full user info as JSON.
+    // source=cache means data is complete; source=pending means user_info event follows.
+    String json = "{\"event\":\"net2rf\""
+                  ",\"src\":" + String(srcId) +
+                  ",\"dst\":" + String(dstId) +
+                  ",\"slot\":" + String(slotNo) +
+                  ",\"group\":" + (isGroup ? "true" : "false") +
+                  ",\"source\":\"" + (userInfo.isEmpty() ? "pending" : "cache") + "\"" +
+                  ",\"callsign\":\"" + jsonStr(callsign) + "\"" +
+                  ",\"name\":\"" + jsonStr(name) + "\"" +
+                  ",\"city\":\"" + jsonStr(city) + "\"" +
+                  ",\"state\":\"" + jsonStr(state) + "\"" +
+                  ",\"country\":\"" + jsonStr(country) + "\"}";
+    publishMqtt(mqttDmrTaskTopic.c_str(), json.c_str());
+  }
+
+  // Helper: enqueue one frame into the TX circular buffer
+  uint8_t txCmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
+  auto enqueue = [&](const uint8_t* frameData33) -> bool {
+    int nextHead = (dmrTxHead + 1) % DMR_TX_BUFFER_SIZE;
+    if (nextHead == dmrTxTail) return false; // full
+    DmrTxFrame &f = dmrTxBuffer[dmrTxHead];
+    f.data[0] = 0x00;
+    memcpy(&f.data[1], frameData33, 33);
+    f.cmd   = txCmd;
+    f.valid = true;
+    dmrTxHead = nextHead;
+    return true;
+  };
+
+  if (mmdvmReady)
+  {
+    // Queue every frame exactly once — LC header, voice, terminator.
+    // The modem firmware's DMRTX state machine handles the protocol timing
+    // and LC embedding on-air. Extra host-side injections add non-voice
+    // frames that the radio hears as data bursts / audio glitches.
+    enqueue(&packet[20]);
+  }
+}
+
+// ===== DMR Network: Handle incoming UDP packets + ESP-NOW injections =====
 void handleDMRNetwork()
 {
+#if ESPNOW_SENDER
+  // Receiver mode: drain queued ESP-NOW DMRD packets each loop iteration.
+  // The ESP-NOW receive callback (WiFi task context) enqueues; we process here
+  // in the DMR task context — same as if the packet arrived via UDP.
+  // No re-forwarding: processDMRDPacket() never calls espnowSendDmrNetPacket().
+  if (espnowReceiverEnabled && espnowDmrNetQueue) {
+    EspNowDmrNetPacket ep;
+    while (xQueueReceive(espnowDmrNetQueue, &ep, 0) == pdTRUE) {
+      if (ep.type == ESPNOW_TYPE_DMR_NET &&
+          ep.len >= 55 && ep.len <= 60 &&
+          memcmp(ep.data, "DMRD", 4) == 0) {
+        processDMRDPacket(ep.data, (int)ep.len);
+      }
+    }
+  }
+#endif
+
   int packetSize = dmrUdp.parsePacket();
   if (!packetSize)
     return;
@@ -402,119 +536,16 @@ void handleDMRNetwork()
     return;
   }
 
-  // --- DMRD: Incoming DMR data from network → buffer for paced TX ---
+  // --- DMRD: Incoming DMR data from BrandMeister ---
   if (len >= 55 && memcmp(packet, "DMRD", 4) == 0)
   {
-    uint8_t seqNo = packet[4];
-    uint32_t srcId = (packet[5] << 16) | (packet[6] << 8) | packet[7];
-    uint32_t dstId = (packet[8] << 16) | (packet[9] << 8) | packet[10];
-    uint8_t slotBits = packet[15];
-    uint8_t slotNo = (slotBits & 0x80) ? 2 : 1;
-    bool isGroup = (slotBits & 0x40) != 0;
-
-    // New transmission = different station, OR no network packet for 3s.
-    // Using netRxActive/netRxLastPktTime (network layer) instead of dmrTxActive
-    // (modem layer) avoids re-triggering the log/MQTT every time POCSAG holds
-    // the modem and the 500ms modem-idle timeout fires mid-conversation.
-    unsigned long nowPkt = millis();
-    bool isNewTx = !netRxActive ||
-                   (nowPkt - netRxLastPktTime > NET_RX_IDLE_MS) ||
-                   netRxSrcId != srcId ||
-                   netRxDstId != dstId;
-
-    // Always update network RX tracking
-    netRxActive = true;
-    netRxLastPktTime = nowPkt;
-    if (isNewTx) {
-      netRxSrcId = srcId;
-      netRxDstId = dstId;
-      netRxSlot  = slotNo;
-    }
-
-    // Get user info — cache only (fast). If not cached, queue an async lookup.
-    // The lookup task will update the OLED when it completes without blocking
-    // the DMR task, which would otherwise delay keepalives and cause disconnects.
-    String userInfo = getCachedDmrUserInfo(srcId);
-    if (isNewTx) {
-      if (!userInfo.isEmpty()) {
-        addLogMessage("[DMR-LOOKUP] Found in cache: " + userInfo);
-      } else if (dmrLookupQueue != nullptr) {
-        // Skip if this ID was already queued recently (avoids duplicate lookups when
-        // the same station calls back while the first async lookup is still running)
-        static uint32_t lastQueuedId = 0;
-        if (srcId != lastQueuedId) {
-          xQueueSend(dmrLookupQueue, &srcId, 0);  // non-blocking, drop if queue full
-          lastQueuedId = srcId;
-        }
-      }
-    }
-    String callsign, name, city, state, country;
-    parseDmrUserInfo(userInfo, callsign, name, city, state, country);
-    setDmrTxUserInfo(callsign, String(srcId), name, city, state, country);
-
-    // Talker Alias: extract from embedded LC and show while DB lookup is pending.
-    // tryExtractTA() maintains its own state machine across frames; it returns
-    // non-empty text only when a new TA block completes (roughly once per 4 frames).
-    {
-        static String lastTa;
-        if (isNewTx) lastTa = "";
-        String ta = tryExtractTA(&packet[20], isNewTx);
-        if (ta.length() > 0 && userInfo.isEmpty() && ta != lastTa) {
-            setDmrTxUserInfo(ta, String(srcId), "", "", "", "");
-            addLogMessage("[DMR-TA] Talker Alias: " + ta);
-            lastTa = ta;
-        }
-    }
-
-    // Log and publish once per new transmission (after user info is parsed)
-    if (isNewTx) {
-      addLogMessage("[DMR] Net→RF: " + String(srcId) + "→" +
-                    (isGroup ? "TG" : "") + String(dstId) +
-                    " slot=" + String(slotNo));
-      if (userInfo.length() > 0)
-        addLogMessage("[DMR] SRC UserInfo: " + userInfo);
-
-      // Store callsign for the "ended" event
-      netRxCallsign = callsign;
-
-      // Publish full user info as JSON.
-      // source=cache means data is complete; source=pending means user_info event follows.
-      String json = "{\"event\":\"net2rf\""
-                    ",\"src\":" + String(srcId) +
-                    ",\"dst\":" + String(dstId) +
-                    ",\"slot\":" + String(slotNo) +
-                    ",\"group\":" + (isGroup ? "true" : "false") +
-                    ",\"source\":\"" + (userInfo.isEmpty() ? "pending" : "cache") + "\"" +
-                    ",\"callsign\":\"" + jsonStr(callsign) + "\"" +
-                    ",\"name\":\"" + jsonStr(name) + "\"" +
-                    ",\"city\":\"" + jsonStr(city) + "\"" +
-                    ",\"state\":\"" + jsonStr(state) + "\"" +
-                    ",\"country\":\"" + jsonStr(country) + "\"}";
-      publishMqtt(mqttDmrTaskTopic.c_str(), json.c_str());
-    }
-
-    // Helper: enqueue one frame into the TX circular buffer
-    uint8_t txCmd = (slotNo == 1) ? CMD_DMR_DATA1 : CMD_DMR_DATA2;
-    auto enqueue = [&](const uint8_t* frameData33) -> bool {
-      int nextHead = (dmrTxHead + 1) % DMR_TX_BUFFER_SIZE;
-      if (nextHead == dmrTxTail) return false; // full
-      DmrTxFrame &f = dmrTxBuffer[dmrTxHead];
-      f.data[0] = 0x00;
-      memcpy(&f.data[1], frameData33, 33);
-      f.cmd   = txCmd;
-      f.valid = true;
-      dmrTxHead = nextHead;
-      return true;
-    };
-
-    if (mmdvmReady)
-    {
-      // Queue every frame exactly once — LC header, voice, terminator.
-      // The modem firmware's DMRTX state machine handles the protocol timing
-      // and LC embedding on-air. Extra host-side injections add non-voice
-      // frames that the radio hears as data bursts / audio glitches.
-      enqueue(&packet[20]);
-    }
+    // Forward raw DMRD packet to the remote node over ESP-NOW (sender mode).
+    // The remote node runs the same firmware and processes it independently —
+    // full callsign lookup, OLED, web UI, and modem TX all work without internet.
+#if ESPNOW_SENDER
+    if (espnowDmrEnabled) espnowSendDmrNetPacket(packet, (uint8_t)len);
+#endif
+    processDMRDPacket(packet, len);
     return;
   }
 }
@@ -659,9 +690,6 @@ void dmrTask(void *parameter)
       netRxActive = false;
       if (dmrTxActive) {
         writeDMRStart(false);
-#if ESPNOW_SENDER
-        if (espnowDmrEnabled) espnowSendDmrEnd(netRxSlot);
-#endif
         dmrTxActive = false;
       }
       addLogMessage("[DMR] Net→RF ended: " + String(netRxSrcId) + "→" + String(netRxDstId));
@@ -686,15 +714,9 @@ void dmrTask(void *parameter)
           if (!dmrTxActive)
           {
             writeDMRStart(true);
-#if ESPNOW_SENDER
-            if (espnowDmrEnabled) espnowSendDmrStart(frame.cmd == CMD_DMR_DATA1 ? 1 : 2);
-#endif
             dmrTxActive = true;
           }
           sendMMDVMCommand(frame.cmd, frame.data, 34);
-#if ESPNOW_SENDER
-          if (espnowDmrEnabled) espnowSendDmrFrame(frame.cmd == CMD_DMR_DATA1 ? 1 : 2, frame.data);
-#endif
           frame.valid = false;
           dmrTxTail = (dmrTxTail + 1) % DMR_TX_BUFFER_SIZE;
           lastTxPaced = nowPaced;

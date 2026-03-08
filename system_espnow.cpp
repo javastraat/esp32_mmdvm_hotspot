@@ -1,16 +1,18 @@
 /*
- * system_espnow.cpp - ESP-NOW DMR frame relay (sender side)
+ * system_espnow.cpp - ESP-NOW DMR frame relay
  *
- * Mirrors every incoming Net→RF DMR frame to a second ESP32+modem over ESP-NOW.
- * The receiver feeds the frames into its local MMDVM modem so both devices TX.
+ * Sender: forwards raw BrandMeister DMRD Homebrew packets over ESP-NOW.
+ * Receiver: receives those packets via callback, enqueues them to
+ *           espnowDmrNetQueue for the DMR task to drain each loop iteration.
  *
- * Hook points in mmdvm_dmr.cpp (all guarded by #if ESPNOW_SENDER):
- *   writeDMRStart(true)             -> espnowSendDmrStart(slot)
- *   sendMMDVMCommand(frame.data,34) -> espnowSendDmrFrame(slot, frame.data)
- *   writeDMRStart(false)            -> espnowSendDmrEnd(slot)
+ * The remote node (same firmware) processes the packets exactly as if they
+ * arrived from BrandMeister — full callsign lookup, OLED, web UI, modem TX.
  *
- * Runtime settings loaded from NVS via esp32_mmdvm_hotspot.ino:
- *   espnowSenderEnabled, espnowReceiverMac, espnowDebug
+ * Sender hook in mmdvm_dmr.cpp:
+ *   handleDMRNetwork() → after validating DMRD packet → espnowSendDmrNetPacket()
+ *
+ * Receiver injection in mmdvm_dmr.cpp:
+ *   handleDMRNetwork() → drains espnowDmrNetQueue → processDMRDPacket()
  */
 
 #include "system/system_espnow.h"
@@ -24,7 +26,12 @@
 static uint8_t _peerMac[6] = {};
 static bool    _ready       = false;
 
-// Parse "AA:BB:CC:DD:EE:FF" into 6-byte array. Returns true on success.
+QueueHandle_t espnowDmrNetQueue = nullptr;
+
+// -------------------------------------------------------
+// Parse "AA:BB:CC:DD:EE:FF" into 6-byte array.
+// Returns true on success.
+// -------------------------------------------------------
 static bool parseMacString(const String& macStr, uint8_t* out) {
   if (macStr.length() < 17) return false;
   for (int i = 0; i < 6; i++) {
@@ -33,7 +40,9 @@ static bool parseMacString(const String& macStr, uint8_t* out) {
   return true;
 }
 
-// Send callback — fires after frame handed to radio driver
+// -------------------------------------------------------
+// Send callback (sender only) — fires after frame handed to radio driver
+// -------------------------------------------------------
 static void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t status) {
   if (espnowDebug && status != ESP_NOW_SEND_SUCCESS) {
     addLogMessage("[ESP-NOW] No ACK from peer");
@@ -41,18 +50,43 @@ static void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t statu
 }
 
 // -------------------------------------------------------
-// initEspNow() — call from setup() after WiFi is up
+// Receive callback — runs in WiFi task context on BOTH sender and receiver.
+// Enqueues incoming DMRD packets for the DMR task to drain.
+// -------------------------------------------------------
+static void onReceive(const esp_now_recv_info_t* info,
+                      const uint8_t* inData, int dataLen) {
+  if (dataLen < 2 || inData[0] != ESPNOW_TYPE_DMR_NET) return;
+  if (espnowDmrNetQueue == nullptr) return;
+
+  EspNowDmrNetPacket pkt = {};
+  // The incoming bytes ARE the packed struct — copy directly
+  memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
+
+  // Non-blocking enqueue — drop if DMR task is behind (queue full)
+  xQueueSend(espnowDmrNetQueue, &pkt, 0);
+}
+
+// -------------------------------------------------------
+// initEspNow() — call from setup() when sender OR receiver is enabled
 // -------------------------------------------------------
 void initEspNow() {
-  // Parse receiver MAC from runtime setting
-  if (!parseMacString(espnowReceiverMac, _peerMac)) {
-    addLogMessage("[ESP-NOW] Invalid receiver MAC — check espnowReceiverMac setting");
+  // Create the receive queue (used by both sender and receiver side)
+  espnowDmrNetQueue = xQueueCreate(8, sizeof(EspNowDmrNetPacket));
+  if (!espnowDmrNetQueue) {
+    addLogMessage("[ESP-NOW] Failed to create receive queue");
     return;
   }
 
-  // WiFi task starts asynchronously — wait until the WiFi driver is running
-  // before calling esp_now_init(), otherwise it crashes (LoadProhibited).
-  // Poll esp_wifi_get_mac(): returns ESP_ERR_WIFI_NOT_INIT until driver is up.
+  // Parse receiver MAC from runtime setting (sender side needs this)
+  if (espnowSenderEnabled) {
+    if (!parseMacString(espnowReceiverMac, _peerMac)) {
+      addLogMessage("[ESP-NOW] Invalid receiver MAC — check espnowReceiverMac setting");
+      // Continue — receiver-only mode still works without a peer MAC
+    }
+  }
+
+  // WiFi task starts asynchronously — wait until the driver is up before
+  // calling esp_now_init(), otherwise it crashes (LoadProhibited).
   uint8_t tmpMac[6];
   int waitMs = 0;
   while (esp_wifi_get_mac(WIFI_IF_STA, tmpMac) != ESP_OK && waitMs < 10000) {
@@ -69,51 +103,47 @@ void initEspNow() {
     return;
   }
 
-  esp_now_register_send_cb(onSendResult);
+  // Register receive callback — needed on both sender and receiver
+  esp_now_register_recv_cb(onReceive);
 
-  esp_now_peer_info_t peer = {};
-  memcpy(peer.peer_addr, _peerMac, 6);
-  peer.channel = 0;      // follow current WiFi channel
-  peer.encrypt = false;
+  // Register send callback and add peer — sender only
+  if (espnowSenderEnabled) {
+    esp_now_register_send_cb(onSendResult);
 
-  if (esp_now_add_peer(&peer) != ESP_OK) {
-    addLogMessage("[ESP-NOW] Failed to add peer — check espnowReceiverMac setting");
-    return;
+    esp_now_peer_info_t peer = {};
+    memcpy(peer.peer_addr, _peerMac, 6);
+    peer.channel = 0;      // follow current WiFi channel
+    peer.encrypt = false;
+
+    if (esp_now_add_peer(&peer) != ESP_OK) {
+      addLogMessage("[ESP-NOW] Failed to add peer — check espnowReceiverMac setting");
+      return;
+    }
+
+    addLogMessage(String("[ESP-NOW] Sender ready — peer: ") + espnowReceiverMac);
+  }
+
+  if (espnowReceiverEnabled) {
+    addLogMessage("[ESP-NOW] Receiver ready — listening for DMRD packets");
   }
 
   _ready = true;
-  addLogMessage(String("[ESP-NOW] Ready — peer: ") + espnowReceiverMac);
 }
 
 // -------------------------------------------------------
-// Internal send helper
+// espnowSendDmrNetPacket() — called from handleDMRNetwork() (sender side)
+// Forwards the raw DMRD Homebrew packet to the peer over ESP-NOW.
 // -------------------------------------------------------
-static void sendPacket(uint8_t type, uint8_t slot, uint8_t* data, uint8_t dataLen) {
-  if (!_ready) return;
+void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
+  if (!_ready || !espnowSenderEnabled) return;
+  if (len > 60) len = 60;
 
-  EspNowDmrPacket pkt = {};
-  pkt.type = type;
-  pkt.slot = slot;
-  if (data && dataLen > 0) {
-    memcpy(pkt.data, data, dataLen < 34 ? dataLen : 34);
-  }
+  EspNowDmrNetPacket pkt = {};
+  pkt.type = ESPNOW_TYPE_DMR_NET;
+  pkt.len  = len;
+  memcpy(pkt.data, dmrdPacket, len);
 
   esp_now_send(_peerMac, (uint8_t*)&pkt, sizeof(pkt));
-}
-
-// -------------------------------------------------------
-// Public API — called from the three hook points in mmdvm_dmr.cpp
-// -------------------------------------------------------
-void espnowSendDmrStart(uint8_t slot) {
-  sendPacket(ESPNOW_TYPE_START, slot, nullptr, 0);
-}
-
-void espnowSendDmrFrame(uint8_t slot, uint8_t* modemData34) {
-  sendPacket(ESPNOW_TYPE_FRAME, slot, modemData34, 34);
-}
-
-void espnowSendDmrEnd(uint8_t slot) {
-  sendPacket(ESPNOW_TYPE_END, slot, nullptr, 0);
 }
 
 #endif  // ESPNOW_SENDER

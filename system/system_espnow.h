@@ -1,15 +1,23 @@
 /*
  * system_espnow.h - ESP-NOW DMR frame relay
  *
- * Mirrors every incoming DMR frame to a second ESP32+modem over ESP-NOW.
- * Runtime settings are stored in NVS and exposed as global vars in the .ino.
- * Compile-time defaults live in include/config.h.
+ * Forwards raw BrandMeister DMRD UDP packets over ESP-NOW to a second
+ * ESP32+modem running the same firmware. The receiver processes them
+ * exactly as if they arrived from BrandMeister directly — full callsign
+ * lookup, OLED display, web UI, and modem TX all work on the remote node.
+ *
+ * Runtime settings loaded from NVS. Compile-time defaults in include/config.h.
+ *
+ * Packet flow:
+ *   BrandMeister → sender UDP → [ESP-NOW] → receiver queue → receiver DMR task → modem TX
  */
 
 #ifndef SYSTEM_ESPNOW_H
 #define SYSTEM_ESPNOW_H
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include "../include/config.h"
 
 // Runtime variables — defined in esp32_mmdvm_hotspot.ino, loaded from NVS
@@ -22,23 +30,23 @@ extern bool   espnowPocsagEnabled;
 
 #if ESPNOW_SENDER
 
-// Packet type bytes (must match receiver firmware)
-#define ESPNOW_TYPE_START  0x01   // Begin DMR transmission on receiver
-#define ESPNOW_TYPE_FRAME  0x02   // DMR frame data
-#define ESPNOW_TYPE_END    0x03   // End DMR transmission on receiver
+// ── Packet type ────────────────────────────────────────────────────────────
+#define ESPNOW_TYPE_DMR_NET  0x10   // Raw DMRD Homebrew protocol packet
 
-// Binary packet — 36 bytes total, must be identical on sender and receiver
-struct __attribute__((packed)) EspNowDmrPacket {
-  uint8_t type;       // ESPNOW_TYPE_START / FRAME / END
-  uint8_t slot;       // DMR slot (1 or 2)
-  uint8_t data[34];   // modem data: [0]=ctrl byte, [1..33]=33-byte DMR frame
-                      // only populated for ESPNOW_TYPE_FRAME
+// Binary packet — 62 bytes total, must be identical on sender and receiver.
+// data[] holds the raw DMRD UDP payload (header + 33-byte DMR frame, ~53-55 bytes).
+struct __attribute__((packed)) EspNowDmrNetPacket {
+  uint8_t type;       // ESPNOW_TYPE_DMR_NET
+  uint8_t len;        // number of valid bytes in data[] (typically 53-55)
+  uint8_t data[60];   // raw DMRD Homebrew packet bytes
 };
 
+// Queue for received ESP-NOW packets — polled by the DMR task (receiver mode)
+extern QueueHandle_t espnowDmrNetQueue;
+
+// ── Public API ─────────────────────────────────────────────────────────────
 void initEspNow();
-void espnowSendDmrStart(uint8_t slot);
-void espnowSendDmrFrame(uint8_t slot, uint8_t* modemData34);
-void espnowSendDmrEnd(uint8_t slot);
+void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len);
 
 #endif  // ESPNOW_SENDER
 #endif  // SYSTEM_ESPNOW_H
