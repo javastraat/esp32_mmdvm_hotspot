@@ -329,7 +329,7 @@ void loadSettings()
     cwidEnabled     = preferences.getBool("cwid_en",     CWID_ENABLED);
     cwidIntervalMin = preferences.getUChar("cwid_int",   CWID_INTERVAL_MIN);
     pocsagFrequency = preferences.getUInt("pocsag_freq", POCSAG_FREQUENCY);
-    pocsagServerEspNow = preferences.getBool("pocsag_srv_espnow", POCSAG_SERVER_ESPNOW);
+    pocsagServerEspNow = preferences.getBool("pocsag_espnow", POCSAG_SERVER_ESPNOW);
     dapnetServer    = getStringNonEmpty("dapnet_server", DAPNET_SERVER);
     dapnetPort      = preferences.getUShort("dapnet_port", DAPNET_PORT);
     dapnetNodeCs    = preferences.getString("dapnet_cs", DAPNET_NODE_CS);
@@ -716,7 +716,7 @@ void saveSettings()
   preferences.putBool("cwid_en",     cwidEnabled);
   preferences.putUChar("cwid_int",   cwidIntervalMin);
   preferences.putUInt("pocsag_freq",          pocsagFrequency);
-  preferences.putBool("pocsag_srv_espnow",    pocsagServerEspNow);
+  preferences.putBool("pocsag_espnow",    pocsagServerEspNow);
   preferences.putString("dapnet_server", dapnetServer);
   preferences.putUShort("dapnet_port",   dapnetPort);
   preferences.putString("dapnet_cs",     dapnetNodeCs);
