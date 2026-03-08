@@ -43,7 +43,7 @@ String getServiceEspnowPageHTML()
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>When enabled, this device forwards frames to the receiver over ESP-NOW. WiFi must be up for ESP-NOW to work.</p>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Enable Sender:</span>";
-  html += "<label class='switch'><input type='checkbox' id='en-sender'" + String(espnowSenderEnabled ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "<label class='switch'><input type='checkbox' id='en-sender'" + String(espnowSenderEnabled ? " checked" : "") + " onchange='syncToggles()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Receiver MAC:</span>";
@@ -67,7 +67,7 @@ String getServiceEspnowPageHTML()
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Future use. When this device acts as the remote node, enable receiver mode so it can accept incoming ESP-NOW frames and feed them to its local modem.</p>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Enable Receiver:</span>";
-  html += "<label class='switch'><input type='checkbox' id='en-receiver'" + String(espnowReceiverEnabled ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "<label class='switch'><input type='checkbox' id='en-receiver'" + String(espnowReceiverEnabled ? " checked" : "") + " onchange='syncToggles()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Receiver integration in firmware is not yet active. This flag is reserved for future use.</p>";
   html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
@@ -82,11 +82,11 @@ String getServiceEspnowPageHTML()
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Choose which protocol frames are forwarded over ESP-NOW. Sender must be enabled above.</p>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Forward DMR:</span>";
-  html += "<label class='switch'><input type='checkbox' id='en-dmr'" + String(espnowDmrEnabled ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "<label class='switch'><input type='checkbox' id='en-dmr'" + String(espnowDmrEnabled ? " checked" : "") + " onchange='syncModes()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Forward POCSAG:</span>";
-  html += "<label class='switch'><input type='checkbox' id='en-pocsag'" + String(espnowPocsagEnabled ? " checked" : "") + "><span class='slider'></span></label>";
+  html += "<label class='switch'><input type='checkbox' id='en-pocsag'" + String(espnowPocsagEnabled ? " checked" : "") + " onchange='syncModes()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
   html += "<button class='btn btn-success' onclick='saveModes()'>Save</button>";
@@ -173,6 +173,26 @@ String getServiceEspnowPageHTML()
   html += "fetch('/api/reset-espnow-modes',{method:'POST'}).then(r=>r.text()).then(msg=>{showAlert(msg);location.reload();});});";
   html += "}";
 
+  html += "function syncModes(){";
+  html += "  var d=document.getElementById('en-dmr');";
+  html += "  var p=document.getElementById('en-pocsag');";
+  html += "  var dl=d.closest('label');var pl=p.closest('label');";
+  html += "  if(d.checked){p.disabled=true;pl.style.opacity='0.4';pl.style.pointerEvents='none';}";
+  html += "  else{p.disabled=false;pl.style.opacity='';pl.style.pointerEvents='';}";
+  html += "  if(p.checked){d.disabled=true;dl.style.opacity='0.4';dl.style.pointerEvents='none';}";
+  html += "  else{d.disabled=false;dl.style.opacity='';dl.style.pointerEvents='';}";
+  html += "}";
+  html += "syncModes();";
+  html += "function syncToggles(){";
+  html += "  var s=document.getElementById('en-sender');";
+  html += "  var r=document.getElementById('en-receiver');";
+  html += "  var sl=s.closest('label');var rl=r.closest('label');";
+  html += "  if(s.checked){r.disabled=true;rl.style.opacity='0.4';rl.style.pointerEvents='none';}";
+  html += "  else{r.disabled=false;rl.style.opacity='';rl.style.pointerEvents='';}";
+  html += "  if(r.checked){s.disabled=true;sl.style.opacity='0.4';sl.style.pointerEvents='none';}";
+  html += "  else{s.disabled=false;sl.style.opacity='';sl.style.pointerEvents='';}";
+  html += "}";
+  html += "syncToggles();";
   html += "</script>";
 
   html += "</div>"; // close container
