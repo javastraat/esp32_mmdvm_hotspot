@@ -22,7 +22,6 @@
 
 // Runtime variables — defined in esp32_mmdvm_hotspot.ino, loaded from NVS
 extern bool   espnowSenderEnabled;
-extern bool   espnowReceiverEnabled;
 extern String espnowReceiverMac;   // "XX:XX:XX:XX:XX:XX"
 extern bool   espnowDebug;
 extern bool   espnowDmrEnabled;

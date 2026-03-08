@@ -4,8 +4,6 @@
  * Routes:
  *   POST /api/save-espnow-sender    sender enable, receiver MAC, debug flag
  *   POST /api/reset-espnow-sender   reset sender settings to defaults
- *   POST /api/save-espnow-receiver  receiver enable flag
- *   POST /api/reset-espnow-receiver reset receiver setting to default
  *   POST /api/save-espnow-modes     DMR + POCSAG forward toggles
  *   POST /api/reset-espnow-modes    reset mode settings to defaults
  *
@@ -52,26 +50,6 @@ void registerEspnowSettingsRoutes()
     saveSettings();
     addLogMessage("[ESP-NOW] Sender settings reset to default");
     server.send(200, "text/plain", "ESP-NOW sender settings reset to default. Reboot to apply.");
-  });
-
-  // ── Receiver ──────────────────────────────────────────────────────────────
-
-  server.on("/api/save-espnow-receiver", HTTP_POST, []() {
-    if (!server.hasArg("receiver")) {
-      server.send(400, "text/plain", "ERROR: Missing parameter");
-      return;
-    }
-    espnowReceiverEnabled = (server.arg("receiver") == "1");
-    saveSettings();
-    addLogMessage("[ESP-NOW] Receiver: " + String(espnowReceiverEnabled ? "enabled" : "disabled"));
-    server.send(200, "text/plain", "ESP-NOW receiver " + String(espnowReceiverEnabled ? "enabled" : "disabled") + ". Reboot to apply.");
-  });
-
-  server.on("/api/reset-espnow-receiver", HTTP_POST, []() {
-    espnowReceiverEnabled = ESPNOW_RECEIVER;
-    saveSettings();
-    addLogMessage("[ESP-NOW] Receiver setting reset to default");
-    server.send(200, "text/plain", "ESP-NOW receiver setting reset to default.");
   });
 
   // ── Protocol Modes ────────────────────────────────────────────────────────

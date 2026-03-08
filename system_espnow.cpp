@@ -123,9 +123,7 @@ void initEspNow() {
     addLogMessage(String("[ESP-NOW] Sender ready — peer: ") + espnowReceiverMac);
   }
 
-  if (espnowReceiverEnabled) {
-    addLogMessage("[ESP-NOW] Receiver ready — listening for DMRD packets");
-  }
+
 
   _ready = true;
 }

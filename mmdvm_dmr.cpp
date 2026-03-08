@@ -424,11 +424,11 @@ static void processDMRDPacket(const uint8_t* packet, int len)
 void handleDMRNetwork()
 {
 #if ESPNOW_SENDER
-  // Receiver mode: drain queued ESP-NOW DMRD packets each loop iteration.
+  // Relay mode: drain queued ESP-NOW DMRD packets each loop iteration.
   // The ESP-NOW receive callback (WiFi task context) enqueues; we process here
   // in the DMR task context — same as if the packet arrived via UDP.
   // No re-forwarding: processDMRDPacket() never calls espnowSendDmrNetPacket().
-  if (espnowReceiverEnabled && espnowDmrNetQueue) {
+  if (dmrServerEspNow && espnowDmrNetQueue) {
     EspNowDmrNetPacket ep;
     while (xQueueReceive(espnowDmrNetQueue, &ep, 0) == pdTRUE) {
       if (ep.type == ESPNOW_TYPE_DMR_NET &&
@@ -437,12 +437,9 @@ void handleDMRNetwork()
         processDMRDPacket(ep.data, (int)ep.len);
       }
     }
+    return; // skip BrandMeister UDP
   }
 #endif
-
-  // In ESP-NOW relay mode the DMR data source is the ESP-NOW queue (drained above).
-  // Skip BrandMeister UDP entirely — no socket read, no protocol parsing.
-  if (dmrServerEspNow) return;
 
   int packetSize = dmrUdp.parsePacket();
   if (!packetSize)

@@ -293,7 +293,6 @@ bool dmrServerEspNow = DMR_SERVER_ESPNOW;  // true = receive frames via ESP-NOW 
 
 // ESP-NOW Settings (loaded from NVS or config.h)
 bool espnowSenderEnabled   = ESPNOW_SENDER;
-bool espnowReceiverEnabled = ESPNOW_RECEIVER;
 String espnowReceiverMac   = ESPNOW_RECEIVER_MAC_STR;
 bool espnowDebug           = ESPNOW_DEBUG;
 bool espnowDmrEnabled      = ESPNOW_DMR;
@@ -525,7 +524,6 @@ void loadSettings()
 
     // ESP-NOW Settings
     espnowSenderEnabled   = preferences.getBool("espnow_sender", ESPNOW_SENDER);
-    espnowReceiverEnabled = preferences.getBool("espnow_recv",   ESPNOW_RECEIVER);
     espnowReceiverMac     = preferences.getString("espnow_mac",  ESPNOW_RECEIVER_MAC_STR);
     espnowDebug           = preferences.getBool("espnow_debug",  ESPNOW_DEBUG);
     espnowDmrEnabled      = preferences.getBool("espnow_dmr",    ESPNOW_DMR);
@@ -911,7 +909,6 @@ void saveSettings()
 
   // ESP-NOW Settings
   preferences.putBool("espnow_sender", espnowSenderEnabled);
-  preferences.putBool("espnow_recv",   espnowReceiverEnabled);
   preferences.putString("espnow_mac",  espnowReceiverMac);
   preferences.putBool("espnow_debug",  espnowDebug);
   preferences.putBool("espnow_dmr",    espnowDmrEnabled);
@@ -1008,11 +1005,11 @@ void setup()
     addLogMessage("[Setup] ArduinoOTA enabled - initializing ArduinoOTA task");
     initArduinoOtaTask();
   }
-  if (espnowSenderEnabled || espnowReceiverEnabled)
+  if (espnowSenderEnabled || dmrServerEspNow)
   {
     addLogMessage("[Setup] ESP-NOW enabled (sender=" +
                   String(espnowSenderEnabled ? "yes" : "no") +
-                  " receiver=" + String(espnowReceiverEnabled ? "yes" : "no") + ")");
+                  " relay=" + String(dmrServerEspNow ? "yes" : "no") + ")");
     initEspNow();
   }
   // Initialize NTP time synchronization
