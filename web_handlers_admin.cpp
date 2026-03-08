@@ -51,6 +51,7 @@ extern void saveSettings();
 // Runtime connection status (defined in mmdvm task files)
 extern volatile bool dmrLoggedIn;
 extern volatile bool dapnetLoggedIn;
+extern bool dmrServerEspNow;
 
 // Service status variables
 extern bool ethEnabled;
@@ -332,7 +333,7 @@ void registerAdminRoutes()
   // Service status: system services enabled + runtime state
   server.on("/api/service-status", HTTP_GET, []()
             {
-    bool wifiConn = (WiFi.status() == WL_CONNECTED);
+    bool wifiConn = (WiFi.status() == WL_CONNECTED) || (WiFi.softAPIP() != IPAddress(0, 0, 0, 0));
     bool oledRunning = (oledTaskHandle != NULL);
     String json = "[";
     json += "{\"id\":\"wifi\",\"label\":\"WiFi\",\"enabled\":true,\"connected\":" + String(wifiConn ? "true" : "false") + "},";
@@ -351,7 +352,7 @@ void registerAdminRoutes()
   server.on("/api/mode-status", HTTP_GET, []()
             {
     String json = "[";
-    json += "{\"id\":\"dmr\",\"label\":\"DMR\",\"enabled\":" + String(modeDmrEnabled ? "true" : "false") + ",\"connected\":" + String(dmrLoggedIn ? "true" : "false") + "},";
+    json += "{\"id\":\"dmr\",\"label\":\"DMR\",\"enabled\":" + String(modeDmrEnabled ? "true" : "false") + ",\"connected\":" + String((dmrLoggedIn || dmrServerEspNow) ? "true" : "false") + "},";
     json += "{\"id\":\"dstar\",\"label\":\"D-STAR\",\"enabled\":" + String(modeDstarEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"ysf\",\"label\":\"YSF\",\"enabled\":" + String(modeYsfEnabled ? "true" : "false") + "},";
     json += "{\"id\":\"p25\",\"label\":\"P25\",\"enabled\":" + String(modeP25Enabled ? "true" : "false") + "},";

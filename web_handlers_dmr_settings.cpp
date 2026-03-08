@@ -24,6 +24,7 @@ extern uint32_t dmrRxFreq;
 extern uint32_t dmrTxFreq;
 extern uint8_t dmrColorCode;
 extern uint8_t dmrRfPower;
+extern bool   dmrServerEspNow;
 extern String dmrServer;
 extern uint16_t dmrPort;
 extern uint16_t dmrLocalPort;
@@ -116,37 +117,47 @@ void registerDmrSettingsRoutes()
   // DMR Network Settings (server, password, frequencies, color code, rf power)
   server.on("/api/save-dmr-network", HTTP_POST, []()
             {
-    if (!server.hasArg("server") || !server.hasArg("password")) {
-      server.send(400, "text/plain", "ERROR: Missing parameters");
-      return;
+    // source=espnow means ESP-NOW relay mode — BrandMeister fields are optional
+    bool espnow = (server.arg("source") == "espnow");
+    dmrServerEspNow = espnow;
+
+    if (!espnow) {
+      if (!server.hasArg("server") || !server.hasArg("password")) {
+        server.send(400, "text/plain", "ERROR: Missing parameters");
+        return;
+      }
+      String srv = server.arg("server");
+      if (srv.length() < 1) {
+        server.send(400, "text/plain", "ERROR: Server address is required");
+        return;
+      }
+      uint8_t colorCode = server.arg("colorcode").toInt();
+      if (colorCode < 1 || colorCode > 15) {
+        server.send(400, "text/plain", "ERROR: Color Code must be 1-15");
+        return;
+      }
+      dmrServer   = srv;
+      dmrPassword = server.arg("password");
+      dmrRxFreq   = server.arg("rxfreq").toInt();
+      dmrTxFreq   = server.arg("txfreq").toInt();
+      dmrColorCode = colorCode;
+      dmrRfPower  = server.arg("rfpower").toInt();
+    } else {
+      // Still save freq / CC / power — they're used for modem config even in relay mode
+      uint8_t colorCode = server.arg("colorcode").toInt();
+      if (colorCode >= 1 && colorCode <= 15) dmrColorCode = colorCode;
+      uint32_t rxFreq = server.arg("rxfreq").toInt();
+      uint32_t txFreq = server.arg("txfreq").toInt();
+      if (rxFreq > 0) dmrRxFreq = rxFreq;
+      if (txFreq > 0) dmrTxFreq = txFreq;
+      uint8_t rfPower = server.arg("rfpower").toInt();
+      dmrRfPower = rfPower;
     }
 
-    String srv = server.arg("server");
-    String pass = server.arg("password");
-    uint32_t rxFreq = server.arg("rxfreq").toInt();
-    uint32_t txFreq = server.arg("txfreq").toInt();
-    uint8_t colorCode = server.arg("colorcode").toInt();
-    uint8_t rfPower = server.arg("rfpower").toInt();
-
-    if (srv.length() < 1) {
-      server.send(400, "text/plain", "ERROR: Server address is required");
-      return;
-    }
-    if (colorCode < 1 || colorCode > 15) {
-      server.send(400, "text/plain", "ERROR: Color Code must be 1-15");
-      return;
-    }
-
-    dmrServer = srv;
-    dmrPassword = pass;
-    dmrRxFreq = rxFreq;
-    dmrTxFreq = txFreq;
-    dmrColorCode = colorCode;
-    dmrRfPower = rfPower;
     saveSettings();
-
-    addLogMessage("[Settings] DMR network updated: " + dmrServer + " CC=" + String(dmrColorCode));
-    server.send(200, "text/plain", "DMR network saved: " + dmrServer); });
+    String src = espnow ? "ESP-NOW Relay" : dmrServer;
+    addLogMessage("[Settings] DMR network updated: " + src + " CC=" + String(dmrColorCode));
+    server.send(200, "text/plain", "DMR network saved (" + src + ")"); });
 
   server.on("/api/reset-dmr-network", HTTP_POST, []()
             {

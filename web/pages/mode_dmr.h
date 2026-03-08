@@ -20,6 +20,7 @@ extern uint32_t dmrTxFreq;
 extern uint8_t dmrColorCode;
 extern uint8_t dmrRfPower;
 extern bool modeDmrEnabled;
+extern bool dmrServerEspNow;
 
 String getModeDmrPageHTML()
 {
@@ -52,14 +53,26 @@ String getModeDmrPageHTML()
   html += "</div>";
   html += "</div>";
 
-  // Card 2: BrandMeister Network
+  // Card 2: BrandMeister Network / ESP-NOW Relay
   html += "<div class='card'>";
-  html += "<h3>BrandMeister Network</h3>";
+  html += "<h3>DMR Network</h3>";
   html += "<form id='form-network' onsubmit='return saveDmrNetwork(event)'>";
+  // Source selector
+  html += "<div class='metric' style='margin-bottom:12px;'>";
+  html += "<span class='metric-label'>DMR Source:</span>";
+  html += "<label style='margin-right:16px;cursor:pointer;'>";
+  html += "<input type='radio' name='dmr_source' value='brandmeister'" + String(!dmrServerEspNow ? " checked" : "") + " onchange='updateSourceMode()'> BrandMeister";
+  html += "</label>";
+  html += "<label style='cursor:pointer;'>";
+  html += "<input type='radio' name='dmr_source' value='espnow'" + String(dmrServerEspNow ? " checked" : "") + " onchange='updateSourceMode()'> ESP-NOW Relay";
+  html += "</label>";
+  html += "</div>";
   bool isKnownServer = false;
   for (int i = 0; i < bmServerCount; i++) {
     if (dmrServer == String(bmServers[i].address)) { isKnownServer = true; break; }
   }
+  // BrandMeister-only fields (hidden in ESP-NOW mode)
+  html += "<div id='bm-fields'" + String(dmrServerEspNow ? " style='display:none;'" : "") + ">";
   html += "<div class='metric'><span class='metric-label'>Server:</span>";
   html += "<select id='serverSelect' style='width:60%;margin-right:8px;' onchange='updateServerField()'>";
   html += "<option value='custom'" + String(!isKnownServer ? " selected" : "") + ">Custom Server (enter below)</option>";
@@ -73,9 +86,10 @@ String getModeDmrPageHTML()
     html += "</option>";
   }
   html += "</select>";
-  html += "<input type='text' id='serverInput' name='dmr_server' placeholder='IP or FQDN' value='" + dmrServer + "' required style='width:38%;display:inline-block;'>";
+  html += "<input type='text' id='serverInput' name='dmr_server' placeholder='IP or FQDN' value='" + dmrServer + "' style='width:38%;display:inline-block;'>";
   html += "</div>";
-  html += "<div class='metric'><span class='metric-label'>Password:</span><input type='password' name='dmr_password' value='" + dmrPassword + "' required></div>";
+  html += "<div class='metric'><span class='metric-label'>Password:</span><input type='password' name='dmr_password' value='" + dmrPassword + "'></div>";
+  html += "</div>"; // end bm-fields
   html += "<div class='metric'><span class='metric-label'>RX Frequency (Hz):</span><input type='text' name='dmr_rx_freq' value='" + String(dmrRxFreq) + "' required maxlength='10' pattern='\\d{1,10}' title='Enter up to 10 digits'></div>";
   html += "<div class='metric'><span class='metric-label'>TX Frequency (Hz):</span><input type='text' name='dmr_tx_freq' value='" + String(dmrTxFreq) + "' required maxlength='10' pattern='\\d{1,10}' title='Enter up to 10 digits'></div>";
   html += "<div class='metric'><span class='metric-label'>Color Code (1-15):</span><input type='text' name='dmr_color_code' value='" + String(dmrColorCode) + "' required maxlength='2' pattern='1[0-5]|[1-9]' title='Enter 1-15'></div>";
@@ -142,6 +156,12 @@ String getModeDmrPageHTML()
   html += "  });\n";
   html += "}\n";
 
+  // Source mode toggle (BrandMeister vs ESP-NOW Relay)
+  html += "function updateSourceMode() {\n";
+  html += "  var espnow = document.querySelector('[name=dmr_source]:checked').value === 'espnow';\n";
+  html += "  document.getElementById('bm-fields').style.display = espnow ? 'none' : '';\n";
+  html += "}\n";
+
   // Server dropdown helper
   html += "function updateServerField() {\n";
   html += "  var sel = document.getElementById('serverSelect');\n";
@@ -172,25 +192,34 @@ String getModeDmrPageHTML()
   html += "  });\n";
   html += "}\n";
 
-  // Card 2: BrandMeister Network save/reset
+  // Card 2: DMR Network save/reset
   html += "function saveDmrNetwork(e) {\n";
   html += "  e.preventDefault();\n";
-  html += "  var server = document.getElementById('serverInput').value;\n";
-  html += "  var password = document.querySelector('[name=dmr_password]').value;\n";
+  html += "  var source = document.querySelector('[name=dmr_source]:checked').value;\n";
   html += "  var rxfreq = document.querySelector('[name=dmr_rx_freq]').value;\n";
   html += "  var txfreq = document.querySelector('[name=dmr_tx_freq]').value;\n";
   html += "  var colorcode = document.querySelector('[name=dmr_color_code]').value;\n";
   html += "  var rfpower = document.querySelector('[name=dmr_rf_power]').value;\n";
-  html += "  if (!server) { showAlert('Server address is required'); return false; }\n";
-  html += "  if (!password) { showAlert('Password is required'); return false; }\n";
   html += "  if (!rxfreq || !/^\\d{1,10}$/.test(rxfreq)) { showAlert('RX Frequency must be numeric'); return false; }\n";
   html += "  if (!txfreq || !/^\\d{1,10}$/.test(txfreq)) { showAlert('TX Frequency must be numeric'); return false; }\n";
   html += "  if (!colorcode || colorcode < 1 || colorcode > 15) { showAlert('Color Code must be 1-15'); return false; }\n";
-  html += "  showConfirm('Save BrandMeister network settings?<br><br>Server: ' + server, function() {\n";
+  html += "  var body = 'source=' + source + '&rxfreq=' + rxfreq + '&txfreq=' + txfreq + '&colorcode=' + colorcode + '&rfpower=' + rfpower;\n";
+  html += "  var confirmMsg;\n";
+  html += "  if (source === 'espnow') {\n";
+  html += "    confirmMsg = 'Save DMR network settings?<br><br>Source: ESP-NOW Relay';\n";
+  html += "  } else {\n";
+  html += "    var server = document.getElementById('serverInput').value;\n";
+  html += "    var password = document.querySelector('[name=dmr_password]').value;\n";
+  html += "    if (!server) { showAlert('Server address is required'); return false; }\n";
+  html += "    if (!password) { showAlert('Password is required'); return false; }\n";
+  html += "    body += '&server=' + encodeURIComponent(server) + '&password=' + encodeURIComponent(password);\n";
+  html += "    confirmMsg = 'Save DMR network settings?<br><br>Server: ' + server;\n";
+  html += "  }\n";
+  html += "  showConfirm(confirmMsg, function() {\n";
   html += "    fetch('/api/save-dmr-network', {\n";
   html += "      method: 'POST',\n";
   html += "      headers: {'Content-Type': 'application/x-www-form-urlencoded'},\n";
-  html += "      body: 'server=' + encodeURIComponent(server) + '&password=' + encodeURIComponent(password) + '&rxfreq=' + rxfreq + '&txfreq=' + txfreq + '&colorcode=' + colorcode + '&rfpower=' + rfpower\n";
+  html += "      body: body\n";
   html += "    }).then(r => r.text()).then(msg => { saveAndReboot(msg); });\n";
   html += "  });\n";
   html += "  return false;\n";
@@ -208,14 +237,19 @@ String getModeDmrPageHTML()
   html += "      return fetch(url, { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body });\n";
   html += "    };\n";
   html += "    var enable = document.getElementById('mode-dmr').checked;\n";
-  html += "    var server = document.getElementById('serverInput').value;\n";
-  html += "    var password = document.querySelector('[name=dmr_password]').value;\n";
+  html += "    var source = document.querySelector('[name=dmr_source]:checked').value;\n";
   html += "    var rxfreq = document.querySelector('[name=dmr_rx_freq]').value;\n";
   html += "    var txfreq = document.querySelector('[name=dmr_tx_freq]').value;\n";
   html += "    var colorcode = document.querySelector('[name=dmr_color_code]').value;\n";
   html += "    var rfpower = document.querySelector('[name=dmr_rf_power]').value;\n";
+  html += "    var netBody = 'source=' + source + '&rxfreq=' + rxfreq + '&txfreq=' + txfreq + '&colorcode=' + colorcode + '&rfpower=' + rfpower;\n";
+  html += "    if (source !== 'espnow') {\n";
+  html += "      var server = document.getElementById('serverInput').value;\n";
+  html += "      var password = document.querySelector('[name=dmr_password]').value;\n";
+  html += "      netBody += '&server=' + encodeURIComponent(server) + '&password=' + encodeURIComponent(password);\n";
+  html += "    }\n";
   html += "    post('/api/mode-toggle', 'mode=dmr&enable=' + enable)\n";
-  html += "    .then(function() { return post('/api/save-dmr-network', 'server=' + encodeURIComponent(server) + '&password=' + encodeURIComponent(password) + '&rxfreq=' + rxfreq + '&txfreq=' + txfreq + '&colorcode=' + colorcode + '&rfpower=' + rfpower); })\n";
+  html += "    .then(function() { return post('/api/save-dmr-network', netBody); })\n";
   html += "    .then(function() {\n";
   html += "      showAlert('All DMR settings saved.<br><br>The device will now reboot.');\n";
   html += "      fetch('/api/reboot', {method: 'POST'});\n";

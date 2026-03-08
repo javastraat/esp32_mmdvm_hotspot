@@ -185,6 +185,9 @@ const int WEB_SERVER_PORT = 80;
 #define DMR_API_URL "https://radioid.net/api/dmr/user/?id="  // RadioID.net API endpoint
 #define QRZ_LOOKUP_URL "https://www.qrz.com/db/"  // QRZ.com callsign lookup URL
 
+// DMR Server Mode — set true on the remote node to receive from ESP-NOW instead of BrandMeister
+#define DMR_SERVER_ESPNOW false
+
 // ESP-NOW Configuration
 #define ESPNOW_SENDER true                              // Compile-time: include ESP-NOW sender code
 #define ESPNOW_RECEIVER false                           // Reserved for future receiver-side integration

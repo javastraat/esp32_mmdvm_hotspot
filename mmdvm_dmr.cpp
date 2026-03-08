@@ -80,6 +80,7 @@ extern uint8_t dmrRfPower;
 extern bool sdcardEnabled;
 extern String dmrApiUrl;
 extern uint16_t dmrApiTimeout;
+extern bool dmrServerEspNow;
 
 // Task handle
 TaskHandle_t dmrTaskHandle = NULL;
@@ -439,6 +440,10 @@ void handleDMRNetwork()
   }
 #endif
 
+  // In ESP-NOW relay mode the DMR data source is the ESP-NOW queue (drained above).
+  // Skip BrandMeister UDP entirely — no socket read, no protocol parsing.
+  if (dmrServerEspNow) return;
+
   int packetSize = dmrUdp.parsePacket();
   if (!packetSize)
     return;
@@ -601,23 +606,37 @@ void dmrTask(void *parameter)
 
   addLogMessage("[DMR Task] Modem firmware: " + modemFirmwareVersion);
 
-  // Wait for any network connection (WiFi OR Ethernet)
-  while (WiFi.status() != WL_CONNECTED && !ethConnected)
+  if (dmrServerEspNow)
   {
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // ESP-NOW relay mode: BrandMeister is not used.
+    // Frames arrive via the ESP-NOW receive queue and are processed by
+    // handleDMRNetwork() → processDMRDPacket() on every loop iteration.
+    // WiFi driver must be up for ESP-NOW (handled by initEspNow()), but we
+    // do not need a routed internet connection.
+    addLogMessage("[DMR Task] ESP-NOW relay mode — BrandMeister disabled, receiving via ESP-NOW");
+    publishMqtt(mqttDmrTaskTopic.c_str(), "{\"event\":\"espnow_relay_ready\"}");
+    dmrLoginStatus = "ESP-NOW Relay";
+  }
+  else
+  {
+    // Wait for any network connection (WiFi OR Ethernet)
+    while (WiFi.status() != WL_CONNECTED && !ethConnected)
+    {
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+    addLogMessage("[DMR Task] Network connected - starting DMR network login...");
+    publishMqtt(mqttDmrTaskTopic.c_str(), "{\"event\":\"network_ready\"}");
   }
 
-  addLogMessage("[DMR Task] Network connected - starting DMR network login...");
-  publishMqtt(mqttDmrTaskTopic.c_str(), "{\"event\":\"network_ready\"}");
   while (true)
   {
     unsigned long now = millis();
 
-    // ===== 1. Handle incoming DMR network packets =====
+    // ===== 1. Handle incoming DMR network packets (UDP or ESP-NOW queue) =====
     handleDMRNetwork();
 
-    // ===== 2. Login timeout and retry logic =====
-    if (!dmrLoggedIn)
+    // ===== 2. Login timeout and retry logic (BrandMeister only) =====
+    if (!dmrServerEspNow && !dmrLoggedIn)
     {
       if (dmrState == DMR_STATE::WAITING_LOGIN ||
           dmrState == DMR_STATE::WAITING_AUTH ||
@@ -665,8 +684,8 @@ void dmrTask(void *parameter)
       }
     }
 
-    // ===== 3. Keepalive (when connected) =====
-    if (dmrLoggedIn && dmrState == DMR_STATE::CONNECTED)
+    // ===== 3. Keepalive (BrandMeister only) =====
+    if (!dmrServerEspNow && dmrLoggedIn && dmrState == DMR_STATE::CONNECTED)
     {
       if (now - lastKeepalive >= DMR_KEEPALIVE_INTERVAL)
       {

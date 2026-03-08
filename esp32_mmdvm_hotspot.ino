@@ -288,6 +288,9 @@ bool arduinoOtaEnabled = ARDUINO_OTA_ENABLED;
 String arduinoOtaPassword = ARDUINO_OTA_PASSWORD;
 int arduinoOtaPort = ARDUINO_OTA_PORT;
 
+// DMR Server Mode
+bool dmrServerEspNow = DMR_SERVER_ESPNOW;  // true = receive frames via ESP-NOW instead of BrandMeister
+
 // ESP-NOW Settings (loaded from NVS or config.h)
 bool espnowSenderEnabled   = ESPNOW_SENDER;
 bool espnowReceiverEnabled = ESPNOW_RECEIVER;
@@ -345,6 +348,7 @@ void loadSettings()
     dmrRfPower = preferences.getUChar("dmr_rf_power", DMR_RF_POWER);
 
     // DMR Server Settings
+    dmrServerEspNow = preferences.getBool("dmr_srv_espnow", DMR_SERVER_ESPNOW);
     dmrServer = getStringNonEmpty("dmr_server", DMR_SERVER);
     dmrPort = preferences.getUShort("dmr_port", DMR_PORT);
     dmrLocalPort = preferences.getUShort("dmr_lport", DMR_LOCAL_PORT);
@@ -731,6 +735,7 @@ void saveSettings()
   preferences.putUChar("dmr_rf_power", dmrRfPower);
 
   // DMR Server Settings
+  preferences.putBool("dmr_srv_espnow", dmrServerEspNow);
   preferences.putString("dmr_server", dmrServer);
   preferences.putUShort("dmr_port", dmrPort);
   preferences.putUShort("dmr_lport", dmrLocalPort);
