@@ -503,6 +503,7 @@ String getMainPageHTML(int requestCount, float cpuUsage, uint32_t heapSize)
   html += "    var m=items[i]; var col,txt;";
   html += "    if(!m.enabled){ col='#555'; txt='DISABLED'; }";
   html += "    else if('connected'in m&&!m.connected){ col='#fd7e14'; txt='NOT CONNECTED'; }";
+  html += "    else if('connected'in m&&m.connected&&m.softap){ col='#17a2b8'; txt='SOFTAP'; }";
   html += "    else if('connected'in m&&m.connected){ col='#28a745'; txt='CONNECTED'; }";
   html += "    else{ col='#28a745'; txt='ENABLED'; }";
   html += "    h+='<div style=\"display:flex;align-items:center;justify-content:space-between;\">';";

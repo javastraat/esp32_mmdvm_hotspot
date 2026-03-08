@@ -333,10 +333,12 @@ void registerAdminRoutes()
   // Service status: system services enabled + runtime state
   server.on("/api/service-status", HTTP_GET, []()
             {
-    bool wifiConn = (WiFi.status() == WL_CONNECTED) || (WiFi.softAPIP() != IPAddress(0, 0, 0, 0));
+    bool wifiStaConn = (WiFi.status() == WL_CONNECTED);
+    bool wifiSoftAP = (WiFi.softAPIP() != IPAddress(0, 0, 0, 0));
+    bool wifiConn = wifiStaConn || wifiSoftAP;
     bool oledRunning = (oledTaskHandle != NULL);
     String json = "[";
-    json += "{\"id\":\"wifi\",\"label\":\"WiFi\",\"enabled\":true,\"connected\":" + String(wifiConn ? "true" : "false") + "},";
+    json += "{\"id\":\"wifi\",\"label\":\"WiFi\",\"enabled\":true,\"connected\":" + String(wifiConn ? "true" : "false") + ",\"softap\":" + String((!wifiStaConn && wifiSoftAP) ? "true" : "false") + "},";
     json += "{\"id\":\"ethernet\",\"label\":\"Ethernet\",\"enabled\":" + String(ethEnabled ? "true" : "false") + ",\"connected\":" + String(ethConnected ? "true" : "false") + "},";
     json += "{\"id\":\"mqtt\",\"label\":\"MQTT\",\"enabled\":" + String(mqttEnabled ? "true" : "false") + ",\"connected\":" + String(mqttConnected ? "true" : "false") + "},";
     json += "{\"id\":\"ntp\",\"label\":\"NTP\",\"enabled\":" + String(ntpEnabled ? "true" : "false") + ",\"connected\":" + String(ntpSynced ? "true" : "false") + "},";
