@@ -288,8 +288,9 @@ bool arduinoOtaEnabled = ARDUINO_OTA_ENABLED;
 String arduinoOtaPassword = ARDUINO_OTA_PASSWORD;
 int arduinoOtaPort = ARDUINO_OTA_PORT;
 
-// DMR Server Mode
-bool dmrServerEspNow = DMR_SERVER_ESPNOW;  // true = receive frames via ESP-NOW instead of BrandMeister
+// DMR/POCSAG Server Mode
+bool dmrServerEspNow    = DMR_SERVER_ESPNOW;    // true = receive DMR frames via ESP-NOW instead of BrandMeister
+bool pocsagServerEspNow = POCSAG_SERVER_ESPNOW; // true = receive POCSAG pages via ESP-NOW instead of DAPNET
 
 // ESP-NOW Settings (loaded from NVS or config.h)
 bool espnowSenderEnabled   = ESPNOW_SENDER;
@@ -328,6 +329,7 @@ void loadSettings()
     cwidEnabled     = preferences.getBool("cwid_en",     CWID_ENABLED);
     cwidIntervalMin = preferences.getUChar("cwid_int",   CWID_INTERVAL_MIN);
     pocsagFrequency = preferences.getUInt("pocsag_freq", POCSAG_FREQUENCY);
+    pocsagServerEspNow = preferences.getBool("pocsag_srv_espnow", POCSAG_SERVER_ESPNOW);
     dapnetServer    = getStringNonEmpty("dapnet_server", DAPNET_SERVER);
     dapnetPort      = preferences.getUShort("dapnet_port", DAPNET_PORT);
     dapnetNodeCs    = preferences.getString("dapnet_cs", DAPNET_NODE_CS);
@@ -713,7 +715,8 @@ void saveSettings()
   preferences.putBool("dapnet_en",   dapnetEnabled);
   preferences.putBool("cwid_en",     cwidEnabled);
   preferences.putUChar("cwid_int",   cwidIntervalMin);
-  preferences.putUInt("pocsag_freq",     pocsagFrequency);
+  preferences.putUInt("pocsag_freq",          pocsagFrequency);
+  preferences.putBool("pocsag_srv_espnow",    pocsagServerEspNow);
   preferences.putString("dapnet_server", dapnetServer);
   preferences.putUShort("dapnet_port",   dapnetPort);
   preferences.putString("dapnet_cs",     dapnetNodeCs);
@@ -1005,11 +1008,12 @@ void setup()
     addLogMessage("[Setup] ArduinoOTA enabled - initializing ArduinoOTA task");
     initArduinoOtaTask();
   }
-  if (espnowSenderEnabled || dmrServerEspNow)
+  if (espnowSenderEnabled || dmrServerEspNow || pocsagServerEspNow)
   {
     addLogMessage("[Setup] ESP-NOW enabled (sender=" +
                   String(espnowSenderEnabled ? "yes" : "no") +
-                  " relay=" + String(dmrServerEspNow ? "yes" : "no") + ")");
+                  " dmr-relay=" + String(dmrServerEspNow ? "yes" : "no") +
+                  " pocsag-relay=" + String(pocsagServerEspNow ? "yes" : "no") + ")");
     initEspNow();
   }
   // Initialize NTP time synchronization

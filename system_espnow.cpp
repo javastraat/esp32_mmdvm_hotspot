@@ -26,7 +26,8 @@
 static uint8_t _peerMac[6] = {};
 static bool    _ready       = false;
 
-QueueHandle_t espnowDmrNetQueue = nullptr;
+QueueHandle_t espnowDmrNetQueue  = nullptr;
+QueueHandle_t espnowPocsagQueue  = nullptr;
 
 // -------------------------------------------------------
 // Parse "AA:BB:CC:DD:EE:FF" into 6-byte array.
@@ -55,15 +56,20 @@ static void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t statu
 // -------------------------------------------------------
 static void onReceive(const esp_now_recv_info_t* info,
                       const uint8_t* inData, int dataLen) {
-  if (dataLen < 2 || inData[0] != ESPNOW_TYPE_DMR_NET) return;
-  if (espnowDmrNetQueue == nullptr) return;
+  if (dataLen < 2) return;
 
-  EspNowDmrNetPacket pkt = {};
-  // The incoming bytes ARE the packed struct — copy directly
-  memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
-
-  // Non-blocking enqueue — drop if DMR task is behind (queue full)
-  xQueueSend(espnowDmrNetQueue, &pkt, 0);
+  if (inData[0] == ESPNOW_TYPE_DMR_NET) {
+    if (espnowDmrNetQueue == nullptr) return;
+    EspNowDmrNetPacket pkt = {};
+    memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
+    xQueueSend(espnowDmrNetQueue, &pkt, 0);
+  }
+  else if (inData[0] == ESPNOW_TYPE_POCSAG) {
+    if (espnowPocsagQueue == nullptr) return;
+    EspNowPocsagPacket pkt = {};
+    memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
+    xQueueSend(espnowPocsagQueue, &pkt, 0);
+  }
 }
 
 // -------------------------------------------------------
@@ -73,7 +79,12 @@ void initEspNow() {
   // Create the receive queue (used by both sender and receiver side)
   espnowDmrNetQueue = xQueueCreate(8, sizeof(EspNowDmrNetPacket));
   if (!espnowDmrNetQueue) {
-    addLogMessage("[ESP-NOW] Failed to create receive queue");
+    addLogMessage("[ESP-NOW] Failed to create DMR receive queue");
+    return;
+  }
+  espnowPocsagQueue = xQueueCreate(8, sizeof(EspNowPocsagPacket));
+  if (!espnowPocsagQueue) {
+    addLogMessage("[ESP-NOW] Failed to create POCSAG receive queue");
     return;
   }
 
@@ -140,6 +151,25 @@ void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
   pkt.type = ESPNOW_TYPE_DMR_NET;
   pkt.len  = len;
   memcpy(pkt.data, dmrdPacket, len);
+
+  esp_now_send(_peerMac, (uint8_t*)&pkt, sizeof(pkt));
+}
+
+// -------------------------------------------------------
+// espnowSendPocsagPacket() — called from DAPNET task (sender side)
+// Forwards a received DAPNET/POCSAG page to the peer over ESP-NOW.
+// -------------------------------------------------------
+extern bool espnowPocsagEnabled;
+
+void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& message) {
+  if (!_ready || !espnowSenderEnabled || !espnowPocsagEnabled) return;
+
+  EspNowPocsagPacket pkt = {};
+  pkt.type       = ESPNOW_TYPE_POCSAG;
+  pkt.ric        = ric;
+  pkt.functional = functional;
+  strncpy(pkt.message, message.c_str(), POCSAG_MSG_MAX_LEN);
+  pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
   esp_now_send(_peerMac, (uint8_t*)&pkt, sizeof(pkt));
 }

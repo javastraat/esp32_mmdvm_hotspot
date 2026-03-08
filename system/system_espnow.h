@@ -19,6 +19,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include "../include/config.h"
+#include "../mmdvm/mmdvm_pocsag.h"
 
 // Runtime variables — defined in esp32_mmdvm_hotspot.ino, loaded from NVS
 extern bool   espnowSenderEnabled;
@@ -29,10 +30,11 @@ extern bool   espnowPocsagEnabled;
 
 #if ESPNOW_SENDER
 
-// ── Packet type ────────────────────────────────────────────────────────────
+// ── Packet types ───────────────────────────────────────────────────────────
 #define ESPNOW_TYPE_DMR_NET  0x10   // Raw DMRD Homebrew protocol packet
+#define ESPNOW_TYPE_POCSAG   0x11   // POCSAG page (RIC + functional + message)
 
-// Binary packet — 62 bytes total, must be identical on sender and receiver.
+// DMR packet — 62 bytes total, must be identical on sender and receiver.
 // data[] holds the raw DMRD UDP payload (header + 33-byte DMR frame, ~53-55 bytes).
 struct __attribute__((packed)) EspNowDmrNetPacket {
   uint8_t type;       // ESPNOW_TYPE_DMR_NET
@@ -40,12 +42,22 @@ struct __attribute__((packed)) EspNowDmrNetPacket {
   uint8_t data[60];   // raw DMRD Homebrew packet bytes
 };
 
-// Queue for received ESP-NOW packets — polled by the DMR task (receiver mode)
+// POCSAG packet — 87 bytes total.
+struct __attribute__((packed)) EspNowPocsagPacket {
+  uint8_t  type;                        // ESPNOW_TYPE_POCSAG
+  uint32_t ric;
+  uint8_t  functional;
+  char     message[POCSAG_MSG_MAX_LEN + 1]; // 81 bytes
+};
+
+// Queues for received ESP-NOW packets — polled by DMR/DAPNET tasks
 extern QueueHandle_t espnowDmrNetQueue;
+extern QueueHandle_t espnowPocsagQueue;
 
 // ── Public API ─────────────────────────────────────────────────────────────
 void initEspNow();
 void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len);
+void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& message);
 
 #endif  // ESPNOW_SENDER
 #endif  // SYSTEM_ESPNOW_H

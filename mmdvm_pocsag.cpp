@@ -16,6 +16,10 @@
 #include <cstdio>
 #include "system/service_mqtt.h"
 #include "system/service_telegram.h"
+#include "system/system_espnow.h"
+
+extern bool espnowSenderEnabled;
+extern bool espnowPocsagEnabled;
 
 // External references to runtime settings (defined in main .ino)
 extern String mqttPocsagTaskTopic;
@@ -459,6 +463,12 @@ bool queuePocsagMessage(uint32_t ric, const String& message, uint8_t functional)
 
   UBaseType_t waiting = uxQueueMessagesWaiting(pocsagQueue);
   addLogMessage(String("[POCSAG] Message queued (") + String(waiting) + "/" + String(POCSAG_QUEUE_SIZE) + " in queue)");
+
+#if ESPNOW_SENDER
+  if (espnowSenderEnabled && espnowPocsagEnabled)
+    espnowSendPocsagPacket(ric, functional, message);
+#endif
+
   return true;
 }
 

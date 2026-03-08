@@ -23,6 +23,7 @@
 #include <WiFiClient.h>
 #include "system/service_mqtt.h"
 #include "system/system_eth.h"
+#include "system/system_espnow.h"
 
 extern String firmwareVersion;
 extern String dapnetServer;
@@ -31,6 +32,7 @@ extern String dapnetNodeCs;
 extern String dapnetAuthKey;
 extern String userCallsign;
 extern String mqttDapnetTaskTopic;
+extern bool   pocsagServerEspNow;
 
 TaskHandle_t dapnetTaskHandle = nullptr;
 volatile bool dapnetLoggedIn = false;
@@ -166,6 +168,31 @@ void dapnetTask(void* parameter)
 {
     addLogMessage("[DAPNET Task] Task started");
     publishMqtt(mqttDapnetTaskTopic.c_str(), "{\"event\":\"started\"}");
+
+#if ESPNOW_SENDER
+    // ESP-NOW relay mode: skip DAPNET TCP entirely, drain ESP-NOW POCSAG queue
+    if (pocsagServerEspNow) {
+        addLogMessage("[DAPNET Task] ESP-NOW relay mode — skipping DAPNET server, receiving via ESP-NOW");
+        publishMqtt(mqttDapnetTaskTopic.c_str(), "{\"event\":\"espnow_relay_ready\"}");
+        dapnetLoggedIn = true;
+        for (;;) {
+            if (espnowPocsagQueue) {
+                EspNowPocsagPacket pkt;
+                while (xQueueReceive(espnowPocsagQueue, &pkt, 0) == pdTRUE) {
+                    if (pkt.type == ESPNOW_TYPE_POCSAG) {
+                        pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
+                        String msg = String(pkt.message);
+                        addLogMessage("[DAPNET Task] ESP-NOW page RIC=" + String(pkt.ric) +
+                                      " func=" + String(pkt.functional) + " msg=" + msg);
+                        queuePocsagMessage(pkt.ric, msg, pkt.functional);
+                        addToMessageHistory(pkt.ric, pkt.functional, msg);
+                    }
+                }
+            }
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+    }
+#endif
 
     for (;;) {
         while (WiFi.status() != WL_CONNECTED && !ethConnected) {

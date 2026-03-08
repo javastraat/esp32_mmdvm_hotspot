@@ -287,7 +287,8 @@ const int MMDVM_TX_LEVEL = 128;   // TX level (0-255)
 #define POCSAG_API_RATE_LIMIT     10     // max requests per window
 #define POCSAG_API_RATE_WINDOW_MS 60000  // 60-second window
 
-// DAPNET Network Settings
+// DAPNET / POCSAG Network Settings
+#define POCSAG_SERVER_ESPNOW false                       // true = receive POCSAG pages via ESP-NOW instead of DAPNET
 #define DAPNET_ENABLED      false
 #define DAPNET_SERVER       "dapnet.afu.rwth-aachen.de"
 #define DAPNET_PORT         43434

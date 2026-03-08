@@ -15,6 +15,7 @@
 
 extern bool modePocsagEnabled;
 extern bool dapnetEnabled;
+extern bool pocsagServerEspNow;
 extern String dapnetServer;
 extern uint16_t dapnetPort;
 extern String dapnetNodeCs;
@@ -38,6 +39,19 @@ String getServiceDapnetPageHTML()
   // Card 1: DAPNET Network Settings
   {
     String nodeCs = dapnetNodeCs.length() > 0 ? dapnetNodeCs : userCallsign;
+    const char* dapnetServers[] = {
+      "dapnet.afu.rwth-aachen.de",
+      "137.226.79.100",
+      "db0dbn.ig-funk-siebengebirge.de",
+      "dapnet.db0sda.ampr.org",
+      "node1.dapnet-italia.it"
+    };
+    // Ensure a valid server is selected; fall back to first if unknown
+    bool isKnownServer = false;
+    for (int i = 0; i < 5; i++) {
+      if (dapnetServer == String(dapnetServers[i])) { isKnownServer = true; break; }
+    }
+    String activeServer = isKnownServer ? dapnetServer : String(dapnetServers[0]);
 
     html += "<div class='card'>";
     html += "<h3>DAPNET Network</h3>";
@@ -56,41 +70,49 @@ String getServiceDapnetPageHTML()
     html += "</label>";
     html += "</div>";
 
+    // Source: radio buttons (mirrors DMR source selector)
+    html += "<div class='metric' style='margin-bottom:12px;'>";
+    html += "<span class='metric-label'>Source:</span>";
+    html += "<label style='margin-right:16px;cursor:pointer;'>";
+    html += "<input type='radio' name='dapnet_source' value='server'" + String(!pocsagServerEspNow ? " checked" : "") + " onchange='updateDapnetSource()'> DAPNET Server";
+    html += "</label>";
+    html += "<label style='cursor:pointer;'>";
+    html += "<input type='radio' name='dapnet_source' value='espnow'" + String(pocsagServerEspNow ? " checked" : "") + " onchange='updateDapnetSource()'> ESP-NOW Relay";
+    html += "</label>";
+    html += "</div>";
+
+    // DAPNET-server-specific fields (hidden in ESP-NOW mode)
+    html += "<div id='dapnet-server-fields'" + String(pocsagServerEspNow ? " style='display:none;'" : "") + ">";
+
     // Server dropdown
-    html += "<div class='metric' style='position:relative;'>";
-    html += "<span class='metric-label'>Server:</span>";
-    html += "<select id='dapnet_server' style='width:160px;'>";
-    const char* servers[] = {
-      "dapnet.afu.rwth-aachen.de",
-      "137.226.79.100",
-      "db0dbn.ig-funk-siebengebirge.de",
-      "dapnet.db0sda.ampr.org",
-      "node1.dapnet-italia.it"
-    };
+    html += "<div class='metric'><span class='metric-label'>Server:</span>";
+    html += "<select id='dapnet_server' style='width:220px;'>";
     for (int i = 0; i < 5; i++) {
-      bool sel = (dapnetServer == String(servers[i]));
-      html += "<option value='" + String(servers[i]) + "'" + (sel ? " selected" : "") + ">" + String(servers[i]) + "</option>";
+      bool sel = (activeServer == String(dapnetServers[i]));
+      html += "<option value='" + String(dapnetServers[i]) + "'" + (sel ? " selected" : "") + ">" + String(dapnetServers[i]) + "</option>";
     }
     html += "</select>";
     html += "</div>";
 
     // Port
-    html += "<div class='metric' style='position:relative;'>";
+    html += "<div class='metric'>";
     html += "<span class='metric-label'>Port:</span>";
-    html += "<input type='text' id='dapnet_port' value='" + String(dapnetPort) + "' maxlength='5' style='width:120px;padding-right:8px;' oninput=\"this.value=this.value.replace(/[^0-9]/g,'');\" onblur=\"if(!this.value||parseInt(this.value)<1)this.value='43434';\">";
+    html += "<input type='text' id='dapnet_port' value='" + String(dapnetPort) + "' maxlength='5' style='width:120px;' oninput=\"this.value=this.value.replace(/[^0-9]/g,'');\" onblur=\"if(!this.value||parseInt(this.value)<1)this.value='43434';\">";
     html += "</div>";
 
     // Callsign
-    html += "<div class='metric' style='position:relative;'>";
+    html += "<div class='metric'>";
     html += "<span class='metric-label'>Callsign:</span>";
-    html += "<input type='text' id='dapnet_cs' value='" + nodeCs + "' maxlength='16' style='width:120px;padding-right:8px;'>";
+    html += "<input type='text' id='dapnet_cs' value='" + nodeCs + "' maxlength='16' style='width:120px;'>";
     html += "</div>";
 
-    // AuthKey
-    html += "<div class='metric' style='position:relative;'>";
+    // AuthKey (text so the saved value is always visible)
+    html += "<div class='metric'>";
     html += "<span class='metric-label'>AuthKey:</span>";
-    html += "<input type='password' id='dapnet_key' value='" + dapnetAuthKey + "' maxlength='64' style='width:120px;padding-right:8px;'>";
+    html += "<input type='text' id='dapnet_key' value='" + dapnetAuthKey + "' maxlength='64' style='width:180px;'>";
     html += "</div>";
+
+    html += "</div>"; // end dapnet-server-fields
 
     html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
     html += "<button class='btn btn-success' onclick='saveDapnetSettings()'>Save &amp; Reboot</button>";
@@ -118,10 +140,19 @@ String getServiceDapnetPageHTML()
   html += "function showConfirm(msg,onYes){showModal(function(b,close){b.innerHTML='<h4>'+msg+'</h4>';var btns=document.createElement('div');btns.className='modal-buttons';var y=document.createElement('button');y.textContent='Yes';y.className='btn btn-success';y.onclick=function(){close();onYes();};var n=document.createElement('button');n.textContent='Cancel';n.className='btn btn-danger';n.onclick=close;btns.appendChild(y);btns.appendChild(n);b.appendChild(btns);});}\n";
   html += "function saveAndReboot(msg){showAlert(msg+'<br><br>The device will now reboot.',function(){fetch('/api/reboot',{method:'POST'});document.body.innerHTML='<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:24px;\">Rebooting... Page will reload in 10 seconds.</div>';setTimeout(function(){location.reload();},10000);});}\n";
 
+  // Show/hide DAPNET server fields based on source radio selection
+  html += "function updateDapnetSource(){\n";
+  html += "  var espnow=document.querySelector('input[name=\"dapnet_source\"]:checked').value==='espnow';\n";
+  html += "  document.getElementById('dapnet-server-fields').style.display=espnow?'none':'';\n";
+  html += "}\n";
+
   // Save DAPNET settings
   html += "function saveDapnetSettings(){\n";
   html += "  var enable=document.getElementById('dapnet-enable').checked;\n";
-  html += "  var body='dapnet_server='+encodeURIComponent(document.getElementById('dapnet_server').value)\n";
+  html += "  var espnow=document.querySelector('input[name=\"dapnet_source\"]:checked').value==='espnow';\n";
+  html += "  var srv=espnow?'dapnet.afu.rwth-aachen.de':document.getElementById('dapnet_server').value;\n";
+  html += "  var body='pocsag_espnow='+(espnow?'1':'0')\n";
+  html += "    +'&dapnet_server='+encodeURIComponent(srv)\n";
   html += "    +'&dapnet_port='+encodeURIComponent(document.getElementById('dapnet_port').value)\n";
   html += "    +'&dapnet_cs='+encodeURIComponent(document.getElementById('dapnet_cs').value)\n";
   html += "    +'&dapnet_key='+encodeURIComponent(document.getElementById('dapnet_key').value);\n";

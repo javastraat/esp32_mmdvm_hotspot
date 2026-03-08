@@ -26,6 +26,7 @@
 
 // Runtime settings (defined in esp32-rtos-mmdvm.ino)
 extern uint32_t pocsagFrequency;
+extern bool     pocsagServerEspNow;
 extern String dapnetServer;
 extern uint16_t dapnetPort;
 extern String dapnetNodeCs;
@@ -44,8 +45,9 @@ void registerPocsagRoutes()
   server.on("/api/send-pocsag", HTTP_POST, []() { handleApiPocsagSend(server); });
 
   server.on("/api/save-pocsag-settings", HTTP_POST, []() {
-    if (server.hasArg("pocsag_freq"))    pocsagFrequency = server.arg("pocsag_freq").toInt();
-    if (server.hasArg("dapnet_server"))  dapnetServer    = server.arg("dapnet_server");
+    if (server.hasArg("pocsag_freq"))    pocsagFrequency    = server.arg("pocsag_freq").toInt();
+    if (server.hasArg("pocsag_espnow"))  pocsagServerEspNow = (server.arg("pocsag_espnow") == "1");
+    if (server.hasArg("dapnet_server"))  dapnetServer       = server.arg("dapnet_server");
     if (server.hasArg("dapnet_port"))    dapnetPort      = server.arg("dapnet_port").toInt();
     if (server.hasArg("dapnet_cs"))      dapnetNodeCs    = server.arg("dapnet_cs");
     if (server.hasArg("dapnet_key"))     dapnetAuthKey   = server.arg("dapnet_key");
@@ -57,8 +59,9 @@ void registerPocsagRoutes()
   });
 
   server.on("/api/reset-pocsag-settings", HTTP_POST, []() {
-    pocsagFrequency = POCSAG_FREQUENCY;
-    dapnetServer    = DAPNET_SERVER;
+    pocsagFrequency    = POCSAG_FREQUENCY;
+    pocsagServerEspNow = POCSAG_SERVER_ESPNOW;
+    dapnetServer       = DAPNET_SERVER;
     dapnetPort      = DAPNET_PORT;
     dapnetNodeCs    = DAPNET_NODE_CS;
     dapnetAuthKey   = DAPNET_AUTH_KEY;
