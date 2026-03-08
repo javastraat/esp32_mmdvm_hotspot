@@ -73,7 +73,7 @@ POCSAG protocol task (initPocsagTask)
 #include "system/system_modem.h"
 #include "system/system_arduinoota.h"
 #include "system/service_wireguard.h"
-
+#include "system/system_espnow.h"
 
 // MMDVM Protocol modules
 #include "mmdvm/mmdvm_dmr.h"
@@ -287,6 +287,14 @@ int mmdvmTxLevel = MMDVM_TX_LEVEL;
 bool arduinoOtaEnabled = ARDUINO_OTA_ENABLED;
 String arduinoOtaPassword = ARDUINO_OTA_PASSWORD;
 int arduinoOtaPort = ARDUINO_OTA_PORT;
+
+// ESP-NOW Settings (loaded from NVS or config.h)
+bool espnowSenderEnabled   = ESPNOW_SENDER;
+bool espnowReceiverEnabled = ESPNOW_RECEIVER;
+String espnowReceiverMac   = ESPNOW_RECEIVER_MAC_STR;
+bool espnowDebug           = ESPNOW_DEBUG;
+bool espnowDmrEnabled      = ESPNOW_DMR;
+bool espnowPocsagEnabled   = ESPNOW_POCSAG;
 
 // Helper: get string from NVS, but treat empty strings as "not set" and return the default
 String getStringNonEmpty(const char *key, const char *defaultVal)
@@ -510,6 +518,14 @@ void loadSettings()
     arduinoOtaEnabled = preferences.getBool("ota_en", ARDUINO_OTA_ENABLED);
     arduinoOtaPassword = getStringNonEmpty("ota_pass", ARDUINO_OTA_PASSWORD);
     arduinoOtaPort = preferences.getInt("ota_port", ARDUINO_OTA_PORT);
+
+    // ESP-NOW Settings
+    espnowSenderEnabled   = preferences.getBool("espnow_sender", ESPNOW_SENDER);
+    espnowReceiverEnabled = preferences.getBool("espnow_recv",   ESPNOW_RECEIVER);
+    espnowReceiverMac     = preferences.getString("espnow_mac",  ESPNOW_RECEIVER_MAC_STR);
+    espnowDebug           = preferences.getBool("espnow_debug",  ESPNOW_DEBUG);
+    espnowDmrEnabled      = preferences.getBool("espnow_dmr",    ESPNOW_DMR);
+    espnowPocsagEnabled   = preferences.getBool("espnow_pocsag", ESPNOW_POCSAG);
 
     addLogMessage("[Settings] Loaded from NVS");
   }
@@ -888,6 +904,14 @@ void saveSettings()
   preferences.putString("ota_pass", arduinoOtaPassword);
   preferences.putInt("ota_port", arduinoOtaPort);
 
+  // ESP-NOW Settings
+  preferences.putBool("espnow_sender", espnowSenderEnabled);
+  preferences.putBool("espnow_recv",   espnowReceiverEnabled);
+  preferences.putString("espnow_mac",  espnowReceiverMac);
+  preferences.putBool("espnow_debug",  espnowDebug);
+  preferences.putBool("espnow_dmr",    espnowDmrEnabled);
+  preferences.putBool("espnow_pocsag", espnowPocsagEnabled);
+
   preferences.putBool("initialized", true);
   preferences.end();
   addLogMessage("[Settings] Saved to NVS");
@@ -978,6 +1002,11 @@ void setup()
   {
     addLogMessage("[Setup] ArduinoOTA enabled - initializing ArduinoOTA task");
     initArduinoOtaTask();
+  }
+  if (espnowSenderEnabled)
+  {
+    addLogMessage("[Setup] ESP-NOW sender enabled - initializing");
+    initEspNow();
   }
   // Initialize NTP time synchronization
   if (ntpEnabled)

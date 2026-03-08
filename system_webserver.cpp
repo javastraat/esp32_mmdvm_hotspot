@@ -59,6 +59,8 @@
 #include "system/web_handlers_snapshots.h"
 #include "system/web_handlers_telegram_settings.h"
 #include "web/pages/service_telegram.h"
+#include "system/web_handlers_espnow_settings.h"
+#include "web/pages/service_espnow.h"
 #include "system/web_handlers_bootlogos.h"
 
 extern "C"
@@ -315,6 +317,7 @@ void webServerTask(void *parameter) {
   server.on("/system-wifi", handleSystemWifi);
   server.on("/service-mqtt", handleServiceMqtt);
   server.on("/service-telegram", handleServiceTelegram);
+  server.on("/service-espnow", handleServiceEspnow);
   server.on("/service-wireguard", handleServiceWireguard);
   server.on("/system-sdcard", handleSystemSdcard);
   server.on("/system-database", handleSystemDatabase);
@@ -329,6 +332,7 @@ void webServerTask(void *parameter) {
   registerDmrSettingsRoutes();
   registerMqttSettingsRoutes();
   registerTelegramSettingsRoutes();
+  registerEspnowSettingsRoutes();
   registerWgSettingsRoutes();
   registerNetworkSettingsRoutes();
   registerHwSettingsRoutes();
@@ -475,6 +479,12 @@ void handleServiceTelegram()
 {
   requestCount++;
   server.send(200, "text/html", getServiceTelegramPageHTML());
+}
+
+void handleServiceEspnow()
+{
+  requestCount++;
+  server.send(200, "text/html", getServiceEspnowPageHTML());
 }
 
 void handleServiceWireguard()

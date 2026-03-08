@@ -184,6 +184,15 @@ const int WEB_SERVER_PORT = 80;
 // ===== DMR User Database API Settings =====
 #define DMR_API_URL "https://radioid.net/api/dmr/user/?id="  // RadioID.net API endpoint
 #define QRZ_LOOKUP_URL "https://www.qrz.com/db/"  // QRZ.com callsign lookup URL
+
+// ESP-NOW Configuration
+#define ESPNOW_SENDER true                              // Compile-time: include ESP-NOW sender code
+#define ESPNOW_RECEIVER false                           // Reserved for future receiver-side integration
+#define ESPNOW_RECEIVER_MAC_STR "E4:B3:23:F1:42:B4"   // Default receiver MAC (stored in NVS, edit via web UI)
+#define ESPNOW_DEBUG false                              // Default: suppress No ACK log spam
+#define ESPNOW_DMR true
+#define ESPNOW_POCSAG false
+
 // Alternative APIs:
 // #define DMR_API_URL "https://database.radioid.net/api/dmr/user/?id="  // Alternative RadioID mirror
 // #define DMR_API_URL "https://ham-digital.org/api/dmr/user/?id="       // Ham-Digital.org API

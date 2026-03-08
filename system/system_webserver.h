@@ -48,6 +48,7 @@ void handleSystemModem();
 void handleSystemWifi();
 void handleServiceMqtt();
 void handleServiceTelegram();
+void handleServiceEspnow();
 void handleSystemSdcard();
 void handleSystemFirmware();
 void handleSystemAdmin();

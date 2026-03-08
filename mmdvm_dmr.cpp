@@ -27,6 +27,7 @@
 #include "system/system_firmware.h"
 #include "include/config.h"
 #include "system/system_oled.h"
+#include "system/system_espnow.h"
 
 // SD card status from system_sdcard.h
 extern bool sdCardMounted;
@@ -658,6 +659,9 @@ void dmrTask(void *parameter)
       netRxActive = false;
       if (dmrTxActive) {
         writeDMRStart(false);
+#if ESPNOW_SENDER
+        if (espnowDmrEnabled) espnowSendDmrEnd(netRxSlot);
+#endif
         dmrTxActive = false;
       }
       addLogMessage("[DMR] Net→RF ended: " + String(netRxSrcId) + "→" + String(netRxDstId));
@@ -682,9 +686,15 @@ void dmrTask(void *parameter)
           if (!dmrTxActive)
           {
             writeDMRStart(true);
+#if ESPNOW_SENDER
+            if (espnowDmrEnabled) espnowSendDmrStart(frame.cmd == CMD_DMR_DATA1 ? 1 : 2);
+#endif
             dmrTxActive = true;
           }
           sendMMDVMCommand(frame.cmd, frame.data, 34);
+#if ESPNOW_SENDER
+          if (espnowDmrEnabled) espnowSendDmrFrame(frame.cmd == CMD_DMR_DATA1 ? 1 : 2, frame.data);
+#endif
           frame.valid = false;
           dmrTxTail = (dmrTxTail + 1) % DMR_TX_BUFFER_SIZE;
           lastTxPaced = nowPaced;

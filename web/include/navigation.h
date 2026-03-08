@@ -61,6 +61,7 @@ String getNavigation(String currentPage = "home", String currentTime = "") {
   nav += "<a href='/system-wifi'>WiFi Config</a>";
   nav += "<a href='/system-network'>Network Config</a>";
   nav += "<a href='/service-wireguard'>WireGuard VPN</a>";
+  nav += "<a href='/service-espnow'>ESP-NOW</a>";
   nav += "</div>";
   nav += "</div>";
 
