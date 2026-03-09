@@ -36,6 +36,7 @@
 
 #include "config.h"
 #include "styles.h"
+#include "bm_servers.h"
 
 struct __attribute__((packed)) EspNowDmrNetPacket {
     uint8_t type;        // ESPNOW_TYPE_DMR_NET
@@ -57,6 +58,7 @@ enum class BmState { DISCONNECTED, WAITING_LOGIN, WAITING_AUTH, WAITING_CONFIG, 
 Preferences prefs;
 
 bool     bmEnabled     = DEF_BM_ENABLED;
+bool     bmDebug       = DEF_BM_DEBUG;
 String   bmServer      = DEF_BM_SERVER;
 uint16_t bmPort        = DEF_BM_PORT;
 uint32_t bmDmrId       = DEF_BM_DMR_ID;
@@ -67,6 +69,8 @@ String   bmLocation    = DEF_BM_LOCATION;
 String   bmLatitude    = DEF_BM_LATITUDE;
 String   bmLongitude   = DEF_BM_LONGITUDE;
 int      bmHeight      = DEF_BM_HEIGHT;
+uint32_t bmRxFreq      = DEF_BM_RX_FREQ;
+uint32_t bmTxFreq      = DEF_BM_TX_FREQ;
 
 bool     dapnetEnabled  = DEF_DAPNET_ENABLED;
 String   dapnetServer   = DEF_DAPNET_SERVER;
@@ -154,6 +158,9 @@ void loadSettings() {
     bmLatitude   = nvsGet("bm_lat",              DEF_BM_LATITUDE);
     bmLongitude  = nvsGet("bm_lon",              DEF_BM_LONGITUDE);
     bmHeight     = (int)prefs.getInt("bm_height", DEF_BM_HEIGHT);
+    bmRxFreq     = prefs.getUInt("bm_rxf",       DEF_BM_RX_FREQ);
+    bmTxFreq     = prefs.getUInt("bm_txf",       DEF_BM_TX_FREQ);
+    bmDebug      = prefs.getBool("bm_debug",     DEF_BM_DEBUG);
 
     dapnetEnabled  = prefs.getBool("dp_en",       DEF_DAPNET_ENABLED);
     dapnetServer   = nvsGet("dp_server",          DEF_DAPNET_SERVER);
@@ -182,6 +189,9 @@ void saveSettings() {
     prefs.putString("bm_lat",    bmLatitude);
     prefs.putString("bm_lon",    bmLongitude);
     prefs.putInt("bm_height",    bmHeight);
+    prefs.putUInt("bm_rxf",      bmRxFreq);
+    prefs.putUInt("bm_txf",      bmTxFreq);
+    prefs.putBool("bm_debug",    bmDebug);
 
     prefs.putBool("dp_en",       dapnetEnabled);
     prefs.putString("dp_server", dapnetServer);
@@ -315,11 +325,17 @@ static WiFiUDP  dmrUdp;
 static BmState  bmState = BmState::DISCONNECTED;
 static uint8_t  dmrSalt[4];
 
+// Apply SSID to base DMR ID, matching main firmware getDmrIdToSend()
+static uint32_t bmGetId() {
+    return (bmSsid > 0) ? bmDmrId * 100 + bmSsid : bmDmrId;
+}
+
 static void bmSendRptl() {
+    uint32_t id = bmGetId();
     uint8_t p[8];
     memcpy(p, "RPTL", 4);
-    p[4] = (bmDmrId >> 24) & 0xFF; p[5] = (bmDmrId >> 16) & 0xFF;
-    p[6] = (bmDmrId >>  8) & 0xFF; p[7] =  bmDmrId        & 0xFF;
+    p[4] = (id >> 24) & 0xFF; p[5] = (id >> 16) & 0xFF;
+    p[6] = (id >>  8) & 0xFF; p[7] =  id        & 0xFF;
     dmrUdp.beginPacket(bmServer.c_str(), bmPort);
     dmrUdp.write(p, 8);
     dmrUdp.endPacket();
@@ -344,10 +360,11 @@ static void bmSendRptk(const uint8_t* salt) {
     delete[] input;
 
     // RPTK: "RPTK"(4) + ID(4) + hash(32) = 40 bytes
+    uint32_t id = bmGetId();
     uint8_t p[40];
     memcpy(p, "RPTK", 4);
-    p[4] = (bmDmrId >> 24) & 0xFF; p[5] = (bmDmrId >> 16) & 0xFF;
-    p[6] = (bmDmrId >>  8) & 0xFF; p[7] =  bmDmrId        & 0xFF;
+    p[4] = (id >> 24) & 0xFF; p[5] = (id >> 16) & 0xFF;
+    p[6] = (id >>  8) & 0xFF; p[7] =  id        & 0xFF;
     memcpy(p + 8, hash, 32);
     dmrUdp.beginPacket(bmServer.c_str(), bmPort);
     dmrUdp.write(p, 40);
@@ -376,7 +393,7 @@ static void bmSendRptc() {
     snprintf(cfg, sizeof(cfg),
              "%-8.8s%09u%09u%02u%02u%8.8s%9.9s%03d%-20.20s%-19.19s%c%-124.124s%-40.40s%-40.40s",
              cs.c_str(),                  // Callsign  (8)
-             0u, 0u,                      // RX / TX freq — no RF on this device (9+9)
+             bmRxFreq, bmTxFreq,          // RX / TX freq (9+9)
              1u,                          // Power in watts, 1 (2)
              1u,                          // Color code 1  (2)
              lat,                         // Latitude      (8)
@@ -390,11 +407,12 @@ static void bmSendRptc() {
              "MMDVM_MMDVM_HS");           // Software      (40)
 
     // RPTC: "RPTC"(4) + ID(4) + config(294) = 302 bytes
+    uint32_t id = bmGetId();
     uint8_t p[302];
     memset(p, 0, sizeof(p));
     memcpy(p, "RPTC", 4);
-    p[4] = (bmDmrId >> 24) & 0xFF; p[5] = (bmDmrId >> 16) & 0xFF;
-    p[6] = (bmDmrId >>  8) & 0xFF; p[7] =  bmDmrId        & 0xFF;
+    p[4] = (id >> 24) & 0xFF; p[5] = (id >> 16) & 0xFF;
+    p[6] = (id >>  8) & 0xFF; p[7] =  id        & 0xFF;
     memcpy(p + 8, cfg, 294);
     dmrUdp.beginPacket(bmServer.c_str(), bmPort);
     dmrUdp.write(p, 302);
@@ -403,10 +421,11 @@ static void bmSendRptc() {
 
 static void bmSendKeepalive() {
     // RPTPING: "RPTPING"(7) + ID(4) = 11 bytes
+    uint32_t id = bmGetId();
     uint8_t p[11];
     memcpy(p, "RPTPING", 7);
-    p[7]  = (bmDmrId >> 24) & 0xFF; p[8]  = (bmDmrId >> 16) & 0xFF;
-    p[9]  = (bmDmrId >>  8) & 0xFF; p[10] =  bmDmrId        & 0xFF;
+    p[7]  = (id >> 24) & 0xFF; p[8]  = (id >> 16) & 0xFF;
+    p[9]  = (id >>  8) & 0xFF; p[10] =  id        & 0xFF;
     dmrUdp.beginPacket(bmServer.c_str(), bmPort);
     dmrUdp.write(p, 11);
     dmrUdp.endPacket();
@@ -434,8 +453,19 @@ void bmTask(void* param) {
         bmState    = BmState::DISCONNECTED;
         bmLoggedIn = false;
         bmStatus   = "Connecting...";
+        uint32_t effectiveId = bmGetId();
         addLog("[BM] Connecting to " + bmServer + ":" + String(bmPort) +
-               " id=" + String(bmDmrId));
+               " id=" + String(effectiveId));
+        if (bmDebug) {
+            String passHint = bmPassword.length() > 0
+                ? String(bmPassword[0]) + String("***") + bmPassword[bmPassword.length()-1]
+                : "(empty)";
+            addLog("[BM] DBG callsign='" + bmCallsign + "' ssid=" + String(bmSsid) +
+                   " effectiveId=" + String(effectiveId) + " pass=" + passHint);
+            addLog("[BM] DBG lat=" + bmLatitude + " lon=" + bmLongitude +
+                   " h=" + String(bmHeight) + " loc='" + bmLocation + "'");
+            addLog("[BM] DBG rxFreq=" + String(bmRxFreq) + " txFreq=" + String(bmTxFreq));
+        }
 
         bmSendRptl();
         bmState = BmState::WAITING_LOGIN;
@@ -452,8 +482,17 @@ void bmTask(void* param) {
                 int len = dmrUdp.read(buf, sizeof(buf));
                 lastActivity = millis();
 
+                // MSTNAK — BrandMeister rejected our packet
+                if (len >= 6 && memcmp(buf, "MSTNAK", 6) == 0) {
+                    const char* stage = (bmState == BmState::WAITING_LOGIN)  ? "LOGIN"  :
+                                        (bmState == BmState::WAITING_AUTH)   ? "AUTH"   :
+                                        (bmState == BmState::WAITING_CONFIG) ? "CONFIG" : "UNKNOWN";
+                    addLog(String("[BM] NAK at stage: ") + stage + " — check callsign/ID");
+                    bmStatus = "NAK - check callsign";
+                    running  = false;
+                }
                 // RPTACK — drives login state machine
-                if (len >= 10 && memcmp(buf, "RPTACK", 6) == 0) {
+                else if (len >= 10 && memcmp(buf, "RPTACK", 6) == 0) {
                     switch (bmState) {
                     case BmState::WAITING_LOGIN:
                         memcpy(dmrSalt, buf + 6, 4);
@@ -799,8 +838,22 @@ String getPageHTML() {
                          "<input type='number' id='bm-ssid' value='" + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
                      html += "<div class='metric'><span class='metric-label'>Password:</span>"
                          "<input type='password' id='bm-pass' value='" + bmPassword + "'></div>";
-                     html += "<div class='metric'><span class='metric-label'>Server:</span>"
-                         "<input type='text' id='bm-server' value='" + bmServer + "' class='full'></div>";
+                     {
+                       bool isKnown = false;
+                       for (int i = 0; i < bmServerCount; i++) {
+                         if (bmServer == bmServers[i].address) { isKnown = true; break; }
+                       }
+                       html += "<div class='metric'><span class='metric-label'>Server:</span>"
+                           "<select id='bm-server-sel' onchange='bmServerSel()' style='width:100%;margin-bottom:4px'>";
+                       html += String("<option value='custom'") + (isKnown ? ">" : " selected>") + "Custom (enter below)</option>";
+                       for (int i = 0; i < bmServerCount; i++) {
+                         html += "<option value='" + String(bmServers[i].address) + "'" +
+                                 (bmServer == bmServers[i].address ? " selected" : "") +
+                                 ">" + String(bmServers[i].name) + "</option>";
+                       }
+                       html += "</select>"
+                           "<input type='text' id='bm-server' value='" + bmServer + "' class='full' placeholder='hostname or IP'></div>";
+                     }
                      html += "<div class='metric'><span class='metric-label'>Port:</span>"
                          "<input type='number' id='bm-port' value='" + String(bmPort) + "' style='max-width:100px'></div>";
                      html += "<div class='metric'><span class='metric-label'>Location:</span>"
@@ -811,6 +864,15 @@ String getPageHTML() {
                          "<input type='text' id='bm-lon' value='" + bmLongitude + "' style='max-width:140px'></div>";
                      html += "<div class='metric'><span class='metric-label'>Height (m):</span>"
                          "<input type='number' id='bm-h' value='" + String(bmHeight) + "' min='0' max='999' style='max-width:100px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>RX Freq (Hz):</span>"
+                         "<input type='number' id='bm-rxf' value='" + String(bmRxFreq) + "' min='100000000' max='500000000'></div>";
+                     html += "<div class='metric'><span class='metric-label'>TX Freq (Hz):</span>"
+                         "<input type='number' id='bm-txf' value='" + String(bmTxFreq) + "' min='100000000' max='500000000'></div>";
+                     html += "<p style='font-size:0.82em;color:#888;margin-top:2px;margin-bottom:4px'>Must match your registered hotspot frequency. BrandMeister rejects freq=0.</p>";
+                     html += "<div class='metric'><span class='metric-label'>Debug Logging:</span>"
+                         "<label class='switch'><input type='checkbox' id='bm-debug'" +
+                         String(bmDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
+                     html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log callsign, password hint, and config values on each connect attempt.</p>";
                      html += "<div class='action-buttons-vertical'>";
                      html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
                 html += "</div>";
@@ -918,6 +980,10 @@ String getPageHTML() {
             "});\n";
 
     // Theme toggle
+    html +="function bmServerSel(){"
+         "var s=document.getElementById('bm-server-sel').value;"
+         "var i=document.getElementById('bm-server');"
+         "if(s!=='custom'){i.value=s;}else{i.value='';i.focus();}}";
     html +="function toggleTheme(){"
          "var html=document.documentElement;"
          "var t=html.getAttribute('data-theme')==='dark'?'light':'dark';"
@@ -960,12 +1026,15 @@ String getPageHTML() {
                 "'bm_lat':document.getElementById('bm-lat').value.trim(),\n"
                 "'bm_lon':document.getElementById('bm-lon').value.trim(),\n"
                 "'bm_h':document.getElementById('bm-h').value,\n"
+                "'bm_rxf':document.getElementById('bm-rxf').value,\n"
+                "'bm_txf':document.getElementById('bm-txf').value,\n"
                 "'dp_en':document.getElementById('dp-en').checked?'1':'0',\n"
                 "'dp_cs':document.getElementById('dp-cs').value.trim().toUpperCase(),\n"
                 "'dp_key':document.getElementById('dp-key').value.trim(),\n"
                 "'dp_server':document.getElementById('dp-server').value.trim(),\n"
                 "'dp_port':document.getElementById('dp-port').value,\n"
-                "'dp_debug':document.getElementById('dp-debug').checked?'1':'0'\n"
+                "'dp_debug':document.getElementById('dp-debug').checked?'1':'0',\n"
+                "'bm_debug':document.getElementById('bm-debug').checked?'1':'0'\n"
                 "};\n"
                 "var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&');\n"
                 "showConfirm('Save BrandMeister & DAPNET settings?',function(){\n"
@@ -1068,7 +1137,10 @@ void registerRoutes() {
         if (server.hasArg("bm_lat"))    bmLatitude  = server.arg("bm_lat");
         if (server.hasArg("bm_lon"))    bmLongitude = server.arg("bm_lon");
         if (server.hasArg("bm_h"))      bmHeight   = server.arg("bm_h").toInt();
+        if (server.hasArg("bm_rxf"))    bmRxFreq   = (uint32_t)server.arg("bm_rxf").toInt();
+        if (server.hasArg("bm_txf"))    bmTxFreq   = (uint32_t)server.arg("bm_txf").toInt();
         if (server.hasArg("bm_en"))     bmEnabled  = (server.arg("bm_en") == "1");
+        if (server.hasArg("bm_debug"))  bmDebug    = (server.arg("bm_debug") == "1");
         if (server.hasArg("dp_en"))     dapnetEnabled  = (server.arg("dp_en") == "1");
         if (server.hasArg("dp_cs"))     dapnetCallsign = server.arg("dp_cs");
         if (server.hasArg("dp_key"))    dapnetAuthKey  = server.arg("dp_key");

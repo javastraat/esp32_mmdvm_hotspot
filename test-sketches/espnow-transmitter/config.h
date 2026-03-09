@@ -1,3 +1,7 @@
+//
+//  config.h - Configuration defaults for ESP-NOW transmitter sketch
+//
+
 #define FOOTER_LINKS "<a href='https://github.com/javastraat/esp32_mmdvm_hotspot' target='_blank'>GitHub Project</a> | <a href='https://dmr-database.github.io' target='_blank'>DMR Database</a> | <a href='https://einstein.amsterdam' target='_blank'>einstein.amsterdam</a> | <a href='https://pd8jo.nl' target='_blank'>pd8jo.nl</a>"
 #define FOOTER_COPYRIGHT "&copy; 2026 by PD2EMC &amp; PD8JO"
 #ifndef CONFIG_H
@@ -22,6 +26,9 @@
 #define DEF_BM_LATITUDE     "0.000000"
 #define DEF_BM_LONGITUDE    "0.000000"
 #define DEF_BM_HEIGHT       0
+#define DEF_BM_RX_FREQ      434000000u  // RX freq (Hz) — must be non-zero; BM rejects 0
+#define DEF_BM_TX_FREQ      434000000u  // TX freq (Hz) — same for simplex
+#define DEF_BM_DEBUG        false
 
 // ─── DAPNET defaults ──────────────────────────────────────────────────────
 #define DEF_DAPNET_ENABLED  false
