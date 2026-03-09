@@ -40,3 +40,26 @@ The transmitter side would need:
 /api/espnow-scan endpoint that sends the broadcast and waits ~2s for replies
 A "Scan" button in the web UI that calls that endpoint and shows results
 Want me to implement this?
+
+
+
+Done. Here's a summary of everything added:
+
+Receiver side (main hotspot firmware)
+
+system_espnow.cpp — new espnowDiscoveryTask + initEspNowDiscovery() (outside #if ESPNOW_SENDER, always compiled):
+
+Waits for any network (WiFi / Ethernet / SoftAP)
+Binds UDP on port 3491
+On receiving {"type":"ESPNOW_DISCOVER"}, replies with:
+
+{"mac":"AA:BB:CC:DD:EE:FF","name":"PA3ABC-5","dmr_relay":true,"pocsag_relay":false}
+Logs each discovery reply
+esp32_mmdvm_hotspot.ino — initEspNowDiscovery() called unconditionally in setup() so any hotspot on the network is discoverable.
+
+Transmitter side (already done earlier)
+
+/api/espnow-scan broadcasts to port 3491, collects replies for 2s
+Scan results now show DMR and POCSAG green badges next to each found device so you immediately see what relay modes it supports
+"Add" button fills the first empty MAC field
+Enjoy the break!
