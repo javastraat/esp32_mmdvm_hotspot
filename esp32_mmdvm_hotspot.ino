@@ -1016,6 +1016,8 @@ void setup()
                   " pocsag-relay=" + String(pocsagServerEspNow ? "yes" : "no") + ")");
     initEspNow();
   }
+  // ESP-NOW discovery responder — always active so transmitters can find this device
+  initEspNowDiscovery();
   // Initialize NTP time synchronization
   if (ntpEnabled)
   {

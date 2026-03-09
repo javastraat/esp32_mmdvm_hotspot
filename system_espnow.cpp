@@ -16,6 +16,66 @@
  */
 
 #include "system/system_espnow.h"
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include "system/system_logger.h"
+#include "system/system_eth.h"
+#include "system/system_wifi.h"
+
+// ── Discovery responder ─────────────────────────────────────────────────────
+// Listens on UDP port 3491 for {"type":"ESPNOW_DISCOVER"} broadcast pings
+// (sent by the ESP-NOW transmitter sketch) and replies with this device's
+// MAC address + callsign so the transmitter can auto-populate its peer list.
+
+extern String   userCallsign;
+extern uint8_t  userDmrSsid;
+extern bool     dmrServerEspNow;
+extern bool     pocsagServerEspNow;
+
+#define ESPNOW_DISCOVERY_PORT 3491
+
+static void espnowDiscoveryTask(void* param) {
+  // Wait until any network interface is up
+  while (WiFi.status() != WL_CONNECTED && !ethConnected && !softAPActive) {
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+  }
+
+  WiFiUDP udp;
+  if (!udp.begin(ESPNOW_DISCOVERY_PORT)) {
+    addLogMessage("[ESP-NOW] Discovery: failed to bind UDP port " + String(ESPNOW_DISCOVERY_PORT));
+    vTaskDelete(nullptr);
+    return;
+  }
+  addLogMessage("[ESP-NOW] Discovery responder listening on UDP port " + String(ESPNOW_DISCOVERY_PORT));
+
+  for (;;) {
+    int len = udp.parsePacket();
+    if (len > 0) {
+      char buf[64] = {};
+      udp.read(buf, min(len, 63));
+      if (strstr(buf, "ESPNOW_DISCOVER")) {
+        String mac  = WiFi.macAddress();
+        String name = userCallsign;
+        if (userDmrSsid > 0) name += "-" + String(userDmrSsid);
+        String resp = "{\"mac\":\"" + mac + "\""
+                    + ",\"name\":\"" + name + "\""
+                    + ",\"dmr_relay\":"    + (dmrServerEspNow    ? "true" : "false")
+                    + ",\"pocsag_relay\":" + (pocsagServerEspNow ? "true" : "false")
+                    + "}";
+        udp.beginPacket(udp.remoteIP(), udp.remotePort());
+        udp.write((const uint8_t*)resp.c_str(), resp.length());
+        udp.endPacket();
+        addLogMessage("[ESP-NOW] Discovery: replied to " + udp.remoteIP().toString()
+                    + " (" + name + ")");
+      }
+    }
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+
+void initEspNowDiscovery() {
+  xTaskCreatePinnedToCore(espnowDiscoveryTask, "espnow_disc", 3072, nullptr, 1, nullptr, 0);
+}
 
 #if ESPNOW_SENDER
 

@@ -60,4 +60,8 @@ void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len);
 void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& message);
 
 #endif  // ESPNOW_SENDER
+
+// ── Discovery responder (always compiled — lets transmitters find this device) ──
+void initEspNowDiscovery();
+
 #endif  // SYSTEM_ESPNOW_H
