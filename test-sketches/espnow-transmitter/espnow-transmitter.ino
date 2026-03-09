@@ -138,6 +138,19 @@ static uint8_t espnowPeerMacs[ESPNOW_MAX_PEERS][6];
 static int espnowPeerCount = 0;
 static bool espnowReady = false;
 
+// ─── DAPNET recent pages history ─────────────────────────────────────────
+#define DAPNET_PAGE_HISTORY 3
+struct DapnetPageEntry {
+  uint32_t ric;
+  uint8_t func;
+  char msg[100];
+  unsigned long rxMs;
+};
+static DapnetPageEntry dapnetPageHistory[DAPNET_PAGE_HISTORY];
+static int dapnetPageHead = 0;
+static int dapnetPageCount = 0;
+static portMUX_TYPE dapnetPageMux = portMUX_INITIALIZER_UNLOCKED;
+
 
 
 
@@ -158,6 +171,18 @@ static String getLogsJson() {
   return j;
 }
 
+
+static void addDapnetPage(uint32_t ric, uint8_t func, const String& msg) {
+  portENTER_CRITICAL(&dapnetPageMux);
+  DapnetPageEntry& e = dapnetPageHistory[dapnetPageHead];
+  e.ric = ric;
+  e.func = func;
+  msg.toCharArray(e.msg, sizeof(e.msg));
+  e.rxMs = millis();
+  dapnetPageHead = (dapnetPageHead + 1) % DAPNET_PAGE_HISTORY;
+  if (dapnetPageCount < DAPNET_PAGE_HISTORY) dapnetPageCount++;
+  portEXIT_CRITICAL(&dapnetPageMux);
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // NVS SETTINGS
@@ -778,6 +803,7 @@ void dapnetTask(void* param) {
             String msg = rest.substring(c4 + 1);
             msg.trim();
             addLog("[DAPNET] Page RIC=" + String(ric) + " func=" + String(func) + " → ESP-NOW | " + msg);
+            addDapnetPage(ric, func, msg);
             espnowSendPocsag(ric, func, msg.c_str());
           }
         } else if (c1 >= 0) {
@@ -843,31 +869,44 @@ String getPageHTML() {
   // ── Status overview ───────────────────────────────────────────────────
   html += "<div class='admin-grid'>";
 
+  // WiFi — always
   html += "<div class='card'><h3>WiFi</h3>";
   html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(wifiStatus) + "</div>";
   html += "<div class='metric'><span class='metric-label'>IP address:</span><span style='font-family:monospace'>" + ip + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>MAC address:</span><span style='font-family:monospace;font-size:.9em'>" + mac + "</span></div>";
   html += "</div>";
 
-  html += "<div class='card'><h3>BrandMeister</h3>";
-  html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(bmStatus) + "</div>";
-  html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span>" + String(bmDmrId) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + bmCallsign + (bmSsid > 0 ? "-" + String(bmSsid) : "") + "</span></div>";
-  html += "</div>";
+  // ESP-NOW — always, next to WiFi
+  {
+    String enStatus = espnowReady ? "Ready" : (espnowMacs.length() > 0 ? "Pending reboot" : "Not configured");
+    html += "<div class='card'><h3>ESP-NOW</h3>";
+    html += "<div class='metric'><span class='metric-label'>Peers:</span><span>" + String(espnowPeerCount) + " configured</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(enStatus) + "</div>";
+    html += "</div>";
+  }
 
-  html += "<div class='card'><h3>DAPNET</h3>";
-  html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(dapnetStatus) + "</div>";
-  String dpCs = dapnetCallsign.length() > 0 ? dapnetCallsign : bmCallsign;
-  html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + dpCs + "</span></div>";
-  html += "</div>";
+  // BrandMeister — only when enabled
+  if (bmEnabled) {
+    html += "<div class='card'><h3>BrandMeister</h3>";
+    html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(bmStatus) + "</div>";
+    html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span>" + String(bmDmrId) + "</span></div>";
+    html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + bmCallsign + (bmSsid > 0 ? "-" + String(bmSsid) : "") + "</span></div>";
+    html += "</div>";
+  }
 
+  // DAPNET + Recent Pages — only when enabled
+  if (dapnetEnabled) {
+    String dpCs = dapnetCallsign.length() > 0 ? dapnetCallsign : bmCallsign;
+    html += "<div class='card'><h3>DAPNET</h3>";
+    html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(dapnetStatus) + "</div>";
+    html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + dpCs + "</span></div>";
+    html += "</div>";
 
-  html += "<div class='card'><h3>ESP-NOW</h3>";
-  html += "<div class='metric'><span class='metric-label'>Peers:</span><span>" + String(espnowPeerCount) + " configured</span></div>";
-  String enStatus = espnowReady ? "Ready" : (espnowMacs.length() > 0 ? "Pending reboot" : "Not configured");
-  html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(enStatus) + "</div>";
-  html += "</div>";
-
+    html += "<div class='card' id='dapnet-pages-card'><h3>DAPNET Recent Pages</h3>";
+    html += "<div id='dp-pages-list' style='font-size:.88em'>"
+      "<span style='color:#888'>No pages received yet.</span></div>";
+    html += "</div>";
+  }
 
   html += "</div>";  // status admin-grid
 
@@ -889,6 +928,12 @@ String getPageHTML() {
   html += "<div class='metric'><span class='metric-label'>SSID (0-99):</span>"
     "<input type='number' id='bm-ssid' value='"
     + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
+  html += "<div style='margin:6px 0 2px'>"
+    "<button id='bm-adv-btn' onclick='toggleBmAdvanced()'"
+    " style='width:100%;font-size:0.82em;padding:4px 0;cursor:pointer;background:none;"
+    "border:1px solid var(--border,#ccc);border-radius:4px;color:inherit'>"
+    "&#9660; Advanced settings</button></div>";
+  html += "<div id='bm-advanced' style='display:none'>";
   html += "<div class='metric'><span class='metric-label'>Password:</span>"
     "<input type='password' id='bm-pass' value='"
     + bmPassword + "'></div>";
@@ -936,6 +981,7 @@ String getPageHTML() {
     "<label class='switch'><input type='checkbox' id='bm-debug'"
     + String(bmDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
   html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log callsign, password hint, and config values on each connect attempt.</p>";
+  html += "</div>";  // end bm-advanced
   html += "<div class='action-buttons-vertical'>";
   html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
   html += "</div>";
@@ -1054,6 +1100,12 @@ String getPageHTML() {
     "var s=document.getElementById('bm-server-sel').value;"
     "var i=document.getElementById('bm-server');"
     "if(s!=='custom'){i.value=s;}else{i.value='';i.focus();}}";
+  html += "function toggleBmAdvanced(){"
+    "var d=document.getElementById('bm-advanced');"
+    "var b=document.getElementById('bm-adv-btn');"
+    "var open=d.style.display==='none';"
+    "d.style.display=open?'block':'none';"
+    "b.innerHTML=open?'&#9650; Advanced':'&#9660; Advanced';}";
   html += "function toggleTheme(){"
     "var html=document.documentElement;"
     "var t=html.getAttribute('data-theme')==='dark'?'light':'dark';"
@@ -1155,6 +1207,26 @@ String getPageHTML() {
     "showAlert('Rebooting... page will reload in 12s.');"
     "setTimeout(function(){location.reload();},12000);});});}";
 
+  // DAPNET pages fetch — auto-refresh every 5 s
+  html += "function fmtAge(s){"
+    "if(s<60)return s+'s ago';"
+    "var m=Math.floor(s/60),r=s%60;"
+    "if(m<60)return m+'m '+r+'s ago';"
+    "return Math.floor(m/60)+'h '+m%60+'m ago';}"
+    "function fetchDapnetPages(){"
+    "fetch('/api/dapnet-pages').then(r=>r.json()).then(function(d){"
+    "var el=document.getElementById('dp-pages-list');"
+    "if(!d.pages||d.pages.length===0){"
+    "el.innerHTML='<span style=\"color:#888\">No pages received yet.</span>';return;}"
+    "var rows=d.pages.map(function(p){"
+    "return '<div style=\"border-bottom:1px solid var(--border,#ddd);padding:4px 0\">'"
+    "+'<span style=\"font-family:monospace;font-weight:600\">RIC '+p.ric+'</span>'"
+    "+'<span style=\"color:#888;font-size:.85em;margin-left:8px\">func '+p.func+'</span>'"
+    "+'<span style=\"color:#888;font-size:.82em;float:right\">'+fmtAge(p.age_s)+'</span>'"
+    "+'<div style=\"word-break:break-all;margin-top:2px\">'+p.msg+'</div></div>';});"
+    "el.innerHTML=rows.join('');}).catch(function(){});}";
+  html += "fetchDapnetPages();setInterval(fetchDapnetPages,5000);";
+
   // Log fetch — auto-refresh every 5 s
   html += "function fetchLog(){"
     "fetch('/api/log').then(r=>r.json()).then(function(lines){"
@@ -1188,6 +1260,30 @@ void registerRoutes() {
   // Main page
   server.on("/", HTTP_GET, []() {
     server.send(200, "text/html", getPageHTML());
+  });
+
+  // DAPNET recent pages API
+  server.on("/api/dapnet-pages", HTTP_GET, []() {
+    portENTER_CRITICAL(&dapnetPageMux);
+    unsigned long now = millis();
+    String j = "{\"pages\":[";
+    for (int i = 0; i < dapnetPageCount; i++) {
+      // newest first: index from (head-1) backwards
+      int idx = ((dapnetPageHead - 1 - i) % DAPNET_PAGE_HISTORY + DAPNET_PAGE_HISTORY) % DAPNET_PAGE_HISTORY;
+      const DapnetPageEntry& e = dapnetPageHistory[idx];
+      if (i > 0) j += ",";
+      unsigned long age = (now >= e.rxMs) ? (now - e.rxMs) / 1000 : 0;
+      String msgEsc = String(e.msg);
+      msgEsc.replace("\\", "\\\\");
+      msgEsc.replace("\"", "\\\"");
+      j += "{\"ric\":" + String(e.ric)
+        + ",\"func\":" + String(e.func)
+        + ",\"msg\":\"" + msgEsc + "\""
+        + ",\"age_s\":" + String(age) + "}";
+    }
+    j += "]}";
+    portEXIT_CRITICAL(&dapnetPageMux);
+    server.send(200, "application/json", j);
   });
 
   // Log API
