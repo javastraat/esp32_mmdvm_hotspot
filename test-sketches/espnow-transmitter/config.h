@@ -16,7 +16,7 @@
 
 // ─── BrandMeister defaults ────────────────────────────────────────────────
 #define DEF_BM_ENABLED      false
-#define DEF_BM_SERVER       "api.brandmeister.network"
+#define DEF_BM_SERVER       "2041.master.brandmeister.network"
 #define DEF_BM_PORT         62031
 #define DEF_BM_DMR_ID       0
 #define DEF_BM_PASSWORD     "passw0rd"
