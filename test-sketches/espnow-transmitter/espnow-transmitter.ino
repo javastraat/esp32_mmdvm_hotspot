@@ -601,7 +601,7 @@ void bmTask(void* param) {
         else if (len >= 55 && memcmp(buf, "DMRD", 4) == 0 && bmState == BmState::CONNECTED) {
           uint32_t srcId = ((uint32_t)buf[5] << 16) | ((uint32_t)buf[6] << 8) | buf[7];
           uint32_t dstId = ((uint32_t)buf[8] << 16) | ((uint32_t)buf[9] << 8) | buf[10];
-          bool isGroup = (buf[15] & 0x40) != 0;
+          bool isGroup = (buf[15] & 0x40) == 0;
           uint8_t slot = (buf[15] & 0x80) ? 2 : 1;
           // Update DMRD TX info for UI card
           dmrdTxInfo.srcId = srcId;
@@ -891,6 +891,11 @@ String getPageHTML() {
     html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(bmStatus) + "</div>";
     html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span>" + String(bmDmrId) + "</span></div>";
     html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + bmCallsign + (bmSsid > 0 ? "-" + String(bmSsid) : "") + "</span></div>";
+    html += "</div>";
+
+    // DMR Activity — live TX info
+    html += "<div class='card' id='dmrd-tx-card'><h3>DMR Activity</h3>";
+    html += "<div id='dmrd-tx-info'><span style='color:#888'>No transmission yet.</span></div>";
     html += "</div>";
   }
 
@@ -1226,6 +1231,37 @@ String getPageHTML() {
     "+'<div style=\"word-break:break-all;margin-top:2px\">'+p.msg+'</div></div>';});"
     "el.innerHTML=rows.join('');}).catch(function(){});}";
   html += "fetchDapnetPages();setInterval(fetchDapnetPages,5000);";
+
+  // DMR Activity polling — 1 s, only when BM enabled
+  if (bmEnabled) {
+    html += "function fetchDmrdTx(){"
+      "fetch('/api/dmrd-tx').then(r=>r.json()).then(function(d){"
+      "var el=document.getElementById('dmrd-tx-info');if(!el)return;"
+      "var dst=d.isGroup?'TG '+d.dst:'PC '+d.dst;"
+      "if(d.active){"
+      "el.innerHTML="
+        "'<div class=\"metric\"><span class=\"metric-label\">Status:</span>"
+        "<span class=\"status-badge badge-success\">Transmitting</span></div>'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">From:</span>"
+        "<span style=\"font-family:monospace;font-weight:600\">'+d.src+'</span></div>'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">To:</span>"
+        "<span style=\"font-family:monospace;font-weight:600\">'+dst+'</span></div>'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">Slot:</span><span>'+d.slot+'</span></div>';"
+      "}else if(d.src>0){"
+      "el.innerHTML="
+        "'<div class=\"metric\"><span class=\"metric-label\">Status:</span>"
+        "<span class=\"status-badge badge-secondary\">Idle</span></div>'"
+        "+'<div style=\"opacity:.5;font-size:.9em\">'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">Last from:</span>"
+        "<span style=\"font-family:monospace\">'+d.src+'</span></div>'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">Last to:</span>"
+        "<span style=\"font-family:monospace\">'+dst+'</span></div>'"
+        "+'<div class=\"metric\"><span class=\"metric-label\">Slot:</span><span>'+d.slot+'</span></div></div>';"
+      "}else{"
+      "el.innerHTML='<span style=\"color:#888\">No transmission yet.</span>';"
+      "}}).catch(function(){});}";
+    html += "fetchDmrdTx();setInterval(fetchDmrdTx,1000);";
+  }
 
   // Log fetch — auto-refresh every 5 s
   html += "function fetchLog(){"
