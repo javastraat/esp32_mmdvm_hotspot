@@ -28,10 +28,24 @@ void registerEspnowSettingsRoutes()
       return;
     }
     String mac = server.arg("mac");
-    // Basic MAC format validation: 17 chars, colons at positions 2,5,8,11,14
-    if (mac.length() != 17) {
-      server.send(400, "text/plain", "ERROR: Invalid MAC address format");
-      return;
+    // Validate each comma-separated MAC (each must be exactly 17 chars)
+    {
+      int start = 0, count = 0;
+      bool valid = true;
+      while (start <= (int)mac.length()) {
+        int comma = mac.indexOf(',', start);
+        String token = (comma < 0) ? mac.substring(start) : mac.substring(start, comma);
+        token.trim();
+        if (token.length() != 17) { valid = false; break; }
+        count++;
+        if (count > 6) { valid = false; break; }
+        if (comma < 0) break;
+        start = comma + 1;
+      }
+      if (!valid || count == 0) {
+        server.send(400, "text/plain", "ERROR: Invalid MAC address format");
+        return;
+      }
     }
     espnowSenderEnabled = (server.arg("sender") == "1");
     espnowReceiverMac   = mac;

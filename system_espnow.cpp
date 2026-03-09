@@ -23,8 +23,10 @@
 #include <esp_wifi.h>
 #include "system/system_logger.h"
 
-static uint8_t _peerMac[6] = {};
-static bool    _ready       = false;
+#define ESPNOW_MAX_PEERS 6
+static uint8_t _peerMacs[ESPNOW_MAX_PEERS][6] = {};
+static int     _peerCount = 0;
+static bool    _ready     = false;
 
 QueueHandle_t espnowDmrNetQueue  = nullptr;
 QueueHandle_t espnowPocsagQueue  = nullptr;
@@ -39,6 +41,26 @@ static bool parseMacString(const String& macStr, uint8_t* out) {
     out[i] = (uint8_t)strtoul(macStr.substring(i * 3, i * 3 + 2).c_str(), nullptr, 16);
   }
   return true;
+}
+
+// -------------------------------------------------------
+// Parse comma-separated MAC list "AA:BB:CC:DD:EE:FF,11:22:33:44:55:66"
+// Returns number of successfully parsed MACs.
+// -------------------------------------------------------
+static int parseMacList(const String& macList, uint8_t out[][6], int maxPeers) {
+  int count = 0;
+  int start = 0;
+  while (count < maxPeers) {
+    int comma = macList.indexOf(',', start);
+    String token = (comma < 0) ? macList.substring(start) : macList.substring(start, comma);
+    token.trim();
+    if (token.length() == 17 && parseMacString(token, out[count])) {
+      count++;
+    }
+    if (comma < 0) break;
+    start = comma + 1;
+  }
+  return count;
 }
 
 // -------------------------------------------------------
@@ -88,11 +110,11 @@ void initEspNow() {
     return;
   }
 
-  // Parse receiver MAC from runtime setting (sender side needs this)
+  // Parse comma-separated receiver MACs (sender side needs this)
   if (espnowSenderEnabled) {
-    if (!parseMacString(espnowReceiverMac, _peerMac)) {
-      addLogMessage("[ESP-NOW] Invalid receiver MAC — check espnowReceiverMac setting");
-      // Continue — receiver-only mode still works without a peer MAC
+    _peerCount = parseMacList(espnowReceiverMac, _peerMacs, ESPNOW_MAX_PEERS);
+    if (_peerCount == 0) {
+      addLogMessage("[ESP-NOW] No valid receiver MACs — check espnowReceiverMac setting");
     }
   }
 
@@ -117,21 +139,24 @@ void initEspNow() {
   // Register receive callback — needed on both sender and receiver
   esp_now_register_recv_cb(onReceive);
 
-  // Register send callback and add peer — sender only
+  // Register send callback and add all peers — sender only
   if (espnowSenderEnabled) {
     esp_now_register_send_cb(onSendResult);
 
-    esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, _peerMac, 6);
-    peer.channel = 0;      // follow current WiFi channel
-    peer.encrypt = false;
-
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-      addLogMessage("[ESP-NOW] Failed to add peer — check espnowReceiverMac setting");
-      return;
+    int added = 0;
+    for (int i = 0; i < _peerCount; i++) {
+      esp_now_peer_info_t peer = {};
+      memcpy(peer.peer_addr, _peerMacs[i], 6);
+      peer.channel = 0;
+      peer.encrypt = false;
+      if (esp_now_add_peer(&peer) == ESP_OK) {
+        added++;
+      } else {
+        addLogMessage(String("[ESP-NOW] Failed to add peer ") + (i + 1));
+      }
     }
 
-    addLogMessage(String("[ESP-NOW] Sender ready — peer: ") + espnowReceiverMac);
+    addLogMessage(String("[ESP-NOW] Sender ready — ") + added + "/" + _peerCount + " peer(s): " + espnowReceiverMac);
   }
 
 
@@ -152,7 +177,9 @@ void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
   pkt.len  = len;
   memcpy(pkt.data, dmrdPacket, len);
 
-  esp_now_send(_peerMac, (uint8_t*)&pkt, sizeof(pkt));
+  for (int i = 0; i < _peerCount; i++) {
+    esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
+  }
 }
 
 // -------------------------------------------------------
@@ -171,7 +198,9 @@ void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& mess
   strncpy(pkt.message, message.c_str(), POCSAG_MSG_MAX_LEN);
   pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
-  esp_now_send(_peerMac, (uint8_t*)&pkt, sizeof(pkt));
+  for (int i = 0; i < _peerCount; i++) {
+    esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
+  }
 }
 
 #endif  // ESPNOW_SENDER

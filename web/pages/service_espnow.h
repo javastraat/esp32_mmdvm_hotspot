@@ -47,10 +47,10 @@ String getServiceEspnowPageHTML()
   html += "<label class='switch'><input type='checkbox' id='en-sender'" + String(espnowSenderEnabled ? " checked" : "") + " onchange='syncSender()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Receiver MAC:</span>";
-  html += "<input type='text' id='recv-mac' value='" + espnowReceiverMac + "' placeholder='AA:BB:CC:DD:EE:FF' style='width:150px;font-family:monospace;padding-right:8px;' maxlength='17'>";
+  html += "<span class='metric-label'>Receiver MAC(s):</span>";
+  html += "<input type='text' id='recv-mac' value='" + espnowReceiverMac + "' placeholder='AA:BB:CC:DD:EE:FF,11:22:33:44:55:66' style='width:100%;max-width:420px;font-family:monospace;padding-right:8px;' maxlength='200'>";
   html += "</div>";
-  html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>MAC of the receiver device. Flash it with receiver firmware to print its MAC on boot.</p>";
+  html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>One or more receiver MACs, comma-separated (max 6). Flash each receiver to print its MAC on boot.</p>";
   html += "<div class='metric'>";
   html += "<span class='metric-label'>Debug Logging:</span>";
   html += "<label class='switch'><input type='checkbox' id='en-debug'" + String(espnowDebug ? " checked" : "") + "><span class='slider'></span></label>";
@@ -117,8 +117,12 @@ String getServiceEspnowPageHTML()
   // Sender
   html += "function saveSender(){";
   html += "var mac=document.getElementById('recv-mac').value.trim().toUpperCase();";
-  html += "var re=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;";
-  html += "if(!re.test(mac)){showAlert('Invalid MAC address format. Use AA:BB:CC:DD:EE:FF');return;}";
+  html += "var single=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;";
+  html += "var parts=mac.split(',');";
+  html += "for(var i=0;i<parts.length;i++){";
+  html += "  if(!single.test(parts[i].trim())){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF (comma-separate multiple)');return;}";
+  html += "}";
+  html += "if(parts.length>6){showAlert('Maximum 6 receiver MACs allowed');return;}";
   html += "var en=document.getElementById('en-sender').checked?'1':'0';";
   html += "var dbg=document.getElementById('en-debug').checked?'1':'0';";
   html += "showConfirm('Save sender settings?',function(){";
