@@ -1,0 +1,42 @@
+next qe: is there a way to find espnow receivers on the network ? a way to add a hotspot to t he transmitter without searching for the mac on the receiver device ? what are your ideas on that ?
+Good question. ESP-NOW has no built-in discovery — you need to layer something on top. Here are the realistic options:
+
+Option A — UDP broadcast discovery (best fit for this project)
+
+Transmitter broadcasts a discovery packet to 255.255.255.255 on a fixed port (e.g. 3491). Receivers listen on that port and reply with their MAC + a name. The web UI shows a "Scan" button that collects responses for 2–3 seconds and lists found receivers with an "Add" button.
+
+Works because both devices are on the same LAN
+Easy to add to the existing web UI
+Receiver side needs a small UDP listener added
+Option B — ESP-NOW broadcast + response
+
+Transmitter sends an ESP-NOW frame to FF:FF:FF:FF:FF:FF (the broadcast MAC). Receivers hear it, reply, and the transmitter gets the sender MAC from the esp_now_recv_cb_t callback.
+
+Works even without being on the same WiFi network
+Elegant and self-contained
+Slightly trickier: broadcast peer must be added first, and channel must match
+Option C — mDNS
+
+Receiver advertises _espnow-recv._udp.local. Transmitter uses ESPmDNS to browse, gets the IP, then resolves MAC via ARP (etharp_find_addr()).
+
+Standard protocol, works with any mDNS browser
+Most complex to implement, ARP lookup is fragile
+Option D — fixed well-known MAC
+
+All receivers are flashed with the same hardcoded MAC (esp_wifi_set_mac()). You just hardcode that in the transmitter.
+
+Zero implementation effort
+Breaks the moment you have more than one receiver
+My recommendation: Option A
+
+It fits naturally into your existing architecture — the receiver already has a web server, so adding a UDP responder is small. The transmitter web UI already has a MAC config form, so adding a "Scan" button next to it is straightforward. You get device names displayed, multiple receivers discovered at once, and it's obvious to the user what's happening.
+
+The receiver side would need:
+
+A UDP socket listening on port 3491 for a discovery ping
+Reply with {"mac":"AA:BB:CC:DD:EE:FF","name":"My Hotspot"}
+The transmitter side would need:
+
+/api/espnow-scan endpoint that sends the broadcast and waits ~2s for replies
+A "Scan" button in the web UI that calls that endpoint and shows results
+Want me to implement this?

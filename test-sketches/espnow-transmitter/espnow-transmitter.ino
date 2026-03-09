@@ -1043,9 +1043,13 @@ String getPageHTML() {
   for (int i = 0; i < 6; ++i) {
     html += "<div class='metric'><input type='text' id='en-mac" + String(i + 1) + "' value='" + macs[i] + "' placeholder='AA:BB:CC:DD:EE:FF' style='font-family:monospace;max-width:220px;margin-bottom:2px'></div>";
   }
-  html += "<div class='info' style='margin-top:10px'>Up to 6 MAC addresses. Leave unused fields empty. "
-    "Flash each receiver — its MAC is printed on boot. "
+  html += "<div class='info' style='margin-top:10px'>Up to 6 MAC addresses. "
+    "Use <b>Scan</b> to auto-discover receivers on the network, or enter MACs manually. "
     "MAC changes require a reboot to apply.</div>";
+  html += "<div style='margin:10px 0'>"
+    "<button id='en-scan-btn' class='btn btn-primary' style='width:100%' onclick='scanEspNow()'>"
+    "&#128268; Scan for receivers</button>"
+    "<div id='en-scan-results' style='margin-top:8px;font-size:.88em'></div></div>";
   html += "<div class='action-buttons-vertical'>"
     "<button class='btn btn-success' onclick='saveEn()'>Save ESP-NOW receivers</button>"
     "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
@@ -1263,6 +1267,31 @@ String getPageHTML() {
     html += "fetchDmrdTx();setInterval(fetchDmrdTx,1000);";
   }
 
+  // ESP-NOW scan
+  html += "function scanEspNow(){"
+    "var btn=document.getElementById('en-scan-btn');"
+    "var res=document.getElementById('en-scan-results');"
+    "btn.disabled=true;btn.textContent='Scanning...';"
+    "res.innerHTML='<span style=\"color:#888\">Scanning for 2 seconds\u2026</span>';"
+    "fetch('/api/espnow-scan').then(r=>r.json()).then(function(d){"
+    "btn.disabled=false;btn.innerHTML='&#128268; Scan for receivers';"
+    "if(!d.found||d.found.length===0){"
+    "res.innerHTML='<span style=\"color:#888\">No receivers found.</span>';return;}"
+    "var rows=d.found.map(function(f){"
+    "return '<div style=\"display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap\">'"
+    "+'<span style=\"font-family:monospace\">'+f.mac+'</span>'"
+    "+'<span style=\"color:#888;font-size:.85em\">'+f.name+'</span>'"
+    "+'<button class=\"btn btn-success\" style=\"padding:2px 10px;font-size:.82em\" '"
+    "+'onclick=\"addEspNowMac(\\'' + f.mac + '\\')\">Add</button></div>';});"
+    "res.innerHTML=rows.join('');}).catch(function(){"
+    "btn.disabled=false;btn.innerHTML='&#128268; Scan for receivers';"
+    "res.innerHTML='<span style=\"color:#f44\">Scan failed.</span>';});}";
+  html += "function addEspNowMac(mac){"
+    "for(var i=1;i<=6;i++){"
+    "var f=document.getElementById('en-mac'+i);"
+    "if(f&&f.value.trim()===''&&f.value!==mac){f.value=mac;return;}}"
+    "showAlert('All 6 MAC fields are already filled. Remove one first.');}";
+
   // Log fetch — auto-refresh every 5 s
   html += "function fetchLog(){"
     "fetch('/api/log').then(r=>r.json()).then(function(lines){"
@@ -1319,6 +1348,52 @@ void registerRoutes() {
     }
     j += "]}";
     portEXIT_CRITICAL(&dapnetPageMux);
+    server.send(200, "application/json", j);
+  });
+
+  // ESP-NOW receiver discovery scan
+  server.on("/api/espnow-scan", HTTP_GET, []() {
+    WiFiUDP udp;
+    udp.begin(3490);  // ephemeral receive port
+
+    // Send broadcast discovery ping
+    const char* ping = "{\"type\":\"ESPNOW_DISCOVER\"}";
+    udp.beginPacket(IPAddress(255, 255, 255, 255), 3491);
+    udp.write((const uint8_t*)ping, strlen(ping));
+    udp.endPacket();
+
+    struct Found { String mac; String name; } found[6];
+    int foundCount = 0;
+    unsigned long start = millis();
+
+    while (millis() - start < 2000 && foundCount < 6) {
+      int len = udp.parsePacket();
+      if (len > 0) {
+        char buf[256] = {};
+        int got = udp.read(buf, min(len, 255));
+        String s = String(buf).substring(0, got);
+        int mi = s.indexOf("\"mac\":\"");
+        int ni = s.indexOf("\"name\":\"");
+        if (mi >= 0) {
+          mi += 7;
+          String mac = s.substring(mi, s.indexOf("\"", mi));
+          String name = "Unknown";
+          if (ni >= 0) { ni += 8; name = s.substring(ni, s.indexOf("\"", ni)); }
+          bool dup = false;
+          for (int i = 0; i < foundCount; i++) if (found[i].mac == mac) { dup = true; break; }
+          if (!dup) { found[foundCount].mac = mac; found[foundCount].name = name; foundCount++; }
+        }
+      }
+      delay(10);
+    }
+    udp.stop();
+
+    String j = "{\"found\":[";
+    for (int i = 0; i < foundCount; i++) {
+      if (i > 0) j += ",";
+      j += "{\"mac\":\"" + found[i].mac + "\",\"name\":\"" + found[i].name + "\"}";
+    }
+    j += "]}";
     server.send(200, "application/json", j);
   });
 
