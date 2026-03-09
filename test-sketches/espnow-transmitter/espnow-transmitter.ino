@@ -868,11 +868,6 @@ String getPageHTML() {
   html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(enStatus) + "</div>";
   html += "</div>";
 
-  // DMRD Transmission Card (same style as other cards)
-  html += "<div class='card' id='dmrd-tx-card'>";
-  html += "<h3>DMRD Transmission</h3>";
-  html += "<div class='metric' id='dmrd-tx-content'><span style='color:#888'>Idle</span></div>";
-  html += "</div>";
 
   html += "</div>";  // status admin-grid
 
@@ -1005,11 +1000,6 @@ String getPageHTML() {
     "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
     "</div></div>";
 
-  // ── DMRD Transmission Card ───────────────────────────────────────────
-  html += "<div class='card' id='dmrd-tx-card' style='background:#f8f8f8;margin-bottom:16px'>";
-  html += "<h3>DMRD Transmission</h3>";
-  html += "<div id='dmrd-tx-content'><span style='color:#888'>Idle</span></div>";
-  html += "</div>";
 
   html += "</div>";  // config admin-grid
 
@@ -1018,14 +1008,13 @@ String getPageHTML() {
   html += "<h3>Log <button class='btn btn-primary' style='float:right;padding:4px 12px;font-size:13px' onclick='fetchLog()'>Refresh</button></h3>";
   html += "<pre id='log' style='max-height:260px'></pre>";
   html += "</div>";
+  // Footer
   html += "<br>";
   html += "<div class='footer-links'>" FOOTER_LINKS "</div>";
   html += "<div class='copyright'>" FOOTER_COPYRIGHT "</div>";
 
   // ── Scripts ───────────────────────────────────────────────────────────
   html += "<script>";
-  // DMRD TX Card updater (styled like other cards)
-  html += "function updateDmrdTxCard(){fetch('/api/dmrd-tx').then(r=>r.json()).then(function(d){var c=document.getElementById('dmrd-tx-content');if(!c)return;if(d.active){var dstLabel=d.isGroup?'TG':'';c.innerHTML='<div class=\'metric\'><span class=\'metric-label\'>Source:</span>'+d.src+'</div><div class=\'metric\'><span class=\'metric-label\'>Destination:</span>'+dstLabel+d.dst+'</div><div class=\'metric\'><span class=\'metric-label\'>Slot:</span>'+d.slot+'</div>';}else{c.innerHTML='<span style=\\'color:#888\\'>Idle</span>';}});}updateDmrdTxCard();setInterval(updateDmrdTxCard,400);";
   // Mutual exclusivity logic with live card enable/disable
   html += "document.addEventListener('DOMContentLoaded',function(){\n"
     "var bm=document.getElementById('bm-en');\n"
