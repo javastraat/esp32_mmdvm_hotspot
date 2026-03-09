@@ -508,13 +508,14 @@ void pocsagTask(void *parameter)
 {
   addLogMessage("[POCSAG Task] Started - waiting for network connection...");
 
-  // Wait for any network connection (WiFi OR Ethernet)
-  while (WiFi.status() != WL_CONNECTED && !ethConnected)
+  // Wait for any network connection (WiFi STA, Ethernet, or SoftAP)
+  while (WiFi.status() != WL_CONNECTED && !ethConnected &&
+         WiFi.softAPIP() == IPAddress(0, 0, 0, 0))
   {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 
-  addLogMessage("[POCSAG Task] Network connected - initializing POCSAG protocol");
+  addLogMessage("[POCSAG Task] Network ready - initializing POCSAG protocol");
 
   // Wait 5 seconds before blinking to separate from LED task
   vTaskDelay(5000 / portTICK_PERIOD_MS);
