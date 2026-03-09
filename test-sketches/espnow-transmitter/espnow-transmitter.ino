@@ -880,8 +880,8 @@ String getPageHTML() {
   {
     String enStatus = espnowReady ? "Ready" : (espnowMacs.length() > 0 ? "Pending reboot" : "Not configured");
     html += "<div class='card'><h3>ESP-NOW</h3>";
-    html += "<div class='metric'><span class='metric-label'>Peers:</span><span>" + String(espnowPeerCount) + " configured</span></div>";
     html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(enStatus) + "</div>";
+    html += "<div class='metric'><span class='metric-label'>Peers:</span><span>" + String(espnowPeerCount) + " configured</span></div>";
     html += "</div>";
   }
 

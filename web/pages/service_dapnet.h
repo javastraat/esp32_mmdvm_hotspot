@@ -109,7 +109,7 @@ String getServiceDapnetPageHTML()
     // AuthKey (text so the saved value is always visible)
     html += "<div class='metric'>";
     html += "<span class='metric-label'>AuthKey:</span>";
-    html += "<input type='text' id='dapnet_key' value='" + dapnetAuthKey + "' maxlength='64' style='width:180px;'>";
+    html += "<input type='password' id='dapnet_key' value='" + dapnetAuthKey + "' maxlength='64' style='width:180px;'>";
     html += "</div>";
 
     html += "</div>"; // end dapnet-server-fields
