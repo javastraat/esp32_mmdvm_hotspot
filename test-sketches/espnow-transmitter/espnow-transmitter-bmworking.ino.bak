@@ -45,24 +45,10 @@ WebServer server(80);
 TaskHandle_t bmTaskHandle = nullptr;
 TaskHandle_t dapnetTaskHandle = nullptr;
 
-
-
-
-
-// ─── Circular log buffer ─────────────────────────────────────────────────
-static String logLines[LOG_LINES];
-static int logHead = 0;
-static int logCount = 0;
-static portMUX_TYPE logMux = portMUX_INITIALIZER_UNLOCKED;
-
-// LOGGING
+// Simple log function stub
 void addLog(const String& msg) {
-  Serial.println(msg); // Log the message to the serial console
-  portENTER_CRITICAL(&logMux); // Enter critical section to protect shared resources
-  logLines[logHead] = msg; // Store the log message in the circular buffer
-  logHead = (logHead + 1) % LOG_LINES; // Update the head index
-  if (logCount < LOG_LINES) logCount++; // Increment log count if not full
-  portEXIT_CRITICAL(&logMux); // Exit critical section
+  // Optionally print or store logs
+  Serial.println(msg);
 }
 
 struct __attribute__((packed)) EspNowDmrNetPacket {
@@ -123,22 +109,15 @@ volatile bool dapnetLoggedIn = false;
 String bmStatus = "Disabled";
 String dapnetStatus = "Disabled";
 
-// ─── DMRD Transmission Info for UI Card ───────────────────────────────
-struct DmrdTxInfo {
-  uint32_t srcId = 0;
-  uint32_t dstId = 0;
-  uint8_t slot = 0;
-  bool isGroup = false;
-  bool active = false;
-  unsigned long lastUpdate = 0;
-};
-static DmrdTxInfo dmrdTxInfo;
-
 static uint8_t espnowPeerMacs[ESPNOW_MAX_PEERS][6];
 static int espnowPeerCount = 0;
 static bool espnowReady = false;
 
-
+// ─── Circular log buffer ─────────────────────────────────────────────────
+static String logLines[LOG_LINES];
+static int logHead = 0;
+static int logCount = 0;
+static portMUX_TYPE logMux = portMUX_INITIALIZER_UNLOCKED;
 
 
 static String getLogsJson() {
@@ -578,16 +557,7 @@ void bmTask(void* param) {
           uint32_t dstId = ((uint32_t)buf[8] << 16) | ((uint32_t)buf[9] << 8) | buf[10];
           bool isGroup = (buf[15] & 0x40) != 0;
           uint8_t slot = (buf[15] & 0x80) ? 2 : 1;
-          // Update DMRD TX info for UI card
-          dmrdTxInfo.srcId = srcId;
-          dmrdTxInfo.dstId = dstId;
-          dmrdTxInfo.slot = slot;
-          dmrdTxInfo.isGroup = isGroup;
-          dmrdTxInfo.active = true;
-          dmrdTxInfo.lastUpdate = millis();
-          if (bmDebug) {
-            addLog("[BM] DMRD src=" + String(srcId) + " dst=" + (isGroup ? "TG" : "") + String(dstId) + " slot=" + String(slot) + " → ESP-NOW");
-          }
+          addLog("[BM] DMRD src=" + String(srcId) + " dst=" + (isGroup ? "TG" : "") + String(dstId) + " slot=" + String(slot) + " → ESP-NOW");
           espnowSendDmr(buf, (uint8_t)len);
         }
       }
@@ -826,19 +796,19 @@ String getPageHTML() {
 
   // Theme init script (before styles so no flash)
   html += "<script>var t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);</script>";
-  html += "<style>" + getStyles() + "</style>";
+  html += R"(<style>
+)";
+  html += getStyles();
+  html += R"(</style>)";
   html += "</head><body>";
 
   // ── Navbar ────────────────────────────────────────────────────────────
   html += "<nav class='navbar'>";
   html += "<div><div class='nav-brand'>ESP-NOW Transmitter</div>"
-    "<div class='nav-sub'>BrandMeister + DAPNET → ESP-NOW bridge &nbsp;·&nbsp; v" FW_VERSION "</div></div>";
+          "<div class='nav-sub'>BrandMeister + DAPNET → ESP-NOW bridge &nbsp;·&nbsp; v" FW_VERSION "</div></div>";
   html += "<button class='theme-toggle' onclick='toggleTheme()' title='Toggle dark/light'>&#127769;</button>";
   html += "</nav>";
 
-  // ── Page ──────────────────────────────────────────────────────────────
-  html += "<div class='container'>";
-  html += "<h1>Configuration</h1>";
 
   // ── Status overview ───────────────────────────────────────────────────
   html += "<div class='admin-grid'>";
@@ -853,6 +823,9 @@ String getPageHTML() {
   html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(bmStatus) + "</div>";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span><span>" + String(bmDmrId) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + bmCallsign + (bmSsid > 0 ? "-" + String(bmSsid) : "") + "</span></div>";
+
+  // (removed duplicate Preferences prefs declaration)
+
   html += "</div>";
 
   html += "<div class='card'><h3>DAPNET</h3>";
@@ -861,19 +834,13 @@ String getPageHTML() {
   html += "<div class='metric'><span class='metric-label'>Callsign:</span><span>" + dpCs + "</span></div>";
   html += "</div>";
 
-
   html += "<div class='card'><h3>ESP-NOW</h3>";
   html += "<div class='metric'><span class='metric-label'>Peers:</span><span>" + String(espnowPeerCount) + " configured</span></div>";
   String enStatus = espnowReady ? "Ready" : (espnowMacs.length() > 0 ? "Pending reboot" : "Not configured");
   html += "<div class='metric'><span class='metric-label'>Status:</span>" + badge(enStatus) + "</div>";
   html += "</div>";
 
-  // DMRD Transmission Card (same style as other cards)
-  html += "<div class='card' id='dmrd-tx-card'>";
-  html += "<h3>DMRD Transmission</h3>";
-  html += "<div class='metric' id='dmrd-tx-content'><span style='color:#888'>Idle</span></div>";
-  html += "</div>";
-
+  // Use global bmDescription, bmUrl, bmFirmwareVersion
   html += "</div>";  // status admin-grid
 
   // ── BrandMeister settings ─────────────────────────────────────────────
@@ -881,65 +848,74 @@ String getPageHTML() {
   // BrandMeister card with gray-out logic (C++ only)
   html += "<div class='card' id='bm-card'><h3>BrandMeister (DMR)</h3>";
   html += "<div class='metric'><span class='metric-label'>Enable:</span>"
-    "<label class='switch'><input type='checkbox' id='bm-en'"
-    + String(bmEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
+          "<label class='switch'><input type='checkbox' id='bm-en'"
+          + String(bmEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
   String bmFieldsStyle = dapnetEnabled ? " style='opacity:0.5;'" : "";
   html += "<div class='bm-fields'" + bmFieldsStyle + ">";
   html += "<div class='metric'><span class='metric-label'>DMR ID:</span>"
-    "<input type='number' id='bm-id' value='"
-    + String(bmDmrId) + "' min='1' max='16776415'></div>";
+          "<input type='number' id='bm-id' value='"
+          + String(bmDmrId) + "' min='1' max='16776415'></div>";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span>"
-    "<input type='text' id='bm-cs' value='"
-    + bmCallsign + "' maxlength='8'></div>";
+          "<input type='text' id='bm-cs' value='"
+          + bmCallsign + "' maxlength='8'></div>";
   html += "<div class='metric'><span class='metric-label'>SSID (0-99):</span>"
-    "<input type='number' id='bm-ssid' value='"
-    + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
+          "<input type='number' id='bm-ssid' value='"
+          + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
   html += "<div class='metric'><span class='metric-label'>Password:</span>"
-    "<input type='password' id='bm-pass' value='"
-    + bmPassword + "'></div>";
+          "<input type='password' id='bm-pass' value='"
+          + bmPassword + "'></div>";
   {
     bool isKnown = false;
     for (int i = 0; i < bmServerCount; i++) {
       if (bmServer == bmServers[i].address) {
-  isKnown = true;
-  break;
+        isKnown = true;
+        break;
       }
     }
     html += "<div class='metric'><span class='metric-label'>Server:</span>"
-      "<select id='bm-server-sel' onchange='bmServerSel()' style='width:100%;margin-bottom:4px'>";
+            "<select id='bm-server-sel' onchange='bmServerSel()' style='width:100%;margin-bottom:4px'>";
     html += String("<option value='custom'") + (isKnown ? ">" : " selected>") + "Custom (enter below)</option>";
     for (int i = 0; i < bmServerCount; i++) {
       html += "<option value='" + String(bmServers[i].address) + "'" + (bmServer == bmServers[i].address ? " selected" : "") + ">" + String(bmServers[i].name) + "</option>";
     }
     html += "</select>"
-      "<input type='text' id='bm-server' value='"
-      + bmServer + "' class='full' placeholder='hostname or IP'></div>";
+            "<input type='text' id='bm-server' value='"
+            + bmServer + "' class='full' placeholder='hostname or IP'></div>";
   }
   html += "<div class='metric'><span class='metric-label'>Port:</span>"
-    "<input type='number' id='bm-port' value='"
-    + String(bmPort) + "' style='max-width:100px'></div>";
-  html += "<div class='metric'><span class='metric-label'>Location:</span>"
-    "<input type='text' id='bm-loc' value='"
-    + bmLocation + "' class='full'></div>";
-  html += "<div class='metric'><span class='metric-label'>Latitude:</span>"
-    "<input type='text' id='bm-lat' value='"
-    + bmLatitude + "' style='max-width:140px'></div>";
-  html += "<div class='metric'><span class='metric-label'>Longitude:</span>"
-    "<input type='text' id='bm-lon' value='"
-    + bmLongitude + "' style='max-width:140px'></div>";
-  html += "<div class='metric'><span class='metric-label'>Height (m):</span>"
-    "<input type='number' id='bm-h' value='"
-    + String(bmHeight) + "' min='0' max='999' style='max-width:100px'></div>";
-  html += "<div class='metric'><span class='metric-label'>RX Freq (Hz):</span>"
-    "<input type='number' id='bm-rxf' value='"
-    + String(bmRxFreq) + "' min='100000000' max='500000000'></div>";
-  html += "<div class='metric'><span class='metric-label'>TX Freq (Hz):</span>"
-    "<input type='number' id='bm-txf' value='"
-    + String(bmTxFreq) + "' min='100000000' max='500000000'></div>";
-  html += "<p style='font-size:0.82em;color:#888;margin-top:2px;margin-bottom:4px'>Must match your registered hotspot frequency. BrandMeister rejects freq=0.</p>";
+          "<input type='number' id='bm-port' value='"
+          + String(bmPort) + "' style='max-width:100px'></div>";
+    html += "<div class='metric'><span class='metric-label'>Location:</span>"
+      "<input type='text' id='bm-loc' value='"
+      + bmLocation + "' class='full'></div>";
+    html += "<div class='metric'><span class='metric-label'>Latitude:</span>"
+      "<input type='text' id='bm-lat' value='"
+      + bmLatitude + "' style='max-width:140px'></div>";
+    html += "<div class='metric'><span class='metric-label'>Longitude:</span>"
+      "<input type='text' id='bm-lon' value='"
+      + bmLongitude + "' style='max-width:140px'></div>";
+    html += "<div class='metric'><span class='metric-label'>Height (m):</span>"
+      "<input type='number' id='bm-h' value='"
+      + String(bmHeight) + "' min='0' max='999' style='max-width:100px'></div>";
+    html += "<div class='metric'><span class='metric-label'>Description:</span>"
+      "<input type='text' id='bm-desc' value='"
+      + bmDescription + "' maxlength='19' class='full'></div>";
+    html += "<div class='metric'><span class='metric-label'>URL:</span>"
+      "<input type='text' id='bm-url' value='"
+      + bmUrl + "' maxlength='124' class='full'></div>";
+    html += "<div class='metric'><span class='metric-label'>Firmware Version:</span>"
+      "<input type='text' id='bm-fwver' value='"
+      + bmFirmwareVersion + "' maxlength='40' class='full'></div>";
+    html += "<div class='metric'><span class='metric-label'>RX Freq (Hz):</span>"
+      "<input type='number' id='bm-rxf' value='"
+      + String(bmRxFreq) + "' min='100000000' max='500000000'></div>";
+    html += "<div class='metric'><span class='metric-label'>TX Freq (Hz):</span>"
+      "<input type='number' id='bm-txf' value='"
+      + String(bmTxFreq) + "' min='100000000' max='500000000'></div>";
+    html += "<p style='font-size:0.82em;color:#888;margin-top:2px;margin-bottom:4px'>Must match your registered hotspot frequency. BrandMeister rejects freq=0.</p>";
   html += "<div class='metric'><span class='metric-label'>Debug Logging:</span>"
-    "<label class='switch'><input type='checkbox' id='bm-debug'"
-    + String(bmDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
+          "<label class='switch'><input type='checkbox' id='bm-debug'"
+          + String(bmDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
   html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log callsign, password hint, and config values on each connect attempt.</p>";
   html += "<div class='action-buttons-vertical'>";
   html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
@@ -950,25 +926,25 @@ String getPageHTML() {
   // DAPNET card with gray-out logic (C++ only)
   html += "<div class='card' id='dp-card'><h3>DAPNET (POCSAG)</h3>";
   html += "<div class='metric'><span class='metric-label'>Enable:</span>"
-    "<label class='switch'><input type='checkbox' id='dp-en'"
-    + String(dapnetEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
+          "<label class='switch'><input type='checkbox' id='dp-en'"
+          + String(dapnetEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
   String dpFieldsStyle = bmEnabled ? " style='opacity:0.5;'" : "";
   html += "<div class='dp-fields'" + dpFieldsStyle + ">";
   html += "<div class='metric'><span class='metric-label'>Callsign:</span>"
-    "<input type='text' id='dp-cs' placeholder='(same as BM)' value='"
-    + dapnetCallsign + "' maxlength='10'></div>";
+          "<input type='text' id='dp-cs' placeholder='(same as BM)' value='"
+          + dapnetCallsign + "' maxlength='10'></div>";
   html += "<div class='metric'><span class='metric-label'>Auth Key:</span>"
-    "<input type='password' id='dp-key' value='"
-    + dapnetAuthKey + "' class='full'></div>";
+          "<input type='password' id='dp-key' value='"
+          + dapnetAuthKey + "' class='full'></div>";
   html += "<div class='metric'><span class='metric-label'>Server:</span>"
-    "<input type='text' id='dp-server' value='"
-    + dapnetServer + "' class='full'></div>";
+          "<input type='text' id='dp-server' value='"
+          + dapnetServer + "' class='full'></div>";
   html += "<div class='metric'><span class='metric-label'>Port:</span>"
-    "<input type='number' id='dp-port' value='"
-    + String(dapnetPort) + "' style='max-width:100px'></div>";
+          "<input type='number' id='dp-port' value='"
+          + String(dapnetPort) + "' style='max-width:100px'></div>";
   html += "<div class='metric'><span class='metric-label'>Debug Logging:</span>"
-    "<label class='switch'><input type='checkbox' id='dp-debug'"
-    + String(dapnetDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
+          "<label class='switch'><input type='checkbox' id='dp-debug'"
+          + String(dapnetDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
   html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log rubric/non-page frames (type 5, etc.). Disable unless debugging.</p>";
   html += "<div class='action-buttons-vertical'>";
   html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
@@ -978,7 +954,6 @@ String getPageHTML() {
   // html +="<div class='action-buttons-vertical'>"
   //      "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>"
   //      "</div>";
-
 
   // ── ESP-NOW receivers ─────────────────────────────────────────────────
   html += "<div class='card'><h3>ESP-NOW Receivers</h3>";
@@ -998,18 +973,12 @@ String getPageHTML() {
     html += "<div class='metric'><input type='text' id='en-mac" + String(i + 1) + "' value='" + macs[i] + "' placeholder='AA:BB:CC:DD:EE:FF' style='font-family:monospace;max-width:220px;margin-bottom:2px'></div>";
   }
   html += "<div class='info' style='margin-top:10px'>Up to 6 MAC addresses. Leave unused fields empty. "
-    "Flash each receiver — its MAC is printed on boot. "
-    "MAC changes require a reboot to apply.</div>";
+          "Flash each receiver — its MAC is printed on boot. "
+          "MAC changes require a reboot to apply.</div>";
   html += "<div class='action-buttons-vertical'>"
-    "<button class='btn btn-success' onclick='saveEn()'>Save ESP-NOW receivers</button>"
-    "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
-    "</div></div>";
-
-  // ── DMRD Transmission Card ───────────────────────────────────────────
-  html += "<div class='card' id='dmrd-tx-card' style='background:#f8f8f8;margin-bottom:16px'>";
-  html += "<h3>DMRD Transmission</h3>";
-  html += "<div id='dmrd-tx-content'><span style='color:#888'>Idle</span></div>";
-  html += "</div>";
+          "<button class='btn btn-success' onclick='saveEn()'>Save ESP-NOW receivers</button>"
+          "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
+          "</div></div>";
 
   html += "</div>";  // config admin-grid
 
@@ -1020,163 +989,23 @@ String getPageHTML() {
   html += "</div>";
   html += "<br>";
   html += "<div class='footer-links'>" FOOTER_LINKS "</div>";
-  html += "<div class='copyright'>" FOOTER_COPYRIGHT "</div>";
+    html += "<div class='copyright'>" FOOTER_COPYRIGHT "</div>";
 
-  // ── Scripts ───────────────────────────────────────────────────────────
-  html += "<script>";
-  // DMRD TX Card updater (styled like other cards)
-  html += "function updateDmrdTxCard(){fetch('/api/dmrd-tx').then(r=>r.json()).then(function(d){var c=document.getElementById('dmrd-tx-content');if(!c)return;if(d.active){var dstLabel=d.isGroup?'TG':'';c.innerHTML='<div class=\'metric\'><span class=\'metric-label\'>Source:</span>'+d.src+'</div><div class=\'metric\'><span class=\'metric-label\'>Destination:</span>'+dstLabel+d.dst+'</div><div class=\'metric\'><span class=\'metric-label\'>Slot:</span>'+d.slot+'</div>';}else{c.innerHTML='<span style=\\'color:#888\\'>Idle</span>';}});}updateDmrdTxCard();setInterval(updateDmrdTxCard,400);";
-  // Mutual exclusivity logic with live card enable/disable
-  html += "document.addEventListener('DOMContentLoaded',function(){\n"
-    "var bm=document.getElementById('bm-en');\n"
-    "var dp=document.getElementById('dp-en');\n"
-    "var bmFields=document.querySelector('.bm-fields');\n"
-    "var dpFields=document.querySelector('.dp-fields');\n"
-    "function setCardState(fieldsDiv, enable){\n"
-    "  fieldsDiv.style.opacity=enable?1:0.5;\n"
-    "  var fields=fieldsDiv.querySelectorAll('input,button');\n"
-    "  for(var i=0;i<fields.length;i++){\n"
-    "    if(fields[i].id==='bm-en'||fields[i].id==='dp-en') continue;\n"
-    "    fields[i].disabled=!enable;\n"
-    "    if(fields[i].tagName==='BUTTON'){fields[i].style.opacity=enable?1:0.5;}\n"
-    "  }\n"
-    "}\n"
-    "function syncCards(){\n"
-    "  bm.disabled=false;\n"
-    "  dp.disabled=false;\n"
-    "  if(dp.checked){\n"
-    "    setCardState(bmFields,false);\n"
-    "    setCardState(dpFields,true);\n"
-    "  }else if(bm.checked){\n"
-    "    setCardState(bmFields,true);\n"
-    "    setCardState(dpFields,false);\n"
-    "  }else{\n"
-    "    setCardState(bmFields,true);\n"
-    "    setCardState(dpFields,true);\n"
-    "  }\n"
-    "}\n"
-    "bm.addEventListener('change',syncCards);\n"
-    "dp.addEventListener('change',syncCards);\n"
-    "syncCards();\n"
-    "});\n";
-
-  // Theme toggle
-  html += "function bmServerSel(){"
-    "var s=document.getElementById('bm-server-sel').value;"
-    "var i=document.getElementById('bm-server');"
-    "if(s!=='custom'){i.value=s;}else{i.value='';i.focus();}}";
-  html += "function toggleTheme(){"
-    "var html=document.documentElement;"
-    "var t=html.getAttribute('data-theme')==='dark'?'light':'dark';"
-    "html.setAttribute('data-theme',t);localStorage.setItem('theme',t);}";
-
-  // Modal helpers — identical pattern to main project
-  html += "window.showModal=function(fn){"
-    "var o=document.createElement('div');o.className='modal-overlay';"
-    "var b=document.createElement('div');b.className='modal-box';"
-    "fn(b,function(){document.body.removeChild(o);});"
-    "o.appendChild(b);"
-    "o.addEventListener('click',function(e){if(e.target===o)document.body.removeChild(o);});"
-    "document.body.appendChild(o);};"
-    "window.showAlert=function(msg){"
-    "showModal(function(b,close){"
-    "b.innerHTML='<h4>'+msg+'</h4>';"
-    "var d=document.createElement('div');d.className='modal-buttons';"
-    "var ok=document.createElement('button');ok.textContent='OK';ok.className='btn btn-primary';ok.onclick=close;"
-    "d.appendChild(ok);b.appendChild(d);});};"
-    "window.showConfirm=function(msg,onYes){"
-    "showModal(function(b,close){"
-    "b.innerHTML='<h4>'+msg+'</h4>';"
-    "var d=document.createElement('div');d.className='modal-buttons';"
-    "var y=document.createElement('button');y.textContent='Yes';y.className='btn btn-success';"
-    "y.onclick=function(){close();onYes();};"
-    "var n=document.createElement('button');n.textContent='Cancel';n.className='btn btn-danger';n.onclick=close;"
-    "d.appendChild(y);d.appendChild(n);b.appendChild(d);});};";
-
-  // Unified save for both BrandMeister and DAPNET
-  html += "function saveBoth(){"
-    "var b={\n"
-    "'bm_en':document.getElementById('bm-en').checked?'1':'0',\n"
-    "'bm_id':document.getElementById('bm-id').value,\n"
-    "'bm_cs':document.getElementById('bm-cs').value.trim().toUpperCase(),\n"
-    "'bm_ssid':document.getElementById('bm-ssid').value,\n"
-    "'bm_pass':document.getElementById('bm-pass').value,\n"
-    "'bm_server':document.getElementById('bm-server').value.trim(),\n"
-    "'bm_port':document.getElementById('bm-port').value,\n"
-    "'bm_loc':document.getElementById('bm-loc').value.trim(),\n"
-    "'bm_lat':document.getElementById('bm-lat').value.trim(),\n"
-    "'bm_lon':document.getElementById('bm-lon').value.trim(),\n"
-    "'bm_h':document.getElementById('bm-h').value,\n"
-    "'bm_rxf':document.getElementById('bm-rxf').value,\n"
-    "'bm_txf':document.getElementById('bm-txf').value,\n"
-    "'dp_en':document.getElementById('dp-en').checked?'1':'0',\n"
-    "'dp_cs':document.getElementById('dp-cs').value.trim().toUpperCase(),\n"
-    "'dp_key':document.getElementById('dp-key').value.trim(),\n"
-    "'dp_server':document.getElementById('dp-server').value.trim(),\n"
-    "'dp_port':document.getElementById('dp-port').value,\n"
-    "'dp_debug':document.getElementById('dp-debug').checked?'1':'0',\n"
-    "'bm_debug':document.getElementById('bm-debug').checked?'1':'0'\n"
-    "};\n"
-    "var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&');\n"
-    "showConfirm('Save BrandMeister & DAPNET settings?',function(){\n"
-    "fetch('/api/save-both',{method:'POST',\n"
-    "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})\n"
-    ".then(r=>r.text()).then(function(msg){\n"
-    "  showAlert(msg);\n"
-    "  var okBtn=document.querySelector('.modal-box .btn-primary');\n"
-    "  if(okBtn){okBtn.addEventListener('click',function(){\n"
-    "    if(msg.indexOf('saved. Reboot to re-connect')!==-1){\n"
-    "      // Show reboot overlay\n"
-    "      var overlay=document.createElement('div');\n"
-    "      overlay.style.position='fixed';\n"
-    "      overlay.style.top=0;overlay.style.left=0;overlay.style.width='100vw';overlay.style.height='100vh';\n"
-    "      overlay.style.background='rgba(255,255,255,0.96)';\n"
-    "      overlay.style.zIndex=9999;overlay.style.display='flex';overlay.style.flexDirection='column';overlay.style.justifyContent='center';overlay.style.alignItems='center';\n"
-    "      overlay.innerHTML='<div style=\\'font-size:2em;margin-bottom:16px;color:#333\\'>Rebooting...<br><span style=\\'font-size:0.7em;color:#888\\'>(please wait 10 seconds)</span></div><div class=\\'loader\\'></div>';\n"
-    "      document.body.appendChild(overlay);\n"
-    "      fetch('/api/reboot',{method:'POST'});\n"
-    "      setTimeout(function(){location.reload();},10000);\n"
-    "    }\n"
-    "  });}\n"
-    "});\n"
-    "});}";
-
-  // ESP-NOW save (combine 6 fields into comma-delimited string)
-  html += "function saveEn(){"
-    "var macs=[];"
-    "for(var i=1;i<=6;i++){"
-    "  var v=document.getElementById('en-mac'+i).value.trim().toUpperCase();"
-    "  if(v) macs.push(v);"
-    "}"
-    "var re=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;"
-    "for(var i=0;i<macs.length;i++){"
-    "  if(!re.test(macs[i])){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF');return;}"
-    "}"
-    "if(macs.length>6){showAlert('Maximum 6 MACs allowed');return;}"
-    "showConfirm('Save ESP-NOW receiver MACs?<br>Reboot required to apply.',function(){"
-    "fetch('/api/save-en',{method:'POST',"
-    "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-    "body:'en_macs='+encodeURIComponent(macs.join(','))})"
-    ".then(r=>r.text()).then(showAlert);});}";
-
-  // Reboot
-  html += "function reboot(){"
-    "showConfirm('Reboot device now?',function(){"
-    "fetch('/api/reboot',{method:'POST'}).then(function(){"
-    "showAlert('Rebooting... page will reload in 12s.');"
-    "setTimeout(function(){location.reload();},12000);});});}";
-
-  // Log fetch — auto-refresh every 5 s
-  html += "function fetchLog(){"
-    "fetch('/api/log').then(r=>r.json()).then(function(lines){"
-    "var box=document.getElementById('log');"
-    "box.textContent=lines.join('\\n');"
-    "box.scrollTop=box.scrollHeight;}).catch(function(){});}";
-  html += "fetchLog();setInterval(fetchLog,5000);";
-
-  html += "</script>";
-  html += "</div></body></html>";
-  return html;
+    // Add all JavaScript in a single <script> block as a normal string
+    html += "<script>\n"
+      "console.log('JS loaded');\n"
+      "function bmServerSel(){var s=document.getElementById('bm-server-sel').value;var i=document.getElementById('bm-server');if(s!=='custom'){i.value=s;}else{i.value='';i.focus();}}\n"
+      "function toggleTheme(){var html=document.documentElement;var t=html.getAttribute('data-theme')==='dark'?'light':'dark';html.setAttribute('data-theme',t);localStorage.setItem('theme',t);}\n"
+      "window.showModal=function(fn){var o=document.createElement('div');o.className='modal-overlay';var b=document.createElement('div');b.className='modal-box';fn(b,function(){document.body.removeChild(o);});o.appendChild(b);o.addEventListener('click',function(e){if(e.target===o)document.body.removeChild(o);});document.body.appendChild(o);};\n"
+      "window.showAlert=function(msg){showModal(function(b,close){b.innerHTML='<h4>'+msg+'</h4>';var d=document.createElement('div');d.className='modal-buttons';var ok=document.createElement('button');ok.textContent='OK';ok.className='btn btn-primary';ok.onclick=close;d.appendChild(ok);b.appendChild(d);});};\n"
+      "window.showConfirm=function(msg,onYes){showModal(function(b,close){b.innerHTML='<h4>'+msg+'</h4>';var d=document.createElement('div');d.className='modal-buttons';var y=document.createElement('button');y.textContent='Yes';y.className='btn btn-success';y.onclick=function(){close();onYes();};var n=document.createElement('button');n.textContent='Cancel';n.className='btn btn-danger';n.onclick=close;d.appendChild(y);d.appendChild(n);b.appendChild(d);});};\n"
+      "function saveBoth(){var b={ 'bm_en':document.getElementById('bm-en').checked?'1':'0', 'bm_id':document.getElementById('bm-id').value, 'bm_cs':document.getElementById('bm-cs').value.trim().toUpperCase(), 'bm_ssid':document.getElementById('bm-ssid').value, 'bm_pass':document.getElementById('bm-pass').value, 'bm_server':document.getElementById('bm-server').value.trim(), 'bm_port':document.getElementById('bm-port').value, 'bm_loc':document.getElementById('bm-loc').value.trim(), 'bm_lat':document.getElementById('bm-lat').value.trim(), 'bm_lon':document.getElementById('bm-lon').value.trim(), 'bm_h':document.getElementById('bm-h').value, 'bm_desc':document.getElementById('bm-desc').value.trim(), 'bm_url':document.getElementById('bm-url').value.trim(), 'bm_fwver':document.getElementById('bm-fwver').value.trim(), 'bm_rxf':document.getElementById('bm-rxf').value, 'bm_txf':document.getElementById('bm-txf').value, 'dp_en':document.getElementById('dp-en').checked?'1':'0', 'dp_cs':document.getElementById('dp-cs').value.trim().toUpperCase(), 'dp_key':document.getElementById('dp-key').value.trim(), 'dp_server':document.getElementById('dp-server').value.trim(), 'dp_port':document.getElementById('dp-port').value, 'dp_debug':document.getElementById('dp-debug').checked?'1':'0', 'bm_debug':document.getElementById('bm-debug').checked?'1':'0' }; var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&'); showConfirm('Save BrandMeister & DAPNET settings?',function(){ fetch('/api/save-both',{method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}) .then(r=>r.text()).then(function(msg){ showAlert(msg); var okBtn=document.querySelector('.modal-box .btn-primary'); if(okBtn){okBtn.addEventListener('click',function(){ if(msg.indexOf('saved. Reboot to re-connect')!==-1){ var overlay=document.createElement('div'); overlay.style.position='fixed'; overlay.style.top=0;overlay.style.left=0;overlay.style.width='100vw';overlay.style.height='100vh'; overlay.style.background='rgba(255,255,255,0.96)'; overlay.style.zIndex=9999;overlay.style.display='flex';overlay.style.flexDirection='column';overlay.style.justifyContent='center';overlay.style.alignItems='center'; overlay.innerHTML='<div style=\'font-size:2em;margin-bottom:16px;color:#333\'>Rebooting...<br><span style=\'font-size:0.7em;color:#888\'>(please wait 10 seconds)</span></div><div class=\'loader\'></div>'; document.body.appendChild(overlay); fetch('/api/reboot',{method:'POST'}); setTimeout(function(){location.reload();},10000); } });} }); });});}\n"
+      "function saveEn(){var macs=[];for(var i=1;i<=6;i++){ var v=document.getElementById('en-mac'+i).value.trim().toUpperCase(); if(v) macs.push(v);}var re=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;for(var i=0;i<macs.length;i++){ if(!re.test(macs[i])){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF');return;}}if(macs.length>6){showAlert('Maximum 6 MACs allowed');return;}showConfirm('Save ESP-NOW receiver MACs?<br>Reboot required to apply.',function(){fetch('/api/save-en',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'en_macs='+encodeURIComponent(macs.join(','))}).then(r=>r.text()).then(showAlert);});}\n"
+      "function reboot(){showConfirm('Reboot device now?',function(){fetch('/api/reboot',{method:'POST'}).then(function(){showAlert('Rebooting... page will reload in 12s.');setTimeout(function(){location.reload();},12000);});});}\n"
+      "function fetchLog(){fetch('/api/log').then(r=>r.json()).then(function(lines){var box=document.getElementById('log');box.textContent=lines.join('\\n');box.scrollTop=box.scrollHeight;}).catch(function(){});}fetchLog();setInterval(fetchLog,5000);\n"
+      "</script>\n";
+    html += "</div></body></html>";
+    return html;
 }
 
 
@@ -1185,17 +1014,6 @@ String getPageHTML() {
 // ══════════════════════════════════════════════════════════════════════════
 
 void registerRoutes() {
-    // DMRD TX Info API
-    server.on("/api/dmrd-tx", HTTP_GET, []() {
-      String j = "{";
-      j += "\"active\":" + String(dmrdTxInfo.active ? "true" : "false");
-      j += ",\"src\":" + String(dmrdTxInfo.srcId);
-      j += ",\"dst\":" + String(dmrdTxInfo.dstId);
-      j += ",\"slot\":" + String(dmrdTxInfo.slot);
-      j += ",\"isGroup\":" + String(dmrdTxInfo.isGroup ? "true" : "false");
-      j += "}";
-      server.send(200, "application/json", j);
-    });
   // Main page
   server.on("/", HTTP_GET, []() {
     server.send(200, "text/html", getPageHTML());
@@ -1317,10 +1135,6 @@ void setup() {
 
 void loop() {
   server.handleClient();
-  // Clear DMRD TX info if idle for >600ms
-  if (dmrdTxInfo.active && millis() - dmrdTxInfo.lastUpdate > 600) {
-    dmrdTxInfo.active = false;
-  }
   // WiFi reconnect handled by Arduino WiFi library (setAutoReconnect)
   delay(2);
 }

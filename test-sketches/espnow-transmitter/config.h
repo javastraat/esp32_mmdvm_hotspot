@@ -12,7 +12,7 @@
 #define WIFI_PASSWORD   "itoldyoualready"
 
 // ─── Version ─────────────────────────────────────────────────────────────
-#define FW_VERSION  "1.0.0"
+#define FW_VERSION  "20260309_ESP32_BETA"
 
 // ─── BrandMeister defaults ────────────────────────────────────────────────
 #define DEF_BM_ENABLED      false
@@ -28,6 +28,9 @@
 #define DEF_BM_HEIGHT       0
 #define DEF_BM_RX_FREQ      434000000u  // RX freq (Hz) — must be non-zero; BM rejects 0
 #define DEF_BM_TX_FREQ      434000000u  // TX freq (Hz) — same for simplex
+#define DEF_BM_DESCRIPTION  "ESP-NOW TX" // Default Description
+#define DEF_BM_URL         ""            // Default URL (empty)
+#define DEF_BM_FIRMWARE_VERSION FW_VERSION // Default Version
 #define DEF_BM_DEBUG        false
 
 // ─── DAPNET defaults ──────────────────────────────────────────────────────
