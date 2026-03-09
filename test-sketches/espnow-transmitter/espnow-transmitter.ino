@@ -783,68 +783,92 @@ String getPageHTML() {
     html +="</div>"; // status admin-grid
 
     // ── BrandMeister settings ─────────────────────────────────────────────
-    html +="<div class='admin-grid'>";
-    html +="<div class='card'><h3>BrandMeister (DMR)</h3>";
-    html +="<div class='metric'><span class='metric-label'>Enable:</span>"
-         "<label class='switch'><input type='checkbox' id='bm-en'" +
-         String(bmEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
-    html +="<div class='metric'><span class='metric-label'>DMR ID:</span>"
-         "<input type='number' id='bm-id' value='" + String(bmDmrId) + "' min='1' max='16776415'></div>";
-    html +="<div class='metric'><span class='metric-label'>Callsign:</span>"
-         "<input type='text' id='bm-cs' value='" + bmCallsign + "' maxlength='8'></div>";
-    html +="<div class='metric'><span class='metric-label'>SSID (0-99):</span>"
-         "<input type='number' id='bm-ssid' value='" + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
-    html +="<div class='metric'><span class='metric-label'>Password:</span>"
-         "<input type='password' id='bm-pass' value='" + bmPassword + "'></div>";
-    html +="<div class='metric'><span class='metric-label'>Server:</span>"
-         "<input type='text' id='bm-server' value='" + bmServer + "' class='full'></div>";
-    html +="<div class='metric'><span class='metric-label'>Port:</span>"
-         "<input type='number' id='bm-port' value='" + String(bmPort) + "' style='max-width:100px'></div>";
-    html +="<div class='metric'><span class='metric-label'>Location:</span>"
-         "<input type='text' id='bm-loc' value='" + bmLocation + "' class='full'></div>";
-    html +="<div class='metric'><span class='metric-label'>Latitude:</span>"
-         "<input type='text' id='bm-lat' value='" + bmLatitude + "' style='max-width:140px'></div>";
-    html +="<div class='metric'><span class='metric-label'>Longitude:</span>"
-         "<input type='text' id='bm-lon' value='" + bmLongitude + "' style='max-width:140px'></div>";
-    html +="<div class='metric'><span class='metric-label'>Height (m):</span>"
-         "<input type='number' id='bm-h' value='" + String(bmHeight) + "' min='0' max='999' style='max-width:100px'></div>";
-    html +="<div class='action-buttons-vertical'>"
-         "<button class='btn btn-success' onclick='saveBm()'>Save BrandMeister settings</button>"
-         "</div></div>";
+        html +="<div class='admin-grid'>";
+                // BrandMeister card with gray-out logic (C++ only)
+                html += "<div class='card' id='bm-card'><h3>BrandMeister (DMR)</h3>";
+                html += "<div class='metric'><span class='metric-label'>Enable:</span>"
+                    "<label class='switch'><input type='checkbox' id='bm-en'" +
+                    String(bmEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
+                String bmFieldsStyle = dapnetEnabled ? " style='opacity:0.5;'" : "";
+                html += "<div class='bm-fields'" + bmFieldsStyle + ">";
+                     html += "<div class='metric'><span class='metric-label'>DMR ID:</span>"
+                         "<input type='number' id='bm-id' value='" + String(bmDmrId) + "' min='1' max='16776415'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Callsign:</span>"
+                         "<input type='text' id='bm-cs' value='" + bmCallsign + "' maxlength='8'></div>";
+                     html += "<div class='metric'><span class='metric-label'>SSID (0-99):</span>"
+                         "<input type='number' id='bm-ssid' value='" + String(bmSsid) + "' min='0' max='99' style='max-width:80px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Password:</span>"
+                         "<input type='password' id='bm-pass' value='" + bmPassword + "'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Server:</span>"
+                         "<input type='text' id='bm-server' value='" + bmServer + "' class='full'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Port:</span>"
+                         "<input type='number' id='bm-port' value='" + String(bmPort) + "' style='max-width:100px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Location:</span>"
+                         "<input type='text' id='bm-loc' value='" + bmLocation + "' class='full'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Latitude:</span>"
+                         "<input type='text' id='bm-lat' value='" + bmLatitude + "' style='max-width:140px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Longitude:</span>"
+                         "<input type='text' id='bm-lon' value='" + bmLongitude + "' style='max-width:140px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Height (m):</span>"
+                         "<input type='number' id='bm-h' value='" + String(bmHeight) + "' min='0' max='999' style='max-width:100px'></div>";
+                     html += "<div class='action-buttons-vertical'>";
+                     html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
+                html += "</div>";
+                html += "</div></div>";
 
     // ── DAPNET settings ───────────────────────────────────────────────────
-    html +="<div class='card'><h3>DAPNET (POCSAG)</h3>";
-    html +="<div class='metric'><span class='metric-label'>Enable:</span>"
-         "<label class='switch'><input type='checkbox' id='dp-en'" +
-         String(dapnetEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
-    html +="<div class='metric'><span class='metric-label'>Callsign:</span>"
-         "<input type='text' id='dp-cs' placeholder='(same as BM)' value='" + dapnetCallsign + "' maxlength='10'></div>";
-    html +="<div class='metric'><span class='metric-label'>Auth Key:</span>"
-         "<input type='password' id='dp-key' value='" + dapnetAuthKey + "' class='full'></div>";
-    html +="<div class='metric'><span class='metric-label'>Server:</span>"
-         "<input type='text' id='dp-server' value='" + dapnetServer + "' class='full'></div>";
-    html +="<div class='metric'><span class='metric-label'>Port:</span>"
-         "<input type='number' id='dp-port' value='" + String(dapnetPort) + "' style='max-width:100px'></div>";
-    html +="<div class='metric'><span class='metric-label'>Debug Logging:</span>"
-         "<label class='switch'><input type='checkbox' id='dp-debug'" +
-         String(dapnetDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
-    html +="<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log rubric/non-page frames (type 5, etc.). Disable unless debugging.</p>";
-    html +="<div class='action-buttons-vertical'>"
-         "<button class='btn btn-success' onclick='saveDp()'>Save DAPNET settings</button>"
-         "</div></div>";
+                // DAPNET card with gray-out logic (C++ only)
+                html += "<div class='card' id='dp-card'><h3>DAPNET (POCSAG)</h3>";
+                html += "<div class='metric'><span class='metric-label'>Enable:</span>"
+                    "<label class='switch'><input type='checkbox' id='dp-en'" +
+                    String(dapnetEnabled ? " checked" : "") + "><span class='slider'></span></label></div>";
+                String dpFieldsStyle = bmEnabled ? " style='opacity:0.5;'" : "";
+                html += "<div class='dp-fields'" + dpFieldsStyle + ">";
+                     html += "<div class='metric'><span class='metric-label'>Callsign:</span>"
+                         "<input type='text' id='dp-cs' placeholder='(same as BM)' value='" + dapnetCallsign + "' maxlength='10'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Auth Key:</span>"
+                         "<input type='password' id='dp-key' value='" + dapnetAuthKey + "' class='full'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Server:</span>"
+                         "<input type='text' id='dp-server' value='" + dapnetServer + "' class='full'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Port:</span>"
+                         "<input type='number' id='dp-port' value='" + String(dapnetPort) + "' style='max-width:100px'></div>";
+                     html += "<div class='metric'><span class='metric-label'>Debug Logging:</span>"
+                         "<label class='switch'><input type='checkbox' id='dp-debug'" +
+                         String(dapnetDebug ? " checked" : "") + "><span class='slider'></span></label></div>";
+                     html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>Log rubric/non-page frames (type 5, etc.). Disable unless debugging.</p>";
+                     html += "<div class='action-buttons-vertical'>";
+                     html += "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>";
+                html += "</div>";
+                html += "</div></div>";
+    // Unified save button for both BrandMeister and DAPNET
+    // html +="<div class='action-buttons-vertical'>"
+    //      "<button class='btn btn-success' onclick='saveBoth()'>Save BrandMeister & DAPNET settings</button>"
+    //      "</div>";
 
     // ── ESP-NOW receivers ─────────────────────────────────────────────────
-    html +="<div class='card'><h3>ESP-NOW Receivers</h3>";
-    html +="<div class='metric'><span class='metric-label'>Receiver MAC(s):</span>"
-         "<input type='text' id='en-macs' value='" + espnowMacs + "' "
-         "placeholder='AA:BB:CC:DD:EE:FF' class='full' style='font-family:monospace' maxlength='200'></div>";
-    html +="<div class='info' style='margin-top:10px'>One or more MAC addresses, comma-separated (max 6). "
-         "Flash each receiver — its MAC is printed on boot. "
-         "MAC changes require a reboot to apply.</div>";
-    html +="<div class='action-buttons-vertical'>"
-         "<button class='btn btn-success' onclick='saveEn()'>Save ESP-NOW receivers</button>"
-         "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
-         "</div></div>";
+        html +="<div class='card'><h3>ESP-NOW Receivers</h3>";
+        html +="<div class='metric'><span class='metric-label'>Receiver MAC(s):</span></div>";
+        String macs[6] = {"", "", "", "", "", ""};
+        int macIdx = 0, start = 0;
+        for (int i = 0; i < espnowMacs.length() && macIdx < 6; ++i) {
+                if (espnowMacs[i] == ',' || i == espnowMacs.length() - 1) {
+                        int end = (espnowMacs[i] == ',') ? i : i + 1;
+                        String mac = espnowMacs.substring(start, end);
+                        mac.trim();
+                        macs[macIdx++] = mac;
+                        start = i + 1;
+                }
+        }
+        for (int i = 0; i < 6; ++i) {
+                html += "<div class='metric'><input type='text' id='en-mac" + String(i+1) + "' value='" + macs[i] + "' placeholder='AA:BB:CC:DD:EE:FF' style='font-family:monospace;max-width:220px;margin-bottom:2px'></div>";
+        }
+        html +="<div class='info' style='margin-top:10px'>Up to 6 MAC addresses. Leave unused fields empty. "
+            "Flash each receiver — its MAC is printed on boot. "
+            "MAC changes require a reboot to apply.</div>";
+        html +="<div class='action-buttons-vertical'>"
+            "<button class='btn btn-success' onclick='saveEn()'>Save ESP-NOW receivers</button>"
+            "<button class='btn btn-danger' onclick='reboot()'>Reboot device</button>"
+            "</div></div>";
 
     html +="</div>"; // config admin-grid
 
@@ -853,17 +877,45 @@ String getPageHTML() {
     html +="<h3>Log <button class='btn btn-primary' style='float:right;padding:4px 12px;font-size:13px' onclick='fetchLog()'>Refresh</button></h3>";
     html +="<pre id='log' style='max-height:260px'></pre>";
     html +="</div>";
+    html += "<br>";
+    html +="<div class='footer-links'>" FOOTER_LINKS "</div>";
+    html +="<div class='copyright'>" FOOTER_COPYRIGHT "</div>";
 
-    html +="<div class='footer-links'>"
-         "<a href='https://github.com/javastraat/esp32_mmdvm_hotspot' target='_blank'>GitHub Project</a>"
-         " | <a href='https://dmr-database.github.io' target='_blank'>DMR Database</a>"
-         " | <a href='https://einstein.amsterdam' target='_blank'>einstein.amsterdam</a>"
-         " | <a href='https://pd8jo.nl' target='_blank'>pd8jo.nl</a>"
-         "</div>"
-         "<div class='copyright'>&copy; 2026 by PD2EMC &amp; PD8JO</div>";
-
-    // ── Scripts ───────────────────────────────────────────────────────────
-    html +="<script>";
+        // ── Scripts ───────────────────────────────────────────────────────────
+        html +="<script>";
+        // Mutual exclusivity logic with live card enable/disable
+        html += "document.addEventListener('DOMContentLoaded',function(){\n"
+            "var bm=document.getElementById('bm-en');\n"
+            "var dp=document.getElementById('dp-en');\n"
+            "var bmFields=document.querySelector('.bm-fields');\n"
+            "var dpFields=document.querySelector('.dp-fields');\n"
+            "function setCardState(fieldsDiv, enable){\n"
+            "  fieldsDiv.style.opacity=enable?1:0.5;\n"
+            "  var fields=fieldsDiv.querySelectorAll('input,button');\n"
+            "  for(var i=0;i<fields.length;i++){\n"
+            "    if(fields[i].id==='bm-en'||fields[i].id==='dp-en') continue;\n"
+            "    fields[i].disabled=!enable;\n"
+            "    if(fields[i].tagName==='BUTTON'){fields[i].style.opacity=enable?1:0.5;}\n"
+            "  }\n"
+            "}\n"
+            "function syncCards(){\n"
+            "  bm.disabled=false;\n"
+            "  dp.disabled=false;\n"
+            "  if(dp.checked){\n"
+            "    setCardState(bmFields,false);\n"
+            "    setCardState(dpFields,true);\n"
+            "  }else if(bm.checked){\n"
+            "    setCardState(bmFields,true);\n"
+            "    setCardState(dpFields,false);\n"
+            "  }else{\n"
+            "    setCardState(bmFields,true);\n"
+            "    setCardState(dpFields,true);\n"
+            "  }\n"
+            "}\n"
+            "bm.addEventListener('change',syncCards);\n"
+            "dp.addEventListener('change',syncCards);\n"
+            "syncCards();\n"
+            "});\n";
 
     // Theme toggle
     html +="function toggleTheme(){"
@@ -894,52 +946,68 @@ String getPageHTML() {
          "var n=document.createElement('button');n.textContent='Cancel';n.className='btn btn-danger';n.onclick=close;"
          "d.appendChild(y);d.appendChild(n);b.appendChild(d);});};";
 
-    // BM save
-    html +="function saveBm(){"
-         "var b={'bm_en':document.getElementById('bm-en').checked?'1':'0',"
-         "'bm_id':document.getElementById('bm-id').value,"
-         "'bm_cs':document.getElementById('bm-cs').value.trim().toUpperCase(),"
-         "'bm_ssid':document.getElementById('bm-ssid').value,"
-         "'bm_pass':document.getElementById('bm-pass').value,"
-         "'bm_server':document.getElementById('bm-server').value.trim(),"
-         "'bm_port':document.getElementById('bm-port').value,"
-         "'bm_loc':document.getElementById('bm-loc').value.trim(),"
-         "'bm_lat':document.getElementById('bm-lat').value.trim(),"
-         "'bm_lon':document.getElementById('bm-lon').value.trim(),"
-         "'bm_h':document.getElementById('bm-h').value};"
-         "var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&');"
-         "showConfirm('Save BrandMeister settings?',function(){"
-         "fetch('/api/save-bm',{method:'POST',"
-         "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})"
-         ".then(r=>r.text()).then(showAlert);});}";
+        // Unified save for both BrandMeister and DAPNET
+            html +="function saveBoth(){"
+                "var b={\n"
+                "'bm_en':document.getElementById('bm-en').checked?'1':'0',\n"
+                "'bm_id':document.getElementById('bm-id').value,\n"
+                "'bm_cs':document.getElementById('bm-cs').value.trim().toUpperCase(),\n"
+                "'bm_ssid':document.getElementById('bm-ssid').value,\n"
+                "'bm_pass':document.getElementById('bm-pass').value,\n"
+                "'bm_server':document.getElementById('bm-server').value.trim(),\n"
+                "'bm_port':document.getElementById('bm-port').value,\n"
+                "'bm_loc':document.getElementById('bm-loc').value.trim(),\n"
+                "'bm_lat':document.getElementById('bm-lat').value.trim(),\n"
+                "'bm_lon':document.getElementById('bm-lon').value.trim(),\n"
+                "'bm_h':document.getElementById('bm-h').value,\n"
+                "'dp_en':document.getElementById('dp-en').checked?'1':'0',\n"
+                "'dp_cs':document.getElementById('dp-cs').value.trim().toUpperCase(),\n"
+                "'dp_key':document.getElementById('dp-key').value.trim(),\n"
+                "'dp_server':document.getElementById('dp-server').value.trim(),\n"
+                "'dp_port':document.getElementById('dp-port').value,\n"
+                "'dp_debug':document.getElementById('dp-debug').checked?'1':'0'\n"
+                "};\n"
+                "var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&');\n"
+                "showConfirm('Save BrandMeister & DAPNET settings?',function(){\n"
+                "fetch('/api/save-both',{method:'POST',\n"
+                "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})\n"
+                ".then(r=>r.text()).then(function(msg){\n"
+                "  showAlert(msg);\n"
+                "  var okBtn=document.querySelector('.modal-box .btn-primary');\n"
+                "  if(okBtn){okBtn.addEventListener('click',function(){\n"
+                "    if(msg.indexOf('saved. Reboot to re-connect')!==-1){\n"
+                 "      // Show reboot overlay\n"
+                 "      var overlay=document.createElement('div');\n"
+                 "      overlay.style.position='fixed';\n"
+                 "      overlay.style.top=0;overlay.style.left=0;overlay.style.width='100vw';overlay.style.height='100vh';\n"
+                 "      overlay.style.background='rgba(255,255,255,0.96)';\n"
+                 "      overlay.style.zIndex=9999;overlay.style.display='flex';overlay.style.flexDirection='column';overlay.style.justifyContent='center';overlay.style.alignItems='center';\n"
+                 "      overlay.innerHTML='<div style=\\'font-size:2em;margin-bottom:16px;color:#333\\'>Rebooting...<br><span style=\\'font-size:0.7em;color:#888\\'>(please wait 10 seconds)</span></div><div class=\\'loader\\'></div>';\n"
+                 "      document.body.appendChild(overlay);\n"
+                 "      fetch('/api/reboot',{method:'POST'});\n"
+                 "      setTimeout(function(){location.reload();},10000);\n"
+                "    }\n"
+                "  });}\n"
+                "});\n"
+                "});}";
 
-    // DAPNET save
-    html +="function saveDp(){"
-         "var b={'dp_en':document.getElementById('dp-en').checked?'1':'0',"
-         "'dp_cs':document.getElementById('dp-cs').value.trim().toUpperCase(),"
-         "'dp_key':document.getElementById('dp-key').value.trim(),"
-         "'dp_server':document.getElementById('dp-server').value.trim(),"
-         "'dp_port':document.getElementById('dp-port').value,"
-         "'dp_debug':document.getElementById('dp-debug').checked?'1':'0'};"
-         "var body=Object.keys(b).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(b[k])).join('&');"
-         "showConfirm('Save DAPNET settings?',function(){"
-         "fetch('/api/save-dp',{method:'POST',"
-         "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})"
-         ".then(r=>r.text()).then(showAlert);});}";
-
-    // ESP-NOW save
-    html +="function saveEn(){"
-         "var macs=document.getElementById('en-macs').value.trim().toUpperCase();"
-         "var re=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;"
-         "var parts=macs.length>0?macs.split(','):[];"
-         "for(var i=0;i<parts.length;i++){"
-         "if(!re.test(parts[i].trim())){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF');return;}}"
-         "if(parts.length>6){showAlert('Maximum 6 MACs allowed');return;}"
-         "showConfirm('Save ESP-NOW receiver MACs?<br>Reboot required to apply.',function(){"
-         "fetch('/api/save-en',{method:'POST',"
-         "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-         "body:'en_macs='+encodeURIComponent(macs)})"
-         ".then(r=>r.text()).then(showAlert);});}";
+        // ESP-NOW save (combine 6 fields into comma-delimited string)
+        html +="function saveEn(){"
+            "var macs=[];"
+            "for(var i=1;i<=6;i++){"
+            "  var v=document.getElementById('en-mac'+i).value.trim().toUpperCase();"
+            "  if(v) macs.push(v);"
+            "}"
+            "var re=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;"
+            "for(var i=0;i<macs.length;i++){"
+            "  if(!re.test(macs[i])){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF');return;}"
+            "}"
+            "if(macs.length>6){showAlert('Maximum 6 MACs allowed');return;}"
+            "showConfirm('Save ESP-NOW receiver MACs?<br>Reboot required to apply.',function(){"
+            "fetch('/api/save-en',{method:'POST',"
+            "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+            "body:'en_macs='+encodeURIComponent(macs.join(','))})"
+            ".then(r=>r.text()).then(showAlert);});}";
 
     // Reboot
     html +="function reboot(){"
@@ -988,8 +1056,8 @@ void registerRoutes() {
         server.send(200, "application/json", j);
     });
 
-    // Save BrandMeister settings
-    server.on("/api/save-bm", HTTP_POST, []() {
+    // Unified save for both BrandMeister and DAPNET
+    server.on("/api/save-both", HTTP_POST, []() {
         if (server.hasArg("bm_id"))     bmDmrId    = server.arg("bm_id").toInt();
         if (server.hasArg("bm_cs"))     bmCallsign = server.arg("bm_cs");
         if (server.hasArg("bm_ssid"))   bmSsid     = (uint8_t)constrain(server.arg("bm_ssid").toInt(), 0, 99);
@@ -1001,13 +1069,6 @@ void registerRoutes() {
         if (server.hasArg("bm_lon"))    bmLongitude = server.arg("bm_lon");
         if (server.hasArg("bm_h"))      bmHeight   = server.arg("bm_h").toInt();
         if (server.hasArg("bm_en"))     bmEnabled  = (server.arg("bm_en") == "1");
-        saveSettings();
-        addLog("[Web] BrandMeister settings saved");
-        server.send(200, "text/plain", "BrandMeister settings saved. Reboot to re-connect.");
-    });
-
-    // Save DAPNET settings
-    server.on("/api/save-dp", HTTP_POST, []() {
         if (server.hasArg("dp_en"))     dapnetEnabled  = (server.arg("dp_en") == "1");
         if (server.hasArg("dp_cs"))     dapnetCallsign = server.arg("dp_cs");
         if (server.hasArg("dp_key"))    dapnetAuthKey  = server.arg("dp_key");
@@ -1015,8 +1076,8 @@ void registerRoutes() {
         if (server.hasArg("dp_port"))   dapnetPort     = (uint16_t)server.arg("dp_port").toInt();
         if (server.hasArg("dp_debug"))  dapnetDebug    = (server.arg("dp_debug") == "1");
         saveSettings();
-        addLog("[Web] DAPNET settings saved");
-        server.send(200, "text/plain", "DAPNET settings saved. Reboot to re-connect.");
+        addLog("[Web] BrandMeister & DAPNET settings saved");
+        server.send(200, "text/plain", "BrandMeister & DAPNET settings saved. Reboot to re-connect.");
     });
 
     // Save ESP-NOW receivers
