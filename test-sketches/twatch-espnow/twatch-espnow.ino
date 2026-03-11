@@ -19,122 +19,6 @@
 #include <LilyGoWatch.h>
 
 #include <WiFi.h>
-#include <WebServer.h>
-#include <Preferences.h>
-Preferences preferences;
-bool wifiEnabled = true;
-String wifiSsid = "TechInc";
-String wifiPass = "itoldyoualready";
-bool apMode = false;
-void saveWifiSettings(const String& ssid, const String& pass) {
-  preferences.begin("wifi", false);
-  preferences.putString("ssid", ssid);
-  preferences.putString("pass", pass);
-  preferences.end();
-}
-
-void loadWifiSettings() {
-  preferences.begin("wifi", true);
-  wifiSsid = preferences.getString("ssid", "TechInc");
-  wifiPass = preferences.getString("pass", "itoldyoualready");
-  preferences.end();
-}
-void handleWifiConfig() {
-  String message = "";
-  if (server.method() == HTTP_POST) {
-    wifiSsid = server.arg("ssid");
-    wifiPass = server.arg("pass");
-    wifiEnabled = server.hasArg("wifiEnabled");
-    saveWifiSettings(wifiSsid, wifiPass);
-    message = "<div class='card' style='color:green;'>Settings saved. Rebooting...</div>";
-    delay(500);
-    ESP.restart();
-    return;
-  }
-  String checked = wifiEnabled ? "checked" : "";
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>WiFi Settings</title>"
-    "<style>:root{--bg:#181c20;--card:#23272b;--text:#fff;--accent:#35a;--border:#444;}body{background:var(--bg);color:var(--text);font-family:sans-serif;margin:0;}nav{background:var(--card);padding:1em;text-align:center;}nav a{color:var(--accent);margin:0 1em;text-decoration:none;}nav a.active{font-weight:bold;}h1{color:var(--accent);}form{margin:2em auto;max-width:400px;}label{display:block;margin:1em 0 0.5em;}input[type=text],input[type=password]{width:100%;padding:0.5em;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);}input[type=checkbox]{margin-right:0.5em;}button{background:var(--accent);color:#fff;padding:0.7em 2em;border:none;border-radius:4px;font-size:1em;margin-top:1em;cursor:pointer;}button:hover{background:#246;}div.card{background:var(--card);padding:1.5em 1em;margin:2em auto;max-width:420px;border-radius:8px;box-shadow:0 2px 8px #0004;}@media (max-width:600px){form,div.card{max-width:98vw;}}</style>"
-    "</head><body><nav><a href='/' >Info</a><a href='/wifi' class='active'>WiFi</a></nav>"
-    "<div class='container'><h1>WiFi Settings</h1>" + message + "<div class='card'><form method='POST'>"
-    "<label><input type='checkbox' name='wifiEnabled' " + checked + ">Enable WiFi</label>"
-    "<label>SSID:<input type='text' name='ssid' value='" + wifiSsid + "'></label>"
-    "<label>Password:<input type='password' name='pass' value='" + wifiPass + "'></label>"
-    "<button type='submit'>Save & Reboot</button>"
-    "</form></div></div></body></html>";
-  server.send(200, "text/html", html);
-}
-#include <ArduinoOTA.h>
-// ── Web server instance ─────────────────────────────────────────────────────
-WebServer server(80);
-
-void handleRoot() {
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>TWatch ESP Info</title>"
-    "<style>:root{--bg:#181c20;--card:#23272b;--text:#fff;--accent:#35a;--border:#444;}body{background:var(--bg);color:var(--text);font-family:sans-serif;margin:0;}nav{background:var(--card);padding:1em;text-align:center;}nav a{color:var(--accent);margin:0 1em;text-decoration:none;}nav a.active{font-weight:bold;}h1{color:var(--accent);}table{margin:auto;background:var(--card);border-radius:8px;}td,th{padding:8px 16px;}th{color:var(--accent);}div.card{background:var(--card);padding:1.5em 1em;margin:2em auto;max-width:420px;border-radius:8px;box-shadow:0 2px 8px #0004;}@media (max-width:600px){div.card{max-width:98vw;}}</style>"
-    "</head><body><nav><a href='/' class='active'>Info</a><a href='/wifi'>WiFi</a></nav>"
-    "<div class='container'><h1>TWatch ESP Info</h1>"
-    "<div class='card'><table>"
-    "<tr><th>Chip Model</th><td>" + String(ESP.getChipModel()) + "</td></tr>"
-    "<tr><th>Chip Revision</th><td>" + String(ESP.getChipRevision()) + "</td></tr>"
-    "<tr><th>CPU Freq (MHz)</th><td>" + String(ESP.getCpuFreqMHz()) + "</td></tr>"
-    "<tr><th>Flash Size</th><td>" + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB</td></tr>"
-    "<tr><th>Sketch Size</th><td>" + String(ESP.getSketchSize() / 1024) + " KB</td></tr>"
-    "<tr><th>Free Heap</th><td>" + String(ESP.getFreeHeap() / 1024) + " KB</td></tr>"
-    "<tr><th>WiFi SSID</th><td>" + String(WiFi.SSID()) + "</td></tr>"
-    "<tr><th>IP Address</th><td>" + WiFi.localIP().toString() + "</td></tr>"
-    "</table>"
-    "<p style='color:#888'>OTA enabled | " + String(__DATE__) + " " + String(__TIME__) + "</p></div></div></body></html>";
-  server.send(200, "text/html", html);
-}
-  loadWifiSettings();
-
-  // If WiFi is enabled, try to connect. If not connected, start AP mode for config.
-  if (wifiEnabled) {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
-    unsigned long wifiStart = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 10000) {
-      delay(200);
-    }
-    if (WiFi.status() != WL_CONNECTED) {
-      apMode = true;
-    }
-  } else {
-    apMode = true;
-  }
-
-  if (apMode) {
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP("TWatch-Setup", "twatch1234");
-  }
-
-  // Arduino OTA setup
-  ArduinoOTA.setHostname("twatch-espnow");
-  ArduinoOTA.onStart([]() {
-    Serial.println("OTA Update Start");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("OTA Update End");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("OTA Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
-  });
-  ArduinoOTA.begin();
-
-  // Web server setup
-  server.on("/", handleRoot);
-  server.begin();
-
-  // Handle OTA and web server
-  ArduinoOTA.handle();
-  server.handleClient();
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
@@ -172,10 +56,77 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
+
 #define SCREEN_CLOCK   0
 #define SCREEN_POCSAG  1
 #define SCREEN_DMR     2
-#define SCREEN_COUNT   3
+#define SCREEN_SETTINGS 4
+#define SCREEN_WIFI    5
+#define SCREEN_COUNT   6
+
+#include <Preferences.h>
+Preferences modePrefs;
+bool onlineMode = true;
+static bool modeRebootPrompt = false;
+
+// Draw WiFi settings page with toggle and back button
+void drawWifiSettingsScreen() {
+  ttgo->tft->fillScreen(TFT_BLACK);
+  ttgo->tft->setTextDatum(MC_DATUM);
+  ttgo->tft->setTextFont(4);
+  ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+  ttgo->tft->drawString("WiFi", 120, 40);
+  // Draw toggle switch
+  int x = 120, y = 120, w = 100, h = 40;
+  ttgo->tft->fillRoundRect(x-w/2, y-h/2, w, h, 20, TFT_DARKGREY);
+  int knobR = 32/2;
+  int knobX = onlineMode ? (x + w/2 - knobR - 6) : (x - w/2 + knobR + 6);
+  uint32_t knobColor = onlineMode ? TFT_GREEN : TFT_ORANGE;
+  ttgo->tft->fillCircle(knobX, y, knobR, knobColor);
+  ttgo->tft->setTextFont(2);
+  ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+  ttgo->tft->drawString("ONLINE", x + w/2 + 30, y);
+  ttgo->tft->drawString("OFFLINE", x - w/2 - 30, y);
+  // Draw back button
+  ttgo->tft->fillRoundRect(60, 200, 120, 32, 8, TFT_DARKGREY);
+  ttgo->tft->setTextColor(TFT_WHITE, TFT_DARKGREY);
+  ttgo->tft->drawString("Back", 120, 216);
+  // Draw reboot prompt if needed
+  if (modeRebootPrompt) {
+    ttgo->tft->fillRoundRect(30, 80, 180, 80, 16, TFT_NAVY);
+    ttgo->tft->setTextColor(TFT_YELLOW, TFT_NAVY);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString("Reboot now?", 120, 100);
+    ttgo->tft->fillRoundRect(50, 130, 50, 32, 8, TFT_GREEN);
+    ttgo->tft->fillRoundRect(140, 130, 50, 32, 8, TFT_RED);
+    ttgo->tft->setTextColor(TFT_BLACK, TFT_GREEN);
+    ttgo->tft->drawString("Yes", 75, 146);
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_RED);
+    ttgo->tft->drawString("No", 165, 146);
+  }
+}
+
+// Draw the 3x3 settings grid screen
+void drawSettingsScreen() {
+  ttgo->tft->fillScreen(TFT_BLACK);
+  int cellW = 80, cellH = 80;
+  // Simple icons: WiFi, etc. Last icon is '>' for next
+  const char* icons[3][3] = {
+    {"\xEF\xA7\xB7", "2", "3"},
+    {"4", "5", "6"},
+    {"7", "8", ">"}
+  };
+  for (int row = 0; row < 3; ++row) {
+    for (int col = 0; col < 3; ++col) {
+      int cx = col * cellW;
+      int cy = row * cellH;
+      ttgo->tft->fillRoundRect(cx+4, cy+4, cellW-8, cellH-8, 16, TFT_BLACK);
+      ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+      ttgo->tft->setTextFont(4);
+      ttgo->tft->drawString(icons[row][col], cx + cellW/2, cy + cellH/2);
+    }
+  }
+}
 
 static int           currentScreen    = SCREEN_CLOCK;
 static bool          needsRedraw      = true;
@@ -184,10 +135,10 @@ static unsigned long lastPacketMillis = 0;
 static unsigned long lastAnimMillis   = 0;
 #define AUTO_CLOCK_MS  15000
 #define ANIM_FRAME_MS  50
-
+#define CROWN_BTN_PIN  36   // side crown button, active LOW
 
 static bool displayOn      = true;
-
+static bool lastCrownState = HIGH;
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -521,6 +472,8 @@ static void redraw() {
     case SCREEN_CLOCK:  drawClockScreen();  break;
     case SCREEN_POCSAG: drawPocsagScreen(); break;
     case SCREEN_DMR:    drawDmrScreen();    break;
+    case SCREEN_SETTINGS: drawSettingsScreen(); break;
+    case SCREEN_WIFI: drawWifiSettingsScreen(); break;
   }
 }
 
@@ -529,7 +482,8 @@ static void vibrate(int ms = 80) {
   if (ttgo) ttgo->motor->onec(ms);
 }
 
-// ── ESP-NOW receive callback (arduino-esp32 3.x signature) ───────────────────
+// ── ESP-NOW receive callback (legacy signature for older core) ─────────────
+// ESP-NOW receive callback for ESP32 Arduino core 3.x+
 static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   const uint8_t *mac = info->src_addr;
   if (len < 2) return;
@@ -591,6 +545,7 @@ void setup() {
   ttgo->begin();
   ttgo->openBL();
   ttgo->motor_begin();   // vibration motor on GPIO4
+  pinMode(CROWN_BTN_PIN, INPUT);   // GPIO36 is input-only, no internal pullup
 
   ttgo->tft->setRotation(0);
   ttgo->tft->fillScreen(TFT_BLACK);
@@ -615,10 +570,9 @@ void setup() {
     Serial.println("[RTC] no valid time stored yet");
   }
 
-
-
-  server.on("/wifi", handleWifiConfig);
-  // ...existing code...
+  // WiFi STA mode for ESP-NOW (no AP connection needed)
+  WiFi.mode(WIFI_STA);
+  delay(100);
 
   uint8_t mac[6];
   esp_wifi_get_mac(WIFI_IF_STA, mac);
@@ -642,8 +596,21 @@ void setup() {
 
 // ── loop ──────────────────────────────────────────────────────────────────────
 void loop() {
+  // Crown button: toggle display on/off
+  bool crownState = digitalRead(CROWN_BTN_PIN);
+  if (crownState == LOW && lastCrownState == HIGH) {
+    displayOn = !displayOn;
+    if (displayOn) {
+      ttgo->openBL();
+      lastDrawnSecond = -1;   // force full redraw when waking
+      needsRedraw     = true;
+    } else {
+      ttgo->closeBL();
+    }
+  }
+  lastCrownState = crownState;
 
-  // Touch tap: wake display if off, otherwise advance screen
+  // Touch tap: handle per screen
   static bool wasTouched = false;
   int16_t tx, ty;
   bool isTouched = ttgo->getTouch(tx, ty);
@@ -654,9 +621,61 @@ void loop() {
       lastDrawnSecond = -1;
       needsRedraw     = true;
     } else {
-      currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
-      lastDrawnSecond = -1;
-      needsRedraw     = true;
+      if (currentScreen == SCREEN_SETTINGS) {
+        // 3x3 grid: 80x80 cells
+        int col = tx / 80;
+        int row = ty / 80;
+        if (col < 0) col = 0; if (col > 2) col = 2;
+        if (row < 0) row = 0; if (row > 2) row = 2;
+        if (row == 0 && col == 0) {
+          // WiFi icon
+          currentScreen = SCREEN_WIFI;
+          needsRedraw = true;
+        } else if (row == 2 && col == 2) {
+          // Last icon: advance to next screen
+          currentScreen = (currentScreen + 1) % SCREEN_COUNT;
+          needsRedraw = true;
+        } else {
+          // Other icons: open placeholder screen (for now, just vibrate)
+          vibrate();
+        }
+      } else if (currentScreen == SCREEN_WIFI) {
+        if (modeRebootPrompt) {
+          // Prompt: Yes/No buttons
+          if (ty >= 130 && ty <= 162) {
+            if (tx >= 50 && tx <= 100) {
+              // Yes: reboot
+              ESP.restart();
+            } else if (tx >= 140 && tx <= 190) {
+              // No: cancel prompt
+              modeRebootPrompt = false;
+              needsRedraw = true;
+            }
+          }
+        } else {
+          // Toggle switch area
+          int x = 120, y = 120, w = 100, h = 40;
+          if (tx >= x-w/2 && tx <= x+w/2 && ty >= y-h/2 && ty <= y+h/2) {
+            onlineMode = !onlineMode;
+            // Save to NVS
+            modePrefs.begin("settings", false);
+            modePrefs.putBool("onlineMode", onlineMode);
+            modePrefs.end();
+            modeRebootPrompt = true;
+            needsRedraw = true;
+          }
+          // Back button
+          if (tx >= 60 && tx <= 180 && ty >= 200 && ty <= 232) {
+            currentScreen = SCREEN_SETTINGS;
+            needsRedraw = true;
+          }
+        }
+      } else {
+        // Default: advance screen
+        currentScreen = (currentScreen + 1) % SCREEN_COUNT;
+        lastDrawnSecond = -1;
+        needsRedraw = true;
+      }
     }
   }
   wasTouched = isTouched;
