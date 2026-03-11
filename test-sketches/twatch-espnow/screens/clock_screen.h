@@ -100,34 +100,25 @@ static void drawClockStaticFace() {
   for (int i = 0; i < 12; i++) drawHourNum(i);
 }
 
-// Two date boxes, Style Seven style
+// Single date line above clock centre: "TUE 11 MAR" in white
+#define DATE_Y  90   // y-centre of date line (above clock centre at y=120)
+
 static void drawDateBoxes(const struct tm* t) {
   static const char* const MON[] = {
     "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
   static const char* const DOW[] = {
     "SUN","MON","TUE","WED","THU","FRI","SAT"};
 
-  // Left box: month / day-of-week (between 9 and center)
-  const int lx=20, ly=102, lw=74, lh=38;
-  ttgo->tft->fillRect(lx, ly, lw, lh, CLK_BG);
-  ttgo->tft->drawRect(lx, ly, lw, lh, CLK_DATE);
-  ttgo->tft->drawFastHLine(lx+1, ly+19, lw-2, CLK_DATE);
+  char buf[14];
+  snprintf(buf, sizeof(buf), "%s %d %s", DOW[t->tm_wday], t->tm_mday, MON[t->tm_mon]);
+
+  // Clear previous text area
+  ttgo->tft->fillRect(50, DATE_Y - 9, 140, 18, CLK_BG);
+
   ttgo->tft->setTextDatum(MC_DATUM);
   ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(CLK_DATE, CLK_BG);
-  ttgo->tft->drawString(MON[t->tm_mon],  lx + lw/2, ly + 10);
-  ttgo->tft->drawString(DOW[t->tm_wday], lx + lw/2, ly + 29);
-
-  // Right box: day number (between center and 3)
-  const int rx=150, ry=104, rw=68, rh=34;
-  char buf[4];
-  snprintf(buf, sizeof(buf), "%02d", t->tm_mday);
-  ttgo->tft->fillRect(rx, ry, rw, rh, CLK_BG);
-  ttgo->tft->drawRect(rx, ry, rw, rh, CLK_DATE);
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(4);
-  ttgo->tft->setTextColor(CLK_DATE, CLK_BG);
-  ttgo->tft->drawString(buf, rx + rw/2, ry + rh/2);
+  ttgo->tft->setTextColor(TFT_WHITE, CLK_BG);
+  ttgo->tft->drawString(buf, 120, DATE_Y);
 }
 
 // Erase old hands (draw in black), then restore ticks + numerals + date boxes
