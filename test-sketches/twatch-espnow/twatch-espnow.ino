@@ -24,6 +24,9 @@
 #include <esp_wifi.h>
 #include <Preferences.h>
 #include <ArduinoOTA.h>
+#include <FS.h>
+using fs::FS;
+#include <WebServer.h>
 #include <time.h>
 #include <math.h>
 
@@ -163,6 +166,7 @@ static bool getClockTime(struct tm* t) {
 #include "screens/dmr_screen.h"
 #include "screens/settings_screen.h"
 #include "screens/wifi_screen.h"
+#include "web/main.h"
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 static void redraw() {
@@ -318,6 +322,8 @@ void setup() {
         .onError([](ota_error_t e) { Serial.printf("OTA error[%u]\n", e); });
       ArduinoOTA.begin();
       Serial.println("OTA ready");
+      setupWebServer();
+      
     } else {
       Serial.println("WiFi connect FAILED (timeout)");
       ttgo->tft->fillScreen(TFT_BLACK);
@@ -335,7 +341,10 @@ void setup() {
 
 // ── loop ──────────────────────────────────────────────────────────────────────
 void loop() {
-  if (onlineMode && WiFi.status() == WL_CONNECTED) ArduinoOTA.handle();
+  if (onlineMode && WiFi.status() == WL_CONNECTED) {
+    ArduinoOTA.handle();
+    webServer.handleClient();
+  }
 
   // Crown button via AXP202 short-press IRQ
   if (axpIrq) {
