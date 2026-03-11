@@ -23,6 +23,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <Preferences.h>
+#include <ArduinoOTA.h>
 #include <time.h>
 #include <math.h>
 
@@ -303,6 +304,14 @@ void setup() {
 
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("WiFi connected — IP: %s\n", WiFi.localIP().toString().c_str());
+
+      ArduinoOTA.setHostname("twatch");
+      ArduinoOTA
+        .onStart([]()    { Serial.println("OTA start");  })
+        .onEnd([]()      { Serial.println("\nOTA done");  })
+        .onError([](ota_error_t e) { Serial.printf("OTA error[%u]\n", e); });
+      ArduinoOTA.begin();
+      Serial.println("OTA ready");
     } else {
       Serial.println("WiFi connect FAILED (timeout)");
       ttgo->tft->fillScreen(TFT_BLACK);
@@ -319,6 +328,8 @@ void setup() {
 
 // ── loop ──────────────────────────────────────────────────────────────────────
 void loop() {
+  if (onlineMode && WiFi.status() == WL_CONNECTED) ArduinoOTA.handle();
+
   // Crown button: toggle display on/off
   bool crownState = digitalRead(CROWN_BTN_PIN);
   if (crownState == LOW && lastCrownState == HIGH) {
