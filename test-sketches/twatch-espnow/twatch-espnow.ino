@@ -323,6 +323,14 @@ void setup() {
       ArduinoOTA.begin();
       Serial.println("OTA ready");
       setupWebServer();
+
+      // ESP-NOW works alongside WiFi STA — init here so DAPNET packets are received
+      if (esp_now_init() == ESP_OK) {
+        esp_now_register_recv_cb(onReceive);
+        Serial.println("ESP-NOW ready (online mode)");
+      } else {
+        Serial.println("ESP-NOW init FAILED (online mode)");
+      }
       
     } else {
       Serial.println("WiFi connect FAILED (timeout)");
