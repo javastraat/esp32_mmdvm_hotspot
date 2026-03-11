@@ -1,0 +1,563 @@
+/*
+ * twatch-espnow.ino  —  ESP-NOW receiver for TTGO T-Watch 2020
+ *
+ * Three screens, tap the touchscreen to cycle:
+ *   Screen 0 — CLOCK:  Mondaine-style analog clock (time from RIC 224)
+ *   Screen 1 — POCSAG: message (wrapped), RIC
+ *   Screen 2 — DMR:    src → dst, slot, TG/PC
+ *
+ * Time source: POCSAG RIC 224 — same format as hotspot.
+ *              RTC PCF8563 seeds clock on boot; updated on every sync.
+ *
+ * Board:  TTGO T-Watch 2020 (ESP32, ST7789 240×240, FT6236 touch, PCF8563 RTC)
+ * Lib:    TTGO_TWatch_Library  (LilyGoWatch.h)
+ * Core:   arduino-esp32 3.x  (IDF 5.x) — ESP-NOW 3.x callback signature
+ */
+
+// ── Select your T-Watch 2020 hardware revision ────────────────────────────────
+#define LILYGO_WATCH_2020_V1
+#include <LilyGoWatch.h>
+
+#include <WiFi.h>
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <time.h>
+#include <math.h>
+
+TTGOClass    *ttgo        = nullptr;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+#define TIME_RIC   224   // POCSAG RIC carrying date/time
+
+// RICs silently processed but never shown on the POCSAG screen
+static const uint32_t HIDDEN_RICS[] = { 224, 208, 200, 216 };
+static bool isHiddenRic(uint32_t ric) {
+  for (size_t i = 0; i < sizeof(HIDDEN_RICS) / sizeof(HIDDEN_RICS[0]); i++)
+    if (HIDDEN_RICS[i] == ric) return true;
+  return false;
+}
+
+// ── Packet types — must match system/system_espnow.h ─────────────────────────
+#define ESPNOW_TYPE_DMR_NET   0x10
+#define ESPNOW_TYPE_POCSAG    0x11
+#define POCSAG_MSG_MAX_LEN    80
+
+struct __attribute__((packed)) EspNowDmrNetPacket {
+  uint8_t type;
+  uint8_t len;
+  uint8_t data[60];
+};
+
+struct __attribute__((packed)) EspNowPocsagPacket {
+  uint8_t  type;
+  uint32_t ric;
+  uint8_t  functional;
+  char     message[POCSAG_MSG_MAX_LEN + 1];
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+#define SCREEN_CLOCK   0
+#define SCREEN_POCSAG  1
+#define SCREEN_DMR     2
+#define SCREEN_COUNT   3
+
+static int           currentScreen    = SCREEN_CLOCK;
+static bool          needsRedraw      = true;
+static int           lastDrawnSecond  = -1;
+static unsigned long lastPacketMillis = 0;
+static unsigned long lastAnimMillis   = 0;
+#define AUTO_CLOCK_MS  15000
+#define ANIM_FRAME_MS  50
+#define CROWN_BTN_PIN  36   // side crown button, active LOW
+
+static bool displayOn      = true;
+static bool lastCrownState = HIGH;
+
+// DMR
+static uint32_t lastDmrSrc   = 0;
+static uint32_t lastDmrDst   = 0;
+static uint8_t  lastDmrSlot  = 0;
+static bool     lastDmrGroup = true;
+
+// POCSAG
+static uint32_t lastRic = 0;
+static char     lastMsg[POCSAG_MSG_MAX_LEN + 1] = "";
+
+// Time
+static time_t         baseEpoch    = 0;
+static unsigned long  baseMillis   = 0;
+static bool           espnowSynced = false;
+
+// Previous hand angles — for incremental erase (avoids full-face redraw each second)
+static float prevHourAngle   = -999.0f;
+static float prevMinuteAngle = -999.0f;
+static float prevSecondAngle = -999.0f;
+
+// ── Time helpers ──────────────────────────────────────────────────────────────
+static void parseTimePacket(const char* msg) {
+  if (strlen(msg) < 26) return;
+  const char* p = msg + 14;   // skip 14-char literal prefix
+  for (int i = 0; i < 12; i++) {
+    if (p[i] < '0' || p[i] > '9') return;
+  }
+  struct tm t = {};
+  t.tm_year  = 100 + (p[0]-'0')*10 + (p[1]-'0');
+  t.tm_mon   = (p[2]-'0')*10 + (p[3]-'0') - 1;
+  t.tm_mday  = (p[4]-'0')*10 + (p[5]-'0');
+  t.tm_hour  = (p[6]-'0')*10 + (p[7]-'0');
+  t.tm_min   = (p[8]-'0')*10 + (p[9]-'0');
+  t.tm_sec   = (p[10]-'0')*10 + (p[11]-'0');
+  t.tm_isdst = -1;
+
+  baseEpoch    = mktime(&t);
+  baseMillis   = millis();
+  espnowSynced = true;
+
+  Serial.printf("[TIME] synced: %04d-%02d-%02d %02d:%02d:%02d\n",
+                t.tm_year+1900, t.tm_mon+1, t.tm_mday,
+                t.tm_hour, t.tm_min, t.tm_sec);
+
+  // Persist to RTC (PCF8563) — single RTC_Date holds date + time
+  if (ttgo) {
+    ttgo->rtc->setDateTime(
+      RTC_Date(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+               t.tm_hour, t.tm_min, t.tm_sec)
+    );
+  }
+}
+
+static bool getClockTime(struct tm* t) {
+  if (baseEpoch == 0) return false;
+  time_t now = baseEpoch + (time_t)((millis() - baseMillis) / 1000UL);
+  localtime_r(&now, t);
+  return true;
+}
+
+// ── Clock drawing (all into clockSprite) ──────────────────────────────────────
+static void fillHand(float cx, float cy, float angleDeg,
+                     float front, float back, float width, uint32_t color) {
+  float rad  = (angleDeg - 90.0f) * DEG_TO_RAD;
+  float cosA = cosf(rad), sinA = sinf(rad);
+  float px   = -sinA, py = cosA;
+  float hw   = width / 2.0f;
+
+  float x0 = cx - back*cosA + hw*px,  y0 = cy - back*sinA + hw*py;
+  float x1 = cx - back*cosA - hw*px,  y1 = cy - back*sinA - hw*py;
+  float x2 = cx + front*cosA + hw*px, y2 = cy + front*sinA + hw*py;
+  float x3 = cx + front*cosA - hw*px, y3 = cy + front*sinA - hw*py;
+
+  ttgo->tft->fillTriangle(x0, y0, x1, y1, x2, y2, color);
+  ttgo->tft->fillTriangle(x1, y1, x2, y2, x3, y3, color);
+}
+
+static void drawTickMarks() {
+  const int CX = 120, CY = 120;
+  for (int i = 0; i < 60; i++) {
+    bool  isHour = (i % 5 == 0);
+    float angle  = i * 6.0f;
+    float outerR = 106.0f;
+    float len    = isHour ? 16.0f : 6.0f;
+    float width  = isHour ?  5.5f : 2.0f;
+    float midR   = outerR - len / 2.0f;
+    float rad    = (angle - 90.0f) * DEG_TO_RAD;
+    fillHand(CX + midR*cosf(rad), CY + midR*sinf(rad),
+             angle, len/2, len/2, width, TFT_BLACK);
+  }
+}
+
+static void drawClockFace() {
+  const int CX = 120, CY = 120;
+  ttgo->tft->fillCircle(CX, CY, 109, TFT_WHITE);
+  drawTickMarks();
+}
+
+// Erase old hands in white, restore any tick marks they covered
+static void eraseClockHands() {
+  if (prevHourAngle < -900) return;
+  const int CX = 120, CY = 120;
+
+  // Erase with slightly wider shapes to cover edges
+  fillHand(CX, CY, prevHourAngle,   58, 14, 12, TFT_WHITE);
+  fillHand(CX, CY, prevMinuteAngle, 80, 14, 10, TFT_WHITE);
+
+  // Erase second hand
+  float sRad = (prevSecondAngle - 90.0f) * DEG_TO_RAD;
+  int tipX  = CX + (int)(88 * cosf(sRad));
+  int tipY  = CY + (int)(88 * sinf(sRad));
+  int tailX = CX - (int)(24 * cosf(sRad));
+  int tailY = CY - (int)(24 * sinf(sRad));
+  for (int d = -2; d <= 2; d++) {
+    ttgo->tft->drawLine(tailX+d, tailY, tipX+d, tipY, TFT_WHITE);
+    ttgo->tft->drawLine(tailX, tailY+d, tipX, tipY+d, TFT_WHITE);
+  }
+  ttgo->tft->fillCircle(CX + (int)(70*cosf(sRad)), CY + (int)(70*sinf(sRad)), 9, TFT_WHITE);
+  ttgo->tft->fillCircle(CX, CY, 7, TFT_WHITE);
+
+  // Restore any tick marks that were under the old hands
+  drawTickMarks();
+}
+
+static void drawClockHands(int h, int m, int s) {
+  const int CX = 120, CY = 120;
+
+  prevHourAngle   = (h % 12) * 30.0f + m * 0.5f;
+  prevMinuteAngle = m * 6.0f + s * 0.1f;
+  prevSecondAngle = s * 6.0f;
+
+  fillHand(CX, CY, prevHourAngle,   58, 14, 9, TFT_BLACK);
+  fillHand(CX, CY, prevMinuteAngle, 80, 14, 7, TFT_BLACK);
+
+  // Second hand — drawLine avoids fillTriangle color issues
+  float sRad = (prevSecondAngle - 90.0f) * DEG_TO_RAD;
+  int tipX  = CX + (int)(88 * cosf(sRad));
+  int tipY  = CY + (int)(88 * sinf(sRad));
+  int tailX = CX - (int)(24 * cosf(sRad));
+  int tailY = CY - (int)(24 * sinf(sRad));
+  ttgo->tft->drawLine(tailX,   tailY,   tipX,   tipY,   TFT_RED);
+  ttgo->tft->drawLine(tailX+1, tailY,   tipX+1, tipY,   TFT_RED);
+  ttgo->tft->drawLine(tailX,   tailY+1, tipX,   tipY+1, TFT_RED);
+  ttgo->tft->fillCircle(CX + (int)(70*cosf(sRad)), CY + (int)(70*sinf(sRad)), 7, TFT_RED);
+  ttgo->tft->fillCircle(CX, CY, 5, TFT_RED);
+}
+
+// WiFi sync icon — manual arcs via drawLine (avoids drawArc color quirks)
+static void drawWifiArc(int cx, int cy, int r) {
+  int px = cx + r, py = cy;
+  for (int deg = 10; deg <= 180; deg += 10) {
+    float rad = deg * DEG_TO_RAD;
+    int nx = cx + (int)roundf(r * cosf(rad));
+    int ny = cy - (int)roundf(r * sinf(rad));
+    ttgo->tft->drawLine(px, py, nx, ny, TFT_RED);
+    px = nx; py = ny;
+  }
+}
+
+static void drawWifiIcon(int cx, int cy) {
+  ttgo->tft->fillCircle(cx, cy + 3, 2, TFT_RED);
+  drawWifiArc(cx, cy, 5);
+  drawWifiArc(cx, cy, 9);
+  drawWifiArc(cx, cy, 14);
+}
+
+// ── Page dots (POCSAG + DMR screens, drawn directly to display) ───────────────
+static void drawPageDots() {
+  int cx = 120, y = 220;
+  for (int i = 0; i < SCREEN_COUNT; i++) {
+    int x = cx + (i - 1) * 12;
+    if (i == currentScreen)
+      ttgo->tft->fillCircle(x, y, 4, TFT_WHITE);
+    else
+      ttgo->tft->drawCircle(x, y, 4, TFT_DARKGREY);
+  }
+}
+
+// ── Screen draw functions ─────────────────────────────────────────────────────
+static void drawClockScreen() {
+  struct tm t;
+  bool hasTime = getClockTime(&t);
+
+  if (lastDrawnSecond == -1) {
+    // First show: clear black border + draw full static face
+    ttgo->tft->fillScreen(TFT_BLACK);
+    drawClockFace();
+    prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
+  } else {
+    // Incremental: erase old hands in white + restore covered ticks only
+    eraseClockHands();
+  }
+
+  if (hasTime) {
+    char dateBuf[16];
+    strftime(dateBuf, sizeof(dateBuf), "%a %d %b", &t);
+    ttgo->tft->setTextDatum(TC_DATUM);
+    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_WHITE);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString(dateBuf, 120, 147);
+
+    if (espnowSynced) drawWifiIcon(120, 80);
+  }
+
+  // Dots before hands so hands render on top
+  for (int i = 0; i < SCREEN_COUNT; i++) {
+    int x = 120 + (i - 1) * 12;
+    if (i == currentScreen)
+      ttgo->tft->fillCircle(x, 180, 4, TFT_DARKGREY);
+    else
+      ttgo->tft->drawCircle(x, 180, 4, TFT_LIGHTGREY);
+  }
+
+  if (hasTime) {
+    drawClockHands(t.tm_hour, t.tm_min, t.tm_sec);
+    lastDrawnSecond = t.tm_sec;
+  } else {
+    // Pre-sync: fast-spinning hands (20× speed)
+    time_t fakeTime = (time_t)(millis() / 50UL);
+    struct tm f;
+    gmtime_r(&fakeTime, &f);
+    drawClockHands(f.tm_hour, f.tm_min, f.tm_sec);
+    lastDrawnSecond = f.tm_sec;  // enable incremental path for next frame
+  }
+}
+
+static void drawPocsagScreen() {
+  ttgo->tft->fillScreen(TFT_BLACK);
+  ttgo->tft->setTextDatum(TC_DATUM);
+
+  ttgo->tft->setTextColor(TFT_ORANGE, TFT_BLACK);
+  ttgo->tft->setTextFont(2);
+  ttgo->tft->drawString("POCSAG", 120, 18);
+  ttgo->tft->drawFastHLine(50, 38, 140, TFT_DARKGREY);
+
+  if (lastRic > 0) {
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+    ttgo->tft->setTextFont(4);
+    String msg = String(lastMsg);
+    int y = 52;
+    for (int offset = 0; offset < (int)msg.length() && offset < 27; offset += 9) {
+      ttgo->tft->drawString(msg.substring(offset, offset + 9), 120, y);
+      y += 32;
+    }
+    char ricLine[20];
+    snprintf(ricLine, sizeof(ricLine), "RIC %u", lastRic);
+    ttgo->tft->setTextColor(TFT_YELLOW, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString(ricLine, 120, 168);
+  } else {
+    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString("no data", 120, 110);
+  }
+
+  drawPageDots();
+}
+
+static void drawDmrScreen() {
+  ttgo->tft->fillScreen(TFT_BLACK);
+  ttgo->tft->setTextDatum(TC_DATUM);
+
+  ttgo->tft->setTextColor(TFT_GREEN, TFT_BLACK);
+  ttgo->tft->setTextFont(2);
+  ttgo->tft->drawString("DMR", 120, 18);
+  ttgo->tft->drawFastHLine(50, 38, 140, TFT_DARKGREY);
+
+  if (lastDmrSrc > 0) {
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+    ttgo->tft->setTextFont(4);
+    ttgo->tft->drawString(String(lastDmrSrc), 120, 52);
+
+    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString("to", 120, 94);
+
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
+    ttgo->tft->setTextFont(4);
+    ttgo->tft->drawString(String(lastDmrDst), 120, 112);
+
+    char info[16];
+    snprintf(info, sizeof(info), "TS%u  %s", lastDmrSlot, lastDmrGroup ? "TG" : "PC");
+    ttgo->tft->setTextColor(TFT_YELLOW, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString(info, 120, 162);
+  } else {
+    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString("no data", 120, 110);
+  }
+
+  drawPageDots();
+}
+
+static void redraw() {
+  switch (currentScreen) {
+    case SCREEN_CLOCK:  drawClockScreen();  break;
+    case SCREEN_POCSAG: drawPocsagScreen(); break;
+    case SCREEN_DMR:    drawDmrScreen();    break;
+  }
+}
+
+// Short vibration buzz on packet receive (GPIO4 motor)
+static void vibrate(int ms = 80) {
+  if (ttgo) ttgo->motor->onec(ms);
+}
+
+// ── ESP-NOW receive callback (arduino-esp32 3.x signature) ───────────────────
+static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+  const uint8_t *mac = info->src_addr;
+  if (len < 2) return;
+
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+  if (data[0] == ESPNOW_TYPE_DMR_NET) {
+    EspNowDmrNetPacket pkt = {};
+    memcpy(&pkt, data, min(len, (int)sizeof(pkt)));
+    if (pkt.len < 16) return;
+    const uint8_t* d = pkt.data;
+    if (d[0]!='D'||d[1]!='M'||d[2]!='R'||d[3]!='D') return;
+
+    lastDmrSrc   = ((uint32_t)d[5]<<16)|((uint32_t)d[6]<<8)|d[7];
+    lastDmrDst   = ((uint32_t)d[8]<<16)|((uint32_t)d[9]<<8)|d[10];
+    lastDmrSlot  = (d[15] & 0x80) ? 2 : 1;
+    lastDmrGroup = (d[15] & 0x40) == 0;
+    currentScreen    = SCREEN_DMR;
+    lastPacketMillis = millis();
+    needsRedraw      = true;
+    vibrate();
+    Serial.printf("[DMR] from %s  src=%u dst=%u TS%u %s\n",
+                  macStr, lastDmrSrc, lastDmrDst, lastDmrSlot, lastDmrGroup ? "TG" : "PC");
+  }
+  else if (data[0] == ESPNOW_TYPE_POCSAG) {
+    EspNowPocsagPacket pkt = {};
+    memcpy(&pkt, data, min(len, (int)sizeof(pkt)));
+    pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
+
+    Serial.printf("[POCSAG] from %s  RIC=%u func=%u msg=\"%s\"\n",
+                  macStr, pkt.ric, pkt.functional, pkt.message);
+
+    if (pkt.ric == TIME_RIC) {
+      parseTimePacket(pkt.message);
+      if (currentScreen == SCREEN_CLOCK) needsRedraw = true;
+    }
+
+    if (!isHiddenRic(pkt.ric)) {
+      lastRic = pkt.ric;
+      strncpy(lastMsg, pkt.message, POCSAG_MSG_MAX_LEN);
+      lastMsg[POCSAG_MSG_MAX_LEN] = '\0';
+      currentScreen    = SCREEN_POCSAG;
+      lastPacketMillis = millis();
+      needsRedraw      = true;
+      vibrate();
+    }
+  }
+}
+
+// ── setup ─────────────────────────────────────────────────────────────────────
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+  Serial.println("\n=== twatch-espnow ===");
+
+  ttgo = TTGOClass::getWatch();
+  ttgo->begin();
+  ttgo->openBL();
+  ttgo->motor_begin();   // vibration motor on GPIO4
+  pinMode(CROWN_BTN_PIN, INPUT_PULLUP);
+
+  ttgo->tft->setRotation(0);
+  ttgo->tft->fillScreen(TFT_BLACK);
+
+  // Seed from RTC (PCF8563) if it holds a valid time
+  // RTC_Date carries both date and time fields
+  RTC_Date dt = ttgo->rtc->getDateTime();
+  if (dt.year >= 2023) {
+    struct tm t = {};
+    t.tm_year  = dt.year - 1900;
+    t.tm_mon   = dt.month - 1;
+    t.tm_mday  = dt.day;
+    t.tm_hour  = dt.hour;
+    t.tm_min   = dt.minute;
+    t.tm_sec   = dt.second;
+    t.tm_isdst = -1;
+    baseEpoch  = mktime(&t);
+    baseMillis = millis();
+    Serial.printf("[RTC] loaded: %04d-%02d-%02d %02d:%02d:%02d\n",
+                  dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+  } else {
+    Serial.println("[RTC] no valid time stored yet");
+  }
+
+  // WiFi STA mode for ESP-NOW (no AP connection needed)
+  WiFi.mode(WIFI_STA);
+  delay(100);
+
+  uint8_t mac[6];
+  esp_wifi_get_mac(WIFI_IF_STA, mac);
+  Serial.printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init FAILED");
+    ttgo->tft->fillScreen(TFT_BLACK);
+    ttgo->tft->setTextDatum(MC_DATUM);
+    ttgo->tft->setTextColor(TFT_RED, TFT_BLACK);
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->drawString("ESP-NOW FAILED", 120, 120);
+    return;
+  }
+  esp_now_register_recv_cb(onReceive);
+  Serial.println("ESP-NOW ready");
+
+  needsRedraw = true;
+}
+
+// ── loop ──────────────────────────────────────────────────────────────────────
+void loop() {
+  // Crown button: toggle display on/off
+  bool crownState = digitalRead(CROWN_BTN_PIN);
+  if (crownState == LOW && lastCrownState == HIGH) {
+    displayOn = !displayOn;
+    if (displayOn) {
+      ttgo->openBL();
+      lastDrawnSecond = -1;   // force full redraw when waking
+      needsRedraw     = true;
+    } else {
+      ttgo->closeBL();
+    }
+  }
+  lastCrownState = crownState;
+
+  // Touch tap: wake display if off, otherwise advance screen
+  static bool wasTouched = false;
+  int16_t tx, ty;
+  bool isTouched = ttgo->getTouch(tx, ty);
+  if (isTouched && !wasTouched) {
+    if (!displayOn) {
+      displayOn       = true;
+      ttgo->openBL();
+      lastDrawnSecond = -1;
+      needsRedraw     = true;
+    } else {
+      currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
+      lastDrawnSecond = -1;
+      needsRedraw     = true;
+    }
+  }
+  wasTouched = isTouched;
+
+  // Skip redraws while display is off
+  if (!displayOn) {
+    delay(50);
+    return;
+  }
+
+  // Auto-return to clock after 15 s of no new packets
+  if (currentScreen != SCREEN_CLOCK && lastPacketMillis > 0 &&
+      millis() - lastPacketMillis >= AUTO_CLOCK_MS) {
+    lastPacketMillis = 0;
+    currentScreen    = SCREEN_CLOCK;
+    lastDrawnSecond  = -1;
+    needsRedraw      = true;
+  }
+
+  // Clock screen: redraw every second when synced, every 50 ms while spinning
+  if (currentScreen == SCREEN_CLOCK && !needsRedraw) {
+    if (baseEpoch == 0) {
+      if (millis() - lastAnimMillis >= ANIM_FRAME_MS) {
+        lastAnimMillis = millis();
+        needsRedraw = true;
+      }
+    } else {
+      struct tm t;
+      if (getClockTime(&t) && t.tm_sec != lastDrawnSecond)
+        needsRedraw = true;
+    }
+  }
+
+  if (needsRedraw) {
+    needsRedraw = false;
+    redraw();
+  }
+
+  delay(50);
+}
