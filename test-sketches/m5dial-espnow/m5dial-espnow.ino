@@ -88,8 +88,9 @@ static char lastRfidUid[32]  = "";   // hex UID string
 static char lastRfidType[32] = "";   // PICC type name
 
 // Time — base epoch from RIC 224, advanced with millis()
-static time_t         baseEpoch  = 0;
-static unsigned long  baseMillis = 0;
+static time_t         baseEpoch    = 0;
+static unsigned long  baseMillis   = 0;
+static bool           espnowSynced = false;  // true once a RIC 224 packet was received
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
@@ -111,8 +112,9 @@ static void parseTimePacket(const char* msg) {
   t.tm_sec   = (p[10]-'0')*10 + (p[11]-'0');
   t.tm_isdst = -1;
 
-  baseEpoch  = mktime(&t);
-  baseMillis = millis();
+  baseEpoch    = mktime(&t);
+  baseMillis   = millis();
+  espnowSynced = true;
   Serial.printf("[TIME] synced: %04d-%02d-%02d %02d:%02d:%02d\n",
                 t.tm_year+1900, t.tm_mon+1, t.tm_mday,
                 t.tm_hour, t.tm_min, t.tm_sec);
@@ -180,11 +182,17 @@ static void drawClockHands(int h, int m, int s) {
   fillHand(CX, CY, hourAngle,   58, 14, 9, TFT_BLACK);
   // Minute hand — thinner, longer
   fillHand(CX, CY, minuteAngle, 80, 14, 7, TFT_BLACK);
-  // Second hand — thin red stick
-  fillHand(CX, CY, secondAngle, 88, 24, 2, TFT_RED);
-  // Red ball on second hand (~70px from center)
+  // Second hand — thin red line (drawLine avoids fillTriangle degenerate-width issues)
   float sRad = (secondAngle - 90.0f) * DEG_TO_RAD;
-  clockSprite.fillCircle(CX + 70*cosf(sRad), CY + 70*sinf(sRad), 7, TFT_RED);
+  int tipX  = CX + (int)(88 * cosf(sRad));
+  int tipY  = CY + (int)(88 * sinf(sRad));
+  int tailX = CX - (int)(24 * cosf(sRad));
+  int tailY = CY - (int)(24 * sinf(sRad));
+  clockSprite.drawLine(tailX,   tailY,   tipX,   tipY,   TFT_RED);
+  clockSprite.drawLine(tailX+1, tailY,   tipX+1, tipY,   TFT_RED);
+  clockSprite.drawLine(tailX,   tailY+1, tipX,   tipY+1, TFT_RED);
+  // Red ball on second hand (~70px from center)
+  clockSprite.fillCircle(CX + (int)(70*cosf(sRad)), CY + (int)(70*sinf(sRad)), 7, TFT_RED);
   // Center cap
   clockSprite.fillCircle(CX, CY, 5, TFT_RED);
 }
@@ -201,6 +209,27 @@ static void drawPageDots(bool whiteOnBlack = true) {
   }
 }
 
+// Draw upper-semicircle arc via line segments — avoids drawArc color quirks.
+// 0°=right, going through top to 180°=left in screen coords (y inverted).
+static void drawWifiArc(int cx, int cy, int r) {
+  int px = cx + r, py = cy;
+  for (int deg = 10; deg <= 180; deg += 10) {
+    float rad = deg * DEG_TO_RAD;
+    int nx = cx + (int)roundf(r * cosf(rad));
+    int ny = cy - (int)roundf(r * sinf(rad));
+    clockSprite.drawLine(px, py, nx, ny, TFT_RED);
+    px = nx; py = ny;
+  }
+}
+
+// Small red WiFi icon — dot + 3 upward arcs drawn with TFT_RED via drawLine.
+static void drawWifiIcon(int cx, int cy) {
+  clockSprite.fillCircle(cx, cy + 3, 2, TFT_RED);
+  drawWifiArc(cx, cy, 5);
+  drawWifiArc(cx, cy, 9);
+  drawWifiArc(cx, cy, 14);
+}
+
 // ── Screen draw functions ─────────────────────────────────────────────────────
 static void drawClockScreen() {
   // Draw entirely into sprite — push once to avoid flicker
@@ -209,10 +238,10 @@ static void drawClockScreen() {
   struct tm t;
   bool hasTime = getClockTime(&t);
 
-  if (hasTime) {
-    drawClockFace();
+  drawClockFace();
 
-    // Date below center — inside the white clock face area
+  if (hasTime) {
+    // Date below center
     char dateBuf[16];
     strftime(dateBuf, sizeof(dateBuf), "%a %d %b", &t);
     clockSprite.setTextDatum(TC_DATUM);
@@ -220,25 +249,28 @@ static void drawClockScreen() {
     clockSprite.setTextFont(2);
     clockSprite.drawString(dateBuf, 120, 147);
 
-    drawClockHands(t.tm_hour, t.tm_min, t.tm_sec);
-    lastDrawnSecond = t.tm_sec;
-  } else {
-    // No time yet — show Mondaine face with fast-spinning hands (20× speed)
-    // so it looks like the clock is seeking/syncing rather than broken.
-    drawClockFace();
-    time_t fakeTime = (time_t)(millis() / 50UL);   // 1 real ms = 20 fake ms
-    struct tm f;
-    gmtime_r(&fakeTime, &f);
-    drawClockHands(f.tm_hour, f.tm_min, f.tm_sec);
+    // ESP-NOW sync indicator
+    if (espnowSynced) drawWifiIcon(120, 80);
   }
 
-  // Page dots — drawn into sprite, below the date inside the clock face
+  // Page dots drawn BEFORE hands so hands render on top
   for (int i = 0; i < SCREEN_COUNT; i++) {
     int x = 120 + (i - 1) * 12;
     if (i == currentScreen)
       clockSprite.fillCircle(x, 180, 4, TFT_DARKGREY);
     else
       clockSprite.drawCircle(x, 180, 4, TFT_LIGHTGREY);
+  }
+
+  if (hasTime) {
+    drawClockHands(t.tm_hour, t.tm_min, t.tm_sec);
+    lastDrawnSecond = t.tm_sec;
+  } else {
+    // No time yet — show Mondaine face with fast-spinning hands (20× speed)
+    time_t fakeTime = (time_t)(millis() / 50UL);
+    struct tm f;
+    gmtime_r(&fakeTime, &f);
+    drawClockHands(f.tm_hour, f.tm_min, f.tm_sec);
   }
 
   clockSprite.pushSprite(0, 0);   // single blit — no flicker
