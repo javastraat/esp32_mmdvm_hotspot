@@ -289,8 +289,29 @@ void setup() {
     esp_now_register_recv_cb(onReceive);
     Serial.println("ESP-NOW ready");
   } else {
-    // Online mode: WiFi connection (to be implemented)
-    Serial.println("Online mode — WiFi not yet implemented");
+    // Online mode: connect to WiFi
+    #define WIFI_SSID "TechInc"
+    #define WIFI_PASS "itoldyoualready"
+    Serial.printf("Connecting to %s ...\n", WIFI_SSID);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    unsigned long t0 = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) {
+      delay(250);
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.printf("WiFi connected — IP: %s\n", WiFi.localIP().toString().c_str());
+    } else {
+      Serial.println("WiFi connect FAILED (timeout)");
+      ttgo->tft->fillScreen(TFT_BLACK);
+      ttgo->tft->setTextDatum(MC_DATUM);
+      ttgo->tft->setTextColor(TFT_RED, TFT_BLACK);
+      ttgo->tft->setTextFont(2);
+      ttgo->tft->drawString("WiFi FAILED", 120, 110);
+      ttgo->tft->drawString(WIFI_SSID,     120, 135);
+    }
   }
 
   needsRedraw = true;
