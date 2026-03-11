@@ -1,10 +1,11 @@
 /*
  * twatch-espnow.ino  —  ESP-NOW receiver for TTGO T-Watch 2020
  *
- * Three screens, tap the touchscreen to cycle:
- *   Screen 0 — CLOCK:  Mondaine-style analog clock (time from RIC 224)
- *   Screen 1 — POCSAG: message (wrapped), RIC
- *   Screen 2 — DMR:    src → dst, slot, TG/PC
+ * Four screens, tap the touchscreen to cycle:
+ *   Screen 0 — CLOCK:    Mondaine-style analog clock (time from RIC 224)
+ *   Screen 1 — POCSAG:   message (wrapped), RIC
+ *   Screen 2 — DMR:      src → dst, slot, TG/PC
+ *   Screen 3 — SETTINGS: 3×3 grid; tap WiFi cell → WIFI sub-screen
  *
  * Time source: POCSAG RIC 224 — same format as hotspot.
  *              RTC PCF8563 seeds clock on boot; updated on every sync.
@@ -21,10 +22,11 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <Preferences.h>
 #include <time.h>
 #include <math.h>
 
-TTGOClass    *ttgo        = nullptr;
+TTGOClass *ttgo = nullptr;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 #define TIME_RIC   224   // POCSAG RIC carrying date/time
@@ -55,79 +57,15 @@ struct __attribute__((packed)) EspNowPocsagPacket {
   char     message[POCSAG_MSG_MAX_LEN + 1];
 };
 
-// ── State ─────────────────────────────────────────────────────────────────────
-
+// ── Screen identifiers ────────────────────────────────────────────────────────
 #define SCREEN_CLOCK     0
 #define SCREEN_POCSAG    1
 #define SCREEN_DMR       2
 #define SCREEN_SETTINGS  3
 #define SCREEN_WIFI      4
-#define SCREEN_COUNT     4
+#define SCREEN_COUNT     4   // number of screens in the tap-cycle (WIFI is a sub-screen)
 
-#include <Preferences.h>
-Preferences modePrefs;
-bool onlineMode = true;
-static bool modeRebootPrompt = false;
-
-// Draw WiFi settings page with toggle and back button
-void drawWifiSettingsScreen() {
-  ttgo->tft->fillScreen(TFT_BLACK);
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(4);
-  ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-  ttgo->tft->drawString("WiFi", 120, 40);
-  // Draw toggle switch
-  int x = 120, y = 120, w = 100, h = 40;
-  ttgo->tft->fillRoundRect(x-w/2, y-h/2, w, h, 20, TFT_DARKGREY);
-  int knobR = 32/2;
-  int knobX = onlineMode ? (x + w/2 - knobR - 6) : (x - w/2 + knobR + 6);
-  uint32_t knobColor = onlineMode ? TFT_GREEN : TFT_ORANGE;
-  ttgo->tft->fillCircle(knobX, y, knobR, knobColor);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-  ttgo->tft->drawString("ONLINE", x + w/2 + 30, y);
-  ttgo->tft->drawString("OFFLINE", x - w/2 - 30, y);
-  // Draw back button
-  ttgo->tft->fillRoundRect(60, 200, 120, 32, 8, TFT_DARKGREY);
-  ttgo->tft->setTextColor(TFT_WHITE, TFT_DARKGREY);
-  ttgo->tft->drawString("Back", 120, 216);
-  // Draw reboot prompt if needed
-  if (modeRebootPrompt) {
-    ttgo->tft->fillRoundRect(30, 80, 180, 80, 16, TFT_NAVY);
-    ttgo->tft->setTextColor(TFT_YELLOW, TFT_NAVY);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString("Reboot now?", 120, 100);
-    ttgo->tft->fillRoundRect(50, 130, 50, 32, 8, TFT_GREEN);
-    ttgo->tft->fillRoundRect(140, 130, 50, 32, 8, TFT_RED);
-    ttgo->tft->setTextColor(TFT_BLACK, TFT_GREEN);
-    ttgo->tft->drawString("Yes", 75, 146);
-    ttgo->tft->setTextColor(TFT_WHITE, TFT_RED);
-    ttgo->tft->drawString("No", 165, 146);
-  }
-}
-
-// Draw the 3x3 settings grid screen
-void drawSettingsScreen() {
-  ttgo->tft->fillScreen(TFT_BLACK);
-  int cellW = 80, cellH = 80;
-  // Simple icons: WiFi, etc. Last icon is '>' for next
-  const char* icons[3][3] = {
-    {"\xEF\xA7\xB7", "2", "3"},
-    {"4", "5", "6"},
-    {"7", "8", ">"}
-  };
-  for (int row = 0; row < 3; ++row) {
-    for (int col = 0; col < 3; ++col) {
-      int cx = col * cellW;
-      int cy = row * cellH;
-      ttgo->tft->fillRoundRect(cx+4, cy+4, cellW-8, cellH-8, 16, TFT_BLACK);
-      ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-      ttgo->tft->setTextFont(4);
-      ttgo->tft->drawString(icons[row][col], cx + cellW/2, cy + cellH/2);
-    }
-  }
-}
-
+// ── Global state ──────────────────────────────────────────────────────────────
 static int           currentScreen    = SCREEN_CLOCK;
 static bool          needsRedraw      = true;
 static int           lastDrawnSecond  = -1;
@@ -160,6 +98,23 @@ static float prevHourAngle   = -999.0f;
 static float prevMinuteAngle = -999.0f;
 static float prevSecondAngle = -999.0f;
 
+// WiFi / online-mode preference
+Preferences  modePrefs;
+bool         onlineMode       = true;
+static bool  modeRebootPrompt = false;
+
+void loadOnlineMode() {
+  modePrefs.begin("settings", true);
+  onlineMode = modePrefs.getBool("onlineMode", true);
+  modePrefs.end();
+}
+
+void saveOnlineMode() {
+  modePrefs.begin("settings", false);
+  modePrefs.putBool("onlineMode", onlineMode);
+  modePrefs.end();
+}
+
 // ── Time helpers ──────────────────────────────────────────────────────────────
 static void parseTimePacket(const char* msg) {
   if (strlen(msg) < 26) return;
@@ -184,7 +139,7 @@ static void parseTimePacket(const char* msg) {
                 t.tm_year+1900, t.tm_mon+1, t.tm_mday,
                 t.tm_hour, t.tm_min, t.tm_sec);
 
-  // Persist to RTC (PCF8563) — single RTC_Date holds date + time
+  // Persist to RTC (PCF8563)
   if (ttgo) {
     ttgo->rtc->setDateTime(
       RTC_Date(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
@@ -200,280 +155,22 @@ static bool getClockTime(struct tm* t) {
   return true;
 }
 
-// ── Dark square-face clock (Style Seven inspired) ─────────────────────────────
-// Black face, white ticks + numerals, royal-blue hands, red second hand.
-// Background never changes → zero flicker (erase = draw in black).
-#define CLK_BG    TFT_BLACK   // face background
-#define CLK_TICK  TFT_WHITE   // tick marks and hour numerals
-#define CLK_HAND  0x435B      // royal blue (#4169E1) — hour + minute hands
-#define CLK_DATE  0x435B      // date box border and text
-#define TICK_OUTER 113        // outer radius of tick ring (fits 240px screen)
-#define NUM_RADIUS  88        // radius to center of hour numerals
+// ── Screen includes ───────────────────────────────────────────────────────────
+// Included after all globals so each header can access them directly.
+#include "screens/clock_screen.h"
+#include "screens/pocsag_screen.h"
+#include "screens/dmr_screen.h"
+#include "screens/settings_screen.h"
+#include "screens/wifi_screen.h"
 
-static void fillHand(float cx, float cy, float angleDeg,
-                     float front, float back, float width, uint32_t color) {
-  float rad  = (angleDeg - 90.0f) * DEG_TO_RAD;
-  float cosA = cosf(rad), sinA = sinf(rad);
-  float px   = -sinA, py = cosA;
-  float hw   = width / 2.0f;
-
-  float x0 = cx - back*cosA + hw*px,  y0 = cy - back*sinA + hw*py;
-  float x1 = cx - back*cosA - hw*px,  y1 = cy - back*sinA - hw*py;
-  float x2 = cx + front*cosA + hw*px, y2 = cy + front*sinA + hw*py;
-  float x3 = cx + front*cosA - hw*px, y3 = cy + front*sinA - hw*py;
-
-  ttgo->tft->fillTriangle(x0, y0, x1, y1, x2, y2, color);
-  ttgo->tft->fillTriangle(x1, y1, x2, y2, x3, y3, color);
-}
-
-static const char* const HOUR_LABEL[12] = {
-  "12","1","2","3","4","5","6","7","8","9","10","11"
-};
-
-static void drawHourNum(int idx) {
-  float angle = (idx * 30.0f - 90.0f) * DEG_TO_RAD;
-  int x = 120 + (int)(NUM_RADIUS * cosf(angle));
-  int y = 120 + (int)(NUM_RADIUS * sinf(angle));
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(4);
-  ttgo->tft->setTextColor(CLK_TICK, CLK_BG);
-  ttgo->tft->drawString(HOUR_LABEL[idx], x, y);
-}
-
-// 60 tick marks: hour ticks are thicker (3 parallel lines), minute ticks single
-static void drawTicks() {
-  for (int i = 0; i < 60; i++) {
-    bool  isHour = (i % 5 == 0);
-    float angle  = (i * 6.0f - 90.0f) * DEG_TO_RAD;
-    int   len    = isHour ? 13 : 6;
-    float ca = cosf(angle), sa = sinf(angle);
-    int x1 = 120 + (int)(TICK_OUTER * ca),          y1 = 120 + (int)(TICK_OUTER * sa);
-    int x2 = 120 + (int)((TICK_OUTER-len) * ca),    y2 = 120 + (int)((TICK_OUTER-len) * sa);
-    ttgo->tft->drawLine(x1, y1, x2, y2, CLK_TICK);
-    if (isHour) {
-      int px = -(int)(sa + 0.5f), py = (int)(ca + 0.5f);
-      ttgo->tft->drawLine(x1+px, y1+py, x2+px, y2+py, CLK_TICK);
-      ttgo->tft->drawLine(x1-px, y1-py, x2-px, y2-py, CLK_TICK);
-    }
-  }
-}
-
-// Full static face: ticks + numerals (called once on first show)
-static void drawClockStaticFace() {
-  drawTicks();
-  for (int i = 0; i < 12; i++) drawHourNum(i);
-}
-
-// Two date boxes, Style Seven style
-static void drawDateBoxes(const struct tm* t) {
-  static const char* const MON[] = {
-    "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
-  static const char* const DOW[] = {
-    "SUN","MON","TUE","WED","THU","FRI","SAT"};
-
-  // Left box: month / day-of-week (between 9 and center)
-  const int lx=20, ly=102, lw=74, lh=38;
-  ttgo->tft->fillRect(lx, ly, lw, lh, CLK_BG);
-  ttgo->tft->drawRect(lx, ly, lw, lh, CLK_DATE);
-  ttgo->tft->drawFastHLine(lx+1, ly+19, lw-2, CLK_DATE);
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(CLK_DATE, CLK_BG);
-  ttgo->tft->drawString(MON[t->tm_mon],  lx + lw/2, ly + 10);
-  ttgo->tft->drawString(DOW[t->tm_wday], lx + lw/2, ly + 29);
-
-  // Right box: day number (between center and 3)
-  const int rx=150, ry=104, rw=68, rh=34;
-  char buf[4];
-  snprintf(buf, sizeof(buf), "%02d", t->tm_mday);
-  ttgo->tft->fillRect(rx, ry, rw, rh, CLK_BG);
-  ttgo->tft->drawRect(rx, ry, rw, rh, CLK_DATE);
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(4);
-  ttgo->tft->setTextColor(CLK_DATE, CLK_BG);
-  ttgo->tft->drawString(buf, rx + rw/2, ry + rh/2);
-}
-
-// Erase old hands (draw in black), then restore ticks + numerals + date boxes
-static void eraseClockHands(const struct tm* t) {
-  if (prevHourAngle < -900) return;
-  const int CX = 120, CY = 120;
-
-  fillHand(CX, CY, prevHourAngle,   55, 14, 13, CLK_BG);
-  fillHand(CX, CY, prevMinuteAngle, 78, 14, 10, CLK_BG);
-
-  float sRad = (prevSecondAngle - 90.0f) * DEG_TO_RAD;
-  int tipX  = CX + (int)(85 * cosf(sRad));
-  int tipY  = CY + (int)(85 * sinf(sRad));
-  int tailX = CX - (int)(20 * cosf(sRad));
-  int tailY = CY - (int)(20 * sinf(sRad));
-  for (int d = -2; d <= 2; d++) {
-    ttgo->tft->drawLine(tailX+d, tailY, tipX+d, tipY, CLK_BG);
-    ttgo->tft->drawLine(tailX, tailY+d, tipX, tipY+d, CLK_BG);
-  }
-  ttgo->tft->fillCircle(CX, CY, 9, CLK_BG);
-
-  // Restore static face elements swept by hands
-  drawTicks();
-  for (int i = 0; i < 12; i++) drawHourNum(i);
-  if (t) drawDateBoxes(t);
-}
-
-static void drawClockHands(int h, int m, int s) {
-  const int CX = 120, CY = 120;
-
-  prevHourAngle   = (h % 12) * 30.0f + m * 0.5f;
-  prevMinuteAngle = m * 6.0f + s * 0.1f;
-  prevSecondAngle = s * 6.0f;
-
-  fillHand(CX, CY, prevHourAngle,   55, 14, 10, CLK_HAND);
-  fillHand(CX, CY, prevMinuteAngle, 78, 14,  7, CLK_HAND);
-
-  // Second hand — thin red line
-  float sRad = (prevSecondAngle - 90.0f) * DEG_TO_RAD;
-  int tipX  = CX + (int)(85 * cosf(sRad));
-  int tipY  = CY + (int)(85 * sinf(sRad));
-  int tailX = CX - (int)(20 * cosf(sRad));
-  int tailY = CY - (int)(20 * sinf(sRad));
-  ttgo->tft->drawLine(tailX,   tailY,   tipX,   tipY,   TFT_RED);
-  ttgo->tft->drawLine(tailX+1, tailY,   tipX+1, tipY,   TFT_RED);
-  ttgo->tft->drawLine(tailX,   tailY+1, tipX,   tipY+1, TFT_RED);
-
-  // Center: blue circle with white centre dot
-  ttgo->tft->fillCircle(CX, CY, 7, CLK_HAND);
-  ttgo->tft->fillCircle(CX, CY, 3, TFT_WHITE);
-}
-
-// ── Page dots (POCSAG + DMR screens) ──────────────────────────────────────────
-static void drawPageDots() {
-  int cx = 120, y = 220;
-  for (int i = 0; i < SCREEN_COUNT; i++) {
-    int x = cx + (i - (SCREEN_COUNT-1)/2.0) * 12;
-    if (i == currentScreen)
-      ttgo->tft->fillCircle(x, y, 4, TFT_WHITE);
-    else
-      ttgo->tft->drawCircle(x, y, 4, TFT_DARKGREY);
-  }
-}
-
-// ── Screen draw functions ──────────────────────────────────────────────────────
-static void drawClockDots() {
-  for (int i = 0; i < SCREEN_COUNT; i++) {
-    int x = 120 + (i - 1) * 12;
-    if (i == currentScreen)
-      ttgo->tft->fillCircle(x, 225, 3, CLK_HAND);
-    else
-      ttgo->tft->drawCircle(x, 225, 3, TFT_DARKGREY);
-  }
-}
-
-static void drawClockScreen() {
-  struct tm t;
-  bool hasTime = getClockTime(&t);
-
-  if (lastDrawnSecond == -1) {
-    // First show: black fill + static face + date + overlay indicators
-    ttgo->tft->fillScreen(CLK_BG);
-    drawClockStaticFace();
-    if (hasTime) drawDateBoxes(&t);
-    if (espnowSynced) ttgo->tft->fillCircle(120, 8, 4, CLK_HAND);
-    drawClockDots();
-    prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
-  } else {
-    // Incremental: erase old hands + restore what they covered
-    eraseClockHands(hasTime ? &t : nullptr);
-    if (espnowSynced) ttgo->tft->fillCircle(120, 8, 4, CLK_HAND);
-    drawClockDots();
-  }
-
-  if (hasTime) {
-    drawClockHands(t.tm_hour, t.tm_min, t.tm_sec);
-    lastDrawnSecond = t.tm_sec;
-  } else {
-    // Pre-sync: fast-spinning hands (20× speed)
-    time_t fakeTime = (time_t)(millis() / 50UL);
-    struct tm f;
-    gmtime_r(&fakeTime, &f);
-    drawClockHands(f.tm_hour, f.tm_min, f.tm_sec);
-    lastDrawnSecond = f.tm_sec;
-  }
-}
-
-static void drawPocsagScreen() {
-  ttgo->tft->fillScreen(TFT_BLACK);
-  ttgo->tft->setTextDatum(TC_DATUM);
-
-  ttgo->tft->setTextColor(TFT_ORANGE, TFT_BLACK);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->drawString("POCSAG", 120, 18);
-  ttgo->tft->drawFastHLine(50, 38, 140, TFT_DARKGREY);
-
-  if (lastRic > 0) {
-    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-    ttgo->tft->setTextFont(4);
-    String msg = String(lastMsg);
-    int y = 52;
-    for (int offset = 0; offset < (int)msg.length() && offset < 27; offset += 9) {
-      ttgo->tft->drawString(msg.substring(offset, offset + 9), 120, y);
-      y += 32;
-    }
-    char ricLine[20];
-    snprintf(ricLine, sizeof(ricLine), "RIC %u", lastRic);
-    ttgo->tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString(ricLine, 120, 168);
-  } else {
-    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString("no data", 120, 110);
-  }
-
-  drawPageDots();
-}
-
-static void drawDmrScreen() {
-  ttgo->tft->fillScreen(TFT_BLACK);
-  ttgo->tft->setTextDatum(TC_DATUM);
-
-  ttgo->tft->setTextColor(TFT_GREEN, TFT_BLACK);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->drawString("DMR", 120, 18);
-  ttgo->tft->drawFastHLine(50, 38, 140, TFT_DARKGREY);
-
-  if (lastDmrSrc > 0) {
-    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-    ttgo->tft->setTextFont(4);
-    ttgo->tft->drawString(String(lastDmrSrc), 120, 52);
-
-    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString("to", 120, 94);
-
-    ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-    ttgo->tft->setTextFont(4);
-    ttgo->tft->drawString(String(lastDmrDst), 120, 112);
-
-    char info[16];
-    snprintf(info, sizeof(info), "TS%u  %s", lastDmrSlot, lastDmrGroup ? "TG" : "PC");
-    ttgo->tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString(info, 120, 162);
-  } else {
-    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString("no data", 120, 110);
-  }
-
-  drawPageDots();
-}
-
+// ── Dispatch ──────────────────────────────────────────────────────────────────
 static void redraw() {
   switch (currentScreen) {
-    case SCREEN_CLOCK:  drawClockScreen();  break;
-    case SCREEN_POCSAG: drawPocsagScreen(); break;
-    case SCREEN_DMR:    drawDmrScreen();    break;
-    case SCREEN_SETTINGS: drawSettingsScreen(); break;
-    case SCREEN_WIFI: drawWifiSettingsScreen(); break;
+    case SCREEN_CLOCK:    drawClockScreen();        break;
+    case SCREEN_POCSAG:   drawPocsagScreen();       break;
+    case SCREEN_DMR:      drawDmrScreen();          break;
+    case SCREEN_SETTINGS: drawSettingsScreen();     break;
+    case SCREEN_WIFI:     drawWifiSettingsScreen(); break;
   }
 }
 
@@ -482,8 +179,7 @@ static void vibrate(int ms = 80) {
   if (ttgo) ttgo->motor->onec(ms);
 }
 
-// ── ESP-NOW receive callback (legacy signature for older core) ─────────────
-// ESP-NOW receive callback for ESP32 Arduino core 3.x+
+// ── ESP-NOW receive callback (arduino-esp32 3.x signature) ───────────────────
 static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   const uint8_t *mac = info->src_addr;
   if (len < 2) return;
@@ -547,11 +243,12 @@ void setup() {
   ttgo->motor_begin();   // vibration motor on GPIO4
   pinMode(CROWN_BTN_PIN, INPUT);   // GPIO36 is input-only, no internal pullup
 
+  loadOnlineMode();   // restore persisted WiFi mode from NVS
+
   ttgo->tft->setRotation(0);
   ttgo->tft->fillScreen(TFT_BLACK);
 
   // Seed from RTC (PCF8563) if it holds a valid time
-  // RTC_Date carries both date and time fields
   RTC_Date dt = ttgo->rtc->getDateTime();
   if (dt.year >= 2023) {
     struct tm t = {};
@@ -570,26 +267,31 @@ void setup() {
     Serial.println("[RTC] no valid time stored yet");
   }
 
-  // WiFi STA mode for ESP-NOW (no AP connection needed)
-  WiFi.mode(WIFI_STA);
-  delay(100);
+  if (!onlineMode) {
+    // Offline mode: use ESP-NOW (no AP connection needed)
+    WiFi.mode(WIFI_STA);
+    delay(100);
 
-  uint8_t mac[6];
-  esp_wifi_get_mac(WIFI_IF_STA, mac);
-  Serial.printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    Serial.printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("ESP-NOW init FAILED");
-    ttgo->tft->fillScreen(TFT_BLACK);
-    ttgo->tft->setTextDatum(MC_DATUM);
-    ttgo->tft->setTextColor(TFT_RED, TFT_BLACK);
-    ttgo->tft->setTextFont(2);
-    ttgo->tft->drawString("ESP-NOW FAILED", 120, 120);
-    return;
+    if (esp_now_init() != ESP_OK) {
+      Serial.println("ESP-NOW init FAILED");
+      ttgo->tft->fillScreen(TFT_BLACK);
+      ttgo->tft->setTextDatum(MC_DATUM);
+      ttgo->tft->setTextColor(TFT_RED, TFT_BLACK);
+      ttgo->tft->setTextFont(2);
+      ttgo->tft->drawString("ESP-NOW FAILED", 120, 120);
+      return;
+    }
+    esp_now_register_recv_cb(onReceive);
+    Serial.println("ESP-NOW ready");
+  } else {
+    // Online mode: WiFi connection (to be implemented)
+    Serial.println("Online mode — WiFi not yet implemented");
   }
-  esp_now_register_recv_cb(onReceive);
-  Serial.println("ESP-NOW ready");
 
   needsRedraw = true;
 }
@@ -628,53 +330,46 @@ void loop() {
         if (col < 0) col = 0; if (col > 2) col = 2;
         if (row < 0) row = 0; if (row > 2) row = 2;
         if (row == 0 && col == 0) {
-          // WiFi icon
           currentScreen = SCREEN_WIFI;
-          needsRedraw = true;
+          needsRedraw   = true;
         } else if (row == 2 && col == 2) {
-          // Last icon: go to clock screen
           currentScreen = SCREEN_CLOCK;
-          needsRedraw = true;
+          needsRedraw   = true;
         } else {
-          // Other icons: open placeholder screen (for now, just vibrate)
-          vibrate();
+          vibrate();   // placeholder for unimplemented cells
         }
       } else if (currentScreen == SCREEN_WIFI) {
         if (modeRebootPrompt) {
-          // Prompt: Yes/No buttons
-          if (ty >= 130 && ty <= 162) {
-            if (tx >= 50 && tx <= 100) {
-              // Yes: reboot
-              ESP.restart();
-            } else if (tx >= 140 && tx <= 190) {
-              // No: cancel prompt
-              modeRebootPrompt = false;
-              needsRedraw = true;
-            }
+          // YES: left button (x 10-110, y 140-220)
+          if (tx >= 10 && tx <= 110 && ty >= 140 && ty <= 220) {
+            ESP.restart();
+          }
+          // NO: right button (x 130-230, y 140-220)
+          if (tx >= 130 && tx <= 230 && ty >= 140 && ty <= 220) {
+            modeRebootPrompt = false;
+            needsRedraw      = true;
           }
         } else {
-          // Toggle switch area
+          // Toggle switch
           int x = 120, y = 120, w = 100, h = 40;
           if (tx >= x-w/2 && tx <= x+w/2 && ty >= y-h/2 && ty <= y+h/2) {
             onlineMode = !onlineMode;
-            // Save to NVS
-            modePrefs.begin("settings", false);
-            modePrefs.putBool("onlineMode", onlineMode);
-            modePrefs.end();
+            saveOnlineMode();
             modeRebootPrompt = true;
-            needsRedraw = true;
+            needsRedraw      = true;
           }
           // Back button
           if (tx >= 60 && tx <= 180 && ty >= 200 && ty <= 232) {
             currentScreen = SCREEN_SETTINGS;
-            needsRedraw = true;
+            loadOnlineMode();
+            needsRedraw   = true;
           }
         }
       } else {
-        // Default: advance screen
-        currentScreen = (currentScreen + 1) % SCREEN_COUNT;
+        // Default: advance to next screen in cycle
+        currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
         lastDrawnSecond = -1;
-        needsRedraw = true;
+        needsRedraw     = true;
       }
     }
   }
@@ -700,7 +395,7 @@ void loop() {
     if (baseEpoch == 0) {
       if (millis() - lastAnimMillis >= ANIM_FRAME_MS) {
         lastAnimMillis = millis();
-        needsRedraw = true;
+        needsRedraw    = true;
       }
     } else {
       struct tm t;
