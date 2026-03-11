@@ -10,6 +10,42 @@
 #define TICK_OUTER 113        // outer radius of tick ring (fits 240px screen)
 #define NUM_RADIUS  88        // radius to center of hour numerals
 
+// Small WiFi icon for clock status bar (dot + 3 arcs, ~20×14px).
+static void drawWifiIconSmall(int cx, int cy, uint32_t color) {
+  const int ay = cy + 6;   // arc anchor / dot Y
+  ttgo->tft->fillCircle(cx, ay, 2, color);
+  const int radii[] = { 5, 9, 13 };
+  for (int i = 0; i < 3; i++) {
+    int r = radii[i];
+    for (int a = -55; a <= 55; a++) {
+      float rad = (a - 90.0f) * DEG_TO_RAD;
+      int x = cx + (int)(r * cosf(rad));
+      int y = ay + (int)(r * sinf(rad));
+      ttgo->tft->drawPixel(x, y,   color);
+      ttgo->tft->drawPixel(x, y+1, color);
+    }
+  }
+}
+
+// Small satellite icon — body + two solar wings + antenna with dish dot.
+// cx/cy = centre of the body. Fits in ~26×16px.
+static void drawSatelliteIcon(int cx, int cy, uint32_t color) {
+  // Body (7×7)
+  ttgo->tft->fillRect(cx - 3, cy - 3, 7, 7, color);
+
+  // Left solar wing (9×3)
+  ttgo->tft->fillRect(cx - 13, cy - 1, 9, 3, color);
+
+  // Right solar wing (9×3)
+  ttgo->tft->fillRect(cx + 5,  cy - 1, 9, 3, color);
+
+  // Antenna: diagonal line up-right from body corner
+  ttgo->tft->drawLine(cx + 3, cy - 3, cx + 8, cy - 8, color);
+
+  // Dish dot at antenna tip
+  ttgo->tft->fillCircle(cx + 8, cy - 8, 2, color);
+}
+
 static void fillHand(float cx, float cy, float angleDeg,
                      float front, float back, float width, uint32_t color) {
   float rad  = (angleDeg - 90.0f) * DEG_TO_RAD;
@@ -163,13 +199,15 @@ static void drawClockScreen() {
     ttgo->tft->fillScreen(CLK_BG);
     drawClockStaticFace();
     if (hasTime) drawDateBoxes(&t);
-    if (espnowSynced) ttgo->tft->fillCircle(120, 8, 4, CLK_HAND);
+    if (espnowSynced)                              drawSatelliteIcon(215, 10, TFT_RED);
+    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
     prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
   } else {
     // Incremental: erase old hands + restore what they covered
     eraseClockHands(hasTime ? &t : nullptr);
-    if (espnowSynced) ttgo->tft->fillCircle(120, 8, 4, CLK_HAND);
+    if (espnowSynced)                              drawSatelliteIcon(215, 10, TFT_RED);
+    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
   }
 
