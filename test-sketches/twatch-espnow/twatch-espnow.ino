@@ -74,10 +74,9 @@ static unsigned long lastPacketMillis = 0;
 static unsigned long lastAnimMillis   = 0;
 #define AUTO_CLOCK_MS  15000
 #define ANIM_FRAME_MS  50
-#define CROWN_BTN_PIN  36   // side crown button, active LOW
 
-static bool displayOn      = true;
-static bool lastCrownState = HIGH;
+static bool          displayOn = true;
+static volatile bool axpIrq    = false;   // set by AXP202 interrupt
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -242,7 +241,12 @@ void setup() {
   ttgo->begin();
   ttgo->openBL();
   ttgo->motor_begin();   // vibration motor on GPIO4
-  pinMode(CROWN_BTN_PIN, INPUT);   // GPIO36 is input-only, no internal pullup
+
+  // Crown button via AXP202 PMIC interrupt
+  pinMode(AXP202_INT, INPUT_PULLUP);
+  attachInterrupt(AXP202_INT, []{ axpIrq = true; }, FALLING);
+  ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ, true);
+  ttgo->power->clearIRQ();
 
   loadOnlineMode();   // restore persisted WiFi mode from NVS
 
@@ -330,19 +334,22 @@ void setup() {
 void loop() {
   if (onlineMode && WiFi.status() == WL_CONNECTED) ArduinoOTA.handle();
 
-  // Crown button: toggle display on/off
-  bool crownState = digitalRead(CROWN_BTN_PIN);
-  if (crownState == LOW && lastCrownState == HIGH) {
-    displayOn = !displayOn;
-    if (displayOn) {
-      ttgo->openBL();
-      lastDrawnSecond = -1;   // force full redraw when waking
-      needsRedraw     = true;
-    } else {
-      ttgo->closeBL();
+  // Crown button via AXP202 short-press IRQ
+  if (axpIrq) {
+    axpIrq = false;
+    ttgo->power->readIRQ();
+    if (ttgo->power->isPEKShortPressIRQ()) {
+      displayOn = !displayOn;
+      if (displayOn) {
+        ttgo->openBL();
+        lastDrawnSecond = -1;   // force full redraw when waking
+        needsRedraw     = true;
+      } else {
+        ttgo->closeBL();
+      }
     }
+    ttgo->power->clearIRQ();
   }
-  lastCrownState = crownState;
 
   // Touch tap: handle per screen
   static bool wasTouched = false;
