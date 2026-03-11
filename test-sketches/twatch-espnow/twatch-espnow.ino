@@ -57,12 +57,12 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#define SCREEN_CLOCK   0
-#define SCREEN_POCSAG  1
-#define SCREEN_DMR     2
-#define SCREEN_SETTINGS 4
-#define SCREEN_WIFI    5
-#define SCREEN_COUNT   6
+#define SCREEN_CLOCK     0
+#define SCREEN_POCSAG    1
+#define SCREEN_DMR       2
+#define SCREEN_SETTINGS  3
+#define SCREEN_WIFI      4
+#define SCREEN_COUNT     4
 
 #include <Preferences.h>
 Preferences modePrefs;
@@ -348,7 +348,7 @@ static void drawClockHands(int h, int m, int s) {
 static void drawPageDots() {
   int cx = 120, y = 220;
   for (int i = 0; i < SCREEN_COUNT; i++) {
-    int x = cx + (i - 1) * 12;
+    int x = cx + (i - (SCREEN_COUNT-1)/2.0) * 12;
     if (i == currentScreen)
       ttgo->tft->fillCircle(x, y, 4, TFT_WHITE);
     else
@@ -632,8 +632,8 @@ void loop() {
           currentScreen = SCREEN_WIFI;
           needsRedraw = true;
         } else if (row == 2 && col == 2) {
-          // Last icon: advance to next screen
-          currentScreen = (currentScreen + 1) % SCREEN_COUNT;
+          // Last icon: go to clock screen
+          currentScreen = SCREEN_CLOCK;
           needsRedraw = true;
         } else {
           // Other icons: open placeholder screen (for now, just vibrate)
