@@ -31,6 +31,14 @@ static LGFX_Sprite clockSprite(&M5Dial.Display);
 #define DISPLAY_ROTATION  2   // 0 = normal, 2 = upside-down (180°)
 #define TIME_RIC          224 // POCSAG RIC carrying date/time
 
+// RICs that are silently processed but never shown on the POCSAG screen
+static const uint32_t HIDDEN_RICS[] = { 224, 208, 200, 216 };
+static bool isHiddenRic(uint32_t ric) {
+  for (size_t i = 0; i < sizeof(HIDDEN_RICS)/sizeof(HIDDEN_RICS[0]); i++)
+    if (HIDDEN_RICS[i] == ric) return true;
+  return false;
+}
+
 // ── Packet types — must match system/system_espnow.h ────────────────────────
 #define ESPNOW_TYPE_DMR_NET   0x10
 #define ESPNOW_TYPE_POCSAG    0x11
@@ -53,14 +61,17 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 #define SCREEN_CLOCK   0
 #define SCREEN_POCSAG  1
 #define SCREEN_DMR     2
-#define SCREEN_COUNT   3
+#define SCREEN_RFID    3
+#define SCREEN_COUNT   4
 
 static int           currentScreen    = SCREEN_CLOCK;
 static long          lastEncoderPos   = 0;
 static bool          needsRedraw      = true;
 static int           lastDrawnSecond  = -1;
 static unsigned long lastPacketMillis = 0;   // for auto-return to clock
+static unsigned long lastAnimMillis   = 0;   // for pre-sync spin animation
 #define AUTO_CLOCK_MS  15000                 // return to clock after 15 s
+#define ANIM_FRAME_MS  50                    // spin animation frame rate
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -71,6 +82,10 @@ static bool     lastDmrGroup = true;
 // POCSAG
 static uint32_t lastRic = 0;
 static char     lastMsg[POCSAG_MSG_MAX_LEN + 1] = "";
+
+// RFID
+static char lastRfidUid[32]  = "";   // hex UID string
+static char lastRfidType[32] = "";   // PICC type name
 
 // Time — base epoch from RIC 224, advanced with millis()
 static time_t         baseEpoch  = 0;
@@ -101,6 +116,11 @@ static void parseTimePacket(const char* msg) {
   Serial.printf("[TIME] synced: %04d-%02d-%02d %02d:%02d:%02d\n",
                 t.tm_year+1900, t.tm_mon+1, t.tm_mday,
                 t.tm_hour, t.tm_min, t.tm_sec);
+
+  // Persist to RTC so time survives reboot
+  if (M5Dial.Rtc.isEnabled()) {
+    M5Dial.Rtc.setDateTime(gmtime(&baseEpoch));
+  }
 }
 
 static bool getClockTime(struct tm* t) {
@@ -197,27 +217,28 @@ static void drawClockScreen() {
     strftime(dateBuf, sizeof(dateBuf), "%a %d %b", &t);
     clockSprite.setTextDatum(TC_DATUM);
     clockSprite.setTextColor(TFT_DARKGREY, TFT_WHITE);
-    clockSprite.setTextFont(1);
-    clockSprite.drawString(dateBuf, 120, 150);
+    clockSprite.setTextFont(2);
+    clockSprite.drawString(dateBuf, 120, 147);
 
     drawClockHands(t.tm_hour, t.tm_min, t.tm_sec);
     lastDrawnSecond = t.tm_sec;
   } else {
-    clockSprite.setTextDatum(MC_DATUM);
-    clockSprite.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    clockSprite.setTextFont(2);
-    clockSprite.drawString("waiting for", 120, 105);
-    clockSprite.drawString("time sync...", 120, 125);
+    // No time yet — show Mondaine face with fast-spinning hands (20× speed)
+    // so it looks like the clock is seeking/syncing rather than broken.
+    drawClockFace();
+    time_t fakeTime = (time_t)(millis() / 50UL);   // 1 real ms = 20 fake ms
+    struct tm f;
+    gmtime_r(&fakeTime, &f);
+    drawClockHands(f.tm_hour, f.tm_min, f.tm_sec);
   }
 
-  // Page dots — drawn into sprite
-  uint32_t dotColor = hasTime ? TFT_BLACK : TFT_WHITE;
+  // Page dots — drawn into sprite, below the date inside the clock face
   for (int i = 0; i < SCREEN_COUNT; i++) {
     int x = 120 + (i - 1) * 12;
     if (i == currentScreen)
-      clockSprite.fillCircle(x, 218, 4, dotColor);
+      clockSprite.fillCircle(x, 180, 4, TFT_DARKGREY);
     else
-      clockSprite.drawCircle(x, 218, 4, TFT_DARKGREY);
+      clockSprite.drawCircle(x, 180, 4, TFT_LIGHTGREY);
   }
 
   clockSprite.pushSprite(0, 0);   // single blit — no flicker
@@ -270,16 +291,17 @@ static void drawPocsagScreen() {
 
   if (lastRic > 0) {
     M5Dial.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5Dial.Display.setTextFont(2);
+    M5Dial.Display.setTextFont(4);
     String msg = String(lastMsg);
     int y = 52;
-    for (int offset = 0; offset < (int)msg.length() && offset < 48; offset += 16) {
-      M5Dial.Display.drawString(msg.substring(offset, offset + 16), 120, y);
-      y += 22;
+    for (int offset = 0; offset < (int)msg.length() && offset < 27; offset += 9) {
+      M5Dial.Display.drawString(msg.substring(offset, offset + 9), 120, y);
+      y += 32;
     }
     char ricLine[20];
     snprintf(ricLine, sizeof(ricLine), "RIC %u", lastRic);
     M5Dial.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
+    M5Dial.Display.setTextFont(2);
     M5Dial.Display.drawString(ricLine, 120, 168);
   } else {
     M5Dial.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -290,11 +312,38 @@ static void drawPocsagScreen() {
   drawPageDots();
 }
 
+static void drawRfidScreen() {
+  M5Dial.Display.fillScreen(TFT_BLACK);
+  M5Dial.Display.setTextDatum(TC_DATUM);
+
+  M5Dial.Display.setTextColor(TFT_CYAN, TFT_BLACK);
+  M5Dial.Display.setTextFont(2);
+  M5Dial.Display.drawString("RFID", 120, 18);
+  M5Dial.Display.drawFastHLine(50, 38, 140, TFT_DARKGREY);
+
+  if (lastRfidUid[0] != '\0') {
+    M5Dial.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    M5Dial.Display.setTextFont(2);
+    M5Dial.Display.drawString(lastRfidType, 120, 80);
+
+    M5Dial.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5Dial.Display.setTextFont(4);
+    M5Dial.Display.drawString(lastRfidUid, 120, 110);
+  } else {
+    M5Dial.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    M5Dial.Display.setTextFont(2);
+    M5Dial.Display.drawString("scan card", 120, 110);
+  }
+
+  drawPageDots();
+}
+
 static void redraw() {
   switch (currentScreen) {
     case SCREEN_POCSAG: drawPocsagScreen(); break;
     case SCREEN_CLOCK:  drawClockScreen();  break;
     case SCREEN_DMR:    drawDmrScreen();    break;
+    case SCREEN_RFID:   drawRfidScreen();   break;
   }
 }
 
@@ -338,19 +387,22 @@ static void onReceive(const esp_now_recv_info_t* info, const uint8_t* data, int 
       if (currentScreen == SCREEN_CLOCK) needsRedraw = true;
     }
 
-    lastRic = pkt.ric;
-    strncpy(lastMsg, pkt.message, POCSAG_MSG_MAX_LEN);
-    lastMsg[POCSAG_MSG_MAX_LEN] = '\0';
-    currentScreen    = SCREEN_POCSAG;
-    lastPacketMillis = millis();
-    needsRedraw      = true;
+    // Hidden RICs are processed above but never shown on the POCSAG screen
+    if (!isHiddenRic(pkt.ric)) {
+      lastRic = pkt.ric;
+      strncpy(lastMsg, pkt.message, POCSAG_MSG_MAX_LEN);
+      lastMsg[POCSAG_MSG_MAX_LEN] = '\0';
+      currentScreen    = SCREEN_POCSAG;
+      lastPacketMillis = millis();
+      needsRedraw      = true;
+    }
   }
 }
 
 // ── setup ─────────────────────────────────────────────────────────────────────
 void setup() {
   auto cfg = M5.config();
-  M5Dial.begin(cfg, true, false);   // enable encoder, disable IR
+  M5Dial.begin(cfg, true, true);    // enable encoder, enable RFID
 
   clockSprite.setColorDepth(16);
   clockSprite.createSprite(240, 240);
@@ -380,6 +432,31 @@ void setup() {
     return;
   }
   esp_now_register_recv_cb(onReceive);
+
+  // Seed clock from RTC if it has a valid time (survives reboot)
+  if (M5Dial.Rtc.isEnabled()) {
+    auto dt = M5Dial.Rtc.getDateTime();
+    if (dt.date.year >= 2026) {
+      struct tm t = {};
+      t.tm_year  = dt.date.year - 1900;
+      t.tm_mon   = dt.date.month - 1;
+      t.tm_mday  = dt.date.date;
+      t.tm_hour  = dt.time.hours;
+      t.tm_min   = dt.time.minutes;
+      t.tm_sec   = dt.time.seconds;
+      t.tm_isdst = -1;
+      baseEpoch  = mktime(&t);
+      baseMillis = millis();
+      Serial.printf("[RTC] loaded: %04d-%02d-%02d %02d:%02d:%02d\n",
+                    dt.date.year, dt.date.month, dt.date.date,
+                    dt.time.hours, dt.time.minutes, dt.time.seconds);
+    } else {
+      Serial.println("[RTC] no valid time stored yet");
+    }
+  } else {
+    Serial.println("[RTC] not available");
+  }
+
   Serial.println("ESP-NOW ready — waiting for time sync on RIC 224...");
 
   lastEncoderPos = M5Dial.Encoder.read();
@@ -400,6 +477,14 @@ void loop() {
     needsRedraw     = true;
   }
 
+  // Touch tap → advance to next screen
+  auto touch = M5Dial.Touch.getDetail();
+  if (touch.state == m5::touch_state_t::touch_begin) {
+    currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
+    lastDrawnSecond = -1;
+    needsRedraw     = true;
+  }
+
   // Auto-return to clock after 15 s of no new packets
   if (currentScreen != SCREEN_CLOCK && lastPacketMillis > 0 &&
       millis() - lastPacketMillis >= AUTO_CLOCK_MS) {
@@ -409,11 +494,39 @@ void loop() {
     needsRedraw      = true;
   }
 
-  // Clock screen: redraw every second
+  // Clock screen: redraw every second when synced, every 50 ms while spinning
   if (currentScreen == SCREEN_CLOCK && !needsRedraw) {
-    struct tm t;
-    if (getClockTime(&t) && t.tm_sec != lastDrawnSecond)
-      needsRedraw = true;
+    if (baseEpoch == 0) {
+      if (millis() - lastAnimMillis >= ANIM_FRAME_MS) {
+        lastAnimMillis = millis();
+        needsRedraw = true;
+      }
+    } else {
+      struct tm t;
+      if (getClockTime(&t) && t.tm_sec != lastDrawnSecond)
+        needsRedraw = true;
+    }
+  }
+
+  // RFID poll — check for new card
+  if (M5Dial.Rfid.PICC_IsNewCardPresent() && M5Dial.Rfid.PICC_ReadCardSerial()) {
+    uint8_t piccType = M5Dial.Rfid.PICC_GetType(M5Dial.Rfid.uid.sak);
+    String typeName = String(M5Dial.Rfid.PICC_GetTypeName(piccType));
+    strncpy(lastRfidType, typeName.c_str(), sizeof(lastRfidType) - 1);
+    lastRfidType[sizeof(lastRfidType) - 1] = '\0';
+
+    lastRfidUid[0] = '\0';
+    for (byte i = 0; i < M5Dial.Rfid.uid.size; i++) {
+      char hex[4];
+      snprintf(hex, sizeof(hex), i ? ":%02X" : "%02X", M5Dial.Rfid.uid.uidByte[i]);
+      strncat(lastRfidUid, hex, sizeof(lastRfidUid) - strlen(lastRfidUid) - 1);
+    }
+
+    Serial.printf("[RFID] type=%s uid=%s\n", lastRfidType, lastRfidUid);
+    M5Dial.Speaker.tone(8000, 20);
+    currentScreen    = SCREEN_RFID;
+    lastPacketMillis = millis();
+    needsRedraw      = true;
   }
 
   if (needsRedraw) {
