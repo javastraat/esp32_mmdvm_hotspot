@@ -32,10 +32,25 @@ static void drawWifiSettingsScreen() {
     // ── Normal toggle screen ──────────────────────────────────────────────────
     ttgo->tft->setTextFont(4);
     ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
-    ttgo->tft->drawString("WiFi", 120, 40);
+    ttgo->tft->drawString("WiFi", 120, 28);
+
+    // Show IP and mDNS hostname when online and connected
+    if (onlineMode && WiFi.status() == WL_CONNECTED) {
+      ttgo->tft->setTextFont(4);
+      ttgo->tft->setTextColor(TFT_CYAN, TFT_BLACK);
+      ttgo->tft->drawString(WiFi.localIP().toString(), 120, 58);
+      ttgo->tft->setTextFont(4);
+      ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+      ttgo->tft->drawString("twatch-espnow", 120, 90);
+      ttgo->tft->drawString(".local", 120, 118);
+    } else {
+      ttgo->tft->setTextFont(2);
+      ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+      ttgo->tft->drawString(onlineMode ? "connecting..." : "offline mode", 120, 78);
+    }
 
     // Toggle switch
-    int x = 120, y = 120, w = 100, h = 40;
+    int x = 120, y = 158, w = 100, h = 40;
     ttgo->tft->fillRoundRect(x-w/2, y-h/2, w, h, 20, TFT_DARKGREY);
     int knobR = 16;
     int knobX = onlineMode ? (x + w/2 - knobR - 6) : (x - w/2 + knobR + 6);

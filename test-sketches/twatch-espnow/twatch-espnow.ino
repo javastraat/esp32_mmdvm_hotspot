@@ -70,8 +70,9 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 static int           currentScreen    = SCREEN_CLOCK;
 static bool          needsRedraw      = true;
 static int           lastDrawnSecond  = -1;
-static unsigned long lastPacketMillis = 0;
-static unsigned long lastAnimMillis   = 0;
+static unsigned long lastPacketMillis   = 0;
+static unsigned long lastAnimMillis     = 0;
+static unsigned long lastActivityMillis = 0;
 #define AUTO_CLOCK_MS  15000
 #define ANIM_FRAME_MS  50
 
@@ -309,7 +310,8 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("WiFi connected — IP: %s\n", WiFi.localIP().toString().c_str());
 
-      ArduinoOTA.setHostname("twatch");
+      ArduinoOTA.setHostname("twatch-espnow");
+      ArduinoOTA.setPassword("mmdvm");
       ArduinoOTA
         .onStart([]()    { Serial.println("OTA start");  })
         .onEnd([]()      { Serial.println("\nOTA done");  })
@@ -327,7 +329,8 @@ void setup() {
     }
   }
 
-  needsRedraw = true;
+  needsRedraw        = true;
+  lastActivityMillis = millis();
 }
 
 // ── loop ──────────────────────────────────────────────────────────────────────
@@ -356,6 +359,7 @@ void loop() {
   int16_t tx, ty;
   bool isTouched = ttgo->getTouch(tx, ty);
   if (isTouched && !wasTouched) {
+    lastActivityMillis = millis();
     if (!displayOn) {
       displayOn       = true;
       ttgo->openBL();
@@ -390,7 +394,7 @@ void loop() {
           }
         } else {
           // Toggle switch
-          int x = 120, y = 120, w = 100, h = 40;
+          int x = 120, y = 158, w = 100, h = 40;
           if (tx >= x-w/2 && tx <= x+w/2 && ty >= y-h/2 && ty <= y+h/2) {
             onlineMode = !onlineMode;
             saveOnlineMode();
@@ -427,6 +431,13 @@ void loop() {
     currentScreen    = SCREEN_CLOCK;
     lastDrawnSecond  = -1;
     needsRedraw      = true;
+  }
+
+  // Auto-sleep after 15 s of inactivity on the clock screen
+  if (currentScreen == SCREEN_CLOCK && displayOn &&
+      lastActivityMillis > 0 && millis() - lastActivityMillis >= AUTO_CLOCK_MS) {
+    displayOn = false;
+    ttgo->closeBL();
   }
 
   // Clock screen: redraw every second when synced, every 50 ms while spinning
