@@ -357,6 +357,11 @@ void setup() {
   ttgo->openBL();
   ttgo->motor_begin();   // vibration motor on GPIO4
 
+  // Enable AXP202 ADC channels so battery/USB readings work
+  ttgo->power->adc1Enable(
+      AXP202_VBUS_VOL_ADC1 | AXP202_VBUS_CUR_ADC1 |
+      AXP202_BATT_CUR_ADC1 | AXP202_BATT_VOL_ADC1, true);
+
   // Crown button via AXP202 PMIC interrupt
   pinMode(AXP202_INT, INPUT_PULLUP);
   attachInterrupt(AXP202_INT, []{ axpIrq = true; }, FALLING);

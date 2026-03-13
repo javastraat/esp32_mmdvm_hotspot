@@ -168,6 +168,52 @@ static void drawClockHands(int h, int m, int s) {
   ttgo->tft->fillCircle(CX, CY, 3, TFT_WHITE);
 }
 
+// Battery status bar — drawn below the navigation dots (y ≈ 226–239)
+static void drawBatteryInfo() {
+  // Clear the strip
+  ttgo->tft->fillRect(0, 225, 240, 15, CLK_BG);
+
+  if (!ttgo->power->isBatteryConnect()) return;
+
+  int  pct      = (int)ttgo->power->getBattPercentage();
+  bool charging = ttgo->power->isChargeing();
+  bool vbus     = ttgo->power->isVBUSPlug();
+
+  // Colour: green > 50 %, yellow > 20 %, red otherwise
+  uint32_t fillCol = pct > 50 ? TFT_GREEN : (pct > 20 ? TFT_YELLOW : TFT_RED);
+
+  // Small battery body (20×9) at left edge
+  const int bx = 4, by = 228;
+  ttgo->tft->drawRect(bx, by, 20, 9, TFT_WHITE);
+  // Terminal nub
+  ttgo->tft->fillRect(bx + 20, by + 2, 2, 5, TFT_WHITE);
+  // Fill (max 17 px)
+  int fw = (17 * pct) / 100;
+  if (fw > 0) ttgo->tft->fillRect(bx + 2, by + 2, fw, 5, fillCol);
+
+  // Charging bolt: small "+" inside icon when charging
+  if (charging) {
+    ttgo->tft->drawFastHLine(bx + 7, by + 4, 6, TFT_WHITE);
+    ttgo->tft->drawFastVLine(bx + 10, by + 2, 5, TFT_WHITE);
+  }
+
+  // Percentage text
+  char buf[10];
+  if (charging) snprintf(buf, sizeof(buf), "+%d%%", pct);
+  else          snprintf(buf, sizeof(buf),  "%d%%", pct);
+  ttgo->tft->setTextFont(1);
+  ttgo->tft->setTextColor(TFT_WHITE, CLK_BG);
+  ttgo->tft->setTextDatum(ML_DATUM);
+  ttgo->tft->drawString(buf, bx + 26, by + 4);
+
+  // USB indicator on right side
+  if (vbus) {
+    ttgo->tft->setTextDatum(MR_DATUM);
+    ttgo->tft->setTextColor(TFT_CYAN, CLK_BG);
+    ttgo->tft->drawString("USB", 236, by + 4);
+  }
+}
+
 static void drawClockDots() {
   for (int i = 0; i < SCREEN_COUNT; i++) {
     int x = 120 + (int)((i - (SCREEN_COUNT - 1) / 2.0) * 12);
@@ -190,6 +236,7 @@ static void drawClockScreen() {
     if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
+    drawBatteryInfo();
     prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
   } else {
     // Incremental: erase old hands + restore what they covered
@@ -197,6 +244,7 @@ static void drawClockScreen() {
     if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
+    drawBatteryInfo();
   }
 
   if (hasTime) {

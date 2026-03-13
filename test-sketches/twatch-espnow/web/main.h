@@ -60,6 +60,25 @@ static void handleApiStatus() {
   j += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
   j += "\"resetReason\":\"" + String(resetReasonStr()) + "\",";
 
+  // Battery / power (AXP202)
+  bool battConn = ttgo->power->isBatteryConnect();
+  bool vbus     = ttgo->power->isVBUSPlug();
+  j += "\"battConnected\":" + String(battConn ? "true" : "false") + ",";
+  j += "\"vbusConnected\":" + String(vbus     ? "true" : "false") + ",";
+  if (battConn) {
+    bool charging = ttgo->power->isChargeing();
+    j += "\"battPct\":"      + String((int)ttgo->power->getBattPercentage())  + ",";
+    j += "\"battVoltage\":"  + String((int)ttgo->power->getBattVoltage())     + ",";
+    j += "\"battCharging\":" + String(charging ? "true" : "false")            + ",";
+    j += "\"battCurrent\":"  + String((int)(charging
+                                 ? ttgo->power->getBattChargeCurrent()
+                                 : ttgo->power->getBattDischargeCurrent()))   + ",";
+  }
+  if (vbus) {
+    j += "\"vbusVoltage\":" + String((int)ttgo->power->getVbusVoltage()) + ",";
+    j += "\"vbusCurrent\":" + String((int)ttgo->power->getVbusCurrent()) + ",";
+  }
+
   if (lastDmrSrc != 0) {
     j += "\"dmrSrc\":" + String(lastDmrSrc) + ",";
     j += "\"dmrDst\":" + String(lastDmrDst) + ",";
@@ -175,7 +194,7 @@ static void handleRoot() {
   h += ".lbl{color:var(--muted);white-space:nowrap;padding-right:8px;}";
   h += ".val{font-family:monospace;text-align:right;word-break:break-all;}";
   h += ".badge{padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:bold;}";
-  h += ".ok{background:#28a745;color:#fff;} .err{background:#dc3545;color:#fff;} .warn{background:#ffc107;color:#333;}";
+  h += ".ok{background:#28a745;color:#fff;} .err{background:#dc3545;color:#fff;} .warn{background:#ffc107;color:#333;} .secondary{background:#6c757d;color:#fff;}";
   h += ".none{color:var(--muted);font-size:.9em;}";
   h += "input[type=text]{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 8px;border-radius:4px;width:100%;font-family:monospace;font-size:.9em;box-sizing:border-box;}";
   h += "button.save{margin-top:8px;padding:6px 16px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold;}";
@@ -229,6 +248,22 @@ static void handleRoot() {
   h += "<div class='card'><h3>Clock</h3>";
   h += "<div class='row'><span class='lbl'>Time</span><span class='val' id='c-time'>-</span></div>";
   h += "<div class='row'><span class='lbl'>ESP-NOW sync</span><span class='val' id='c-sync'>-</span></div>";
+  h += "</div>";
+
+  // Battery card
+  h += "<div class='card'><h3>Battery</h3>";
+  h += "<div class='row'><span class='lbl'>Battery</span><span class='val' id='b-conn'>-</span></div>";
+  h += "<div class='row' id='b-rows' style='display:none;flex-direction:column;padding:0'>";
+  h += "<div class='row'><span class='lbl'>Charge</span><span class='val' id='b-pct'>-</span></div>";
+  h += "<div class='row'><span class='lbl'>Voltage</span><span class='val' id='b-volt'>-</span></div>";
+  h += "<div class='row'><span class='lbl'>Status</span><span class='val' id='b-status'>-</span></div>";
+  h += "<div class='row'><span class='lbl'>Current</span><span class='val' id='b-cur'>-</span></div>";
+  h += "</div>";
+  h += "<div class='row'><span class='lbl'>USB</span><span class='val' id='b-vbus'>-</span></div>";
+  h += "<div class='row' id='b-vbus-rows' style='display:none;flex-direction:column;padding:0'>";
+  h += "<div class='row'><span class='lbl'>USB Voltage</span><span class='val' id='b-vvolt'>-</span></div>";
+  h += "<div class='row'><span class='lbl'>USB Current</span><span class='val' id='b-vcur'>-</span></div>";
+  h += "</div>";
   h += "</div>";
 
   // DMR card
@@ -314,6 +349,22 @@ static void handleRoot() {
   // Clock
   h += "document.getElementById('c-time').textContent=d.time||'--';";
   h += "document.getElementById('c-sync').innerHTML=badge(d.synced?'ok':'err',d.synced?'Yes':'No');";
+  // Battery
+  h += "document.getElementById('b-conn').innerHTML=badge(d.battConnected?'ok':'err',d.battConnected?'Connected':'Not connected');";
+  h += "if(d.battConnected){";
+  h += "document.getElementById('b-rows').style.display='';";
+  h += "var pctCol=d.battPct>50?'#28a745':d.battPct>20?'#ffc107':'#dc3545';";
+  h += "document.getElementById('b-pct').innerHTML='<span style=\"color:'+pctCol+';font-weight:bold\">'+d.battPct+'%</span> "
+       "<span style=\"display:inline-block;width:60px;height:10px;background:#333;border-radius:5px;vertical-align:middle;margin-left:4px\">"
+       "<span style=\"display:block;width:'+d.battPct+'%;height:100%;background:'+pctCol+';border-radius:5px\"></span></span>';";
+  h += "document.getElementById('b-volt').textContent=(d.battVoltage||0)+' mV';";
+  h += "document.getElementById('b-status').innerHTML=badge(d.battCharging?'ok':'warn',d.battCharging?'Charging':'Discharging');";
+  h += "document.getElementById('b-cur').textContent=(d.battCurrent||0)+' mA';}else{document.getElementById('b-rows').style.display='none';}";
+  h += "document.getElementById('b-vbus').innerHTML=badge(d.vbusConnected?'ok':'secondary',d.vbusConnected?'Connected':'Disconnected');";
+  h += "if(d.vbusConnected){";
+  h += "document.getElementById('b-vbus-rows').style.display='';";
+  h += "document.getElementById('b-vvolt').textContent=(d.vbusVoltage||0)+' mV';";
+  h += "document.getElementById('b-vcur').textContent=(d.vbusCurrent||0)+' mA';}else{document.getElementById('b-vbus-rows').style.display='none';}";
   // DMR
   h += "if(d.dmrSrc){";
   h += "document.getElementById('d-none').style.display='none';";
