@@ -138,7 +138,8 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 #define SCREEN_DMR       2
 #define SCREEN_SETTINGS  3
 #define SCREEN_WIFI      4
-#define SCREEN_COUNT     4   // number of screens in the tap-cycle (WIFI is a sub-screen)
+#define SCREEN_PAGER     5
+#define SCREEN_COUNT     4   // number of screens in the tap-cycle (sub-screens excluded)
 
 // ── Global state ──────────────────────────────────────────────────────────────
 static int           currentScreen    = SCREEN_CLOCK;
@@ -247,6 +248,7 @@ static bool getClockTime(struct tm* t) {
 #include "screens/dmr_screen.h"
 #include "screens/settings_screen.h"
 #include "screens/wifi_screen.h"
+#include "screens/pager_screen.h"
 #include "web/main.h"
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -257,6 +259,7 @@ static void redraw() {
     case SCREEN_DMR:      drawDmrScreen();          break;
     case SCREEN_SETTINGS: drawSettingsScreen();     break;
     case SCREEN_WIFI:     drawWifiSettingsScreen(); break;
+    case SCREEN_PAGER:    drawPagerScreen();        break;
   }
 }
 
@@ -498,6 +501,9 @@ void loop() {
         if (row == 0 && col == 0) {
           currentScreen = SCREEN_WIFI;
           needsRedraw   = true;
+        } else if (row == 0 && col == 1) {
+          currentScreen = SCREEN_PAGER;
+          needsRedraw   = true;
         } else if (row == 2 && col == 2) {
           currentScreen = SCREEN_CLOCK;
           needsRedraw   = true;
@@ -531,6 +537,10 @@ void loop() {
             needsRedraw   = true;
           }
         }
+      } else if (currentScreen == SCREEN_PAGER) {
+        // Tap anywhere → back to settings
+        currentScreen = SCREEN_SETTINGS;
+        needsRedraw   = true;
       } else {
         // Default: advance to next screen in cycle
         currentScreen   = (currentScreen + 1) % SCREEN_COUNT;

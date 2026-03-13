@@ -33,9 +33,9 @@ static void drawSettingsScreen() {
 
   // Text labels for non-icon cells ("-" = empty placeholder, ">" = back to clock)
   const char* labels[3][3] = {
-    {nullptr, "-", "-"},
-    {"-",     "-", "-"},
-    {"-",     "-", ">"}
+    {nullptr, nullptr, "-"},
+    {"-",     "-",     "-"},
+    {"-",     "-",     ">"}
   };
 
   for (int row = 0; row < 3; ++row) {
@@ -47,7 +47,10 @@ static void drawSettingsScreen() {
       if (row == 0 && col == 0) {
         // WiFi cell — draw icon
         drawWifiIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
-      } else {
+      } else if (row == 0 && col == 1) {
+        // Pager/messages cell — reuse clock-screen icon
+        drawPagerIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+      } else if (labels[row][col] != nullptr) {
         ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
         ttgo->tft->setTextFont(4);
         ttgo->tft->setTextDatum(MC_DATUM);
