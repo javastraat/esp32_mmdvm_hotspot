@@ -64,32 +64,32 @@ static void drawQuickSettingsScreen() {
   tft->drawString("Quick Settings", 120, 16);
 
   // ── Brightness  (label top = 48, control y = 62)
-  qsDraw3Part("Brightness", currentBrightness, 255, TFT_CYAN, 48);
+  qsDraw3Part("Brightness", currentBrightness, 255, TFT_CYAN, 62);
 
   // ── Volume      (label top = 110, control y = 124)
-  qsDraw3Part("Vibration", currentVolume, 100, 0xFD20, 110);  // orange bar
+  qsDraw3Part("Vibration", currentVolume, 100, 0xFD20, 124);  // orange bar
 
-  // ── Vibration toggle  y=170..200
+  // ── Vibration toggle  y=166..196
   tft->setTextDatum(TL_DATUM);
   tft->setTextFont(2);
   tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft->drawString("Vibration", 12, 154);
+  tft->drawString("Vibration", 12, 168);
 
   uint16_t vbg = vibeEnabled ? 0x03C0 : 0x3186;
-  tft->fillRoundRect(10, 170, 220, 30, 9, vbg);
-  tft->drawRoundRect(10, 170, 220, 30, 9, TFT_WHITE);
+  tft->fillRoundRect(10, 184, 220, 30, 9, vbg);
+  tft->drawRoundRect(10, 184, 220, 30, 9, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
   tft->setTextFont(4);
   tft->setTextColor(TFT_WHITE, vbg);
-  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 185);
+  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 199);
 
-  // ── Back button  y=206..236 (same size as vibration toggle)
-  tft->fillRoundRect(10, 206, 220, 30, 9, 0x7800);
-  tft->drawRoundRect(10, 206, 220, 30, 9, TFT_WHITE);
-  tft->setTextFont(2);
+  // ── Back button  y=220..238
+  tft->fillRoundRect(10, 220, 220, 18, 7, 0x7800);
+  tft->drawRoundRect(10, 220, 220, 18, 7, TFT_WHITE);
+  tft->setTextFont(1);
   tft->setTextDatum(MC_DATUM);
   tft->setTextColor(TFT_WHITE, 0x7800);
-  tft->drawString("BACK", 120, 221);
+  tft->drawString("BACK", 120, 229);
 }
 
 // ─── touch handler ────────────────────────────────────────────────────────────
@@ -123,16 +123,16 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // ── Vibration toggle  y=170..200 ────────────────────────────────────────────
-  if (ty >= 170 && ty <= 200) {
+  // ── Vibration toggle  y=184..214 ────────────────────────────────────────────
+  if (ty >= 184 && ty <= 214) {
     vibeEnabled = !vibeEnabled;
     saveBrightnessVibe();
     needsRedraw = true;
     return;
   }
 
-  // ── Back  y=206..236 ────────────────────────────────────────────────────────
-  if (ty >= 206 && ty <= 236) {
+  // ── Back  y=220..238 ────────────────────────────────────────────────────────
+  if (ty >= 220) {
     currentScreen   = prevScreen;
     lastDrawnSecond = -1;
     needsRedraw     = true;
