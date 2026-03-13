@@ -184,6 +184,15 @@ static void vibrate(int ms = 80) {
   if (ttgo) ttgo->motor->onec(ms);
 }
 
+// Wake the display and reset the inactivity timer (called on incoming packets)
+static void wakeScreen() {
+  if (!displayOn) {
+    displayOn = true;
+    if (ttgo) ttgo->openBL();
+  }
+  lastActivityMillis = millis();
+}
+
 // ── ESP-NOW receive callback (arduino-esp32 3.x signature) ───────────────────
 static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   const uint8_t *mac = info->src_addr;
@@ -231,6 +240,7 @@ static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int 
       currentScreen    = SCREEN_POCSAG;
       lastPacketMillis = millis();
       needsRedraw      = true;
+      wakeScreen();
       vibrate();
     }
   }
@@ -444,10 +454,11 @@ void loop() {
   // Auto-return to clock after 15 s of no new packets
   if (currentScreen != SCREEN_CLOCK && lastPacketMillis > 0 &&
       millis() - lastPacketMillis >= AUTO_CLOCK_MS) {
-    lastPacketMillis = 0;
-    currentScreen    = SCREEN_CLOCK;
-    lastDrawnSecond  = -1;
-    needsRedraw      = true;
+    lastPacketMillis   = 0;
+    currentScreen      = SCREEN_CLOCK;
+    lastDrawnSecond    = -1;
+    needsRedraw        = true;
+    lastActivityMillis = millis();  // give a full 15 s on clock before sleep
   }
 
   // Auto-sleep after 15 s of inactivity on the clock screen
