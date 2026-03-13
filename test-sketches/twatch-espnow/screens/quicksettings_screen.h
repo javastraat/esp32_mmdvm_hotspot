@@ -63,39 +63,39 @@ static void drawQuickSettingsScreen() {
   tft->setTextColor(TFT_WHITE, 0x1082);
   tft->drawString("Quick Settings", 120, 16);
 
-  // ── Brightness  (label top = 48, control y = 62)
-  qsDraw3Part("Brightness", currentBrightness, 255, TFT_CYAN, 62);
+  // ── Brightness  (label top = 41, control y = 55)
+  qsDraw3Part("Brightness", currentBrightness, 255, TFT_CYAN, 55);
 
-  // ── Volume      (label top = 110, control y = 124)
-  qsDraw3Part("Vibration", currentVolume, 100, 0xFD20, 124);  // orange bar
+  // ── Volume      (label top = 103, control y = 117)
+  qsDraw3Part("Vibration", currentVolume, 100, 0xFD20, 117);  // orange bar
 
-  // ── Vibration toggle  y=166..196
+  // ── Vibration toggle  y=170..200
   tft->setTextDatum(TL_DATUM);
   tft->setTextFont(2);
   tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft->drawString("Vibration", 12, 168);
+  tft->drawString("Vibration", 12, 154);
 
   uint16_t vbg = vibeEnabled ? 0x03C0 : 0x3186;
-  tft->fillRoundRect(10, 184, 220, 30, 9, vbg);
-  tft->drawRoundRect(10, 184, 220, 30, 9, TFT_WHITE);
+  tft->fillRoundRect(10, 170, 220, 30, 9, vbg);
+  tft->drawRoundRect(10, 170, 220, 30, 9, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
   tft->setTextFont(4);
   tft->setTextColor(TFT_WHITE, vbg);
-  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 199);
+  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 185);
 
-  // ── Back button  y=220..238
-  tft->fillRoundRect(10, 220, 220, 18, 7, 0x7800);
-  tft->drawRoundRect(10, 220, 220, 18, 7, TFT_WHITE);
-  tft->setTextFont(1);
+  // ── Back button  y=206..236 (same size as vibration toggle)
+  tft->fillRoundRect(10, 206, 220, 30, 9, 0x7800);
+  tft->drawRoundRect(10, 206, 220, 30, 9, TFT_WHITE);
+  tft->setTextFont(2);
   tft->setTextDatum(MC_DATUM);
   tft->setTextColor(TFT_WHITE, 0x7800);
-  tft->drawString("BACK", 120, 229);
+  tft->drawString("BACK", 120, 221);
 }
 
 // ─── touch handler ────────────────────────────────────────────────────────────
 static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
-  // ── Brightness row  y=62..92 ────────────────────────────────────────────────
-  if (ty >= 62 && ty <= 92) {
+  // ── Brightness row  y=55..85 ────────────────────────────────────────────────
+  if (ty >= 55 && ty <= 85) {
     if (tx >= 10 && tx <= 50) {                          // [-]
       if (currentBrightness > 50) currentBrightness -= 25;
       else                         currentBrightness  = 25;
@@ -109,8 +109,8 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // ── Volume row  y=124..154 ──────────────────────────────────────────────────
-  if (ty >= 124 && ty <= 154) {
+  // ── Volume row  y=117..147 ──────────────────────────────────────────────────
+  if (ty >= 117 && ty <= 147) {
     if (tx >= 10 && tx <= 50) {                          // [-]
       if (currentVolume >= 10) currentVolume -= 10;
       else                      currentVolume  = 0;
@@ -123,16 +123,16 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // ── Vibration toggle  y=184..214 ────────────────────────────────────────────
-  if (ty >= 184 && ty <= 214) {
+  // ── Vibration toggle  y=170..200 ────────────────────────────────────────────
+  if (ty >= 170 && ty <= 200) {
     vibeEnabled = !vibeEnabled;
     saveBrightnessVibe();
     needsRedraw = true;
     return;
   }
 
-  // ── Back  y=220..238 ────────────────────────────────────────────────────────
-  if (ty >= 220) {
+  // ── Back  y=206..236 ────────────────────────────────────────────────────────
+  if (ty >= 206 && ty <= 236) {
     currentScreen   = prevScreen;
     lastDrawnSecond = -1;
     needsRedraw     = true;
