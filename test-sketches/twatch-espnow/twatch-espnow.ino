@@ -37,6 +37,7 @@ TTGOClass *ttgo = nullptr;
 static uint32_t timeRic        = DEFAULT_TIME_RIC;
 static String   deviceHostname = DEFAULT_HOSTNAME;
 static uint8_t  watchfaceId    = DEFAULT_WATCHFACE;   // 0=Analog 1=Digital
+static bool     clock24h       = DEFAULT_CLOCK_24H;
 
 // Hidden RICs — loaded from NVS, editable via web UI
 static uint32_t hiddenRics[MAX_HIDDEN_RICS];
@@ -77,6 +78,7 @@ static void loadConfig() {
   timeRic            = p.getUInt  ("timeRic",    DEFAULT_TIME_RIC);
   deviceHostname     = p.getString("hostname",   DEFAULT_HOSTNAME);
   watchfaceId        = (uint8_t)p.getUInt("watchface", DEFAULT_WATCHFACE);
+  clock24h           = p.getBool("clock24h", DEFAULT_CLOCK_24H);
   p.end();
 
   if (storedRics.length() == 0) {
@@ -90,6 +92,7 @@ static void loadConfig() {
   Serial.printf("[config] hiddenRics: %s\n", storedRics.c_str());
   Serial.printf("[config] timeRic: %u\n", timeRic);
   Serial.printf("[config] hostname: %s\n", deviceHostname.c_str());
+  Serial.printf("[config] clock24h: %s\n", clock24h ? "true" : "false");
 }
 
 static void saveHiddenRics(const String& csv) {
@@ -188,11 +191,13 @@ static float prevHourAngle   = -999.0f;
 static float prevMinuteAngle = -999.0f;
 static float prevSecondAngle = -999.0f;
 
-static void saveWatchface(uint8_t id) {
+static void saveWatchfaceSettings(uint8_t id, bool use24h) {
   watchfaceId = id;
+  clock24h    = use24h;
   Preferences p;
   p.begin("config", false);
   p.putUInt("watchface", id);
+  p.putBool("clock24h", use24h);
   p.end();
   lastDrawnSecond = -1;   // force full redraw on next clock show
 }
@@ -543,6 +548,7 @@ void loop() {
           currentScreen = SCREEN_BATTERY;
           needsRedraw   = true;
         } else if (row == 1 && col == 0) {
+          watchfaceEditBegin();
           currentScreen = SCREEN_WATCHFACE;
           needsRedraw   = true;
         } else if (row == 2 && col == 2) {
@@ -587,11 +593,7 @@ void loop() {
         currentScreen = SCREEN_SETTINGS;
         needsRedraw   = true;
       } else if (currentScreen == SCREEN_WATCHFACE) {
-        // Tap left half = analog, right half = digital; always return to settings
-        uint8_t newId = (tx < 120) ? 0 : 1;
-        if (newId != watchfaceId) saveWatchface(newId);
-        currentScreen = SCREEN_SETTINGS;
-        needsRedraw   = true;
+        watchfaceHandleTouch(tx, ty);
       } else {
         // Default: advance to next screen in cycle
         currentScreen   = (currentScreen + 1) % SCREEN_COUNT;

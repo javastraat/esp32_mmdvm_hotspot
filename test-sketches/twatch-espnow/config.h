@@ -10,6 +10,7 @@
 
 // ── Watchface ─────────────────────────────────────────────────────────────────
 #define DEFAULT_WATCHFACE   0   // 0 = Analog, 1 = Digital
+#define DEFAULT_CLOCK_24H   false
 
 // ── POCSAG ────────────────────────────────────────────────────────────────────
 #define DEFAULT_TIME_RIC    224     // RIC carrying date/time sync packets

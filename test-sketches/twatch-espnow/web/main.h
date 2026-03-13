@@ -125,6 +125,8 @@ static void handleApiConfigGet() {
   j += "\"hiddenRics\":\"" + hiddenRicsToStr() + "\",";
   j += "\"timeRic\":" + String(timeRic) + ",";
   j += "\"hostname\":\"" + deviceHostname + "\",";
+  j += "\"watchface\":" + String(watchfaceId) + ",";
+  j += "\"clock24h\":" + String(clock24h ? "true" : "false") + ",";
   j += "\"ok\":true}";
   webServer.send(200, "application/json", j);
 }
@@ -153,6 +155,47 @@ static void handleApiConfigSaveHostname() {
   }
   saveHostname(val);
   Serial.printf("[config] hostname saved: %s\n", deviceHostname.c_str());
+  webServer.send(200, "application/json", "{\"ok\":true}");
+}
+
+// ── /api/config/watchface — POST 0 or 1 ─────────────────────────────────────
+static void handleApiConfigSaveWatchface() {
+  String val = webServer.arg("plain");
+  val.trim();
+  if (val != "0" && val != "1") {
+    webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid\"}");
+    return;
+  }
+
+  uint8_t id = (uint8_t)val.toInt();
+  saveWatchfaceSettings(id, clock24h);
+  Serial.printf("[config] watchface saved: %u\n", watchfaceId);
+  webServer.send(200, "application/json", "{\"ok\":true}");
+}
+
+// ── /api/config/clock24h — POST bool (1/0/true/false/24/12) ────────────────
+static void handleApiConfigSaveClock24h() {
+  String val = webServer.arg("plain");
+  val.trim();
+  val.toLowerCase();
+
+  bool use24 = false;
+  bool valid = true;
+  if (val == "1" || val == "true" || val == "on" || val == "24") {
+    use24 = true;
+  } else if (val == "0" || val == "false" || val == "off" || val == "12") {
+    use24 = false;
+  } else {
+    valid = false;
+  }
+
+  if (!valid) {
+    webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid\"}");
+    return;
+  }
+
+  saveWatchfaceSettings(watchfaceId, use24);
+  Serial.printf("[config] clock24h saved: %s\n", clock24h ? "true" : "false");
   webServer.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -197,6 +240,7 @@ static void handleRoot() {
   h += ".ok{background:#28a745;color:#fff;} .err{background:#dc3545;color:#fff;} .warn{background:#ffc107;color:#333;} .secondary{background:#6c757d;color:#fff;}";
   h += ".none{color:var(--muted);font-size:.9em;}";
   h += "input[type=text]{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 8px;border-radius:4px;width:100%;font-family:monospace;font-size:.9em;box-sizing:border-box;}";
+  h += "select{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 8px;border-radius:4px;width:100%;font-size:.9em;box-sizing:border-box;}";
   h += "button.save{margin-top:8px;padding:6px 16px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold;}";
   h += "button.save:hover{opacity:.85;}";
   h += ".msg{font-size:.8em;margin-top:6px;min-height:1em;background:none!important;}";
@@ -302,6 +346,22 @@ static void handleRoot() {
   h += "<div class='msg' id='cfg-msg'></div>";
   h += "</div>";
 
+  // Watchface card
+  h += "<div class='card'><h3>Watchface</h3>";
+  h += "<div class='row'><span class='lbl'>Layout</span>";
+  h += "<select id='wf-layout' style='max-width:140px'>";
+  h += "<option value='0'>Analog</option>";
+  h += "<option value='1'>Digital</option>";
+  h += "</select></div>";
+  h += "<div class='row'><span class='lbl'>Clock Format</span>";
+  h += "<select id='wf-format' style='max-width:140px'>";
+  h += "<option value='12'>12H (AM/PM)</option>";
+  h += "<option value='24'>24H</option>";
+  h += "</select></div>";
+  h += "<button class='save' style='margin-top:10px;width:100%' onclick='saveWatchfaceConfig()'>Save</button>";
+  h += "<div class='msg' id='wf-msg'></div>";
+  h += "</div>";
+
   h += "</div>"; // .grid
 
   // ── script ─────────────────────────────────────────────────────────────────
@@ -402,6 +462,8 @@ static void handleRoot() {
   h += "document.getElementById('cfg-tric').value=d.timeRic||'';";
   h += "document.getElementById('cfg-host').value=d.hostname||'';";
   h += "document.getElementById('cfg-rics').value=d.hiddenRics||'';";
+  h += "document.getElementById('wf-layout').value=(d.watchface===1||d.watchface==='1')?'1':'0';";
+  h += "document.getElementById('wf-format').value=d.clock24h?'24':'12';";
   h += "}).catch(function(){});}";
 
   h += "function saveAllConfig(){";
@@ -420,6 +482,21 @@ static void handleRoot() {
   h += "m.textContent=ok?'Saved!':'Error saving one or more fields';";
   h += "}).catch(function(){m.className='msg err';m.textContent='Request failed';});}";
 
+  h += "function saveWatchfaceConfig(){";
+  h += "var layout=document.getElementById('wf-layout').value;";
+  h += "var fmt=document.getElementById('wf-format').value;";
+  h += "var m=document.getElementById('wf-msg');";
+  h += "m.className='msg';m.textContent='Saving...';";
+  h += "fetch('/api/config/watchface',{method:'POST',body:layout}).then(function(r){return r.json();}).then(function(a){";
+  h += "if(!a.ok){throw new Error('watchface');}";
+  h += "return fetch('/api/config/clock24h',{method:'POST',body:(fmt==='24'?'1':'0')}).then(function(r){return r.json();});";
+  h += "}).then(function(b){";
+  h += "var ok=!!b.ok;";
+  h += "m.className='msg '+(ok?'ok':'err');";
+  h += "m.textContent=ok?'Saved!':'Error saving watchface settings';";
+  h += "if(ok){loadConfig();}";
+  h += "}).catch(function(){m.className='msg err';m.textContent='Request failed';});}";
+
   h += "poll();setInterval(poll,3000);loadConfig();";
   h += "</script></body></html>";
 
@@ -434,6 +511,8 @@ void setupWebServer() {
   webServer.on("/api/config/hidden-rics", HTTP_POST, handleApiConfigSaveRics);
   webServer.on("/api/config/time-ric",    HTTP_POST, handleApiConfigSaveTimeRic);
   webServer.on("/api/config/hostname",    HTTP_POST, handleApiConfigSaveHostname);
+  webServer.on("/api/config/watchface",   HTTP_POST, handleApiConfigSaveWatchface);
+  webServer.on("/api/config/clock24h",    HTTP_POST, handleApiConfigSaveClock24h);
   webServer.begin();
   Serial.println("Web server started — http://twatch-espnow.local/");
 }
