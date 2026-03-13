@@ -59,6 +59,24 @@ static void drawPowerIcon(int cx, int cy, uint32_t color) {
   ttgo->tft->fillRect(cx - 2, cy - 16, 4, 15, color);
 }
 
+// Watchface/layout icon: a small screen with analog + digital hints.
+static void drawWatchfaceLayoutIcon(int cx, int cy, uint32_t color) {
+  // Outer display frame
+  ttgo->tft->drawRoundRect(cx - 24, cy - 18, 48, 36, 5, color);
+  // Split into two preview halves
+  ttgo->tft->drawFastVLine(cx, cy - 14, 28, color);
+
+  // Left mini analog hint
+  ttgo->tft->drawCircle(cx - 12, cy, 8, color);
+  ttgo->tft->drawLine(cx - 12, cy, cx - 12, cy - 5, color);
+  ttgo->tft->drawLine(cx - 12, cy, cx - 8,  cy + 2, color);
+
+  // Right mini digital hint
+  ttgo->tft->drawFastHLine(cx + 5, cy - 4, 12, color);
+  ttgo->tft->drawFastHLine(cx + 5, cy + 1, 12, color);
+  ttgo->tft->drawFastHLine(cx + 5, cy + 6, 8, color);
+}
+
 static void drawSettingsScreen() {
   ttgo->tft->fillScreen(TFT_BLACK);
 
@@ -87,11 +105,11 @@ static void drawSettingsScreen() {
 
   const int cellW = 80, cellH = 80;
 
-  // Text labels for non-icon cells ("-" = empty placeholder, ">" = back to clock)
+  // Text labels for non-icon cells ("-" = empty placeholder)
   const char* labels[3][3] = {
     {nullptr, nullptr, nullptr},
     {nullptr, "-",     "-"},
-    {"-",     nullptr, ">"}
+    {"-",     nullptr, nullptr}
   };
 
   for (int row = 0; row < 3; ++row) {
@@ -111,10 +129,13 @@ static void drawSettingsScreen() {
         drawBatteryIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (row == 1 && col == 0) {
         // Watchface selector cell
-        drawClockIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+        drawWatchfaceLayoutIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (row == 2 && col == 1) {
         // Reboot action cell
         drawPowerIcon(cx + cellW/2, cy + cellH/2 - 2, TFT_WHITE);
+      } else if (row == 2 && col == 2) {
+        // Back-to-clock cell
+        drawClockIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (labels[row][col] != nullptr) {
         ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
         ttgo->tft->setTextFont(4);

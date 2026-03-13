@@ -111,8 +111,8 @@ static void digDrawLastMsgRow() {
   char msgBuf[80];
 
   if (lastMsg[0] != '\0') {
-    strncpy(msgBuf, lastMsg, sizeof(msgBuf) - 1);
-    msgBuf[sizeof(msgBuf) - 1] = '\0';
+    const char* prefix = (lastRic == 8) ? "Transmitter: " : "P: ";
+    snprintf(msgBuf, sizeof(msgBuf), "%s%s", prefix, lastMsg);
   } else if (lastDmrSrc != 0 || lastDmrDst != 0) {
     snprintf(msgBuf, sizeof(msgBuf), "DMR %u>%u", lastDmrSrc, lastDmrDst);
   } else {
