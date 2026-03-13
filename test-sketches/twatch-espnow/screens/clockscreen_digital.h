@@ -92,8 +92,23 @@ static void digDrawSec(int s) {
   ttgo->tft->drawString(secBuf, DIG_LCD_X + DIG_LCD_W - 10, 117);
 }
 
+// Return how many leading chars from src fit the current font and max width.
+static size_t digFitCharsToWidth(const char* src, int maxW) {
+  char probe[96];
+  size_t n = 0;
+  probe[0] = '\0';
+
+  while (src[n] != '\0' && n < sizeof(probe) - 1) {
+    probe[n] = src[n];
+    probe[n + 1] = '\0';
+    if (ttgo->tft->textWidth(probe) > maxW) break;
+    n++;
+  }
+  return n;
+}
+
 static void digDrawLastMsgRow() {
-  char msgBuf[48];
+  char msgBuf[80];
 
   if (lastMsg[0] != '\0') {
     strncpy(msgBuf, lastMsg, sizeof(msgBuf) - 1);
@@ -105,22 +120,62 @@ static void digDrawLastMsgRow() {
     msgBuf[sizeof(msgBuf) - 1] = '\0';
   }
 
-  const int maxW = DIG_LCD_W - 16;
+  // Normalize newlines/control chars into spaces for a clean two-line row.
+  for (size_t i = 0; msgBuf[i] != '\0'; i++) {
+    if ((uint8_t)msgBuf[i] < 32) msgBuf[i] = ' ';
+  }
+
+  // Clear only the message band to avoid stale trailing glyphs.
+  ttgo->tft->fillRect(DIG_LCD_X + 4, DIG_DUAL_Y - 20, DIG_LCD_W - 8, 68, DIG_LCD_BG);
+
+  const int maxW = DIG_LCD_W - 18;
+  // Keep message text at font 4 for readability.
   ttgo->tft->setTextFont(4);
-  while (strlen(msgBuf) > 0 && ttgo->tft->textWidth(msgBuf) > maxW) {
-    msgBuf[strlen(msgBuf) - 1] = '\0';
-  }
-
-  if (lastMsg[0] != '\0' && strlen(lastMsg) > strlen(msgBuf) && strlen(msgBuf) > 3) {
-    size_t n = strlen(msgBuf);
-    msgBuf[n - 3] = '.';
-    msgBuf[n - 2] = '.';
-    msgBuf[n - 1] = '.';
-  }
-
   ttgo->tft->setTextColor(DIG_TEXT_MAIN, DIG_LCD_BG);
   ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->drawString(msgBuf, 120, DIG_DUAL_Y +10);
+
+  size_t split = digFitCharsToWidth(msgBuf, maxW);
+  if (split == 0) split = 1;
+
+  // Prefer splitting line 1 at the last space to keep words intact.
+  if (msgBuf[split] != '\0') {
+    size_t back = split;
+    while (back > 0 && msgBuf[back] != ' ') back--;
+    if (back > 3) split = back;
+  }
+
+  char line1[80];
+  strncpy(line1, msgBuf, split);
+  line1[split] = '\0';
+  while (strlen(line1) > 0 && line1[strlen(line1) - 1] == ' ') {
+    line1[strlen(line1) - 1] = '\0';
+  }
+
+  ttgo->tft->drawString(line1, 120, DIG_DUAL_Y - 4);
+
+  const char* rest = msgBuf + split;
+  while (*rest == ' ') rest++;
+  if (*rest == '\0') return;
+
+  size_t n2 = digFitCharsToWidth(rest, maxW);
+  if (n2 == 0) n2 = 1;
+
+  char line2[80];
+  strncpy(line2, rest, n2);
+  line2[n2] = '\0';
+
+  bool truncated = (rest[n2] != '\0');
+  while (strlen(line2) > 0 && line2[strlen(line2) - 1] == ' ') {
+    line2[strlen(line2) - 1] = '\0';
+  }
+  if (truncated && strlen(line2) > 3) {
+    size_t n = strlen(line2);
+    line2[n - 3] = '.';
+    line2[n - 2] = '.';
+    line2[n - 1] = '.';
+  }
+
+  ttgo->tft->drawString(line2, 120, DIG_DUAL_Y + 28);
 }
 
 static void drawClockScreenDigital() {
@@ -156,7 +211,7 @@ static void drawClockScreenDigital() {
     digLastDay = shown.tm_mday;
   }
 
-  // Main time + AM/PM + dual time: on first draw or every minute.
+  // Main time + AM/PM + message row: on first draw or every minute.
   if (firstDraw || m != digLastMinute) {
     digDrawModeLabel(pm, clock24h);
     digDrawMainTime(h, m, s);
