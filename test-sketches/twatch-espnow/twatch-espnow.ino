@@ -71,6 +71,10 @@ static String hiddenRicsToStr() {
   return s;
 }
 
+// Quick-settings state (declared here so saveBrightnessVibe/loadConfig can use them)
+static uint8_t       currentBrightness = 180;
+static bool          vibeEnabled       = true;
+
 // Save brightness + vibe to NVS (called from quick-settings overlay)
 static void saveBrightnessVibe() {
   Preferences p;
@@ -149,18 +153,22 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 };
 
 // ── Screen identifiers ────────────────────────────────────────────────────────
-#define SCREEN_CLOCK     0
-#define SCREEN_POCSAG    1
-#define SCREEN_DMR       2
-#define SCREEN_SETTINGS  3
-#define SCREEN_WIFI      4
-#define SCREEN_PAGER     5
-#define SCREEN_BATTERY   6
-#define SCREEN_WATCHFACE 7
-#define SCREEN_COUNT     4   // number of screens in the tap-cycle (sub-screens excluded)
+#define SCREEN_CLOCK         0
+#define SCREEN_POCSAG        1
+#define SCREEN_DMR           2
+#define SCREEN_SETTINGS      3
+#define SCREEN_WIFI          4
+#define SCREEN_PAGER         5
+#define SCREEN_BATTERY       6
+#define SCREEN_WATCHFACE     7
+#define SCREEN_QUICKSETTINGS 8
+#define SCREEN_STEPS         9
+#define SCREEN_STOPWATCH     10
+#define SCREEN_COUNT         4   // number of screens in the tap-cycle (sub-screens excluded)
 
 // ── Global state ──────────────────────────────────────────────────────────────
 static int           currentScreen    = SCREEN_CLOCK;
+static int           prevScreen       = SCREEN_CLOCK;
 static bool          needsRedraw      = true;
 static int           lastDrawnSecond  = -1;
 static unsigned long lastPacketMillis   = 0;
@@ -171,9 +179,7 @@ static unsigned long lastActivityMillis = 0;
 
 static bool          displayOn        = true;
 static volatile bool axpIrq           = false;  // set by AXP202 interrupt
-static bool          quickSettingsOpen = false;
-static uint8_t       currentBrightness = 180;
-static bool          vibeEnabled       = true;
+static volatile bool bmaIrq           = false;  // set by BMA423 interrupt
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -286,6 +292,8 @@ static bool getClockTime(struct tm* t) {
 #include "screens/watchface_screen.h"
 #include "screens/ota_screen.h"
 #include "screens/quicksettings_screen.h"
+#include "screens/steps_screen.h"
+#include "screens/stopwatch_screen.h"
 #include "web/main.h"
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -297,8 +305,11 @@ static void redraw() {
     case SCREEN_SETTINGS: drawSettingsScreen();     break;
     case SCREEN_WIFI:     drawWifiSettingsScreen(); break;
     case SCREEN_PAGER:    drawPagerScreen();        break;
-    case SCREEN_BATTERY:   drawBatteryScreen();      break;
-    case SCREEN_WATCHFACE: drawWatchfaceScreen();    break;
+    case SCREEN_BATTERY:       drawBatteryScreen();       break;
+    case SCREEN_WATCHFACE:     drawWatchfaceScreen();     break;
+    case SCREEN_QUICKSETTINGS: drawQuickSettingsScreen(); break;
+    case SCREEN_STEPS:         drawStepsScreen();         break;
+    case SCREEN_STOPWATCH:     drawStopwatchScreen();     break;
   }
 }
 
@@ -401,6 +412,27 @@ void setup() {
 
   loadConfig();          // load brightness + vibe before applying them
   ttgo->bl->adjust(currentBrightness);
+
+  // BMA423 accelerometer — step counter + raise-to-wake
+  // Note: ttgo->begin() already initialises the BMA; configure it here.
+  {
+    Acfg cfg;
+    cfg.odr       = BMA4_OUTPUT_DATA_RATE_100HZ;
+    cfg.range     = BMA4_ACCEL_RANGE_2G;
+    cfg.bandwidth = BMA4_ACCEL_NORMAL_AVG4;
+    cfg.perf_mode = BMA4_CONTINUOUS_MODE;
+    ttgo->bma->accelConfig(cfg);
+  }
+  ttgo->bma->enableAccel();                               // MUST be before enableFeature
+  ttgo->bma->enableFeature(BMA423_STEP_CNTR, true);      // pedometer
+  ttgo->bma->enableFeature(BMA423_TILT,      true);      // raise-to-wake (wear correctly)
+  ttgo->bma->enableFeature(BMA423_WAKEUP,    true);      // double-tap to wake
+  ttgo->bma->resetStepCounter();
+  ttgo->bma->enableStepCountInterrupt();
+  ttgo->bma->enableTiltInterrupt();
+  ttgo->bma->enableWakeupInterrupt();
+  pinMode(BMA423_INT1, INPUT);
+  attachInterrupt(BMA423_INT1, []{ bmaIrq = true; }, RISING);
 
   // Enable AXP202 ADC channels so battery/USB readings work
   ttgo->power->adc1Enable(
@@ -531,39 +563,53 @@ void loop() {
     ttgo->power->readIRQ();
 
     if (ttgo->power->isPEKShortPressIRQ()) {
-      if (quickSettingsOpen) {
-        // Short press while overlay open → close it
-        quickSettingsOpen = false;
-        lastDrawnSecond   = -1;
-        needsRedraw       = true;
+      if (currentScreen == SCREEN_QUICKSETTINGS) {
+        // Short press on quick-settings → go back
+        currentScreen   = prevScreen;
+        lastDrawnSecond = -1;
+        needsRedraw     = true;
       } else {
         displayOn = !displayOn;
         if (displayOn) {
           ttgo->openBL();
           ttgo->bl->adjust(currentBrightness);
-          lastDrawnSecond = -1;
-          needsRedraw     = true;
+          lastDrawnSecond    = -1;
+          lastActivityMillis = millis();
+          needsRedraw        = true;
         } else {
           ttgo->closeBL();
         }
       }
     }
 
-    if (ttgo->power->isPEKLongPressIRQ()) {
-      // Long hold → open quick-settings overlay
+    if (ttgo->power->isPEKLongtPressIRQ()) {
+      // Long hold → open quick-settings screen
       if (!displayOn) {
         displayOn = true;
         ttgo->openBL();
         ttgo->bl->adjust(currentBrightness);
         lastDrawnSecond = -1;
-        needsRedraw     = true;
       }
-      quickSettingsOpen  = true;
+      prevScreen         = currentScreen;
+      currentScreen      = SCREEN_QUICKSETTINGS;
       lastActivityMillis = millis();
       needsRedraw        = true;
     }
 
     ttgo->power->clearIRQ();
+  }
+
+  // BMA423 interrupt — raise-to-wake (tilt) + step counter update
+  if (bmaIrq) {
+    bmaIrq = false;
+    bool rlst;
+    do { rlst = ttgo->bma->readInterrupt(); } while (!rlst);
+    if (ttgo->bma->isTilt() || ttgo->bma->isDoubleClick()) {
+      wakeScreen();
+      needsRedraw = true;
+    }
+    if (ttgo->bma->isStepCounter() && currentScreen == SCREEN_STEPS)
+      needsRedraw = true;
   }
 
   // Touch tap: handle per screen
@@ -578,10 +624,10 @@ void loop() {
       ttgo->bl->adjust(currentBrightness);
       lastDrawnSecond = -1;
       needsRedraw     = true;
-    } else if (quickSettingsOpen) {
-      quickSettingsHandleTouch(tx, ty);
     } else {
-      if (currentScreen == SCREEN_SETTINGS) {
+      if (currentScreen == SCREEN_QUICKSETTINGS) {
+        quickSettingsHandleTouch(tx, ty);
+      } else if (currentScreen == SCREEN_SETTINGS) {
         if (settingsRebootPrompt) {
           // YES: left button (x 10-110, y 140-220)
           if (tx >= 10 && tx <= 110 && ty >= 140 && ty <= 220) {
@@ -614,6 +660,12 @@ void loop() {
         } else if (row == 1 && col == 0) {
           watchfaceEditBegin();
           currentScreen = SCREEN_WATCHFACE;
+          needsRedraw   = true;
+        } else if (row == 1 && col == 1) {
+          currentScreen = SCREEN_STEPS;
+          needsRedraw   = true;
+        } else if (row == 1 && col == 2) {
+          currentScreen = SCREEN_STOPWATCH;
           needsRedraw   = true;
         } else if (row == 2 && col == 1) {
           settingsRebootPrompt = true;
@@ -659,6 +711,10 @@ void loop() {
         needsRedraw   = true;
       } else if (currentScreen == SCREEN_WATCHFACE) {
         watchfaceHandleTouch(tx, ty);
+      } else if (currentScreen == SCREEN_STEPS) {
+        stepsHandleTouch(tx, ty);
+      } else if (currentScreen == SCREEN_STOPWATCH) {
+        stopwatchHandleTouch(tx, ty);
       } else {
         // Default: advance to next screen in cycle
         currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
@@ -700,6 +756,14 @@ void loop() {
     needsRedraw     = true;
   }
 
+  // Stopwatch screen: partial time-only update every 100 ms (no full redraw = no flicker)
+  static unsigned long lastSwRedraw = 0;
+  if (currentScreen == SCREEN_STOPWATCH && swRunning &&
+      millis() - lastSwRedraw >= 100) {
+    lastSwRedraw = millis();
+    updateStopwatchTime();
+  }
+
   // Clock screen: redraw every second when synced, every 50 ms while spinning
   if (currentScreen == SCREEN_CLOCK && !needsRedraw) {
     if (baseEpoch == 0) {
@@ -717,7 +781,6 @@ void loop() {
   if (needsRedraw) {
     needsRedraw = false;
     redraw();
-    if (quickSettingsOpen) drawQuickSettingsScreen();
   }
 
   delay(50);

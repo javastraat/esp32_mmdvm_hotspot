@@ -1,81 +1,85 @@
 // screens/quicksettings_screen.h
-// Quick-settings overlay — shown on long press of crown button
+// Quick Settings — full 240×240 screen, reached via long-press of crown button.
 //
 // Controls:
-//   Brightness : [-] filled bar [+]
+//   Brightness : [-]  filled bar  [+]
 //   Vibration  : ON / OFF toggle
-//   Close      : dismiss overlay
+//   Back       : return to previous screen
 
 // ─── draw ─────────────────────────────────────────────────────────────────────
 static void drawQuickSettingsScreen() {
   TFT_eSPI *tft = ttgo->tft;
+  tft->fillScreen(TFT_BLACK);
 
-  // Overlay panel
-  const int OX = 20, OY = 25, OW = 200, OH = 190;
-  tft->fillRoundRect(OX, OY, OW, OH, 12, 0x2104);       // very dark grey
-  tft->drawRoundRect(OX, OY, OW, OH, 12, TFT_WHITE);
-
-  // Title
-  tft->setTextDatum(TC_DATUM);
-  tft->setTextFont(2);
-  tft->setTextColor(TFT_WHITE, 0x2104);
-  tft->drawString("Quick Settings", 120, OY + 7);
-
-  // Divider
-  tft->drawFastHLine(OX + 10, OY + 27, OW - 20, 0x8410);
+  // Title bar
+  tft->fillRect(0, 0, 240, 36, 0x1082);          // very dark blue-grey
+  tft->setTextDatum(MC_DATUM);
+  tft->setTextFont(4);
+  tft->setTextColor(TFT_WHITE, 0x1082);
+  tft->drawString("Quick Settings", 120, 18);
 
   // ── Brightness ──────────────────────────────────────────────────────────────
   tft->setTextDatum(TL_DATUM);
-  tft->setTextColor(TFT_YELLOW, 0x2104);
-  tft->drawString("Brightness", OX + 10, OY + 33);
+  tft->setTextFont(2);
+  tft->setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft->drawString("Brightness", 12, 52);
 
-  // [-] button  (OX+8, OY+53) → 36×28
-  tft->fillRoundRect(OX + 8,       OY + 53, 36, 28, 6, TFT_NAVY);
-  tft->drawRoundRect(OX + 8,       OY + 53, 36, 28, 6, TFT_WHITE);
+  // [-] button  x=10, y=74, w=44, h=36
+  tft->fillRoundRect(10, 74, 44, 36, 8, TFT_NAVY);
+  tft->drawRoundRect(10, 74, 44, 36, 8, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
+  tft->setTextFont(4);
   tft->setTextColor(TFT_WHITE, TFT_NAVY);
-  tft->drawString("-", OX + 8 + 18, OY + 53 + 14);
+  tft->drawString("-", 32, 92);
 
-  // [+] button  (OX+156, OY+53) → 36×28
-  tft->fillRoundRect(OX + 156,     OY + 53, 36, 28, 6, TFT_NAVY);
-  tft->drawRoundRect(OX + 156,     OY + 53, 36, 28, 6, TFT_WHITE);
+  // [+] button  x=186, y=74, w=44, h=36
+  tft->fillRoundRect(186, 74, 44, 36, 8, TFT_NAVY);
+  tft->drawRoundRect(186, 74, 44, 36, 8, TFT_WHITE);
   tft->setTextColor(TFT_WHITE, TFT_NAVY);
-  tft->drawString("+", OX + 156 + 18, OY + 53 + 14);
+  tft->drawString("+", 208, 92);
 
-  // Brightness bar  (OX+48, OY+57) → 104×20
-  const int BX = OX + 48, BY = OY + 57, BW = 104, BH = 20;
-  tft->fillRect(BX, BY, BW, BH, TFT_BLACK);
-  tft->drawRect(BX, BY, BW, BH, 0x8410);
-  int filled = (int)((currentBrightness / 255.0f) * (BW - 2));
+  // Bar background  x=62, y=80, w=116, h=24
+  tft->fillRoundRect(62, 80, 116, 24, 4, 0x2104);
+  tft->drawRoundRect(62, 80, 116, 24, 4, 0x8410);
+  int filled = (int)((currentBrightness / 255.0f) * 112);
   if (filled > 0)
-    tft->fillRect(BX + 1, BY + 1, filled, BH - 2, TFT_CYAN);
+    tft->fillRoundRect(64, 82, filled, 20, 3, TFT_CYAN);
+
+  // Numeric percentage label
+  char pct[8];
+  snprintf(pct, sizeof(pct), "%d%%", (int)(currentBrightness / 255.0f * 100));
+  tft->setTextDatum(MC_DATUM);
+  tft->setTextFont(2);
+  tft->setTextColor(filled > 60 ? TFT_BLACK : TFT_WHITE, filled > 60 ? TFT_CYAN : 0x2104);
+  tft->drawString(pct, 120, 92);
 
   // ── Vibration ───────────────────────────────────────────────────────────────
   tft->setTextDatum(TL_DATUM);
-  tft->setTextColor(TFT_YELLOW, 0x2104);
-  tft->drawString("Vibration", OX + 10, OY + 95);
+  tft->setTextFont(2);
+  tft->setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft->drawString("Vibration", 12, 132);
 
-  uint16_t vbg = vibeEnabled ? 0x03E0 : 0x4208;   // green or dark grey
-  tft->fillRoundRect(OX + 60, OY + 113, 80, 30, 8, vbg);
-  tft->drawRoundRect(OX + 60, OY + 113, 80, 30, 8, TFT_WHITE);
+  uint16_t vbg = vibeEnabled ? 0x03C0 : 0x3186;   // green or mid-grey
+  tft->fillRoundRect(10, 154, 220, 40, 10, vbg);
+  tft->drawRoundRect(10, 154, 220, 40, 10, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
+  tft->setTextFont(4);
   tft->setTextColor(TFT_WHITE, vbg);
-  tft->drawString(vibeEnabled ? "ON" : "OFF", OX + 60 + 40, OY + 113 + 15);
+  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 174);
 
-  // ── Close ────────────────────────────────────────────────────────────────────
-  tft->fillRoundRect(OX + 40, OY + 158, 120, 24, 8, 0x7800);   // dark red
-  tft->drawRoundRect(OX + 40, OY + 158, 120, 24, 8, TFT_WHITE);
+  // ── Back button ─────────────────────────────────────────────────────────────
+  tft->fillRoundRect(10, 208, 220, 28, 10, 0x7800);   // dark red
+  tft->drawRoundRect(10, 208, 220, 28, 10, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
+  tft->setTextFont(2);
   tft->setTextColor(TFT_WHITE, 0x7800);
-  tft->drawString("CLOSE", 120, OY + 158 + 12);
+  tft->drawString("BACK", 120, 222);
 }
 
 // ─── touch handler ────────────────────────────────────────────────────────────
 static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
-  const int OX = 20, OY = 25, OW = 200, OH = 190;
-
-  // [-] brightness  (OX+8 … OX+44, OY+53 … OY+81)
-  if (tx >= OX+8 && tx <= OX+44 && ty >= OY+53 && ty <= OY+81) {
+  // [-] brightness  x=10..54, y=74..110
+  if (tx >= 10 && tx <= 54 && ty >= 74 && ty <= 110) {
     if (currentBrightness > 50) currentBrightness -= 50;
     else                         currentBrightness  = 25;
     ttgo->bl->adjust(currentBrightness);
@@ -84,8 +88,8 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // [+] brightness  (OX+156 … OX+192, OY+53 … OY+81)
-  if (tx >= OX+156 && tx <= OX+192 && ty >= OY+53 && ty <= OY+81) {
+  // [+] brightness  x=186..230, y=74..110
+  if (tx >= 186 && tx <= 230 && ty >= 74 && ty <= 110) {
     if (currentBrightness < 205) currentBrightness += 50;
     else                          currentBrightness  = 255;
     ttgo->bl->adjust(currentBrightness);
@@ -94,26 +98,18 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // Vibe toggle  (OX+60 … OX+140, OY+113 … OY+143)
-  if (tx >= OX+60 && tx <= OX+140 && ty >= OY+113 && ty <= OY+143) {
+  // Vibe toggle  x=10..230, y=154..194
+  if (tx >= 10 && tx <= 230 && ty >= 154 && ty <= 194) {
     vibeEnabled = !vibeEnabled;
     saveBrightnessVibe();
     needsRedraw = true;
     return;
   }
 
-  // Close button  (OX+40 … OX+160, OY+158 … OY+182)
-  if (tx >= OX+40 && tx <= OX+160 && ty >= OY+158 && ty <= OY+182) {
-    quickSettingsOpen = false;
-    lastDrawnSecond   = -1;
-    needsRedraw       = true;
-    return;
-  }
-
-  // Tap outside panel → close
-  if (tx < OX || tx > OX+OW || ty < OY || ty > OY+OH) {
-    quickSettingsOpen = false;
-    lastDrawnSecond   = -1;
-    needsRedraw       = true;
+  // Back  x=10..230, y=208..236
+  if (ty >= 208) {
+    currentScreen   = prevScreen;
+    lastDrawnSecond = -1;
+    needsRedraw     = true;
   }
 }

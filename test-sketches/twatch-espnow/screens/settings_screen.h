@@ -59,6 +59,26 @@ static void drawPowerIcon(int cx, int cy, uint32_t color) {
   ttgo->tft->fillRect(cx - 2, cy - 16, 4, 15, color);
 }
 
+// Stopwatch icon: circle body + stem + two hands
+static void drawStopwatchIcon(int cx, int cy, uint16_t color) {
+  ttgo->tft->drawCircle(cx, cy + 4, 18, color);
+  ttgo->tft->fillRect(cx - 2, cy - 15, 4, 6, color);   // stem
+  ttgo->tft->fillRect(cx - 7, cy - 18, 14, 4, color);  // crown
+  ttgo->tft->drawLine(cx, cy + 4, cx, cy - 7, color);  // minute hand up
+  ttgo->tft->drawLine(cx, cy + 4, cx + 9, cy + 8, color); // second hand right
+}
+
+// Steps icon: ascending staircase + person dot above
+static void drawStepsIcon(int cx, int cy, uint16_t color) {
+  int x = cx - 15, y = cy + 12;
+  ttgo->tft->drawFastHLine(x,      y,      10, color);
+  ttgo->tft->drawFastVLine(x + 10, y - 8,   8, color);
+  ttgo->tft->drawFastHLine(x + 10, y - 8,  10, color);
+  ttgo->tft->drawFastVLine(x + 20, y - 16,  8, color);
+  ttgo->tft->drawFastHLine(x + 20, y - 16, 10, color);
+  ttgo->tft->fillCircle(cx + 14, cy - 18, 4, color);  // head
+}
+
 // Watchface/layout icon: a small screen with analog + digital hints.
 static void drawWatchfaceLayoutIcon(int cx, int cy, uint32_t color) {
   // Outer display frame
@@ -105,10 +125,10 @@ static void drawSettingsScreen() {
 
   const int cellW = 80, cellH = 80;
 
-  // Text labels for non-icon cells ("-" = empty placeholder)
+  // Text labels for non-icon cells (nullptr = has icon, "-" = empty placeholder)
   const char* labels[3][3] = {
     {nullptr, nullptr, nullptr},
-    {nullptr, "-",     "-"},
+    {nullptr, nullptr, nullptr},
     {"-",     nullptr, nullptr}
   };
 
@@ -130,6 +150,12 @@ static void drawSettingsScreen() {
       } else if (row == 1 && col == 0) {
         // Watchface selector cell
         drawWatchfaceLayoutIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+      } else if (row == 1 && col == 1) {
+        // Step counter cell
+        drawStepsIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+      } else if (row == 1 && col == 2) {
+        // Stopwatch cell
+        drawStopwatchIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (row == 2 && col == 1) {
         // Reboot action cell
         drawPowerIcon(cx + cellW/2, cy + cellH/2 - 2, TFT_WHITE);
