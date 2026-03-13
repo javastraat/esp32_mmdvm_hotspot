@@ -741,6 +741,15 @@ void loop() {
     lastActivityMillis = millis();  // give a full 15 s on clock before sleep
   }
 
+  // Settings screen: return to clock after 15 s of no touch
+  if (currentScreen == SCREEN_SETTINGS && displayOn &&
+      lastActivityMillis > 0 && millis() - lastActivityMillis >= AUTO_CLOCK_MS) {
+    currentScreen   = SCREEN_CLOCK;
+    lastDrawnSecond = -1;
+    needsRedraw     = true;
+    lastActivityMillis = millis();  // reset so clock gets its own 15 s before sleep
+  }
+
   // Auto-sleep after 15 s of inactivity on the clock screen
   if (currentScreen == SCREEN_CLOCK && displayOn &&
       lastActivityMillis > 0 && millis() - lastActivityMillis >= AUTO_CLOCK_MS) {
