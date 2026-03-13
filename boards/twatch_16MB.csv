@@ -1,0 +1,10 @@
+# LilyGo T-Watch 2020 — 16MB Flash partition scheme
+# Two equal OTA app partitions (~7.9 MB each) + 192 KB SPIFFS
+# Total: 16 MB  (matches ESP32 MMDVM S3 custom_16MB layout)
+#
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xe000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x7E0000,
+app1,     app,  ota_1,   0x7F0000, 0x7E0000,
+spiffs,   data, spiffs,  0xFD0000, 0x30000,
