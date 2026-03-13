@@ -84,7 +84,7 @@ static void drawPocsagScreen() {
 
   // ── Message ────────────────────────────────────────────────────────────────
   if (lastRic > 0 && lastMsg[0] != '\0') {
-    ttgo->tft->setTextFont(3);
+    ttgo->tft->setTextFont(4);
     ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
     ttgo->tft->setTextDatum(TL_DATUM);
     drawWordWrapped(lastMsg, 8, 32, 224, 210);
