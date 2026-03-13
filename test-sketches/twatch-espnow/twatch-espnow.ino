@@ -33,8 +33,9 @@ using fs::FS;
 
 TTGOClass *ttgo = nullptr;
 
-// ── Config ────────────────────────────────────────────────────────────────────
-#define TIME_RIC   DEFAULT_TIME_RIC
+// ── Config — runtime values, loaded from NVS (defaults from config.h) ─────────
+static uint32_t timeRic        = DEFAULT_TIME_RIC;
+static String   deviceHostname = DEFAULT_HOSTNAME;
 
 // Hidden RICs — loaded from NVS, editable via web UI
 static uint32_t hiddenRics[MAX_HIDDEN_RICS];
@@ -68,20 +69,25 @@ static String hiddenRicsToStr() {
   return s;
 }
 
-static void loadHiddenRics() {
+static void loadConfig() {
   Preferences p;
   p.begin("config", true);
-  String stored = p.getString("hiddenRics", "");
+  String storedRics  = p.getString("hiddenRics", "");
+  timeRic            = p.getUInt  ("timeRic",    DEFAULT_TIME_RIC);
+  deviceHostname     = p.getString("hostname",   DEFAULT_HOSTNAME);
   p.end();
-  if (stored.length() == 0) {
-    // First boot — write defaults to NVS
+
+  if (storedRics.length() == 0) {
+    // First boot — write hidden RIC defaults to NVS
     p.begin("config", false);
     p.putString("hiddenRics", DEFAULT_HIDDEN_RICS);
     p.end();
-    stored = DEFAULT_HIDDEN_RICS;
+    storedRics = DEFAULT_HIDDEN_RICS;
   }
-  parseHiddenRicsStr(stored.c_str());
-  Serial.printf("[config] hiddenRics: %s\n", stored.c_str());
+  parseHiddenRicsStr(storedRics.c_str());
+  Serial.printf("[config] hiddenRics: %s\n", storedRics.c_str());
+  Serial.printf("[config] timeRic: %u\n", timeRic);
+  Serial.printf("[config] hostname: %s\n", deviceHostname.c_str());
 }
 
 static void saveHiddenRics(const String& csv) {
@@ -89,6 +95,22 @@ static void saveHiddenRics(const String& csv) {
   Preferences p;
   p.begin("config", false);
   p.putString("hiddenRics", hiddenRicsToStr());
+  p.end();
+}
+
+static void saveTimeRic(uint32_t ric) {
+  timeRic = ric;
+  Preferences p;
+  p.begin("config", false);
+  p.putUInt("timeRic", ric);
+  p.end();
+}
+
+static void saveHostname(const String& h) {
+  deviceHostname = h;
+  Preferences p;
+  p.begin("config", false);
+  p.putString("hostname", h);
   p.end();
 }
 
@@ -287,7 +309,7 @@ static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int 
     Serial.printf("[POCSAG] from %s  RIC=%u func=%u msg=\"%s\"\n",
                   macStr, pkt.ric, pkt.functional, pkt.message);
 
-    if (pkt.ric == TIME_RIC) {
+    if (pkt.ric == timeRic) {
       parseTimePacket(pkt.message);
       if (currentScreen == SCREEN_CLOCK) needsRedraw = true;
     }
@@ -339,7 +361,7 @@ void setup() {
   ttgo->power->clearIRQ();
 
   loadOnlineMode();   // restore persisted WiFi mode from NVS
-  loadHiddenRics();   // restore hidden RIC list from NVS (writes defaults on first boot)
+  loadConfig();       // restore timeRic, hostname, hiddenRics from NVS
 
   ttgo->tft->setRotation(0);
   ttgo->tft->fillScreen(TFT_BLACK);
@@ -398,7 +420,7 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("WiFi connected — IP: %s\n", WiFi.localIP().toString().c_str());
 
-      ArduinoOTA.setHostname(DEFAULT_HOSTNAME);
+      ArduinoOTA.setHostname(deviceHostname.c_str());
       ArduinoOTA.setPassword("mmdvm");
       ArduinoOTA
         .onStart([]()    { Serial.println("OTA start");  })

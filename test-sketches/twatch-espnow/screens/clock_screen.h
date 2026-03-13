@@ -27,23 +27,20 @@ static void drawWifiIconSmall(int cx, int cy, uint32_t color) {
   }
 }
 
-// Small satellite icon — body + two solar wings + antenna with dish dot.
-// cx/cy = centre of the body. Fits in ~26×16px.
-static void drawSatelliteIcon(int cx, int cy, uint32_t color) {
-  // Body (7×7)
-  ttgo->tft->fillRect(cx - 3, cy - 3, 7, 7, color);
+// Small pager icon — landscape body, screen outline, two side buttons.
+// cx/cy = centre. Fits in ~24×14px.
+static void drawPagerIcon(int cx, int cy, uint32_t color) {
+  // Outer body outline (24×14)
+  ttgo->tft->drawRect(cx - 12, cy - 7, 24, 14, color);
 
-  // Left solar wing (9×3)
-  ttgo->tft->fillRect(cx - 13, cy - 1, 9, 3, color);
+  // Screen outline (left portion of body, 14×10)
+  ttgo->tft->drawRect(cx - 10, cy - 5, 14, 10, color);
 
-  // Right solar wing (9×3)
-  ttgo->tft->fillRect(cx + 5,  cy - 1, 9, 3, color);
+  // Top button (right side of body)
+  ttgo->tft->fillRect(cx + 6, cy - 4, 4, 4, color);
 
-  // Antenna: diagonal line up-right from body corner
-  ttgo->tft->drawLine(cx + 3, cy - 3, cx + 8, cy - 8, color);
-
-  // Dish dot at antenna tip
-  ttgo->tft->fillCircle(cx + 8, cy - 8, 2, color);
+  // Bottom button (right side of body)
+  ttgo->tft->fillRect(cx + 6, cy + 1, 4, 4, color);
 }
 
 static void fillHand(float cx, float cy, float angleDeg,
@@ -190,14 +187,14 @@ static void drawClockScreen() {
     ttgo->tft->fillScreen(CLK_BG);
     drawClockStaticFace();
     if (hasTime) drawDateBoxes(&t);
-    if (espnowSynced)                              drawSatelliteIcon( 25, 10, TFT_RED);
+    if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
     prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
   } else {
     // Incremental: erase old hands + restore what they covered
     eraseClockHands(hasTime ? &t : nullptr);
-    if (espnowSynced)                              drawSatelliteIcon( 25, 10, TFT_RED);
+    if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
   }
