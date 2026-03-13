@@ -83,13 +83,14 @@ static void drawBatteryInfo() {
 }
 
 // Navigation dots — centred, one per tap-cycle screen.
-static void drawClockDots() {
+// y defaults to 180 (analog); digital face passes its own y.
+static void drawClockDots(int y = 180) {
   for (int i = 0; i < SCREEN_COUNT; i++) {
     int x = 120 + (int)((i - (SCREEN_COUNT - 1) / 2.0) * 12);
     if (i == currentScreen)
-      ttgo->tft->fillCircle(x, 180, 3, CLK_HAND);
+      ttgo->tft->fillCircle(x, y, 3, CLK_HAND);
     else
-      ttgo->tft->drawCircle(x, 180, 3, TFT_DARKGREY);
+      ttgo->tft->drawCircle(x, y, 3, TFT_DARKGREY);
   }
 }
 
