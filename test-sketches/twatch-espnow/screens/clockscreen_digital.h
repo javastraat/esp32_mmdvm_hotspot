@@ -11,7 +11,7 @@
 #define DIG_LCD_H     240
 
 #define DIG_DIV1_Y     52
-#define DIG_DIV2_Y    134
+#define DIG_DIV2_Y    144
 #define DIG_DIV3_Y    182
 
 #define DIG_TOP_Y      45
@@ -126,7 +126,7 @@ static void digDrawLastMsgRow() {
   }
 
   // Clear only the message band to avoid stale trailing glyphs.
-  ttgo->tft->fillRect(DIG_LCD_X + 4, DIG_DUAL_Y - 20, DIG_LCD_W - 8, 68, DIG_LCD_BG);
+  ttgo->tft->fillRect(DIG_LCD_X + 4, DIG_DUAL_Y - 10, DIG_LCD_W - 8, 68, DIG_LCD_BG);
 
   const int maxW = DIG_LCD_W - 18;
   // Keep message text at font 4 for readability.
@@ -151,7 +151,7 @@ static void digDrawLastMsgRow() {
     line1[strlen(line1) - 1] = '\0';
   }
 
-  ttgo->tft->drawString(line1, 120, DIG_DUAL_Y - 4);
+  ttgo->tft->drawString(line1, 120, DIG_DUAL_Y + 16);
 
   const char* rest = msgBuf + split;
   while (*rest == ' ') rest++;
@@ -175,7 +175,7 @@ static void digDrawLastMsgRow() {
     line2[n - 1] = '.';
   }
 
-  ttgo->tft->drawString(line2, 120, DIG_DUAL_Y + 28);
+  ttgo->tft->drawString(line2, 120, DIG_DUAL_Y + 48);
 }
 
 static void drawClockScreenDigital() {
