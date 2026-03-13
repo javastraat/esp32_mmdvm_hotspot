@@ -86,6 +86,29 @@ static void handleApiStatus() {
   webServer.send(200, "application/json", j);
 }
 
+// ── /api/config — GET current config ─────────────────────────────────────────
+static void handleApiConfigGet() {
+  String j = "{";
+  j += "\"hiddenRics\":\"" + hiddenRicsToStr() + "\",";
+  j += "\"timeRic\":" + String(TIME_RIC) + ",";
+  j += "\"hostname\":\"" + String(DEFAULT_HOSTNAME) + "\",";
+  j += "\"ok\":true}";
+  webServer.send(200, "application/json", j);
+}
+
+// ── /api/config/hidden-rics — POST new comma-separated list ──────────────────
+static void handleApiConfigSaveRics() {
+  String csv = webServer.arg("plain");
+  csv.trim();
+  if (csv.length() == 0) {
+    webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"empty\"}");
+    return;
+  }
+  saveHiddenRics(csv);
+  Serial.printf("[config] hiddenRics saved: %s\n", hiddenRicsToStr().c_str());
+  webServer.send(200, "application/json", "{\"ok\":true}");
+}
+
 // ── / — dashboard page ────────────────────────────────────────────────────────
 static void handleRoot() {
   String h;
@@ -113,6 +136,11 @@ static void handleRoot() {
   h += ".badge{padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:bold;}";
   h += ".ok{background:#28a745;color:#fff;} .err{background:#dc3545;color:#fff;} .warn{background:#ffc107;color:#333;}";
   h += ".none{color:var(--muted);font-size:.9em;}";
+  h += "input[type=text]{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 8px;border-radius:4px;width:100%;font-family:monospace;font-size:.9em;box-sizing:border-box;}";
+  h += "button.save{margin-top:8px;padding:6px 16px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold;}";
+  h += "button.save:hover{opacity:.85;}";
+  h += ".msg{font-size:.8em;margin-top:6px;min-height:1em;}";
+  h += ".msg.ok{color:#28a745;} .msg.err{color:#dc3545;}";
   h += "</style></head><body>";
 
   // ── navbar ─────────────────────────────────────────────────────────────────
@@ -180,6 +208,17 @@ static void handleRoot() {
   h += "<div class='row'><span class='lbl'>Message</span><span class='val' id='p-msg' style='font-family:sans-serif;text-align:left'>-</span></div>";
   h += "</div></div>";
 
+  // Config card
+  h += "<div class='card'><h3>Config</h3>";
+  h += "<div class='row'><span class='lbl'>Time RIC</span><span class='val' id='cfg-tric'>-</span></div>";
+  h += "<div class='row'><span class='lbl'>Hostname</span><span class='val' id='cfg-host'>-</span></div>";
+  h += "<div style='margin-top:10px'>";
+  h += "<div class='lbl' style='margin-bottom:4px'>Hidden RICs (comma-separated)</div>";
+  h += "<input type='text' id='cfg-rics' placeholder='224,208,200,216'>";
+  h += "<button class='save' onclick='saveRics()'>Save</button>";
+  h += "<div class='msg' id='cfg-msg'></div>";
+  h += "</div></div>";
+
   h += "</div>"; // .grid
 
   // ── script ─────────────────────────────────────────────────────────────────
@@ -242,7 +281,23 @@ static void handleRoot() {
   h += "document.getElementById('p-ric').textContent=d.pagRic;";
   h += "document.getElementById('p-msg').textContent=d.pagMsg||'';}";
   h += "}).catch(function(){});}";
-  h += "poll();setInterval(poll,3000);";
+
+  h += "function loadConfig(){fetch('/api/config').then(function(r){return r.json();}).then(function(d){";
+  h += "document.getElementById('cfg-tric').textContent=d.timeRic||'-';";
+  h += "document.getElementById('cfg-host').textContent=d.hostname||'-';";
+  h += "document.getElementById('cfg-rics').value=d.hiddenRics||'';";
+  h += "}).catch(function(){});}";
+
+  h += "function saveRics(){";
+  h += "var v=document.getElementById('cfg-rics').value.trim();";
+  h += "var m=document.getElementById('cfg-msg');";
+  h += "m.className='msg';m.textContent='Saving...';";
+  h += "fetch('/api/config/hidden-rics',{method:'POST',body:v})";
+  h += ".then(function(r){return r.json();})";
+  h += ".then(function(d){m.className='msg '+(d.ok?'ok':'err');m.textContent=d.ok?'Saved!':d.error||'Error';})";
+  h += ".catch(function(){m.className='msg err';m.textContent='Request failed';});}";
+
+  h += "poll();setInterval(poll,3000);loadConfig();";
   h += "</script></body></html>";
 
   webServer.send(200, "text/html", h);
@@ -250,8 +305,10 @@ static void handleRoot() {
 
 // ── Call from setup() after WiFi connects ─────────────────────────────────────
 void setupWebServer() {
-  webServer.on("/",           handleRoot);
-  webServer.on("/api/status", handleApiStatus);
+  webServer.on("/",                       handleRoot);
+  webServer.on("/api/status",             handleApiStatus);
+  webServer.on("/api/config",             HTTP_GET,  handleApiConfigGet);
+  webServer.on("/api/config/hidden-rics", HTTP_POST, handleApiConfigSaveRics);
   webServer.begin();
   Serial.println("Web server started — http://twatch-espnow.local/");
 }

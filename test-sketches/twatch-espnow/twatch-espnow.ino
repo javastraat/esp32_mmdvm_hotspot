@@ -18,6 +18,7 @@
 // ── Select your T-Watch 2020 hardware revision ────────────────────────────────
 #define LILYGO_WATCH_2020_V1
 #include <LilyGoWatch.h>
+#include "config.h"
 
 #include <WiFi.h>
 #include <esp_now.h>
@@ -33,14 +34,62 @@ using fs::FS;
 TTGOClass *ttgo = nullptr;
 
 // ── Config ────────────────────────────────────────────────────────────────────
-#define TIME_RIC   224   // POCSAG RIC carrying date/time
+#define TIME_RIC   DEFAULT_TIME_RIC
 
-// RICs silently processed but never shown on the POCSAG screen
-static const uint32_t HIDDEN_RICS[] = { 224, 208, 200, 216 };
+// Hidden RICs — loaded from NVS, editable via web UI
+static uint32_t hiddenRics[MAX_HIDDEN_RICS];
+static int      hiddenRicCount = 0;
+
 static bool isHiddenRic(uint32_t ric) {
-  for (size_t i = 0; i < sizeof(HIDDEN_RICS) / sizeof(HIDDEN_RICS[0]); i++)
-    if (HIDDEN_RICS[i] == ric) return true;
+  for (int i = 0; i < hiddenRicCount; i++)
+    if (hiddenRics[i] == ric) return true;
   return false;
+}
+
+static void parseHiddenRicsStr(const char* str) {
+  hiddenRicCount = 0;
+  char buf[96];
+  strncpy(buf, str, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+  char* tok = strtok(buf, ",");
+  while (tok && hiddenRicCount < MAX_HIDDEN_RICS) {
+    long v = atol(tok);
+    if (v > 0) hiddenRics[hiddenRicCount++] = (uint32_t)v;
+    tok = strtok(nullptr, ",");
+  }
+}
+
+static String hiddenRicsToStr() {
+  String s;
+  for (int i = 0; i < hiddenRicCount; i++) {
+    if (i > 0) s += ',';
+    s += String(hiddenRics[i]);
+  }
+  return s;
+}
+
+static void loadHiddenRics() {
+  Preferences p;
+  p.begin("config", true);
+  String stored = p.getString("hiddenRics", "");
+  p.end();
+  if (stored.length() == 0) {
+    // First boot — write defaults to NVS
+    p.begin("config", false);
+    p.putString("hiddenRics", DEFAULT_HIDDEN_RICS);
+    p.end();
+    stored = DEFAULT_HIDDEN_RICS;
+  }
+  parseHiddenRicsStr(stored.c_str());
+  Serial.printf("[config] hiddenRics: %s\n", stored.c_str());
+}
+
+static void saveHiddenRics(const String& csv) {
+  parseHiddenRicsStr(csv.c_str());
+  Preferences p;
+  p.begin("config", false);
+  p.putString("hiddenRics", hiddenRicsToStr());
+  p.end();
 }
 
 // ── Packet types — must match system/system_espnow.h ─────────────────────────
@@ -264,6 +313,7 @@ void setup() {
   ttgo->power->clearIRQ();
 
   loadOnlineMode();   // restore persisted WiFi mode from NVS
+  loadHiddenRics();   // restore hidden RIC list from NVS (writes defaults on first boot)
 
   ttgo->tft->setRotation(0);
   ttgo->tft->fillScreen(TFT_BLACK);
@@ -310,11 +360,9 @@ void setup() {
     Serial.println("ESP-NOW ready");
   } else {
     // Online mode: connect to WiFi
-    #define WIFI_SSID "TechInc"
-    #define WIFI_PASS "itoldyoualready"
-    Serial.printf("Connecting to %s ...\n", WIFI_SSID);
+    Serial.printf("Connecting to %s ...\n", DEFAULT_WIFI_SSID);
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.begin(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASS);
 
     unsigned long t0 = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) {
@@ -324,7 +372,7 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("WiFi connected — IP: %s\n", WiFi.localIP().toString().c_str());
 
-      ArduinoOTA.setHostname("twatch-espnow");
+      ArduinoOTA.setHostname(DEFAULT_HOSTNAME);
       ArduinoOTA.setPassword("mmdvm");
       ArduinoOTA
         .onStart([]()    { Serial.println("OTA start");  })
@@ -348,8 +396,8 @@ void setup() {
       ttgo->tft->setTextDatum(MC_DATUM);
       ttgo->tft->setTextColor(TFT_RED, TFT_BLACK);
       ttgo->tft->setTextFont(2);
-      ttgo->tft->drawString("WiFi FAILED", 120, 110);
-      ttgo->tft->drawString(WIFI_SSID,     120, 135);
+      ttgo->tft->drawString("WiFi FAILED",      120, 110);
+      ttgo->tft->drawString(DEFAULT_WIFI_SSID,   120, 135);
     }
   }
 
