@@ -8,17 +8,17 @@
 //   Back       : return to previous screen
 
 // Helper: draw a labelled [-] bar [+] row
-// ly = top of the control row (label drawn 12px above)
+// ly = top of the control row (label drawn 12px above, centered)
 static void qsDraw3Part(const char* label, int value, int maxVal,
                         uint16_t barColor, int ly) {
   TFT_eSPI *tft = ttgo->tft;
   const int BTN_W = 40, BTN_H = 30, BAR_Y = ly, ROW_H = BTN_H;
 
   // Label
-  tft->setTextDatum(TL_DATUM);
+  tft->setTextDatum(TC_DATUM);
   tft->setTextFont(2);
   tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft->drawString(label, 12, ly - 16);
+  tft->drawString(label, 120, ly - 16);
 
   // [-] button  x=10
   tft->fillRoundRect(10, ly, BTN_W, BTN_H, 7, TFT_NAVY);
@@ -69,27 +69,23 @@ static void drawQuickSettingsScreen() {
   // ── Volume      (label top = 103, control y = 117)
   qsDraw3Part("Vibration", currentVolume, 100, 0xFD20, 117);  // orange bar
 
-  // ── Vibration toggle  y=170..200
-  tft->setTextDatum(TL_DATUM);
-  tft->setTextFont(2);
-  tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft->drawString("Vibration", 12, 154);
+  // ── Vibration toggle  y=158..193
 
   uint16_t vbg = vibeEnabled ? 0x03C0 : 0x3186;
-  tft->fillRoundRect(10, 170, 220, 30, 9, vbg);
-  tft->drawRoundRect(10, 170, 220, 30, 9, TFT_WHITE);
+  tft->fillRoundRect(10, 158, 220, 36, 10, vbg);
+  tft->drawRoundRect(10, 158, 220, 36, 10, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
-  tft->setTextFont(4);
+  tft->setTextFont(2);
   tft->setTextColor(TFT_WHITE, vbg);
-  tft->drawString(vibeEnabled ? "ON" : "OFF", 120, 185);
+  tft->drawString(vibeEnabled ? "Vibration ON" : "Vibration OFF", 120, 176);
 
-  // ── Back button  y=206..236 (same size as vibration toggle)
-  tft->fillRoundRect(10, 206, 220, 30, 9, 0x7800);
-  tft->drawRoundRect(10, 206, 220, 30, 9, TFT_WHITE);
+  // ── Back button  y=200..235 (same size as vibration toggle)
+  tft->fillRoundRect(10, 200, 220, 36, 10, 0x7800);
+  tft->drawRoundRect(10, 200, 220, 36, 10, TFT_WHITE);
   tft->setTextFont(2);
   tft->setTextDatum(MC_DATUM);
   tft->setTextColor(TFT_WHITE, 0x7800);
-  tft->drawString("BACK", 120, 221);
+  tft->drawString("BACK", 120, 218);
 }
 
 // ─── touch handler ────────────────────────────────────────────────────────────
@@ -123,16 +119,16 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
     return;
   }
 
-  // ── Vibration toggle  y=170..200 ────────────────────────────────────────────
-  if (ty >= 170 && ty <= 200) {
+  // ── Vibration toggle  y=158..193 ────────────────────────────────────────────
+  if (ty >= 158 && ty <= 193) {
     vibeEnabled = !vibeEnabled;
     saveBrightnessVibe();
     needsRedraw = true;
     return;
   }
 
-  // ── Back  y=206..236 ────────────────────────────────────────────────────────
-  if (ty >= 206 && ty <= 236) {
+  // ── Back  y=200..235 ────────────────────────────────────────────────────────
+  if (ty >= 200 && ty <= 235) {
     currentScreen   = prevScreen;
     lastDrawnSecond = -1;
     needsRedraw     = true;
