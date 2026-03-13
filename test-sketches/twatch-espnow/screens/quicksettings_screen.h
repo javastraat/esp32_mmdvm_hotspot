@@ -75,14 +75,14 @@ static void drawQuickSettingsScreen() {
   tft->fillRoundRect(10, 158, 220, 36, 10, vbg);
   tft->drawRoundRect(10, 158, 220, 36, 10, TFT_WHITE);
   tft->setTextDatum(MC_DATUM);
-  tft->setTextFont(2);
+  tft->setTextFont(4);
   tft->setTextColor(TFT_WHITE, vbg);
   tft->drawString(vibeEnabled ? "Vibration ON" : "Vibration OFF", 120, 176);
 
   // ── Back button  y=200..235 (same size as vibration toggle)
   tft->fillRoundRect(10, 200, 220, 36, 10, 0x7800);
   tft->drawRoundRect(10, 200, 220, 36, 10, TFT_WHITE);
-  tft->setTextFont(2);
+  tft->setTextFont(4);
   tft->setTextDatum(MC_DATUM);
   tft->setTextColor(TFT_WHITE, 0x7800);
   tft->drawString("BACK", 120, 218);
