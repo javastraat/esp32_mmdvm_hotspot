@@ -1,116 +1,5 @@
 ##############################################################
 
-twatch.name=LilyGo T-Watch 2020
-
-twatch.bootloader.tool=esptool_py
-twatch.bootloader.tool.default=esptool_py
-
-twatch.upload.tool=esptool_py
-twatch.upload.tool.default=esptool_py
-twatch.upload.tool.network=esp_ota
-twatch.upload.maximum_size=8257536
-twatch.upload.maximum_data_size=327680
-twatch.upload.flags=
-twatch.upload.extra_flags=
-twatch.upload.use_1200bps_touch=false
-twatch.upload.wait_for_upload_port=false
-twatch.upload.speed=921600
-
-twatch.serial.disableDTR=false
-twatch.serial.disableRTS=false
-
-twatch.build.tarch=xtensa
-twatch.build.bootloader_addr=0x1000
-twatch.build.target=esp32
-twatch.build.mcu=esp32
-twatch.build.core=esp32
-twatch.build.variant=esp32
-twatch.build.board=ESP32_DEV
-
-twatch.build.f_cpu=240000000L
-twatch.build.flash_size=16MB
-twatch.build.flash_freq=80m
-twatch.build.flash_mode=dio
-twatch.build.boot=qio
-twatch.build.partitions=twatch_16MB
-twatch.build.defines=-DBOARD_HAS_PSRAM
-twatch.build.loop_core=-DARDUINO_RUNNING_CORE=1
-twatch.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
-twatch.build.code_debug=0
-
-## PSRAM
-twatch.menu.PSRAM.enabled=Enabled
-twatch.menu.PSRAM.enabled.build.defines=-DBOARD_HAS_PSRAM
-twatch.menu.PSRAM.disabled=Disabled
-twatch.menu.PSRAM.disabled.build.defines=
-
-## Flash Mode
-twatch.menu.FlashMode.qio=QIO 80MHz
-twatch.menu.FlashMode.qio.build.flash_mode=dio
-twatch.menu.FlashMode.qio.build.boot=qio
-twatch.menu.FlashMode.qio.build.flash_freq=80m
-twatch.menu.FlashMode.dio=DIO 80MHz
-twatch.menu.FlashMode.dio.build.flash_mode=dio
-twatch.menu.FlashMode.dio.build.boot=dio
-twatch.menu.FlashMode.dio.build.flash_freq=80m
-
-## Flash Size
-twatch.menu.FlashSize.16M=16MB (128Mb)
-twatch.menu.FlashSize.16M.build.flash_size=16MB
-
-## Partition Scheme
-twatch.menu.PartitionScheme.twatch_16MB=16MB Flash (8MB APP/OTA + 192KB SPIFFS)
-twatch.menu.PartitionScheme.twatch_16MB.build.partitions=twatch_16MB
-twatch.menu.PartitionScheme.twatch_16MB.upload.maximum_size=8257536
-
-## CPU Frequency
-twatch.menu.CPUFreq.240=240MHz (WiFi/BT)
-twatch.menu.CPUFreq.240.build.f_cpu=240000000L
-twatch.menu.CPUFreq.160=160MHz (WiFi)
-twatch.menu.CPUFreq.160.build.f_cpu=160000000L
-twatch.menu.CPUFreq.80=80MHz (WiFi)
-twatch.menu.CPUFreq.80.build.f_cpu=80000000L
-
-## Loop Core
-twatch.menu.LoopCore.1=Core 1
-twatch.menu.LoopCore.1.build.loop_core=-DARDUINO_RUNNING_CORE=1
-twatch.menu.LoopCore.0=Core 0
-twatch.menu.LoopCore.0.build.loop_core=-DARDUINO_RUNNING_CORE=0
-
-## Events Core
-twatch.menu.EventsCore.1=Core 1
-twatch.menu.EventsCore.1.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
-twatch.menu.EventsCore.0=Core 0
-twatch.menu.EventsCore.0.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=0
-
-## Upload Speed
-twatch.menu.UploadSpeed.921600=921600
-twatch.menu.UploadSpeed.921600.upload.speed=921600
-twatch.menu.UploadSpeed.460800=460800
-twatch.menu.UploadSpeed.460800.upload.speed=460800
-twatch.menu.UploadSpeed.115200=115200
-twatch.menu.UploadSpeed.115200.upload.speed=115200
-
-## Debug Level
-twatch.menu.DebugLevel.none=None
-twatch.menu.DebugLevel.none.build.code_debug=0
-twatch.menu.DebugLevel.error=Error
-twatch.menu.DebugLevel.error.build.code_debug=1
-twatch.menu.DebugLevel.info=Info
-twatch.menu.DebugLevel.info.build.code_debug=3
-twatch.menu.DebugLevel.debug=Debug
-twatch.menu.DebugLevel.debug.build.code_debug=4
-twatch.menu.DebugLevel.verbose=Verbose
-twatch.menu.DebugLevel.verbose.build.code_debug=5
-
-## Erase Flash
-twatch.menu.EraseFlash.none=Disabled
-twatch.menu.EraseFlash.none.upload.erase_cmd=
-twatch.menu.EraseFlash.all=Enabled
-twatch.menu.EraseFlash.all.upload.erase_cmd=-e
-
-##############################################################
-
 mmdvm.name=ESP32 MMDVM Board
 
 mmdvm.bootloader.tool=esptool_py
@@ -325,3 +214,224 @@ mmdvm.menu.ZigbeeMode.zczr=Zigbee ZCZR (coordinator/router)
 mmdvm.menu.ZigbeeMode.zczr.build.zigbee_mode=-DZIGBEE_MODE_ZCZR
 mmdvm.menu.ZigbeeMode.zczr.build.zigbee_libs=-lesp_zb_api.zczr -lzboss_stack.zczr -lzboss_port
 
+##############################################################
+
+espnowatch.name= ESPNOW LilyGo T-Watch 2020
+
+espnowatch.bootloader.tool=esptool_py
+espnowatch.bootloader.tool.default=esptool_py
+
+espnowatch.upload.tool=esptool_py
+espnowatch.upload.tool.default=esptool_py
+espnowatch.upload.tool.network=esp_ota
+espnowatch.upload.maximum_size=8257536
+espnowatch.upload.maximum_data_size=327680
+espnowatch.upload.flags=
+espnowatch.upload.extra_flags=
+espnowatch.upload.use_1200bps_touch=false
+espnowatch.upload.wait_for_upload_port=false
+espnowatch.upload.speed=921600
+
+espnowatch.serial.disableDTR=false
+espnowatch.serial.disableRTS=false
+
+espnowatch.build.tarch=xtensa
+espnowatch.build.bootloader_addr=0x1000
+espnowatch.build.target=esp32
+espnowatch.build.mcu=esp32
+espnowatch.build.core=esp32
+espnowatch.build.variant=esp32
+espnowatch.build.board=ESP32_DEV
+
+espnowatch.build.f_cpu=240000000L
+espnowatch.build.flash_size=16MB
+espnowatch.build.flash_freq=80m
+espnowatch.build.flash_mode=dio
+espnowatch.build.boot=qio
+espnowatch.build.partitions=twatch_16MB
+espnowatch.build.defines=-DBOARD_HAS_PSRAM
+espnowatch.build.loop_core=-DARDUINO_RUNNING_CORE=1
+espnowatch.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+espnowatch.build.code_debug=0
+
+## PSRAM
+espnowatch.menu.PSRAM.enabled=Enabled
+espnowatch.menu.PSRAM.enabled.build.defines=-DBOARD_HAS_PSRAM
+espnowatch.menu.PSRAM.disabled=Disabled
+espnowatch.menu.PSRAM.disabled.build.defines=
+
+## Flash Mode
+espnowatch.menu.FlashMode.qio=QIO 80MHz
+espnowatch.menu.FlashMode.qio.build.flash_mode=dio
+espnowatch.menu.FlashMode.qio.build.boot=qio
+espnowatch.menu.FlashMode.qio.build.flash_freq=80m
+espnowatch.menu.FlashMode.dio=DIO 80MHz
+espnowatch.menu.FlashMode.dio.build.flash_mode=dio
+espnowatch.menu.FlashMode.dio.build.boot=dio
+espnowatch.menu.FlashMode.dio.build.flash_freq=80m
+
+## Flash Size
+espnowatch.menu.FlashSize.16M=16MB (128Mb)
+espnowatch.menu.FlashSize.16M.build.flash_size=16MB
+
+## Partition Scheme
+espnowatch.menu.PartitionScheme.twatch_16MB=16MB Flash (8MB APP/OTA + 192KB SPIFFS)
+espnowatch.menu.PartitionScheme.twatch_16MB.build.partitions=twatch_16MB
+espnowatch.menu.PartitionScheme.twatch_16MB.upload.maximum_size=8257536
+
+## CPU Frequency
+espnowatch.menu.CPUFreq.240=240MHz (WiFi/BT)
+espnowatch.menu.CPUFreq.240.build.f_cpu=240000000L
+espnowatch.menu.CPUFreq.160=160MHz (WiFi)
+espnowatch.menu.CPUFreq.160.build.f_cpu=160000000L
+espnowatch.menu.CPUFreq.80=80MHz (WiFi)
+espnowatch.menu.CPUFreq.80.build.f_cpu=80000000L
+
+## Loop Core
+espnowatch.menu.LoopCore.1=Core 1
+espnowatch.menu.LoopCore.1.build.loop_core=-DARDUINO_RUNNING_CORE=1
+espnowatch.menu.LoopCore.0=Core 0
+espnowatch.menu.LoopCore.0.build.loop_core=-DARDUINO_RUNNING_CORE=0
+
+## Events Core
+espnowatch.menu.EventsCore.1=Core 1
+espnowatch.menu.EventsCore.1.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+espnowatch.menu.EventsCore.0=Core 0
+espnowatch.menu.EventsCore.0.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=0
+
+## Upload Speed
+espnowatch.menu.UploadSpeed.921600=921600
+espnowatch.menu.UploadSpeed.921600.upload.speed=921600
+espnowatch.menu.UploadSpeed.460800=460800
+espnowatch.menu.UploadSpeed.460800.upload.speed=460800
+espnowatch.menu.UploadSpeed.115200=115200
+espnowatch.menu.UploadSpeed.115200.upload.speed=115200
+
+## Debug Level
+espnowatch.menu.DebugLevel.none=None
+espnowatch.menu.DebugLevel.none.build.code_debug=0
+espnowatch.menu.DebugLevel.error=Error
+espnowatch.menu.DebugLevel.error.build.code_debug=1
+espnowatch.menu.DebugLevel.info=Info
+espnowatch.menu.DebugLevel.info.build.code_debug=3
+espnowatch.menu.DebugLevel.debug=Debug
+espnowatch.menu.DebugLevel.debug.build.code_debug=4
+espnowatch.menu.DebugLevel.verbose=Verbose
+espnowatch.menu.DebugLevel.verbose.build.code_debug=5
+
+## Erase Flash
+espnowatch.menu.EraseFlash.none=Disabled
+espnowatch.menu.EraseFlash.none.upload.erase_cmd=
+espnowatch.menu.EraseFlash.all=Enabled
+espnowatch.menu.EraseFlash.all.upload.erase_cmd=-e
+
+##############################################################
+
+twatch.name= LilyGo T-Watch 2020
+
+twatch.bootloader.tool=esptool_py
+twatch.bootloader.tool.default=esptool_py
+
+twatch.upload.tool=esptool_py
+twatch.upload.tool.default=esptool_py
+twatch.upload.tool.network=esp_ota
+twatch.upload.maximum_size=8257536
+twatch.upload.maximum_data_size=327680
+twatch.upload.flags=
+twatch.upload.extra_flags=
+twatch.upload.use_1200bps_touch=false
+twatch.upload.wait_for_upload_port=false
+twatch.upload.speed=921600
+
+twatch.serial.disableDTR=false
+twatch.serial.disableRTS=false
+
+twatch.build.tarch=xtensa
+twatch.build.bootloader_addr=0x1000
+twatch.build.target=esp32
+twatch.build.mcu=esp32
+twatch.build.core=esp32
+twatch.build.variant=esp32
+twatch.build.board=ESP32_DEV
+
+twatch.build.f_cpu=240000000L
+twatch.build.flash_size=16MB
+twatch.build.flash_freq=80m
+twatch.build.flash_mode=dio
+twatch.build.boot=qio
+twatch.build.partitions=twatch_16MB
+twatch.build.defines=-DBOARD_HAS_PSRAM
+twatch.build.loop_core=-DARDUINO_RUNNING_CORE=1
+twatch.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+twatch.build.code_debug=0
+
+## PSRAM
+twatch.menu.PSRAM.enabled=Enabled
+twatch.menu.PSRAM.enabled.build.defines=-DBOARD_HAS_PSRAM
+twatch.menu.PSRAM.disabled=Disabled
+twatch.menu.PSRAM.disabled.build.defines=
+
+## Flash Mode
+twatch.menu.FlashMode.qio=QIO 80MHz
+twatch.menu.FlashMode.qio.build.flash_mode=dio
+twatch.menu.FlashMode.qio.build.boot=qio
+twatch.menu.FlashMode.qio.build.flash_freq=80m
+twatch.menu.FlashMode.dio=DIO 80MHz
+twatch.menu.FlashMode.dio.build.flash_mode=dio
+twatch.menu.FlashMode.dio.build.boot=dio
+twatch.menu.FlashMode.dio.build.flash_freq=80m
+
+## Flash Size
+twatch.menu.FlashSize.16M=16MB (128Mb)
+twatch.menu.FlashSize.16M.build.flash_size=16MB
+
+## Partition Scheme
+twatch.menu.PartitionScheme.twatch_16MB=16MB Flash (8MB APP/OTA + 192KB SPIFFS)
+twatch.menu.PartitionScheme.twatch_16MB.build.partitions=twatch_16MB
+twatch.menu.PartitionScheme.twatch_16MB.upload.maximum_size=8257536
+
+## CPU Frequency
+twatch.menu.CPUFreq.240=240MHz (WiFi/BT)
+twatch.menu.CPUFreq.240.build.f_cpu=240000000L
+twatch.menu.CPUFreq.160=160MHz (WiFi)
+twatch.menu.CPUFreq.160.build.f_cpu=160000000L
+twatch.menu.CPUFreq.80=80MHz (WiFi)
+twatch.menu.CPUFreq.80.build.f_cpu=80000000L
+
+## Loop Core
+twatch.menu.LoopCore.1=Core 1
+twatch.menu.LoopCore.1.build.loop_core=-DARDUINO_RUNNING_CORE=1
+twatch.menu.LoopCore.0=Core 0
+twatch.menu.LoopCore.0.build.loop_core=-DARDUINO_RUNNING_CORE=0
+
+## Events Core
+twatch.menu.EventsCore.1=Core 1
+twatch.menu.EventsCore.1.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
+twatch.menu.EventsCore.0=Core 0
+twatch.menu.EventsCore.0.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=0
+
+## Upload Speed
+twatch.menu.UploadSpeed.921600=921600
+twatch.menu.UploadSpeed.921600.upload.speed=921600
+twatch.menu.UploadSpeed.460800=460800
+twatch.menu.UploadSpeed.460800.upload.speed=460800
+twatch.menu.UploadSpeed.115200=115200
+twatch.menu.UploadSpeed.115200.upload.speed=115200
+
+## Debug Level
+twatch.menu.DebugLevel.none=None
+twatch.menu.DebugLevel.none.build.code_debug=0
+twatch.menu.DebugLevel.error=Error
+twatch.menu.DebugLevel.error.build.code_debug=1
+twatch.menu.DebugLevel.info=Info
+twatch.menu.DebugLevel.info.build.code_debug=3
+twatch.menu.DebugLevel.debug=Debug
+twatch.menu.DebugLevel.debug.build.code_debug=4
+twatch.menu.DebugLevel.verbose=Verbose
+twatch.menu.DebugLevel.verbose.build.code_debug=5
+
+## Erase Flash
+twatch.menu.EraseFlash.none=Disabled
+twatch.menu.EraseFlash.none.upload.erase_cmd=
+twatch.menu.EraseFlash.all=Enabled
+twatch.menu.EraseFlash.all.upload.erase_cmd=-e
