@@ -168,59 +168,49 @@ static void drawClockHands(int h, int m, int s) {
   ttgo->tft->fillCircle(CX, CY, 3, TFT_WHITE);
 }
 
-// Battery status bar — drawn below the navigation dots (y ≈ 226–239)
+// Battery info — small icon + % at top-right corner.
+// Clears only its own strip; never touches the clock face below.
 static void drawBatteryInfo() {
-  // Clear the strip
-  ttgo->tft->fillRect(0, 225, 240, 15, CLK_BG);
+  // Clear top-right strip (x=155..239, y=1..18)
+  ttgo->tft->fillRect(155, 1, 84, 18, CLK_BG);
 
   if (!ttgo->power->isBatteryConnect()) return;
 
   int  pct      = (int)ttgo->power->getBattPercentage();
   bool charging = ttgo->power->isChargeing();
-  bool vbus     = ttgo->power->isVBUSPlug();
 
   // Colour: green > 50 %, yellow > 20 %, red otherwise
-  uint32_t fillCol = pct > 50 ? TFT_GREEN : (pct > 20 ? TFT_YELLOW : TFT_RED);
+  uint32_t col = pct > 50 ? TFT_GREEN : (pct > 20 ? TFT_YELLOW : TFT_RED);
 
-  // Small battery body (20×9) at left edge
-  const int bx = 4, by = 228;
-  ttgo->tft->drawRect(bx, by, 20, 9, TFT_WHITE);
-  // Terminal nub
-  ttgo->tft->fillRect(bx + 20, by + 2, 2, 5, TFT_WHITE);
-  // Fill (max 17 px)
-  int fw = (17 * pct) / 100;
-  if (fw > 0) ttgo->tft->fillRect(bx + 2, by + 2, fw, 5, fillCol);
+  // Small battery body 18×9, positioned at top-right corner
+  const int bx = 170, by = 6;
+  ttgo->tft->drawRect(bx, by, 18, 9, TFT_WHITE);
+  ttgo->tft->fillRect(bx + 18, by + 2, 2, 5, TFT_WHITE);          // terminal nub
+  int fw = (15 * pct) / 100;
+  if (fw > 0) ttgo->tft->fillRect(bx + 1, by + 1, fw, 7, col);    // charge fill
 
-  // Charging bolt: small "+" inside icon when charging
+  // Charging bolt — small "+" overlaid on icon
   if (charging) {
-    ttgo->tft->drawFastHLine(bx + 7, by + 4, 6, TFT_WHITE);
-    ttgo->tft->drawFastVLine(bx + 10, by + 2, 5, TFT_WHITE);
+    ttgo->tft->drawFastHLine(bx + 6, by + 4, 6, TFT_WHITE);
+    ttgo->tft->drawFastVLine(bx + 9, by + 2, 5, TFT_WHITE);
   }
 
-  // Percentage text
-  char buf[10];
-  if (charging) snprintf(buf, sizeof(buf), "+%d%%", pct);
-  else          snprintf(buf, sizeof(buf),  "%d%%", pct);
+  // Percentage text to the right of the icon
+  char buf[8];
+  snprintf(buf, sizeof(buf), "%d%%", pct);
   ttgo->tft->setTextFont(1);
-  ttgo->tft->setTextColor(TFT_WHITE, CLK_BG);
+  ttgo->tft->setTextColor(col, CLK_BG);
   ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(buf, bx + 26, by + 4);
-
-  // USB indicator on right side
-  if (vbus) {
-    ttgo->tft->setTextDatum(MR_DATUM);
-    ttgo->tft->setTextColor(TFT_CYAN, CLK_BG);
-    ttgo->tft->drawString("USB", 236, by + 4);
-  }
+  ttgo->tft->drawString(buf, bx + 22, by + 4);
 }
 
 static void drawClockDots() {
   for (int i = 0; i < SCREEN_COUNT; i++) {
     int x = 120 + (int)((i - (SCREEN_COUNT - 1) / 2.0) * 12);
     if (i == currentScreen)
-      ttgo->tft->fillCircle(x, 220, 3, CLK_HAND);
+      ttgo->tft->fillCircle(x, 214, 3, CLK_HAND);
     else
-      ttgo->tft->drawCircle(x, 220, 3, TFT_DARKGREY);
+      ttgo->tft->drawCircle(x, 214, 3, TFT_DARKGREY);
   }
 }
 
@@ -234,7 +224,7 @@ static void drawClockScreen() {
     drawClockStaticFace();
     if (hasTime) drawDateBoxes(&t);
     if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
-    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
+    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall( 58,  8, TFT_GREEN);
     drawClockDots();
     drawBatteryInfo();
     prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
@@ -242,7 +232,7 @@ static void drawClockScreen() {
     // Incremental: erase old hands + restore what they covered
     eraseClockHands(hasTime ? &t : nullptr);
     if (espnowSynced)                              drawPagerIcon( 25, 10, TFT_RED);
-    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
+    if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall( 58,  8, TFT_GREEN);
     drawClockDots();
     drawBatteryInfo();
   }
