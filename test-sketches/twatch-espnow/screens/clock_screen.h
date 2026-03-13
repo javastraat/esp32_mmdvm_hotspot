@@ -50,7 +50,7 @@ static void drawTopLeftIcons() {
   }
 }
 
-// Battery icon + % right-aligned at top-right corner.
+// Battery % + icon right-aligned at top-right corner.
 static void drawBatteryInfo() {
   ttgo->tft->fillRect(155, 1, 84, 18, CLK_BG);
   if (!ttgo->power->isBatteryConnect()) return;
@@ -65,21 +65,26 @@ static void drawBatteryInfo() {
   int textW = ttgo->tft->textWidth(buf);
 
   const int by = 6;
-  int bx = 237 - 20 - 2 - textW;
+  int iconX = 237 - 20;
+  int bodyX = iconX + 2;
 
-  ttgo->tft->drawRect(bx, by, 18, 9, TFT_WHITE);
-  ttgo->tft->fillRect(bx + 18, by + 2, 2, 5, TFT_WHITE);
+  // Mirrored battery icon (nub on left).
+  ttgo->tft->drawRect(bodyX, by, 18, 9, TFT_WHITE);
+  ttgo->tft->fillRect(iconX, by + 2, 2, 5, TFT_WHITE);
   int fw = (15 * pct) / 100;
-  if (fw > 0) ttgo->tft->fillRect(bx + 1, by + 1, fw, 7, col);
+  if (fw > 0) {
+    int fillX = bodyX + 16 - fw;
+    ttgo->tft->fillRect(fillX, by + 1, fw, 7, col);
+  }
 
   if (charging) {
-    ttgo->tft->drawFastHLine(bx + 6, by + 4, 6, TFT_WHITE);
-    ttgo->tft->drawFastVLine(bx + 9, by + 2, 5, TFT_WHITE);
+    ttgo->tft->drawFastHLine(bodyX + 6, by + 4, 6, TFT_WHITE);
+    ttgo->tft->drawFastVLine(bodyX + 9, by + 2, 5, TFT_WHITE);
   }
 
   ttgo->tft->setTextColor(col, CLK_BG);
-  ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(buf, bx + 22, by + 4);
+  ttgo->tft->setTextDatum(MR_DATUM);
+  ttgo->tft->drawString(buf, iconX - 2, by + 4);
 }
 
 // Navigation dots — centred, one per tap-cycle screen.

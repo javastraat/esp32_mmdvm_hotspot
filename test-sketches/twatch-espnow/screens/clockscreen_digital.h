@@ -1,6 +1,6 @@
 // ── Digital watchface ─────────────────────────────────────────────────────────
 // Full-screen dark LCD layout with segmented main time,
-// day/date header, and dual-time lower row.
+// day/date header, and last-message lower row.
 // Shared helpers (drawTopLeftIcons, drawBatteryInfo, drawClockDots, CLK_BG,
 // CLK_HAND) are defined in clock_screen.h which includes this file.
 #pragma once
@@ -23,21 +23,14 @@
 #define DIG_TEXT_MAIN  TFT_WHITE
 #define DIG_TEXT_DIM   0xAD55
 
-static void digDrawSignalGlyph(int x, int y, uint32_t color) {
-  ttgo->tft->drawPixel(x, y, color);
-  ttgo->tft->drawPixel(x + 1, y, color);
-  ttgo->tft->drawCircle(x + 4, y, 2, color);
-  ttgo->tft->drawCircle(x + 8, y, 4, color);
-}
-
 static void digDrawStaticSkin() {
   ttgo->tft->fillScreen(CLK_BG);
 
   ttgo->tft->fillRect(DIG_LCD_X, DIG_LCD_Y, DIG_LCD_W, DIG_LCD_H, DIG_LCD_BG);
 
-  ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV1_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
-  ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV2_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
-  ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV3_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
+  //ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV1_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
+  ttgo->tft->drawFastHLine(DIG_LCD_X + 10, DIG_DIV2_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
+  //ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV3_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
 }
 
 // Per-area draw helpers — all use setTextColor(fg, bg) so TFT_eSPI
@@ -68,13 +61,11 @@ static void digDrawDateRow(const struct tm* shown, bool hasTime) {
   }
 }
 
-static void digDrawAmPmAlm(bool pm, bool use24h) {
+static void digDrawModeLabel(bool pm, bool use24h) {
   ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(DIG_TEXT_DIM, DIG_LCD_BG);
-  ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(use24h ? "24H" : (pm ? "PM" : "AM"), DIG_LCD_X + 10, 94);
+  ttgo->tft->setTextColor(TFT_RED, DIG_LCD_BG);
   ttgo->tft->setTextDatum(MR_DATUM);
-  ttgo->tft->drawString("ALM", DIG_LCD_X + DIG_LCD_W - 10, 94);
+  ttgo->tft->drawString(use24h ? "24H" : (pm ? "PM" : "AM"), DIG_LCD_X + DIG_LCD_W - 10, 94);
 }
 
 static void digDrawMainTime(int h24, int m, int s) {
@@ -88,8 +79,8 @@ static void digDrawMainTime(int h24, int m, int s) {
   snprintf(mainBuf, sizeof(mainBuf), "%02d%c%02d", shownHour, (s & 1) ? ':' : ' ', m);
   ttgo->tft->setTextFont(7);
   ttgo->tft->setTextColor(DIG_TEXT_MAIN, DIG_LCD_BG);
-  ttgo->tft->setTextDatum(MR_DATUM);
-  ttgo->tft->drawString(mainBuf, 232, DIG_MAIN_Y);
+  ttgo->tft->setTextDatum(MC_DATUM);
+  ttgo->tft->drawString(mainBuf, 90, DIG_MAIN_Y);
 }
 
 static void digDrawSec(int s) {
@@ -97,26 +88,39 @@ static void digDrawSec(int s) {
   snprintf(secBuf, sizeof(secBuf), "%02d", s);
   ttgo->tft->setTextFont(4);
   ttgo->tft->setTextColor(CLK_HAND, DIG_LCD_BG);
-  ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(secBuf, DIG_LCD_X + 10, 117);
+  ttgo->tft->setTextDatum(MR_DATUM);
+  ttgo->tft->drawString(secBuf, DIG_LCD_X + DIG_LCD_W - 10, 117);
 }
 
-static void digDrawDualRow(int dualH, int dualM) {
-  char dualBuf[6];
-  snprintf(dualBuf, sizeof(dualBuf), "%02d:%02d", dualH, dualM);
-  digDrawSignalGlyph(DIG_LCD_X + 10, DIG_DUAL_Y - 4, DIG_TEXT_DIM);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(DIG_TEXT_DIM, DIG_LCD_BG);
-  ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString("P", DIG_LCD_X + 26, DIG_DUAL_Y - 1);
+static void digDrawLastMsgRow() {
+  char msgBuf[48];
+
+  if (lastMsg[0] != '\0') {
+    strncpy(msgBuf, lastMsg, sizeof(msgBuf) - 1);
+    msgBuf[sizeof(msgBuf) - 1] = '\0';
+  } else if (lastDmrSrc != 0 || lastDmrDst != 0) {
+    snprintf(msgBuf, sizeof(msgBuf), "DMR %u>%u", lastDmrSrc, lastDmrDst);
+  } else {
+    strncpy(msgBuf, "NO MESSAGES", sizeof(msgBuf) - 1);
+    msgBuf[sizeof(msgBuf) - 1] = '\0';
+  }
+
+  const int maxW = DIG_LCD_W - 16;
   ttgo->tft->setTextFont(4);
+  while (strlen(msgBuf) > 0 && ttgo->tft->textWidth(msgBuf) > maxW) {
+    msgBuf[strlen(msgBuf) - 1] = '\0';
+  }
+
+  if (lastMsg[0] != '\0' && strlen(lastMsg) > strlen(msgBuf) && strlen(msgBuf) > 3) {
+    size_t n = strlen(msgBuf);
+    msgBuf[n - 3] = '.';
+    msgBuf[n - 2] = '.';
+    msgBuf[n - 1] = '.';
+  }
+
   ttgo->tft->setTextColor(DIG_TEXT_MAIN, DIG_LCD_BG);
   ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->drawString(dualBuf, 123, DIG_DUAL_Y);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(DIG_TEXT_DIM, DIG_LCD_BG);
-  ttgo->tft->setTextDatum(MR_DATUM);
-  ttgo->tft->drawString("T2", DIG_LCD_X + DIG_LCD_W - 10, DIG_DUAL_Y - 1);
+  ttgo->tft->drawString(msgBuf, 120, DIG_DUAL_Y +10);
 }
 
 static void drawClockScreenDigital() {
@@ -136,16 +140,6 @@ static void drawClockScreenDigital() {
   int m = shown.tm_min;
   int s = shown.tm_sec;
 
-  int dualH = (h + 1) % 24;
-  int dualM = m;
-  if (hasTime) {
-    time_t now = time(nullptr);
-    struct tm utc;
-    gmtime_r(&now, &utc);
-    dualH = utc.tm_hour;
-    dualM = utc.tm_min;
-  }
-
   bool pm = (h >= 12);
 
   bool firstDraw = (lastDrawnSecond == -1);
@@ -164,9 +158,9 @@ static void drawClockScreenDigital() {
 
   // Main time + AM/PM + dual time: on first draw or every minute.
   if (firstDraw || m != digLastMinute) {
-    digDrawAmPmAlm(pm, clock24h);
+    digDrawModeLabel(pm, clock24h);
     digDrawMainTime(h, m, s);
-    digDrawDualRow(dualH, dualM);
+    digDrawLastMsgRow();
     digLastMinute = m;
   } else {
     // Every other second: just blink the colon in-place (tiny overprint).
