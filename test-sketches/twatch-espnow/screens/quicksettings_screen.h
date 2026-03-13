@@ -51,6 +51,16 @@ static void qsDraw3Part(const char* label, int value, int maxVal,
   tft->drawString(buf, 123, ly + BTN_H / 2);
 }
 
+// Message-style haptic preview for settings changes.
+static void qsHapticPreview(bool force = false) {
+  if (!ttgo) return;
+  if (!force && !vibeEnabled) return;
+  int d = max(20, (80 * (int)currentVolume) / 100);  // same scaling as message buzz
+  ttgo->motor->onec(d);
+  delay(100);
+  ttgo->motor->onec(d);
+}
+
 // ─── draw ─────────────────────────────────────────────────────────────────────
 static void drawQuickSettingsScreen() {
   TFT_eSPI *tft = ttgo->tft;
@@ -107,6 +117,7 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
 
   // ── Volume row  y=117..147 ──────────────────────────────────────────────────
   if (ty >= 117 && ty <= 147) {
+    int oldVolume = currentVolume;
     if (tx >= 10 && tx <= 50) {                          // [-]
       if (currentVolume >= 10) currentVolume -= 10;
       else                      currentVolume  = 0;
@@ -114,6 +125,7 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
       if (currentVolume <= 90) currentVolume += 10;
       else                      currentVolume  = 100;
     }
+    if (currentVolume != oldVolume) qsHapticPreview();
     saveBrightnessVibe();
     needsRedraw = true;
     return;
@@ -121,7 +133,10 @@ static void quickSettingsHandleTouch(int16_t tx, int16_t ty) {
 
   // ── Vibration toggle  y=158..193 ────────────────────────────────────────────
   if (ty >= 158 && ty <= 193) {
+    // Confirm OFF with a buzz before disabling, and confirm ON after enabling.
+    if (vibeEnabled) qsHapticPreview(true);
     vibeEnabled = !vibeEnabled;
+    if (vibeEnabled) qsHapticPreview(true);
     saveBrightnessVibe();
     needsRedraw = true;
     return;
