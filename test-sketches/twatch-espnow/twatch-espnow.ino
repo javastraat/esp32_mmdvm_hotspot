@@ -139,6 +139,7 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 #define SCREEN_SETTINGS  3
 #define SCREEN_WIFI      4
 #define SCREEN_PAGER     5
+#define SCREEN_BATTERY   6
 #define SCREEN_COUNT     4   // number of screens in the tap-cycle (sub-screens excluded)
 
 // ── Global state ──────────────────────────────────────────────────────────────
@@ -249,6 +250,8 @@ static bool getClockTime(struct tm* t) {
 #include "screens/settings_screen.h"
 #include "screens/wifi_screen.h"
 #include "screens/pager_screen.h"
+#include "screens/battery_screen.h"
+#include "screens/ota_screen.h"
 #include "web/main.h"
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -260,6 +263,7 @@ static void redraw() {
     case SCREEN_SETTINGS: drawSettingsScreen();     break;
     case SCREEN_WIFI:     drawWifiSettingsScreen(); break;
     case SCREEN_PAGER:    drawPagerScreen();        break;
+    case SCREEN_BATTERY:  drawBatteryScreen();      break;
   }
 }
 
@@ -431,9 +435,21 @@ void setup() {
       ArduinoOTA.setHostname(deviceHostname.c_str());
       ArduinoOTA.setPassword("mmdvm");
       ArduinoOTA
-        .onStart([]()    { Serial.println("OTA start");  })
-        .onEnd([]()      { Serial.println("\nOTA done");  })
-        .onError([](ota_error_t e) { Serial.printf("OTA error[%u]\n", e); });
+        .onStart([]() {
+          Serial.println("OTA start");
+          otaStart();
+        })
+        .onProgress([](unsigned int done, unsigned int total) {
+          otaProgress(done, total);
+        })
+        .onEnd([]() {
+          Serial.println("\nOTA done");
+          otaDone();
+        })
+        .onError([](ota_error_t e) {
+          Serial.printf("OTA error[%u]\n", e);
+          otaError(e);
+        });
       ArduinoOTA.begin();
       Serial.println("OTA ready");
       setupWebServer();
@@ -509,6 +525,9 @@ void loop() {
         } else if (row == 0 && col == 1) {
           currentScreen = SCREEN_PAGER;
           needsRedraw   = true;
+        } else if (row == 0 && col == 2) {
+          currentScreen = SCREEN_BATTERY;
+          needsRedraw   = true;
         } else if (row == 2 && col == 2) {
           currentScreen = SCREEN_CLOCK;
           needsRedraw   = true;
@@ -546,6 +565,10 @@ void loop() {
         // Tap anywhere → back to settings
         currentScreen = SCREEN_SETTINGS;
         needsRedraw   = true;
+      } else if (currentScreen == SCREEN_BATTERY) {
+        // Tap anywhere → back to settings
+        currentScreen = SCREEN_SETTINGS;
+        needsRedraw   = true;
       } else {
         // Default: advance to next screen in cycle
         currentScreen   = (currentScreen + 1) % SCREEN_COUNT;
@@ -577,6 +600,14 @@ void loop() {
       lastActivityMillis > 0 && millis() - lastActivityMillis >= AUTO_CLOCK_MS) {
     displayOn = false;
     ttgo->closeBL();
+  }
+
+  // Battery screen: refresh every 5 s so USB plug/unplug is reflected promptly
+  static unsigned long lastBattRefresh = 0;
+  if (currentScreen == SCREEN_BATTERY && !needsRedraw &&
+      millis() - lastBattRefresh >= 5000) {
+    lastBattRefresh = millis();
+    needsRedraw     = true;
   }
 
   // Clock screen: redraw every second when synced, every 50 ms while spinning
