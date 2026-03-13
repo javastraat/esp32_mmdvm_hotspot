@@ -313,9 +313,12 @@ static void redraw() {
   }
 }
 
-// Short vibration buzz on packet receive (GPIO4 motor)
+// Double buzz on packet receive (GPIO4 motor)
 static void vibrate(int ms = 80) {
-  if (ttgo && vibeEnabled) ttgo->motor->onec(ms);
+  if (!ttgo || !vibeEnabled) return;
+  ttgo->motor->onec(ms);
+  delay(100);
+  ttgo->motor->onec(ms);
 }
 
 // Wake the display and reset the inactivity timer (called on incoming packets)
