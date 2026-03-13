@@ -71,6 +71,15 @@ static String hiddenRicsToStr() {
   return s;
 }
 
+// Save brightness + vibe to NVS (called from quick-settings overlay)
+static void saveBrightnessVibe() {
+  Preferences p;
+  p.begin("config", false);
+  p.putUInt("brightness", currentBrightness);
+  p.putBool("vibeEnabled", vibeEnabled);
+  p.end();
+}
+
 static void loadConfig() {
   Preferences p;
   p.begin("config", true);
@@ -79,6 +88,8 @@ static void loadConfig() {
   deviceHostname     = p.getString("hostname",   DEFAULT_HOSTNAME);
   watchfaceId        = (uint8_t)p.getUInt("watchface", DEFAULT_WATCHFACE);
   clock24h           = p.getBool("clock24h", DEFAULT_CLOCK_24H);
+  currentBrightness  = (uint8_t)p.getUInt("brightness", 180);
+  vibeEnabled        = p.getBool("vibeEnabled", true);
   p.end();
 
   if (storedRics.length() == 0) {
@@ -158,8 +169,11 @@ static unsigned long lastActivityMillis = 0;
 #define AUTO_CLOCK_MS  15000
 #define ANIM_FRAME_MS  50
 
-static bool          displayOn = true;
-static volatile bool axpIrq    = false;   // set by AXP202 interrupt
+static bool          displayOn        = true;
+static volatile bool axpIrq           = false;  // set by AXP202 interrupt
+static bool          quickSettingsOpen = false;
+static uint8_t       currentBrightness = 180;
+static bool          vibeEnabled       = true;
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -271,6 +285,7 @@ static bool getClockTime(struct tm* t) {
 #include "screens/battery_screen.h"
 #include "screens/watchface_screen.h"
 #include "screens/ota_screen.h"
+#include "screens/quicksettings_screen.h"
 #include "web/main.h"
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -289,14 +304,17 @@ static void redraw() {
 
 // Short vibration buzz on packet receive (GPIO4 motor)
 static void vibrate(int ms = 80) {
-  if (ttgo) ttgo->motor->onec(ms);
+  if (ttgo && vibeEnabled) ttgo->motor->onec(ms);
 }
 
 // Wake the display and reset the inactivity timer (called on incoming packets)
 static void wakeScreen() {
   if (!displayOn) {
     displayOn = true;
-    if (ttgo) ttgo->openBL();
+    if (ttgo) {
+      ttgo->openBL();
+      ttgo->bl->adjust(currentBrightness);
+    }
   }
   lastActivityMillis = millis();
 }
@@ -381,6 +399,9 @@ void setup() {
   ttgo->openBL();
   ttgo->motor_begin();   // vibration motor on GPIO4
 
+  loadConfig();          // load brightness + vibe before applying them
+  ttgo->bl->adjust(currentBrightness);
+
   // Enable AXP202 ADC channels so battery/USB readings work
   ttgo->power->adc1Enable(
       AXP202_VBUS_VOL_ADC1 | AXP202_VBUS_CUR_ADC1 |
@@ -389,11 +410,11 @@ void setup() {
   // AXP IRQ pin is input-only on this board; rely on external board pull-up.
   pinMode(AXP202_INT, INPUT);
   attachInterrupt(AXP202_INT, []{ axpIrq = true; }, FALLING);
-  ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ, true);
+  ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ | AXP202_PEK_LONGPRESS_IRQ, true);
   ttgo->power->clearIRQ();
 
   loadOnlineMode();   // restore persisted WiFi mode from NVS
-  loadConfig();       // restore timeRic, hostname, hiddenRics from NVS
+  // Note: loadConfig() already called above (before bl->adjust)
 
   ttgo->tft->setRotation(0);
   ttgo->tft->fillScreen(TFT_BLACK);
@@ -504,20 +525,44 @@ void loop() {
     webServer.handleClient();
   }
 
-  // Crown button via AXP202 short-press IRQ
+  // Crown button via AXP202 IRQ
   if (axpIrq) {
     axpIrq = false;
     ttgo->power->readIRQ();
+
     if (ttgo->power->isPEKShortPressIRQ()) {
-      displayOn = !displayOn;
-      if (displayOn) {
-        ttgo->openBL();
-        lastDrawnSecond = -1;   // force full redraw when waking
-        needsRedraw     = true;
+      if (quickSettingsOpen) {
+        // Short press while overlay open → close it
+        quickSettingsOpen = false;
+        lastDrawnSecond   = -1;
+        needsRedraw       = true;
       } else {
-        ttgo->closeBL();
+        displayOn = !displayOn;
+        if (displayOn) {
+          ttgo->openBL();
+          ttgo->bl->adjust(currentBrightness);
+          lastDrawnSecond = -1;
+          needsRedraw     = true;
+        } else {
+          ttgo->closeBL();
+        }
       }
     }
+
+    if (ttgo->power->isPEKLongPressIRQ()) {
+      // Long hold → open quick-settings overlay
+      if (!displayOn) {
+        displayOn = true;
+        ttgo->openBL();
+        ttgo->bl->adjust(currentBrightness);
+        lastDrawnSecond = -1;
+        needsRedraw     = true;
+      }
+      quickSettingsOpen  = true;
+      lastActivityMillis = millis();
+      needsRedraw        = true;
+    }
+
     ttgo->power->clearIRQ();
   }
 
@@ -530,8 +575,11 @@ void loop() {
     if (!displayOn) {
       displayOn       = true;
       ttgo->openBL();
+      ttgo->bl->adjust(currentBrightness);
       lastDrawnSecond = -1;
       needsRedraw     = true;
+    } else if (quickSettingsOpen) {
+      quickSettingsHandleTouch(tx, ty);
     } else {
       if (currentScreen == SCREEN_SETTINGS) {
         if (settingsRebootPrompt) {
@@ -557,6 +605,7 @@ void loop() {
           currentScreen = SCREEN_WIFI;
           needsRedraw   = true;
         } else if (row == 0 && col == 1) {
+          pagerResetDetailView();
           currentScreen = SCREEN_PAGER;
           needsRedraw   = true;
         } else if (row == 0 && col == 2) {
@@ -603,9 +652,7 @@ void loop() {
           }
         }
       } else if (currentScreen == SCREEN_PAGER) {
-        // Tap anywhere → back to settings
-        currentScreen = SCREEN_SETTINGS;
-        needsRedraw   = true;
+        pagerHandleTouch(tx, ty);
       } else if (currentScreen == SCREEN_BATTERY) {
         // Tap anywhere → back to settings
         currentScreen = SCREEN_SETTINGS;
@@ -670,6 +717,7 @@ void loop() {
   if (needsRedraw) {
     needsRedraw = false;
     redraw();
+    if (quickSettingsOpen) drawQuickSettingsScreen();
   }
 
   delay(50);

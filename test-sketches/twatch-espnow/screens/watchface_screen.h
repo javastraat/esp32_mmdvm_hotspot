@@ -189,8 +189,8 @@ static void drawWatchfaceScreen() {
   // ── 12h / 24h selector ─────────────────────────────────────────────────────
   ttgo->tft->setTextDatum(MC_DATUM);
   ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(TFT_DARKGREY, WF_BG);
-  ttgo->tft->drawString("TIME FORMAT", 120, 146);
+  // ttgo->tft->setTextColor(TFT_DARKGREY, WF_BG);
+  // ttgo->tft->drawString("TIME FORMAT", 120, 146);
 
   uint32_t c12 = wfDraft24h ? 0x2104 : WF_ACCENT;
   uint32_t c24 = wfDraft24h ? WF_ACCENT : 0x2104;
