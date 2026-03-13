@@ -1,38 +1,23 @@
 // ── Digital watchface ─────────────────────────────────────────────────────────
-// SKMEI-inspired LCD layout with dark layered bezel, segmented main time,
+// Full-screen dark LCD layout with segmented main time,
 // day/date header, and dual-time lower row.
 // Shared helpers (drawTopLeftIcons, drawBatteryInfo, drawClockDots, CLK_BG,
 // CLK_HAND) are defined in clock_screen.h which includes this file.
 #pragma once
 
-#define DIG_CASE_X     12
-#define DIG_CASE_Y     20
-#define DIG_CASE_W    216
-#define DIG_CASE_H    202
+#define DIG_LCD_X       0
+#define DIG_LCD_Y       0
+#define DIG_LCD_W     240
+#define DIG_LCD_H     240
 
-#define DIG_BEZEL_X    20
-#define DIG_BEZEL_Y    28
-#define DIG_BEZEL_W   200
-#define DIG_BEZEL_H   186
-
-#define DIG_LCD_X      28
-#define DIG_LCD_Y      38
-#define DIG_LCD_W     184
-#define DIG_LCD_H     168
-
-#define DIG_DIV1_Y     76
+#define DIG_DIV1_Y     52
 #define DIG_DIV2_Y    134
-#define DIG_DIV3_Y    178
+#define DIG_DIV3_Y    182
 
-#define DIG_TOP_Y      58
-#define DIG_MAIN_Y    110
-#define DIG_DUAL_Y    156
-#define DIG_FOOT_Y    191
+#define DIG_TOP_Y      34
+#define DIG_MAIN_Y    108
+#define DIG_DUAL_Y    158
 
-#define DIG_CASE_BG    0x1082
-#define DIG_CASE_EDGE  0x39E7
-#define DIG_BEZEL_BG   0x2104
-#define DIG_BEZEL_EDGE 0x6B4D
 #define DIG_LCD_BG     TFT_BLACK
 #define DIG_LCD_GRID   0x2945
 #define DIG_TEXT_MAIN  TFT_WHITE
@@ -48,28 +33,11 @@ static void digDrawSignalGlyph(int x, int y, uint32_t color) {
 static void digDrawStaticSkin() {
   ttgo->tft->fillScreen(CLK_BG);
 
-  ttgo->tft->fillRoundRect(DIG_CASE_X, DIG_CASE_Y, DIG_CASE_W, DIG_CASE_H, 20, DIG_CASE_BG);
-  ttgo->tft->drawRoundRect(DIG_CASE_X, DIG_CASE_Y, DIG_CASE_W, DIG_CASE_H, 20, DIG_CASE_EDGE);
-  ttgo->tft->drawRoundRect(DIG_CASE_X + 1, DIG_CASE_Y + 1, DIG_CASE_W - 2, DIG_CASE_H - 2, 20, 0x18E3);
-
-  ttgo->tft->fillRoundRect(DIG_BEZEL_X, DIG_BEZEL_Y, DIG_BEZEL_W, DIG_BEZEL_H, 14, DIG_BEZEL_BG);
-  ttgo->tft->drawRoundRect(DIG_BEZEL_X, DIG_BEZEL_Y, DIG_BEZEL_W, DIG_BEZEL_H, 14, DIG_BEZEL_EDGE);
-
-  ttgo->tft->fillRoundRect(DIG_LCD_X, DIG_LCD_Y, DIG_LCD_W, DIG_LCD_H, 9, DIG_LCD_BG);
-  ttgo->tft->drawRoundRect(DIG_LCD_X, DIG_LCD_Y, DIG_LCD_W, DIG_LCD_H, 9, DIG_LCD_GRID);
+  ttgo->tft->fillRect(DIG_LCD_X, DIG_LCD_Y, DIG_LCD_W, DIG_LCD_H, DIG_LCD_BG);
 
   ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV1_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
   ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV2_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
   ttgo->tft->drawFastHLine(DIG_LCD_X + 6, DIG_DIV3_Y, DIG_LCD_W - 12, DIG_LCD_GRID);
-
-  ttgo->tft->setTextDatum(MC_DATUM);
-  ttgo->tft->setTextFont(2);
-  ttgo->tft->setTextColor(DIG_TEXT_DIM, DIG_BEZEL_BG);
-  ttgo->tft->drawString("SKMEI", 120, 35);
-
-  ttgo->tft->setTextColor(0x630C, DIG_LCD_BG);
-  ttgo->tft->drawString("COUNTDOWN", 86, DIG_FOOT_Y);
-  ttgo->tft->drawString("DUAL TIME", 160, DIG_FOOT_Y);
 }
 
 static void digDrawDynamicRows(const struct tm* shown,
@@ -79,9 +47,9 @@ static void digDrawDynamicRows(const struct tm* shown,
                                int s,
                                int dualH,
                                int dualM) {
-  ttgo->tft->fillRect(DIG_LCD_X + 4, 46, DIG_LCD_W - 8, 24, DIG_LCD_BG);
-  ttgo->tft->fillRect(DIG_LCD_X + 4, 84, DIG_LCD_W - 8, 44, DIG_LCD_BG);
-  ttgo->tft->fillRect(DIG_LCD_X + 4, 142, DIG_LCD_W - 8, 30, DIG_LCD_BG);
+  ttgo->tft->fillRect(DIG_LCD_X + 4, 20, DIG_LCD_W - 8, 26, DIG_LCD_BG);
+  ttgo->tft->fillRect(DIG_LCD_X + 4, 82, DIG_LCD_W - 8, 46, DIG_LCD_BG);
+  ttgo->tft->fillRect(DIG_LCD_X + 4, 144, DIG_LCD_W - 8, 30, DIG_LCD_BG);
 
   static const char* const DOW[] = {
     "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
@@ -115,14 +83,14 @@ static void digDrawDynamicRows(const struct tm* shown,
   ttgo->tft->setTextFont(2);
   ttgo->tft->setTextColor(DIG_TEXT_DIM, DIG_LCD_BG);
   ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(pm ? "PM" : "AM", DIG_LCD_X + 10, 92);
+  ttgo->tft->drawString(pm ? "PM" : "AM", DIG_LCD_X + 10, 94);
   ttgo->tft->setTextDatum(MR_DATUM);
-  ttgo->tft->drawString("ALM", DIG_LCD_X + DIG_LCD_W - 10, 92);
+  ttgo->tft->drawString("ALM", DIG_LCD_X + DIG_LCD_W - 10, 94);
 
   ttgo->tft->setTextFont(7);
   ttgo->tft->setTextColor(DIG_TEXT_MAIN, DIG_LCD_BG);
   ttgo->tft->setTextDatum(ML_DATUM);
-  ttgo->tft->drawString(mainBuf, DIG_LCD_X + 18, DIG_MAIN_Y);
+  ttgo->tft->drawString(mainBuf, DIG_LCD_X + 20, DIG_MAIN_Y);
 
   ttgo->tft->setTextFont(4);
   ttgo->tft->setTextDatum(MR_DATUM);
