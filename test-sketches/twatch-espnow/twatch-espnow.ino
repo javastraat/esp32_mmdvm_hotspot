@@ -206,6 +206,7 @@ static void saveWatchfaceSettings(uint8_t id, bool use24h) {
 Preferences  modePrefs;
 bool         onlineMode       = true;
 static bool  modeRebootPrompt = false;
+static bool  settingsRebootPrompt = false;
 
 void loadOnlineMode() {
   modePrefs.begin("settings", true);
@@ -385,8 +386,8 @@ void setup() {
       AXP202_VBUS_VOL_ADC1 | AXP202_VBUS_CUR_ADC1 |
       AXP202_BATT_CUR_ADC1 | AXP202_BATT_VOL_ADC1, true);
 
-  // Crown button via AXP202 PMIC interrupt
-  pinMode(AXP202_INT, INPUT_PULLUP);
+  // AXP IRQ pin is input-only on this board; rely on external board pull-up.
+  pinMode(AXP202_INT, INPUT);
   attachInterrupt(AXP202_INT, []{ axpIrq = true; }, FALLING);
   ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ, true);
   ttgo->power->clearIRQ();
@@ -533,6 +534,20 @@ void loop() {
       needsRedraw     = true;
     } else {
       if (currentScreen == SCREEN_SETTINGS) {
+        if (settingsRebootPrompt) {
+          // YES: left button (x 10-110, y 140-220)
+          if (tx >= 10 && tx <= 110 && ty >= 140 && ty <= 220) {
+            ESP.restart();
+          }
+          // NO: right button (x 130-230, y 140-220)
+          if (tx >= 130 && tx <= 230 && ty >= 140 && ty <= 220) {
+            settingsRebootPrompt = false;
+            needsRedraw          = true;
+          }
+          wasTouched = isTouched;
+          return;
+        }
+
         // 3x3 grid: 80x80 cells
         int col = tx / 80;
         int row = ty / 80;
@@ -551,6 +566,9 @@ void loop() {
           watchfaceEditBegin();
           currentScreen = SCREEN_WATCHFACE;
           needsRedraw   = true;
+        } else if (row == 2 && col == 1) {
+          settingsRebootPrompt = true;
+          needsRedraw          = true;
         } else if (row == 2 && col == 2) {
           currentScreen = SCREEN_CLOCK;
           needsRedraw   = true;

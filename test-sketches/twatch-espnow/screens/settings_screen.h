@@ -52,15 +52,46 @@ static void drawBatteryIcon(int cx, int cy, uint32_t color) {
   ttgo->tft->fillRect(cx - 16, cy - 8, 22, 16, color);
 }
 
+// Power icon for settings grid. cx/cy = cell centre.
+static void drawPowerIcon(int cx, int cy, uint32_t color) {
+  ttgo->tft->drawCircle(cx, cy + 4, 18, color);
+  ttgo->tft->drawCircle(cx, cy + 4, 17, color);
+  ttgo->tft->fillRect(cx - 2, cy - 16, 4, 15, color);
+}
+
 static void drawSettingsScreen() {
   ttgo->tft->fillScreen(TFT_BLACK);
+
+  if (settingsRebootPrompt) {
+    ttgo->tft->setTextDatum(MC_DATUM);
+    ttgo->tft->setTextFont(4);
+    ttgo->tft->setTextColor(TFT_YELLOW, TFT_BLACK);
+    ttgo->tft->drawString("Reboot now?", 120, 65);
+
+    ttgo->tft->setTextFont(2);
+    ttgo->tft->setTextColor(TFT_DARKGREY, TFT_BLACK);
+    ttgo->tft->drawString("System restart required", 120, 98);
+
+    // YES button (left)
+    ttgo->tft->fillRoundRect(10, 140, 100, 80, 14, TFT_GREEN);
+    ttgo->tft->setTextFont(4);
+    ttgo->tft->setTextColor(TFT_BLACK, TFT_GREEN);
+    ttgo->tft->drawString("YES", 60, 180);
+
+    // NO button (right)
+    ttgo->tft->fillRoundRect(130, 140, 100, 80, 14, TFT_RED);
+    ttgo->tft->setTextColor(TFT_WHITE, TFT_RED);
+    ttgo->tft->drawString("NO", 180, 180);
+    return;
+  }
+
   const int cellW = 80, cellH = 80;
 
   // Text labels for non-icon cells ("-" = empty placeholder, ">" = back to clock)
   const char* labels[3][3] = {
     {nullptr, nullptr, nullptr},
     {nullptr, "-",     "-"},
-    {"-",     "-",     ">"}
+    {"-",     nullptr, ">"}
   };
 
   for (int row = 0; row < 3; ++row) {
@@ -81,6 +112,9 @@ static void drawSettingsScreen() {
       } else if (row == 1 && col == 0) {
         // Watchface selector cell
         drawClockIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+      } else if (row == 2 && col == 1) {
+        // Reboot action cell
+        drawPowerIcon(cx + cellW/2, cy + cellH/2 - 2, TFT_WHITE);
       } else if (labels[row][col] != nullptr) {
         ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
         ttgo->tft->setTextFont(4);

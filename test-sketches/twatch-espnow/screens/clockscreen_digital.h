@@ -48,7 +48,7 @@ static void digDrawDateRow(const struct tm* shown, bool hasTime) {
   ttgo->tft->setTextColor(DIG_TEXT_MAIN, DIG_LCD_BG);
   if (hasTime) {
     char dateBuf[8];
-    snprintf(dateBuf, sizeof(dateBuf), "%02d-%02d", shown->tm_mon + 1, shown->tm_mday);
+    snprintf(dateBuf, sizeof(dateBuf), "%02d-%02d", shown->tm_mday, shown->tm_mon + 1);
     ttgo->tft->setTextDatum(ML_DATUM);
     ttgo->tft->drawString(DIG_DOW[shown->tm_wday], DIG_LCD_X + 10, DIG_TOP_Y);
     ttgo->tft->setTextDatum(MR_DATUM);
