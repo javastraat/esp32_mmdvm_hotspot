@@ -190,14 +190,14 @@ static void drawClockScreen() {
     ttgo->tft->fillScreen(CLK_BG);
     drawClockStaticFace();
     if (hasTime) drawDateBoxes(&t);
-    if (espnowSynced)                              drawSatelliteIcon(215, 10, TFT_RED);
+    if (espnowSynced)                              drawSatelliteIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
     prevHourAngle = prevMinuteAngle = prevSecondAngle = -999.0f;
   } else {
     // Incremental: erase old hands + restore what they covered
     eraseClockHands(hasTime ? &t : nullptr);
-    if (espnowSynced)                              drawSatelliteIcon(215, 10, TFT_RED);
+    if (espnowSynced)                              drawSatelliteIcon( 25, 10, TFT_RED);
     if (onlineMode && WiFi.status()==WL_CONNECTED) drawWifiIconSmall(215,  8, TFT_GREEN);
     drawClockDots();
   }

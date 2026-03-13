@@ -74,6 +74,20 @@ static void handleApiStatus() {
     j += "\"pagMsg\":\"" + msg + "\",";
   }
 
+  // POCSAG log — last 5 messages, newest first
+  j += "\"pocLog\":[";
+  for (int i = 0; i < pocLogCount; i++) {
+    int idx = ((pocLogHead - 1 - i) % 5 + 5) % 5;
+    if (i > 0) j += ",";
+    String lm = String(pocLog[idx].msg);
+    lm.replace("\\", "\\\\");
+    lm.replace("\"", "\\\"");
+    j += "{\"ric\":" + String(pocLog[idx].ric) + ",";
+    j += "\"msg\":\"" + lm + "\",";
+    j += "\"time\":\"" + String(pocLog[idx].timeStr) + "\"}";
+  }
+  j += "],";
+
   struct tm t;
   if (getClockTime(&t)) {
     char ts[24];
@@ -208,6 +222,12 @@ static void handleRoot() {
   h += "<div class='row'><span class='lbl'>Message</span><span class='val' id='p-msg' style='font-family:sans-serif;text-align:left'>-</span></div>";
   h += "</div></div>";
 
+  // Recent Messages card
+  h += "<div class='card'><h3>Recent Messages</h3>";
+  h += "<div id='log-none' class='none'>No messages yet</div>";
+  h += "<div id='log-list'></div>";
+  h += "</div>";
+
   // Config card
   h += "<div class='card'><h3>Config</h3>";
   h += "<div class='row'><span class='lbl'>Time RIC</span><span class='val' id='cfg-tric'>-</span></div>";
@@ -274,12 +294,29 @@ static void handleRoot() {
   h += "document.getElementById('d-dst').textContent=d.dmrDst;";
   h += "document.getElementById('d-slot').textContent='TS'+d.dmrSlot;";
   h += "document.getElementById('d-type').textContent=d.dmrGroup?'TalkGroup':'Private';}";
-  // POCSAG
+  // POCSAG last shown on screen
   h += "if(d.pagRic){";
   h += "document.getElementById('p-none').style.display='none';";
   h += "document.getElementById('p-data').style.display='';";
   h += "document.getElementById('p-ric').textContent=d.pagRic;";
   h += "document.getElementById('p-msg').textContent=d.pagMsg||'';}";
+  // Recent messages log
+  h += "var log=d.pocLog||[];";
+  h += "var logEl=document.getElementById('log-list');";
+  h += "var noneEl=document.getElementById('log-none');";
+  h += "if(log.length===0){noneEl.style.display='';logEl.innerHTML='';}else{";
+  h += "noneEl.style.display='none';";
+  h += "var html='';";
+  h += "for(var i=0;i<log.length;i++){";
+  h += "var entry=log[i];";
+  h += "html+='<div class=\"row\" style=\"flex-direction:column;align-items:flex-start;padding:8px 0\">';";
+  h += "html+='<div style=\"display:flex;justify-content:space-between;width:100%;margin-bottom:4px\">';";
+  h += "html+='<span class=\"lbl\">RIC '+entry.ric+'</span>';";
+  h += "html+='<span style=\"font-size:.8em;color:var(--muted)\">'+entry.time+'</span>';";
+  h += "html+='</div>';";
+  h += "html+='<span style=\"font-size:.9em;word-break:break-word\">'+entry.msg+'</span>';";
+  h += "html+='</div>';}";
+  h += "logEl.innerHTML=html;}";
   h += "}).catch(function(){});}";
 
   h += "function loadConfig(){fetch('/api/config').then(function(r){return r.json();}).then(function(d){";

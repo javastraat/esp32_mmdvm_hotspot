@@ -137,9 +137,19 @@ static uint32_t lastDmrDst   = 0;
 static uint8_t  lastDmrSlot  = 0;
 static bool     lastDmrGroup = true;
 
-// POCSAG
+// POCSAG — last message shown on screen
 static uint32_t lastRic = 0;
 static char     lastMsg[POCSAG_MSG_MAX_LEN + 1] = "";
+
+// POCSAG message log — ALL received messages, newest first (ring buffer, 5 entries)
+struct PocLogEntry {
+  uint32_t ric;
+  char     msg[POCSAG_MSG_MAX_LEN + 1];
+  char     timeStr[24];
+};
+static PocLogEntry pocLog[5];
+static int         pocLogHead  = 0;   // next write slot
+static int         pocLogCount = 0;   // valid entries (0–5)
 
 // Time
 static time_t         baseEpoch    = 0;
@@ -282,6 +292,22 @@ static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int 
       if (currentScreen == SCREEN_CLOCK) needsRedraw = true;
     }
 
+    // Log ALL messages to the ring buffer (web dashboard)
+    {
+      PocLogEntry& e = pocLog[pocLogHead];
+      e.ric = pkt.ric;
+      strncpy(e.msg, pkt.message, POCSAG_MSG_MAX_LEN);
+      e.msg[POCSAG_MSG_MAX_LEN] = '\0';
+      struct tm lt;
+      if (getClockTime(&lt))
+        snprintf(e.timeStr, sizeof(e.timeStr), "%02d:%02d:%02d", lt.tm_hour, lt.tm_min, lt.tm_sec);
+      else
+        strcpy(e.timeStr, "--:--:--");
+      pocLogHead = (pocLogHead + 1) % 5;
+      if (pocLogCount < 5) pocLogCount++;
+    }
+
+    // Only show on watch display if RIC is NOT in the hidden list
     if (!isHiddenRic(pkt.ric)) {
       lastRic = pkt.ric;
       strncpy(lastMsg, pkt.message, POCSAG_MSG_MAX_LEN);
