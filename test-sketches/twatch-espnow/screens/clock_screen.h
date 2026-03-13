@@ -57,32 +57,46 @@ static void drawBatteryInfo() {
 
   int  pct      = (int)ttgo->power->getBattPercentage();
   bool charging = ttgo->power->isChargeing();
-  uint32_t col  = pct > 50 ? TFT_GREEN : (pct > 20 ? TFT_YELLOW : TFT_RED);
+
+  // Outline yellow when charging, white otherwise
+  uint16_t outlineCol = charging ? TFT_YELLOW : TFT_WHITE;
+  uint16_t fillCol    = pct > 50 ? TFT_GREEN : (pct > 20 ? TFT_YELLOW : TFT_RED);
 
   char buf[8];
   snprintf(buf, sizeof(buf), "%d%%", pct);
   ttgo->tft->setTextFont(1);
-  int textW = ttgo->tft->textWidth(buf);
 
-  const int by = 6;
-  int iconX = 237 - 20;
-  int bodyX = iconX + 2;
+  const int by   = 6;
+  int iconX = 217;   // nub left edge
+  int bodyX = 219;   // body left edge  (18×9 rect)
 
-  // Mirrored battery icon (nub on left).
-  ttgo->tft->drawRect(bodyX, by, 18, 9, TFT_WHITE);
-  ttgo->tft->fillRect(iconX, by + 2, 2, 5, TFT_WHITE);
+  // Battery body + nub
+  ttgo->tft->drawRect(bodyX, by, 18, 9, outlineCol);
+  ttgo->tft->fillRect(iconX, by + 2, 2, 5, outlineCol);
+
+  // Charge fill bar
   int fw = (15 * pct) / 100;
   if (fw > 0) {
     int fillX = bodyX + 16 - fw;
-    ttgo->tft->fillRect(fillX, by + 1, fw, 7, col);
+    ttgo->tft->fillRect(fillX, by + 1, fw, 7, fillCol);
   }
 
   if (charging) {
-    ttgo->tft->drawFastHLine(bodyX + 6, by + 4, 6, TFT_WHITE);
-    ttgo->tft->drawFastVLine(bodyX + 9, by + 2, 5, TFT_WHITE);
+    // Lightning bolt: two filled triangles forming a ⚡ inside the body
+    ttgo->tft->fillTriangle(
+      bodyX + 13, by + 1,   // top tip
+      bodyX +  7, by + 5,   // mid-left
+      bodyX + 13, by + 5,   // mid-right
+      TFT_WHITE);
+    ttgo->tft->fillTriangle(
+      bodyX +  5, by + 4,   // mid-left
+      bodyX + 11, by + 4,   // mid-right
+      bodyX +  5, by + 8,   // bottom tip
+      TFT_WHITE);
   }
 
-  ttgo->tft->setTextColor(col, CLK_BG);
+  // Percentage — yellow when charging, level-coded otherwise
+  ttgo->tft->setTextColor(charging ? TFT_YELLOW : fillCol, CLK_BG);
   ttgo->tft->setTextDatum(MR_DATUM);
   ttgo->tft->drawString(buf, iconX - 2, by + 4);
 }

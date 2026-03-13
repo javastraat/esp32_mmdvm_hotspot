@@ -191,7 +191,7 @@ static void drawSettingsScreen() {
   const char* iconLabels[3][3] = {
     { "WiFi",      "Messages", "Battery"  },
     { "Watchface", "Steps",    "Timer"    },
-    { "",          "Reboot",   "Clock"    }
+    { "Settings",  "Reboot",   "Clock"    }
   };
 
   for (int row = 0; row < 3; ++row) {

@@ -30,6 +30,7 @@ using fs::FS;
 #include <WebServer.h>
 #include <time.h>
 #include <math.h>
+#include <driver/i2s_std.h>
 
 TTGOClass *ttgo = nullptr;
 
@@ -74,13 +75,15 @@ static String hiddenRicsToStr() {
 // Quick-settings state (declared here so saveBrightnessVibe/loadConfig can use them)
 static uint8_t       currentBrightness = 180;
 static bool          vibeEnabled       = true;
+static uint8_t       currentVolume     = 70;   // 0-100, scales vibration pulse length
 
-// Save brightness + vibe to NVS (called from quick-settings overlay)
+// Save brightness + vibe + volume to NVS
 static void saveBrightnessVibe() {
   Preferences p;
   p.begin("config", false);
   p.putUInt("brightness", currentBrightness);
   p.putBool("vibeEnabled", vibeEnabled);
+  p.putUInt("volume", currentVolume);
   p.end();
 }
 
@@ -94,6 +97,7 @@ static void loadConfig() {
   clock24h           = p.getBool("clock24h", DEFAULT_CLOCK_24H);
   currentBrightness  = (uint8_t)p.getUInt("brightness", 180);
   vibeEnabled        = p.getBool("vibeEnabled", true);
+  currentVolume      = (uint8_t)p.getUInt("volume", 70);
   p.end();
 
   if (storedRics.length() == 0) {
@@ -180,6 +184,8 @@ static unsigned long lastActivityMillis = 0;
 static bool          displayOn        = true;
 static volatile bool axpIrq           = false;  // set by AXP202 interrupt
 static volatile bool bmaIrq           = false;  // set by BMA423 interrupt
+static volatile bool audioNotify      = false;  // set by ESP-NOW callback, handled in loop
+static bool          usbPlugged       = false;  // polled every 5 s (avoid shared AXP IRQ side-effects)
 
 // DMR
 static uint32_t lastDmrSrc   = 0;
@@ -313,12 +319,91 @@ static void redraw() {
   }
 }
 
-// Double buzz on packet receive (GPIO4 motor)
+// Scale a base pulse duration by currentVolume (0-100)
+static int vibeMs(int base) {
+  return max(20, (base * (int)currentVolume) / 100);
+}
+
+// Short double-buzz (DMR / generic)
 static void vibrate(int ms = 80) {
   if (!ttgo || !vibeEnabled) return;
-  ttgo->motor->onec(ms);
+  int d = vibeMs(ms);
+  ttgo->motor->onec(d);
   delay(100);
-  ttgo->motor->onec(ms);
+  ttgo->motor->onec(d);
+}
+
+// Two-tone rising beep via I2S DAC (IDF 5.x new API)
+// Amplitude scales with currentVolume (0=silent, 100=full).
+static void playNotificationTone() {
+  if (currentVolume == 0) return;
+
+  ttgo->enableAudio();
+
+  i2s_chan_handle_t tx;
+  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  if (i2s_new_channel(&chan_cfg, &tx, NULL) != ESP_OK) {
+    ttgo->disableAudio();
+    return;
+  }
+
+  i2s_std_config_t std_cfg = {
+    .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
+    .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+    .gpio_cfg = {
+      .mclk = I2S_GPIO_UNUSED,
+      .bclk = (gpio_num_t)TWATCH_DAC_IIS_BCK,
+      .ws   = (gpio_num_t)TWATCH_DAC_IIS_WS,
+      .dout = (gpio_num_t)TWATCH_DAC_IIS_DOUT,
+      .din  = I2S_GPIO_UNUSED,
+      .invert_flags = { .mclk_inv = false, .bclk_inv = false, .ws_inv = false },
+    },
+  };
+  i2s_channel_init_std_mode(tx, &std_cfg);
+  i2s_channel_enable(tx);
+
+  const int  SR          = 16000;
+  const int  BEEP_SAMP   = SR / 10;   // 100 ms
+  const int  GAP_SAMP    = SR / 20;   // 50 ms
+  int16_t    amplitude   = (int16_t)(200 + (currentVolume * 8000) / 100);
+  const float freqs[]    = { 880.0f, 1320.0f };  // A5 → E6 rising fifth
+  int16_t    buf[64];                  // 32 stereo pairs = 128 bytes
+
+  for (int b = 0; b < 2; b++) {
+    float delta = 2.0f * M_PI * freqs[b] / SR;
+    float phase = 0.0f;
+    for (int s = 0; s < BEEP_SAMP; s += 32) {
+      for (int i = 0; i < 32; i++) {
+        int16_t v     = (int16_t)(sinf(phase) * amplitude);
+        buf[i * 2]    = v;
+        buf[i * 2 + 1]= v;
+        phase += delta;
+        if (phase > 2.0f * M_PI) phase -= 2.0f * M_PI;
+      }
+      size_t written;
+      i2s_channel_write(tx, buf, sizeof(buf), &written, 200);
+    }
+    // Gap
+    memset(buf, 0, sizeof(buf));
+    for (int s = 0; s < GAP_SAMP; s += 32) {
+      size_t written;
+      i2s_channel_write(tx, buf, sizeof(buf), &written, 200);
+    }
+  }
+
+  i2s_channel_disable(tx);
+  i2s_del_channel(tx);
+  ttgo->disableAudio();
+}
+
+// Classic pager alert: short-short-long
+static void vibratePager() {
+  if (!ttgo || !vibeEnabled) return;
+  ttgo->motor->onec(vibeMs(60));
+  delay(80);
+  ttgo->motor->onec(vibeMs(60));
+  delay(80);
+  ttgo->motor->onec(vibeMs(200));
 }
 
 // Wake the display and reset the inactivity timer (called on incoming packets)
@@ -397,7 +482,7 @@ static void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int 
       lastPacketMillis = millis();
       needsRedraw      = true;
       wakeScreen();
-      vibrate();
+      vibratePager();
     }
   }
 }
@@ -446,8 +531,11 @@ void setup() {
   // AXP IRQ pin is input-only on this board; rely on external board pull-up.
   pinMode(AXP202_INT, INPUT);
   attachInterrupt(AXP202_INT, []{ axpIrq = true; }, FALLING);
-  ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ | AXP202_PEK_LONGPRESS_IRQ, true);
+  ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ | AXP202_PEK_LONGPRESS_IRQ,
+                         true);
   ttgo->power->clearIRQ();
+  usbPlugged = ttgo->power->isVBUSPlug();
+  if (usbPlugged) ttgo->bl->adjust(255);
 
   loadOnlineMode();   // restore persisted WiFi mode from NVS
   // Note: loadConfig() already called above (before bl->adjust)
@@ -727,6 +815,19 @@ void loop() {
     }
   }
   wasTouched = isTouched;
+
+  // USB state scan every 5 s (prevents plug/unplug from triggering crown actions)
+  static unsigned long lastUsbPoll = 0;
+  if (millis() - lastUsbPoll >= 5000UL) {
+    lastUsbPoll = millis();
+    bool usbNow = ttgo->power->isVBUSPlug();
+    if (usbNow != usbPlugged) {
+      usbPlugged = usbNow;
+      if (usbPlugged) ttgo->bl->adjust(255);
+      else if (displayOn) ttgo->bl->adjust(currentBrightness);
+      if (currentScreen == SCREEN_BATTERY) needsRedraw = true;
+    }
+  }
 
   // Skip redraws while display is off
   if (!displayOn) {
