@@ -79,6 +79,18 @@ static void drawStepsIcon(int cx, int cy, uint16_t color) {
   ttgo->tft->fillCircle(cx + 14, cy - 18, 4, color);  // head
 }
 
+// Back arrow icon: large left-pointing arrow for "return to clock"
+static void drawNextArrowIcon(int cx, int cy, uint32_t color) {
+  // Shaft
+  ttgo->tft->fillRect(cx - 18, cy - 5, 26, 10, color);
+  // Arrowhead: tip fixed at cx+16, widens to the left
+  for (int i = 0; i <= 16; i++) {
+    ttgo->tft->drawFastHLine(cx + 16 - i, cy - i, i + 1, color);
+    if (i > 0)
+      ttgo->tft->drawFastHLine(cx + 16 - i, cy + i, i + 1, color);
+  }
+}
+
 // Watchface/layout icon: a small screen with analog + digital hints.
 static void drawWatchfaceLayoutIcon(int cx, int cy, uint32_t color) {
   // Outer display frame
@@ -161,7 +173,7 @@ static void drawSettingsScreen() {
         drawPowerIcon(cx + cellW/2, cy + cellH/2 - 2, TFT_WHITE);
       } else if (row == 2 && col == 2) {
         // Back-to-clock cell
-        drawClockIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+        drawNextArrowIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (labels[row][col] != nullptr) {
         ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
         ttgo->tft->setTextFont(4);

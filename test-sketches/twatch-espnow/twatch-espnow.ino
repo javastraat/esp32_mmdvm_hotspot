@@ -438,6 +438,7 @@ void setup() {
   ttgo->power->adc1Enable(
       AXP202_VBUS_VOL_ADC1 | AXP202_VBUS_CUR_ADC1 |
       AXP202_BATT_CUR_ADC1 | AXP202_BATT_VOL_ADC1, true);
+  ttgo->power->EnableCoulombcounter();
 
   // AXP IRQ pin is input-only on this board; rely on external board pull-up.
   pinMode(AXP202_INT, INPUT);
@@ -655,6 +656,7 @@ void loop() {
           currentScreen = SCREEN_PAGER;
           needsRedraw   = true;
         } else if (row == 0 && col == 2) {
+          batPage       = 0;
           currentScreen = SCREEN_BATTERY;
           needsRedraw   = true;
         } else if (row == 1 && col == 0) {
@@ -706,9 +708,7 @@ void loop() {
       } else if (currentScreen == SCREEN_PAGER) {
         pagerHandleTouch(tx, ty);
       } else if (currentScreen == SCREEN_BATTERY) {
-        // Tap anywhere → back to settings
-        currentScreen = SCREEN_SETTINGS;
-        needsRedraw   = true;
+        batteryHandleTouch(tx, ty);
       } else if (currentScreen == SCREEN_WATCHFACE) {
         watchfaceHandleTouch(tx, ty);
       } else if (currentScreen == SCREEN_STEPS) {
@@ -748,12 +748,12 @@ void loop() {
     ttgo->closeBL();
   }
 
-  // Battery screen: refresh every 5 s so USB plug/unplug is reflected promptly
+  // Battery screen: partial data refresh every 5 s (no fillScreen = no flash)
   static unsigned long lastBattRefresh = 0;
   if (currentScreen == SCREEN_BATTERY && !needsRedraw &&
       millis() - lastBattRefresh >= 5000) {
     lastBattRefresh = millis();
-    needsRedraw     = true;
+    updateBatteryData();
   }
 
   // Stopwatch screen: partial time-only update every 100 ms (no full redraw = no flicker)
