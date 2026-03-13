@@ -8,6 +8,9 @@
 #define DEFAULT_WIFI_PASS   "itoldyoualready"
 #define DEFAULT_HOSTNAME    "twatch-espnow"
 
+// ── Watchface ─────────────────────────────────────────────────────────────────
+#define DEFAULT_WATCHFACE   0   // 0 = Analog, 1 = Digital
+
 // ── POCSAG ────────────────────────────────────────────────────────────────────
 #define DEFAULT_TIME_RIC    224     // RIC carrying date/time sync packets
 

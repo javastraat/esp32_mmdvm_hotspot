@@ -27,6 +27,21 @@ static void drawWifiIcon(int cx, int cy, uint32_t color) {
   }
 }
 
+// Small analog clock icon for settings grid. cx/cy = cell centre.
+static void drawClockIcon(int cx, int cy, uint32_t color) {
+  int R = 22;
+  ttgo->tft->drawCircle(cx, cy, R, color);
+  // Minute hand at 10 min (60° clockwise from 12)
+  float mRad = (60.0f - 90.0f) * DEG_TO_RAD;
+  ttgo->tft->drawLine(cx, cy,
+    cx + (int)(R * 0.72f * cosf(mRad)), cy + (int)(R * 0.72f * sinf(mRad)), color);
+  // Hour hand at 10:10 (305° clockwise from 12)
+  float hRad = (305.0f - 90.0f) * DEG_TO_RAD;
+  ttgo->tft->drawLine(cx, cy,
+    cx + (int)(R * 0.52f * cosf(hRad)), cy + (int)(R * 0.52f * sinf(hRad)), color);
+  ttgo->tft->fillCircle(cx, cy, 2, color);
+}
+
 // Battery icon for settings grid (body + nub + fill bar). cx/cy = cell centre.
 static void drawBatteryIcon(int cx, int cy, uint32_t color) {
   // Body 36×20 centred on cx,cy
@@ -44,7 +59,7 @@ static void drawSettingsScreen() {
   // Text labels for non-icon cells ("-" = empty placeholder, ">" = back to clock)
   const char* labels[3][3] = {
     {nullptr, nullptr, nullptr},
-    {"-",     "-",     "-"},
+    {nullptr, "-",     "-"},
     {"-",     "-",     ">"}
   };
 
@@ -63,6 +78,9 @@ static void drawSettingsScreen() {
       } else if (row == 0 && col == 2) {
         // Battery cell
         drawBatteryIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
+      } else if (row == 1 && col == 0) {
+        // Watchface selector cell
+        drawClockIcon(cx + cellW/2, cy + cellH/2, TFT_WHITE);
       } else if (labels[row][col] != nullptr) {
         ttgo->tft->setTextColor(TFT_WHITE, TFT_BLACK);
         ttgo->tft->setTextFont(4);

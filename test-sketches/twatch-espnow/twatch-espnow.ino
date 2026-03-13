@@ -36,6 +36,7 @@ TTGOClass *ttgo = nullptr;
 // ── Config — runtime values, loaded from NVS (defaults from config.h) ─────────
 static uint32_t timeRic        = DEFAULT_TIME_RIC;
 static String   deviceHostname = DEFAULT_HOSTNAME;
+static uint8_t  watchfaceId    = DEFAULT_WATCHFACE;   // 0=Analog 1=Digital
 
 // Hidden RICs — loaded from NVS, editable via web UI
 static uint32_t hiddenRics[MAX_HIDDEN_RICS];
@@ -75,6 +76,7 @@ static void loadConfig() {
   String storedRics  = p.getString("hiddenRics", "");
   timeRic            = p.getUInt  ("timeRic",    DEFAULT_TIME_RIC);
   deviceHostname     = p.getString("hostname",   DEFAULT_HOSTNAME);
+  watchfaceId        = (uint8_t)p.getUInt("watchface", DEFAULT_WATCHFACE);
   p.end();
 
   if (storedRics.length() == 0) {
@@ -140,6 +142,7 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 #define SCREEN_WIFI      4
 #define SCREEN_PAGER     5
 #define SCREEN_BATTERY   6
+#define SCREEN_WATCHFACE 7
 #define SCREEN_COUNT     4   // number of screens in the tap-cycle (sub-screens excluded)
 
 // ── Global state ──────────────────────────────────────────────────────────────
@@ -184,6 +187,15 @@ static bool           espnowSynced = false;
 static float prevHourAngle   = -999.0f;
 static float prevMinuteAngle = -999.0f;
 static float prevSecondAngle = -999.0f;
+
+static void saveWatchface(uint8_t id) {
+  watchfaceId = id;
+  Preferences p;
+  p.begin("config", false);
+  p.putUInt("watchface", id);
+  p.end();
+  lastDrawnSecond = -1;   // force full redraw on next clock show
+}
 
 // WiFi / online-mode preference
 Preferences  modePrefs;
@@ -251,6 +263,7 @@ static bool getClockTime(struct tm* t) {
 #include "screens/wifi_screen.h"
 #include "screens/pager_screen.h"
 #include "screens/battery_screen.h"
+#include "screens/watchface_screen.h"
 #include "screens/ota_screen.h"
 #include "web/main.h"
 
@@ -263,7 +276,8 @@ static void redraw() {
     case SCREEN_SETTINGS: drawSettingsScreen();     break;
     case SCREEN_WIFI:     drawWifiSettingsScreen(); break;
     case SCREEN_PAGER:    drawPagerScreen();        break;
-    case SCREEN_BATTERY:  drawBatteryScreen();      break;
+    case SCREEN_BATTERY:   drawBatteryScreen();      break;
+    case SCREEN_WATCHFACE: drawWatchfaceScreen();    break;
   }
 }
 
@@ -528,6 +542,9 @@ void loop() {
         } else if (row == 0 && col == 2) {
           currentScreen = SCREEN_BATTERY;
           needsRedraw   = true;
+        } else if (row == 1 && col == 0) {
+          currentScreen = SCREEN_WATCHFACE;
+          needsRedraw   = true;
         } else if (row == 2 && col == 2) {
           currentScreen = SCREEN_CLOCK;
           needsRedraw   = true;
@@ -567,6 +584,12 @@ void loop() {
         needsRedraw   = true;
       } else if (currentScreen == SCREEN_BATTERY) {
         // Tap anywhere → back to settings
+        currentScreen = SCREEN_SETTINGS;
+        needsRedraw   = true;
+      } else if (currentScreen == SCREEN_WATCHFACE) {
+        // Tap left half = analog, right half = digital; always return to settings
+        uint8_t newId = (tx < 120) ? 0 : 1;
+        if (newId != watchfaceId) saveWatchface(newId);
         currentScreen = SCREEN_SETTINGS;
         needsRedraw   = true;
       } else {
