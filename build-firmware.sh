@@ -23,7 +23,7 @@ NO_COMMIT=false  # Default: commit to git
 # Arduino CLI settings
 #FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,CPUFreq=240,DebugLevel=none,DFUOnBoot=default,EraseFlash=none,EventsCore=1,FlashMode=qio,FlashSize=16M,JTAGAdapter=default,LoopCore=1,MSCOnBoot=default,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,UploadMode=default,UploadSpeed=921600,USBMode=hwcdc,ZigbeeMode=default"
 #BUILD_DIR="build/esp32.esp32.esp32s3"
-FQBN="esp32:esp32:mmdvm:PartitionScheme=custom_16MB"
+FQBN="esp32:esp32:mmdvm:PartitionScheme=ethelite_16MB"
 BUILD_DIR="build/esp32.esp32.mmdvm"
 
 BINARY_NAME="esp32_mmdvm_hotspot.ino.bin"

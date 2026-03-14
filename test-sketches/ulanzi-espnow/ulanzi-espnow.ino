@@ -1,20 +1,25 @@
 /*
- * ESP-NOW Gateway Test Monitor
+ * ESP-NOW Gateway Test Monitor + Clock Display
  *
- * Tests both DMR and POCSAG forwarding over ESP-NOW.
- * Matches the firmware packet format exactly.
+ * ROLE_SENDER:   sends fake DMRD/POCSAG packets; syncs clock via NTP (WiFi).
+ * ROLE_RECEIVER: tries to join WiFi (same router as sender = same channel),
+ *                falls back to SoftAP if unavailable. ArduinoOTA always active.
+ *                Syncs clock from POCSAG RIC 224 time-beacon
+ *                (format "YYYYMMDDHHMMSS<YYMMDDHHmmSS>").
  *
- * ROLE_SENDER:   sends fake DMRD and/or POCSAG packets so you can verify
- *                the link without a real hotspot.
- *
- * ROLE_RECEIVER: decodes and prints all incoming DMR and POCSAG packets.
+ * Both roles display the current time on the Ulanzi 32×8 LED matrix.
  *
  * Configure role, modes, and intervals in config.h.
  */
 
+#include <FastLED.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <time.h>
+#ifdef ROLE_RECEIVER
+  #include <ArduinoOTA.h>
+#endif
 #include "config.h"
 
 // ============================================================
@@ -33,25 +38,92 @@
 // ============================================================
 // Packet definitions — MUST match system/system_espnow.h exactly
 // ============================================================
-#define ESPNOW_TYPE_DMR_NET  0x10   // Raw DMRD Homebrew protocol packet
-#define ESPNOW_TYPE_POCSAG   0x11   // POCSAG page: RIC + functional + message
+#define ESPNOW_TYPE_DMR_NET  0x10
+#define ESPNOW_TYPE_POCSAG   0x11
 
 #define POCSAG_MSG_MAX_LEN   80
 #define FUNCTIONAL_NUMERIC       0
 #define FUNCTIONAL_ALPHANUMERIC  3
 
 struct __attribute__((packed)) EspNowDmrNetPacket {
-  uint8_t type;       // ESPNOW_TYPE_DMR_NET
-  uint8_t len;        // number of valid bytes in data[]
-  uint8_t data[60];   // raw DMRD Homebrew bytes
+  uint8_t type;
+  uint8_t len;
+  uint8_t data[60];
 };
 
 struct __attribute__((packed)) EspNowPocsagPacket {
-  uint8_t  type;                        // ESPNOW_TYPE_POCSAG
+  uint8_t  type;
   uint32_t ric;
   uint8_t  functional;
   char     message[POCSAG_MSG_MAX_LEN + 1];
 };
+
+// ============================================================
+// LED matrix — 32×8 WS2812B serpentine
+// ============================================================
+#define NUM_LEDS      256
+#define MATRIX_WIDTH   32
+#define MATRIX_HEIGHT   8
+
+CRGB leds[NUM_LEDS];
+
+// 3×5 pixel font for digits 0–9
+static const uint8_t FONT_DIGITS[10][5] = {
+  {0b111, 0b101, 0b101, 0b101, 0b111}, // 0
+  {0b010, 0b110, 0b010, 0b010, 0b111}, // 1
+  {0b111, 0b001, 0b111, 0b100, 0b111}, // 2
+  {0b111, 0b001, 0b111, 0b001, 0b111}, // 3
+  {0b101, 0b101, 0b111, 0b001, 0b001}, // 4
+  {0b111, 0b100, 0b111, 0b001, 0b111}, // 5
+  {0b111, 0b100, 0b111, 0b101, 0b111}, // 6
+  {0b111, 0b001, 0b010, 0b010, 0b010}, // 7
+  {0b111, 0b101, 0b111, 0b101, 0b111}, // 8
+  {0b111, 0b101, 0b111, 0b001, 0b111}  // 9
+};
+
+static void setLED(int x, int y, CRGB color) {
+  if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT) return;
+  int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
+  leds[idx] = color;
+}
+
+static void drawDigit(int x, int y, int d, CRGB color) {
+  for (int row = 0; row < 5; row++)
+    for (int col = 0; col < 3; col++)
+      if (FONT_DIGITS[d][row] & (1 << (2 - col)))
+        setLED(x + col, y + row, color);
+}
+
+// Draw HH:MM:SS starting at row 1, fits in 27 columns of the 32-wide matrix
+static void drawTime(int h, int m, int s, CRGB color) {
+  drawDigit( 0, 1, h / 10, color);
+  drawDigit( 4, 1, h % 10, color);
+  setLED(8, 2, color); setLED(8, 4, color);   // colon
+  drawDigit(10, 1, m / 10, color);
+  drawDigit(14, 1, m % 10, color);
+  setLED(18, 2, color); setLED(18, 4, color);  // colon
+  drawDigit(20, 1, s / 10, color);
+  drawDigit(24, 1, s % 10, color);
+}
+
+// Update display once per second — call from both role loops
+static bool timeSynced = false;
+
+static void loopDisplay() {
+  static unsigned long lastUpdate = 0;
+  if (millis() - lastUpdate < 1000) return;
+  lastUpdate = millis();
+
+  if (!timeSynced) return;  // don't draw until we have a time source
+
+  struct tm t;
+  if (!getLocalTime(&t)) return;
+
+  FastLED.clear();
+  drawTime(t.tm_hour, t.tm_min, t.tm_sec, LED_COLOR_TIME);
+  FastLED.show();
+}
+
 
 // ============================================================
 // SENDER
@@ -178,9 +250,27 @@ void setupSender() {
   while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
     delay(250); Serial.print(".");
   }
-  Serial.printf("\n[WiFi] %s\n",
-    WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str()
-                                   : "not connected — ESP-NOW still works");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("\n[WiFi] %s\n", WiFi.localIP().toString().c_str());
+    // Sync time via NTP
+    configTime(NTP_GMT_OFFSET_SEC, NTP_DST_OFFSET_SEC, NTP_SERVER);
+    Serial.print("[NTP] Waiting for sync");
+    struct tm tmp;
+    unsigned long tNtp = millis();
+    while (!getLocalTime(&tmp) && millis() - tNtp < 10000) {
+      delay(500); Serial.print(".");
+    }
+    if (getLocalTime(&tmp)) {
+      timeSynced = true;
+      Serial.printf("\n[NTP] Synced: %04d-%02d-%02d %02d:%02d:%02d\n",
+        tmp.tm_year + 1900, tmp.tm_mon + 1, tmp.tm_mday,
+        tmp.tm_hour, tmp.tm_min, tmp.tm_sec);
+    } else {
+      Serial.println("\n[NTP] Sync failed — clock not available");
+    }
+  } else {
+    Serial.println("\n[WiFi] Not connected — ESP-NOW still works, no clock");
+  }
 
   Serial.printf("[INFO] My MAC: %s\n", WiFi.macAddress().c_str());
 
@@ -221,6 +311,7 @@ void loopSender() {
 #if TEST_POCSAG
   loopPocsagSender();
 #endif
+  loopDisplay();
 }
 
 #endif  // ROLE_SENDER
@@ -254,7 +345,39 @@ static const char* functionalNameRx(uint8_t f) {
     default: return "?";
   }
 }
-#endif
+
+// Parse time beacon from RIC 224.
+// Message format: "YYYYMMDDHHMMSS" + "YYMMDDHHmmSS"
+// Example:         YYYYMMDDHHMMSS    260314171800
+// Calls settimeofday() to set the system clock.
+static void applyPocsagTime(const char* msg) {
+  size_t len = strlen(msg);
+  if (len < 26) {
+    Serial.printf("[TIME] RIC 224 message too short (%u chars), expected >=26\n", len);
+    return;
+  }
+  const char* d = msg + 14;  // skip the "YYYYMMDDHHMMSS" format label
+
+  char tmp[3] = {};
+  struct tm t = {};
+  memcpy(tmp, d +  0, 2); t.tm_year = 100 + atoi(tmp); // YY → years since 1900
+  memcpy(tmp, d +  2, 2); t.tm_mon  = atoi(tmp) - 1;   // 1-based → 0-based
+  memcpy(tmp, d +  4, 2); t.tm_mday = atoi(tmp);
+  memcpy(tmp, d +  6, 2); t.tm_hour = atoi(tmp);
+  memcpy(tmp, d +  8, 2); t.tm_min  = atoi(tmp);
+  memcpy(tmp, d + 10, 2); t.tm_sec  = atoi(tmp);
+
+  time_t epoch = mktime(&t);
+  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+  settimeofday(&tv, nullptr);
+  timeSynced = true;
+
+  Serial.printf("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d\n",
+    TIME_POCSAG_RIC,
+    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+    t.tm_hour, t.tm_min, t.tm_sec);
+}
+#endif  // TEST_POCSAG
 
 // ── Receive callback ─────────────────────────────────────────
 void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen) {
@@ -317,18 +440,71 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   if (type == ESPNOW_TYPE_POCSAG) {
     EspNowPocsagPacket pkt = {};
     memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
-    pkt.message[POCSAG_MSG_MAX_LEN] = '\0';  // safety
+    pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
     rxTotalPocsag++;
     Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
+
+    // Time beacon
+    if (pkt.ric == TIME_POCSAG_RIC) {
+      applyPocsagTime(pkt.message);
+    }
     return;
   }
 #endif  // TEST_POCSAG
 
-  // Unknown type
   Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
+}
+
+// ── WiFi + SoftAP + OTA setup ────────────────────────────────
+static void setupReceiverNetwork() {
+  // Use AP+STA so we can have both a router connection and a fallback AP
+  WiFi.mode(WIFI_AP_STA);
+
+  // Try router — same network as sender means same channel → reliable ESP-NOW
+  bool staConnected = false;
+  if (strlen(WIFI_SSID) > 0) {
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.printf("[WiFi] Connecting to %s ", WIFI_SSID);
+    unsigned long t = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
+      delay(250); Serial.print(".");
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      staConnected = true;
+      Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
+        WiFi.localIP().toString().c_str(), WiFi.channel());
+    } else {
+      Serial.println("\n[WiFi] Not connected — SoftAP only");
+      WiFi.disconnect(true);
+    }
+  }
+
+  // Start SoftAP (always) — OTA is reachable via AP even without router
+  WiFi.softAP(AP_SSID, strlen(AP_PASSWORD) > 0 ? AP_PASSWORD : nullptr);
+  Serial.printf("[AP]   SSID: %s  IP: %s  channel: %d\n",
+    AP_SSID, WiFi.softAPIP().toString().c_str(), WiFi.channel());
+
+  if (!staConnected) {
+    Serial.println("[NOTE] ESP-NOW channel = AP channel. Sender must be on "
+                   "the same channel or also connect to this AP.");
+  }
+
+  // ArduinoOTA
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
+  ArduinoOTA.onStart([]() {
+    Serial.println("[OTA] Starting update...");
+    FastLED.clear(); FastLED.show();   // blank display during flash
+  });
+  ArduinoOTA.onEnd([]()   { Serial.println("\n[OTA] Done — rebooting"); });
+  ArduinoOTA.onError([](ota_error_t e) {
+    Serial.printf("[OTA] Error[%u]\n", e);
+  });
+  ArduinoOTA.begin();
+  Serial.printf("[OTA]  Hostname: %s.local\n", OTA_HOSTNAME);
 }
 
 // ── Setup / loop ─────────────────────────────────────────────
@@ -343,14 +519,12 @@ void setupReceiver() {
   Serial.println();
 
 #if TEST_DMR && ESPNOW_DEBUG
-  Serial.println("[MODE] DMR debug: ON  — printing every frame");
+  Serial.println("[MODE] DMR debug: ON");
 #elif TEST_DMR
-  Serial.println("[MODE] DMR debug: OFF — call start/end only  (set ESPNOW_DEBUG true for full frames)");
+  Serial.println("[MODE] DMR debug: OFF (set ESPNOW_DEBUG true for full frames)");
 #endif
 
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(100);
+  setupReceiverNetwork();
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("[ESP-NOW] Init FAILED — halting.");
@@ -365,10 +539,13 @@ void setupReceiver() {
     macBytes[3], macBytes[4], macBytes[5]);
 
   esp_now_register_recv_cb(onReceive);
-  Serial.println("\n[RECEIVER] Listening...\n");
+  Serial.printf("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n\n",
+    TIME_POCSAG_RIC);
 }
 
 void loopReceiver() {
+  ArduinoOTA.handle();
+
 #if ESPNOW_DEBUG
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {
@@ -387,10 +564,9 @@ void loopReceiver() {
 #endif
     );
   }
-#endif  // ESPNOW_DEBUG
+#endif
 
 #if TEST_DMR && !ESPNOW_DEBUG
-  // Show live frame count every 5s during an active call
   static unsigned long lastPrint = 0;
   if (callFrames > 0 && millis() - lastPrint >= 5000) {
     lastPrint = millis();
@@ -398,6 +574,8 @@ void loopReceiver() {
     Serial.printf("[RX-DMR] ... src=%-8lu  frames=%lu  dur=%lus\n", callSrc, callFrames, dur);
   }
 #endif
+
+  loopDisplay();
 }
 
 #endif  // ROLE_RECEIVER
@@ -407,12 +585,18 @@ void loopReceiver() {
 // Arduino entry points
 // ============================================================
 void setup() {
-  pinMode(15, INPUT_PULLDOWN); //Stops the High pitch noise!
-  pinMode(27, INPUT_PULLUP); // Does something with the buttons
-  pinMode(26, INPUT_PULLUP); // Does something with the buttons
+  pinMode(15, INPUT_PULLDOWN); // stops high-pitch noise
+  pinMode(27, INPUT_PULLUP);
+  pinMode(26, INPUT_PULLUP);
   Serial.begin(115200);
   delay(3000);
-  Serial.println("\n\n=== ESP-NOW Gateway Test Monitor ===");
+  Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
+
+  FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(LED_BRIGHTNESS);
+  FastLED.clear();
+  FastLED.show();
+
 #ifdef ROLE_SENDER
   setupSender();
 #endif

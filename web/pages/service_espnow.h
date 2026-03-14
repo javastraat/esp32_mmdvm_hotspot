@@ -91,7 +91,15 @@ String getServiceEspnowPageHTML()
   html += "</div>";
   html += "</div>";
 
-  // ── Card 3: Protocol Modes ────────────────────────────────────────────────
+  // ── Card 3: Discover Receivers ────────────────────────────────────────────
+  html += "<div class='card'>";
+  html += "<h3>Discover Receivers</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Scan the local network for nearby devices running this firmware. Click <em>Use</em> to fill the next empty MAC slot above.</p>";
+  html += "<button class='btn btn-primary' id='discover-btn' onclick='runDiscover()'>Scan</button>";
+  html += "<div id='discover-list' style='margin-top:12px;'></div>";
+  html += "</div>";
+
+  // ── Card 4: Protocol Modes ────────────────────────────────────────────────
   html += "<div class='card'>";
   html += "<h3>Protocol Modes</h3>";
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Choose which protocol frames are forwarded over ESP-NOW. Sender must be enabled above.</p>";
@@ -208,6 +216,35 @@ String getServiceEspnowPageHTML()
   html += "  else{d.disabled=false;dl.style.opacity='';dl.style.pointerEvents='';}";
   html += "}";
   html += "syncModes();";
+
+  // Discover
+  html += "function useDiscoveredMac(mac){";
+  html += "for(var i=0;i<6;i++){var el=document.getElementById('mac-'+i);if(el&&el.value.trim()===''){el.value=mac;return;}}";
+  html += "showAlert('All 6 MAC slots are already filled.');";
+  html += "}";
+
+  html += "function runDiscover(){";
+  html += "var btn=document.getElementById('discover-btn');";
+  html += "var list=document.getElementById('discover-list');";
+  html += "btn.disabled=true;btn.textContent='Scanning...';";
+  html += "list.innerHTML='<p style=\"color:#888;font-size:0.85em;\">Scanning\u2026</p>';";
+  html += "fetch('/api/espnow-discover').then(function(r){return r.json();}).then(function(data){";
+  html += "btn.disabled=false;btn.textContent='Scan';";
+  html += "if(!data.length){list.innerHTML='<p style=\"color:#888;font-size:0.85em;\">No devices found.</p>';return;}";
+  html += "var h='';for(var i=0;i<data.length;i++){";
+  html += "var d=data[i];var modes=[];";
+  html += "if(d.dmr_relay)modes.push('DMR');if(d.pocsag_relay)modes.push('POCSAG');";
+  html += "var ms=modes.length?modes.join(', '):'SERVER';";
+  html += "h+='<div class=\"metric\" style=\"flex-wrap:wrap;gap:6px;align-items:center;\">';";
+  html += "h+='<span style=\"font-family:monospace;font-size:0.9em;\">'+d.mac+'</span>';";
+  html += "h+='<span style=\"color:#555;font-size:0.85em;\">'+d.name+'</span>';";
+  html += "h+='<span style=\"color:#888;font-size:0.8em;\">'+ms+'</span>';";
+  html += "h+='<button class=\"btn btn-primary\" style=\"padding:2px 10px;font-size:0.8em;\" onclick=\"useDiscoveredMac(\\'' + d.mac + '\\')\">Use</button>';";
+  html += "h+='</div>';}";
+  html += "list.innerHTML=h;";
+  html += "}).catch(function(){btn.disabled=false;btn.textContent='Scan';";
+  html += "list.innerHTML='<p style=\"color:#f44336;font-size:0.85em;\">Scan failed.</p>';});";
+  html += "}";
 
   // Peer status dots — polls /api/espnow-peer-status every 5 s
   html += "var DOT_CFG={ok:{color:'#4CAF50',tip:'Last frame acknowledged'},fail:{color:'#f44336',tip:'No ACK received — peer may be out of range'},idle:{color:'#FF9800',tip:'No traffic in the last 121 s'},none:{color:'#ccc',tip:'No peer configured'}};";

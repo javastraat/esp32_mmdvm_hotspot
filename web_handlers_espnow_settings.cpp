@@ -16,8 +16,14 @@
 #include "system/system_logger.h"
 #include "system/system_espnow.h"
 #include "include/config.h"
+#include <WiFi.h>
+#include <WiFiUDP.h>
 
-extern void saveSettings();
+extern void     saveSettings();
+extern String   userCallsign;
+extern uint8_t  userDmrSsid;
+extern bool     dmrServerEspNow;
+extern bool     pocsagServerEspNow;
 
 void registerEspnowSettingsRoutes()
 {
@@ -88,6 +94,45 @@ void registerEspnowSettingsRoutes()
     saveSettings();
     addLogMessage("[ESP-NOW] Mode settings reset to default");
     server.send(200, "text/plain", "ESP-NOW mode settings reset to default.");
+  });
+
+  // ── Discovery scan ────────────────────────────────────────────────────────
+  // Broadcasts ESPNOW_DISCOVER on UDP port 3491, collects replies for 1 s,
+  // returns JSON array of {mac, name, dmr_relay, pocsag_relay} objects.
+
+  server.on("/api/espnow-discover", HTTP_GET, []() {
+    // Build self entry directly — UDP broadcast doesn't loop back on ESP32
+    String selfName = userCallsign;
+    if (userDmrSsid > 0) selfName += "-" + String(userDmrSsid);
+    String selfEntry = "{\"mac\":\"" + WiFi.macAddress() + "\""
+                     + ",\"name\":\"" + selfName + "\""
+                     + ",\"dmr_relay\":"    + (dmrServerEspNow    ? "true" : "false")
+                     + ",\"pocsag_relay\":" + (pocsagServerEspNow ? "true" : "false")
+                     + "}";
+
+    // Broadcast to find other devices on the subnet
+    WiFiUDP udp;
+    udp.begin(0);  // ephemeral source port
+    const char* ping = "ESPNOW_DISCOVER";
+    udp.beginPacket(IPAddress(255, 255, 255, 255), 3491);
+    udp.write((const uint8_t*)ping, strlen(ping));
+    udp.endPacket();
+
+    String json = "[" + selfEntry;
+    uint32_t deadline = millis() + 1000;
+    while (millis() < deadline) {
+      int len = udp.parsePacket();
+      if (len > 0) {
+        char buf[256] = {};
+        udp.read(buf, min(len, 255));
+        json += ",";
+        json += String(buf);
+      }
+      delay(10);
+    }
+    json += "]";
+    udp.stop();
+    server.send(200, "application/json", json);
   });
 
   // ── Peer status ───────────────────────────────────────────────────────────
