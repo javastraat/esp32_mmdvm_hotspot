@@ -93,25 +93,49 @@ static void drawDigit(int x, int y, int d, CRGB color) {
 
 // Draw HH:MM:SS starting at row 1, fits in 27 columns of the 32-wide matrix
 static void drawTime(int h, int m, int s, CRGB color) {
-  drawDigit( 0, 1, h / 10, color);
-  drawDigit( 4, 1, h % 10, color);
-  setLED(8, 2, color); setLED(8, 4, color);   // colon
-  drawDigit(10, 1, m / 10, color);
-  drawDigit(14, 1, m % 10, color);
-  setLED(18, 2, color); setLED(18, 4, color);  // colon
-  drawDigit(20, 1, s / 10, color);
-  drawDigit(24, 1, s % 10, color);
+  drawDigit( 2, 1, h / 10, color);
+  drawDigit( 6, 1, h % 10, color);
+  setLED(10, 2, color); setLED(10, 4, color);  // colon
+  drawDigit(12, 1, m / 10, color);
+  drawDigit(16, 1, m % 10, color);
+  setLED(20, 2, color); setLED(20, 4, color);  // colon
+  drawDigit(22, 1, s / 10, color);
+  drawDigit(26, 1, s % 10, color);
 }
 
 // Update display once per second — call from both role loops
 static bool timeSynced = false;
 
 static void loopDisplay() {
+  if (!timeSynced) {
+    // Scanner animation while waiting for first time beacon
+    static unsigned long lastScan = 0;
+    if (millis() - lastScan < 40) return;
+    lastScan = millis();
+
+    static int scanPos = 0;
+    static int scanDir = 1;
+
+    FastLED.clear();
+    for (int x = 0; x < MATRIX_WIDTH; x++) {
+      int dist = abs(x - scanPos);
+      uint8_t bright = (dist == 0) ? 200 : (dist == 1) ? 80 : (dist == 2) ? 30 : (dist == 3) ? 10 : 0;
+      if (bright > 0) {
+        CRGB col(0, bright / 4, bright);  // blue-ish
+        for (int y = 0; y < MATRIX_HEIGHT; y++) setLED(x, y, col);
+      }
+    }
+    FastLED.show();
+
+    scanPos += scanDir;
+    if (scanPos >= MATRIX_WIDTH - 1 || scanPos <= 0) scanDir = -scanDir;
+    return;
+  }
+
+  // Clock — update once per second
   static unsigned long lastUpdate = 0;
   if (millis() - lastUpdate < 1000) return;
   lastUpdate = millis();
-
-  if (!timeSynced) return;  // don't draw until we have a time source
 
   struct tm t;
   if (!getLocalTime(&t)) return;
@@ -554,6 +578,7 @@ void setup() {
   pinMode(15, INPUT_PULLDOWN); // stops high-pitch noise
   pinMode(27, INPUT_PULLUP);
   pinMode(26, INPUT_PULLUP);
+  pinMode(14, INPUT_PULLUP);
   Serial.begin(115200);
   delay(3000);
   Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
