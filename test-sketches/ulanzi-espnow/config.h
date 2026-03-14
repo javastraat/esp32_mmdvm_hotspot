@@ -22,7 +22,7 @@
 
   // WiFi network — ESP-NOW works even without an internet connection
   #define WIFI_SSID     "TechInc"
-  #define WIFI_PASSWORD "itoldyoualready1"
+  #define WIFI_PASSWORD "itoldyoualready"
 
   // MAC address of the receiver device.
   // Flash the receiver, open Serial (115200), copy the MAC printed on boot.
@@ -60,11 +60,11 @@
   // Always starts alongside STA — OTA is reachable even when
   // the router is down. Leave AP_PASSWORD empty for open network.
   #define AP_SSID       "UlanziReceiver"
-  #define AP_PASSWORD   ""
+  #define AP_PASSWORD   "mmdvm"
 
   // ── Arduino OTA ─────────────────────────────────────────────
   #define OTA_HOSTNAME  "ulanzi-receiver"
-  #define OTA_PASSWORD  ""              // leave empty for no password
+  #define OTA_PASSWORD  "mmdvm"              // leave empty for no password
 
   // ── Debug output (applies to DMR frames) ───────────────────
   #define ESPNOW_DEBUG false

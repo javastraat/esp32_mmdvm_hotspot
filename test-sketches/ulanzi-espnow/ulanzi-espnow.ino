@@ -12,15 +12,13 @@
  * Configure role, modes, and intervals in config.h.
  */
 
+#include "config.h"
 #include <FastLED.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
-#ifdef ROLE_RECEIVER
-  #include <ArduinoOTA.h>
-#endif
-#include "config.h"
+#include <ArduinoOTA.h>
 
 // ============================================================
 // Sanity checks
