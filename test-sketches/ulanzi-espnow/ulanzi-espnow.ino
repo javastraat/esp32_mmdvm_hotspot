@@ -18,7 +18,6 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
-#include <ArduinoOTA.h>
 
 // ============================================================
 // Sanity checks
@@ -456,13 +455,9 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
 }
 
-// ── WiFi + SoftAP + OTA setup ────────────────────────────────
+// ── WiFi setup ────────────────────────────────────────────────
 static void setupReceiverNetwork() {
-  // Use AP+STA so we can have both a router connection and a fallback AP
-  WiFi.mode(WIFI_AP_STA);
-
-  // Try router — same network as sender means same channel → reliable ESP-NOW
-  bool staConnected = false;
+  WiFi.mode(WIFI_STA);
   if (strlen(WIFI_SSID) > 0) {
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.printf("[WiFi] Connecting to %s ", WIFI_SSID);
@@ -471,38 +466,13 @@ static void setupReceiverNetwork() {
       delay(250); Serial.print(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
-      staConnected = true;
       Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
     } else {
-      Serial.println("\n[WiFi] Not connected — SoftAP only");
-      WiFi.disconnect(true);
+      Serial.println("\n[WiFi] Not connected");
+      WiFi.disconnect();
     }
   }
-
-  // Start SoftAP (always) — OTA is reachable via AP even without router
-  WiFi.softAP(AP_SSID, strlen(AP_PASSWORD) > 0 ? AP_PASSWORD : nullptr);
-  Serial.printf("[AP]   SSID: %s  IP: %s  channel: %d\n",
-    AP_SSID, WiFi.softAPIP().toString().c_str(), WiFi.channel());
-
-  if (!staConnected) {
-    Serial.println("[NOTE] ESP-NOW channel = AP channel. Sender must be on "
-                   "the same channel or also connect to this AP.");
-  }
-
-  // ArduinoOTA
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
-  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
-  ArduinoOTA.onStart([]() {
-    Serial.println("[OTA] Starting update...");
-    FastLED.clear(); FastLED.show();   // blank display during flash
-  });
-  ArduinoOTA.onEnd([]()   { Serial.println("\n[OTA] Done — rebooting"); });
-  ArduinoOTA.onError([](ota_error_t e) {
-    Serial.printf("[OTA] Error[%u]\n", e);
-  });
-  ArduinoOTA.begin();
-  Serial.printf("[OTA]  Hostname: %s.local\n", OTA_HOSTNAME);
 }
 
 // ── Setup / loop ─────────────────────────────────────────────
@@ -542,8 +512,6 @@ void setupReceiver() {
 }
 
 void loopReceiver() {
-  ArduinoOTA.handle();
-
 #if ESPNOW_DEBUG
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {

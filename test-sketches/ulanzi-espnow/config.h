@@ -54,17 +54,7 @@
   // the correct channel. Leave SSID empty to skip and go
   // straight to SoftAP mode.
   #define WIFI_SSID     "TechInc"
-  #define WIFI_PASSWORD "itoldyoualready1"
-
-  // ── SoftAP fallback ─────────────────────────────────────────
-  // Always starts alongside STA — OTA is reachable even when
-  // the router is down. Leave AP_PASSWORD empty for open network.
-  #define AP_SSID       "UlanziReceiver"
-  #define AP_PASSWORD   "mmdvm"
-
-  // ── Arduino OTA ─────────────────────────────────────────────
-  #define OTA_HOSTNAME  "ulanzi-receiver"
-  #define OTA_PASSWORD  "mmdvm"              // leave empty for no password
+  #define WIFI_PASSWORD "itoldyoualready"
 
   // ── Debug output (applies to DMR frames) ───────────────────
   #define ESPNOW_DEBUG false
