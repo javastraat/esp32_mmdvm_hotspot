@@ -88,6 +88,33 @@ static uint8_t _peerMacs[ESPNOW_MAX_PEERS][6] = {};
 static int     _peerCount = 0;
 static bool    _ready     = false;
 
+// ── Per-peer send status ───────────────────────────────────────────────────
+struct PeerStatus {
+  uint32_t lastSentMs;   // millis() when last frame was sent to this peer
+  bool     lastOk;       // was the last send ACK'd?
+  bool     everSent;     // has anything been sent to this peer yet?
+};
+static PeerStatus _peerStatus[ESPNOW_MAX_PEERS] = {};
+
+// Ring buffer to map async send callbacks back to their peer index.
+// pushSendIdx() is called just before esp_now_send(); onSendResult()
+// calls popSendIdx() to get the matching peer slot.
+#define SEND_QUEUE_SIZE 16
+static volatile uint8_t _sendIdxQueue[SEND_QUEUE_SIZE] = {};
+static volatile uint8_t _sendQHead = 0;
+static volatile uint8_t _sendQTail = 0;
+
+static void pushSendIdx(int idx) {
+  _sendIdxQueue[_sendQHead % SEND_QUEUE_SIZE] = (uint8_t)idx;
+  _sendQHead = (_sendQHead + 1) % SEND_QUEUE_SIZE;
+}
+static int popSendIdx() {
+  if (_sendQHead == _sendQTail) return -1;
+  int idx = _sendIdxQueue[_sendQTail % SEND_QUEUE_SIZE];
+  _sendQTail = (_sendQTail + 1) % SEND_QUEUE_SIZE;
+  return idx;
+}
+
 QueueHandle_t espnowDmrNetQueue  = nullptr;
 QueueHandle_t espnowPocsagQueue  = nullptr;
 
@@ -127,7 +154,14 @@ static int parseMacList(const String& macList, uint8_t out[][6], int maxPeers) {
 // Send callback (sender only) — fires after frame handed to radio driver
 // -------------------------------------------------------
 static void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t status) {
-  if (espnowDebug && status != ESP_NOW_SEND_SUCCESS) {
+  bool ok = (status == ESP_NOW_SEND_SUCCESS);
+  int idx = popSendIdx();
+  if (idx >= 0 && idx < _peerCount) {
+    _peerStatus[idx].lastSentMs = millis();
+    _peerStatus[idx].lastOk     = ok;
+    _peerStatus[idx].everSent   = true;
+  }
+  if (espnowDebug && !ok) {
     addLogMessage("[ESP-NOW] No ACK from peer");
   }
 }
@@ -238,6 +272,7 @@ void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
   memcpy(pkt.data, dmrdPacket, len);
 
   for (int i = 0; i < _peerCount; i++) {
+    pushSendIdx(i);
     esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
   }
 }
@@ -259,8 +294,45 @@ void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& mess
   pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
   for (int i = 0; i < _peerCount; i++) {
+    pushSendIdx(i);
     esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
   }
 }
 
 #endif  // ESPNOW_SENDER
+
+// -------------------------------------------------------
+// espnowGetPeerStatusJson() — returns JSON array with per-peer ACK status.
+// Always compiled so the web handler can call it unconditionally.
+// -------------------------------------------------------
+String espnowGetPeerStatusJson() {
+#if ESPNOW_SENDER
+  String json = "[";
+  for (int i = 0; i < ESPNOW_MAX_PEERS; i++) {
+    if (i > 0) json += ",";
+    if (i < _peerCount) {
+      char mac[18];
+      snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+               _peerMacs[i][0], _peerMacs[i][1], _peerMacs[i][2],
+               _peerMacs[i][3], _peerMacs[i][4], _peerMacs[i][5]);
+      const char* status;
+      if (!_peerStatus[i].everSent) {
+        status = "idle";
+      } else if ((millis() - _peerStatus[i].lastSentMs) > 30000) {
+        status = "idle";
+      } else if (_peerStatus[i].lastOk) {
+        status = "ok";
+      } else {
+        status = "fail";
+      }
+      json += "{\"mac\":\"" + String(mac) + "\",\"status\":\"" + status + "\"}";
+    } else {
+      json += "{\"mac\":\"\",\"status\":\"none\"}";
+    }
+  }
+  json += "]";
+  return json;
+#else
+  return "[]";
+#endif
+}

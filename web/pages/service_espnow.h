@@ -1,9 +1,10 @@
 /*
  * service_espnow.h - ESP-NOW Configuration Page
  *
- * Two cards:
- *   1. Sender — enable sender, receiver MAC, debug log
- *   2. Modes  — per-protocol forwarding toggles (DMR, POCSAG)
+ * Three cards:
+ *   1. Sender       — enable sender, debug log
+ *   2. Receiver MACs — up to 6 individual MAC inputs (stored comma-delimited)
+ *   3. Modes        — per-protocol forwarding toggles (DMR, POCSAG)
  *
  * Receiver mode is automatic: selecting ESP-NOW as the DMR server source
  * (in DMR settings) makes this device act as a receiver — no separate flag needed.
@@ -47,11 +48,6 @@ String getServiceEspnowPageHTML()
   html += "<label class='switch'><input type='checkbox' id='en-sender'" + String(espnowSenderEnabled ? " checked" : "") + " onchange='syncSender()'><span class='slider'></span></label>";
   html += "</div>";
   html += "<div class='metric'>";
-  html += "<span class='metric-label'>Receiver MAC(s):</span>";
-  html += "<input type='text' id='recv-mac' value='" + espnowReceiverMac + "' placeholder='AA:BB:CC:DD:EE:FF,11:22:33:44:55:66' style='width:100%;max-width:420px;font-family:monospace;padding-right:8px;' maxlength='200'>";
-  html += "</div>";
-  html += "<p style='font-size:0.82em;color:#888;margin-top:4px;'>One or more receiver MACs, comma-separated (max 6). Flash each receiver to print its MAC on boot.</p>";
-  html += "<div class='metric'>";
   html += "<span class='metric-label'>Debug Logging:</span>";
   html += "<label class='switch'><input type='checkbox' id='en-debug'" + String(espnowDebug ? " checked" : "") + "><span class='slider'></span></label>";
   html += "</div>";
@@ -62,7 +58,38 @@ String getServiceEspnowPageHTML()
   html += "</div>";
   html += "</div>";
 
-  // ── Card 2: Protocol Modes ────────────────────────────────────────────────
+  // ── Card 2: Receiver MACs ─────────────────────────────────────────────────
+  // Split stored comma-delimited string into up to 6 slots for individual inputs
+  String macSlots[6] = {"","","","","",""};
+  {
+    int idx = 0;
+    int start = 0;
+    for (int i = 0; i <= (int)espnowReceiverMac.length() && idx < 6; i++) {
+      if (i == (int)espnowReceiverMac.length() || espnowReceiverMac[i] == ',') {
+        String part = espnowReceiverMac.substring(start, i);
+        part.trim();
+        if (part.length() > 0) macSlots[idx++] = part;
+        start = i + 1;
+      }
+    }
+  }
+  html += "<div class='card'>";
+  html += "<h3>Receiver MACs</h3>";
+  html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Up to 6 receiver MAC addresses. Leave unused slots empty. Flash each receiver to print its MAC on boot.</p>";
+  for (int i = 0; i < 6; i++) {
+    html += "<div class='metric'>";
+    html += "<span class='metric-label'>MAC " + String(i + 1) + ":</span>";
+    html += "<input type='text' id='mac-" + String(i) + "' value='" + macSlots[i] + "' placeholder='AA:BB:CC:DD:EE:FF' style='font-family:monospace;width:160px;' maxlength='17'>";
+    html += "<span id='dot-" + String(i) + "' title='No peer configured' style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#ccc;margin-left:8px;vertical-align:middle;cursor:default;'></span>";
+    html += "</div>";
+  }
+  html += "<div class='action-buttons-vertical' style='margin-top:15px;'>";
+  html += "<button class='btn btn-success' onclick='saveSender()'>Save</button>";
+  html += "<button class='btn btn-danger' onclick='resetSender()'>Reset to Default</button>";
+  html += "</div>";
+  html += "</div>";
+
+  // ── Card 3: Protocol Modes ────────────────────────────────────────────────
   html += "<div class='card'>";
   html += "<h3>Protocol Modes</h3>";
   html += "<p style='font-size:0.85em;color:#666;margin-bottom:10px;'>Choose which protocol frames are forwarded over ESP-NOW. Sender must be enabled above.</p>";
@@ -115,14 +142,20 @@ String getServiceEspnowPageHTML()
   html += "d.appendChild(y);d.appendChild(n);b.appendChild(d);});};";
 
   // Sender
-  html += "function saveSender(){";
-  html += "var mac=document.getElementById('recv-mac').value.trim().toUpperCase();";
+  html += "function getMacs(){";
   html += "var single=/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;";
-  html += "var parts=mac.split(',');";
-  html += "for(var i=0;i<parts.length;i++){";
-  html += "  if(!single.test(parts[i].trim())){showAlert('Invalid MAC #'+(i+1)+': use AA:BB:CC:DD:EE:FF (comma-separate multiple)');return;}";
+  html += "var out=[];";
+  html += "for(var i=0;i<6;i++){";
+  html += "  var v=document.getElementById('mac-'+i).value.trim().toUpperCase();";
+  html += "  if(v==='')continue;";
+  html += "  if(!single.test(v)){showAlert('Invalid MAC '+(i+1)+': use AA:BB:CC:DD:EE:FF');return null;}";
+  html += "  out.push(v);";
   html += "}";
-  html += "if(parts.length>6){showAlert('Maximum 6 receiver MACs allowed');return;}";
+  html += "return out.join(',');";
+  html += "}";
+
+  html += "function saveSender(){";
+  html += "var mac=getMacs();if(mac===null)return;";
   html += "var en=document.getElementById('en-sender').checked?'1':'0';";
   html += "var dbg=document.getElementById('en-debug').checked?'1':'0';";
   html += "showConfirm('Save sender settings?',function(){";
@@ -154,8 +187,7 @@ String getServiceEspnowPageHTML()
   html += "function syncSender(){";
   html += "  var on=document.getElementById('en-sender').checked;";
   html += "  var lock=on?'':'0.4';var pe=on?'':'none';";
-  html += "  var mac=document.getElementById('recv-mac');";
-  html += "  mac.disabled=!on;mac.style.opacity=lock;";
+  html += "  for(var i=0;i<6;i++){var m=document.getElementById('mac-'+i);m.disabled=!on;m.style.opacity=lock;}";
   html += "  var dbg=document.getElementById('en-debug');var dbgl=dbg.closest('label');";
   html += "  dbg.disabled=!on;dbgl.style.opacity=lock;dbgl.style.pointerEvents=pe;";
   html += "  var dmr=document.getElementById('en-dmr');var dmrl=dmr.closest('label');";
@@ -174,6 +206,20 @@ String getServiceEspnowPageHTML()
   html += "  else{d.disabled=false;dl.style.opacity='';dl.style.pointerEvents='';}";
   html += "}";
   html += "syncModes();";
+
+  // Peer status dots — polls /api/espnow-peer-status every 5 s
+  html += "var DOT_CFG={ok:{color:'#4CAF50',tip:'Last frame acknowledged'},fail:{color:'#f44336',tip:'No ACK received — peer may be out of range'},idle:{color:'#FF9800',tip:'No traffic in the last 30 s'},none:{color:'#ccc',tip:'No peer configured'}};";
+  html += "function updateDots(){";
+  html += "fetch('/api/espnow-peer-status').then(function(r){return r.json();}).then(function(data){";
+  html += "  for(var i=0;i<6;i++){";
+  html += "    var d=document.getElementById('dot-'+i);if(!d)continue;";
+  html += "    var s=(data[i]&&data[i].status)?data[i].status:'none';";
+  html += "    var cfg=DOT_CFG[s]||DOT_CFG.none;";
+  html += "    d.style.background=cfg.color;d.title=cfg.tip;";
+  html += "  }";
+  html += "}).catch(function(){});";
+  html += "}";
+  html += "updateDots();setInterval(updateDots,5000);";
 
   html += "</script>";
 

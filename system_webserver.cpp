@@ -3,6 +3,7 @@
  */
 
 #include "system/system_webserver.h"
+#include "system/system_wifi.h"
 #include "system/system_eth.h"
 #include "system/system_logger.h"
 #include "system/system_oled.h"
@@ -236,6 +237,7 @@ void handleServiceTelegram();
 void handleSystemDatabase();
 void handleSystemLittlefs();
 void handleSystemExtra();
+void handleCaptivePortal();
 
 void webServerTask(void *parameter) {
     // The global server was constructed at static-init time using WEB_SERVER_PORT.
@@ -343,12 +345,29 @@ void webServerTask(void *parameter) {
   registerSnapshotRoutes();
   registerBootlogosRoutes();
 
+  // Captive portal detection endpoints (iOS, Android, Windows, Firefox).
+  // When in AP mode these redirect the device's portal-check to the main page,
+  // which triggers the automatic "Sign in to network" popup.
+  server.on("/generate_204", handleCaptivePortal);
+  server.on("/gen_204", handleCaptivePortal);
+  server.on("/hotspot-detect.html", handleCaptivePortal);
+  server.on("/library/test/success.html", handleCaptivePortal);
+  server.on("/connecttest.txt", handleCaptivePortal);
+  server.on("/ncsi.txt", handleCaptivePortal);
+  server.on("/success.txt", handleCaptivePortal);
+  server.on("/canonical.html", handleCaptivePortal);
+  server.on("/redirect", handleCaptivePortal);
+
   server.onNotFound(handleNotFound);
   server.begin(webServerPort);
   addLogMessage("[WebServer Task] Server started on port " + String(webServerPort));
   while (true)
   {
     server.handleClient();
+
+    // Process captive portal DNS queries while AP is active
+    if (softAPActive)
+      dnsServer.processNextRequest();
 
     // Process SD card downloads if requested
     performCSVDownload();
@@ -370,7 +389,19 @@ void handleRoot()
 
 void handleNotFound()
 {
+  // In AP/captive-portal mode redirect everything unknown to the main page
+  if (softAPActive) {
+    handleCaptivePortal();
+    return;
+  }
   server.send(404, "text/plain", "404: Not Found");
+}
+
+void handleCaptivePortal()
+{
+  String apIp = WiFi.softAPIP().toString();
+  server.sendHeader("Location", "http://" + apIp + "/", true);
+  server.send(302, "text/plain", "");
 }
 
 void handleModeDmr()

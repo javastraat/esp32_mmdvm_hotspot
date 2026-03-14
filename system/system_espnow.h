@@ -64,4 +64,7 @@ void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& mess
 // ── Discovery responder (always compiled — lets transmitters find this device) ──
 void initEspNowDiscovery();
 
+// ── Per-peer status (always compiled — used by web status endpoint) ──────────
+String espnowGetPeerStatusJson();
+
 #endif  // SYSTEM_ESPNOW_H

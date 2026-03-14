@@ -6,8 +6,9 @@
  *   POST /api/reset-espnow-sender   reset sender settings to defaults
  *   POST /api/save-espnow-modes     DMR + POCSAG forward toggles
  *   POST /api/reset-espnow-modes    reset mode settings to defaults
+ *   GET  /api/espnow-peer-status    per-peer ACK status JSON (live, no reboot needed)
  *
- * Changes take effect at next boot (ESP-NOW is initialized once in setup()).
+ * Setting changes take effect at next boot (ESP-NOW is initialized once in setup()).
  */
 
 #include "system/web_handlers_espnow_settings.h"
@@ -87,5 +88,13 @@ void registerEspnowSettingsRoutes()
     saveSettings();
     addLogMessage("[ESP-NOW] Mode settings reset to default");
     server.send(200, "text/plain", "ESP-NOW mode settings reset to default.");
+  });
+
+  // ── Peer status ───────────────────────────────────────────────────────────
+  // Returns JSON array with per-peer ACK status (live, no reboot required).
+  // Used by the web UI to show colored status dots next to each receiver MAC.
+
+  server.on("/api/espnow-peer-status", HTTP_GET, []() {
+    server.send(200, "application/json", espnowGetPeerStatusJson());
   });
 }

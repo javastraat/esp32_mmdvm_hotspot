@@ -11,6 +11,8 @@
 
 #include <ESPmDNS.h>
 
+DNSServer dnsServer;
+
 // External: Ethernet connection status
 extern volatile bool ethConnected;
 extern bool mdnsEnabled;
@@ -77,6 +79,11 @@ void startSoftAP()
 
   softAPActive = true;
   String apIp = WiFi.softAPIP().toString();
+
+  // Start captive portal DNS: redirect every domain to the AP IP
+  dnsServer.start(53, "*", WiFi.softAPIP());
+  addLogMessage("[WiFi Task] Captive portal DNS started");
+
   addLogMessage("[WiFi Task] Soft AP started: " + wifiApSsid);
   addLogMessage("[WiFi Task] AP IP: " + apIp);
   publishMqtt(mqttWifiTaskTopic.c_str(),
@@ -105,6 +112,7 @@ void stopSoftAP()
 
   addLogMessage("[WiFi Task] Stopping Soft AP (network available)");
   publishMqtt(mqttWifiTaskTopic.c_str(), "{\"event\":\"softap_stopped\"}");
+  dnsServer.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   softAPActive = false;
