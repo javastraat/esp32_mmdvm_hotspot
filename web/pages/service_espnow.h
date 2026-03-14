@@ -26,7 +26,9 @@ extern bool   espnowPocsagEnabled;
 
 String getServiceEspnowPageHTML()
 {
-  String html = "<!DOCTYPE html><html lang='en'><head>";
+  String html;
+  html.reserve(35000);
+  html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>ESP-NOW Configuration</title>";
