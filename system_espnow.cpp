@@ -318,7 +318,7 @@ String espnowGetPeerStatusJson() {
       const char* status;
       if (!_peerStatus[i].everSent) {
         status = "idle";
-      } else if ((millis() - _peerStatus[i].lastSentMs) > 30000) {
+      } else if ((millis() - _peerStatus[i].lastSentMs) > 121000) {
         status = "idle";
       } else if (_peerStatus[i].lastOk) {
         status = "ok";

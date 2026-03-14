@@ -208,7 +208,7 @@ String getServiceEspnowPageHTML()
   html += "syncModes();";
 
   // Peer status dots — polls /api/espnow-peer-status every 5 s
-  html += "var DOT_CFG={ok:{color:'#4CAF50',tip:'Last frame acknowledged'},fail:{color:'#f44336',tip:'No ACK received — peer may be out of range'},idle:{color:'#FF9800',tip:'No traffic in the last 30 s'},none:{color:'#ccc',tip:'No peer configured'}};";
+  html += "var DOT_CFG={ok:{color:'#4CAF50',tip:'Last frame acknowledged'},fail:{color:'#f44336',tip:'No ACK received — peer may be out of range'},idle:{color:'#FF9800',tip:'No traffic in the last 121 s'},none:{color:'#ccc',tip:'No peer configured'}};";
   html += "function updateDots(){";
   html += "fetch('/api/espnow-peer-status').then(function(r){return r.json();}).then(function(data){";
   html += "  for(var i=0;i<6;i++){";
