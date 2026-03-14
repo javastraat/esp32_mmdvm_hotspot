@@ -760,6 +760,10 @@ void loop() {
         } else if (row == 1 && col == 2) {
           currentScreen = SCREEN_STOPWATCH;
           needsRedraw   = true;
+        } else if (row == 2 && col == 0) {
+          prevScreen    = SCREEN_SETTINGS;
+          currentScreen = SCREEN_QUICKSETTINGS;
+          needsRedraw   = true;
         } else if (row == 2 && col == 1) {
           settingsRebootPrompt = true;
           needsRedraw          = true;

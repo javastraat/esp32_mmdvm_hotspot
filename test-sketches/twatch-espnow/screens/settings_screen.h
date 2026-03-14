@@ -148,6 +148,29 @@ static void drawPowerIcon(int cx, int cy, uint32_t color) {
   ttgo->tft->fillRect(cx - 2, oy - R - 6, 5, R + 4, c);
 }
 
+// ── Gear (cogwheel): 8 circular teeth + ring body + centre hole ──────────────
+static void drawGearIcon(int cx, int cy, uint16_t color) {
+  const int bodyR  = 16;   // gear body radius
+  const int toothR = 5;    // radius of each circular tooth
+  const int toothD = 20;   // distance from centre to tooth centre
+  const int holeR  = 7;    // centre hole radius
+
+  // 8 teeth (circular bumps) at 45° spacing
+  for (int i = 0; i < 8; i++) {
+    float ang = i * 45.0f * DEG_TO_RAD;
+    int tx = cx + (int)(toothD * cosf(ang));
+    int ty = cy + (int)(toothD * sinf(ang));
+    ttgo->tft->fillCircle(tx, ty, toothR, color);
+  }
+  // Body disc (covers tooth roots, creates solid gear shape)
+  ttgo->tft->fillCircle(cx, cy, bodyR, color);
+  // Centre hole
+  ttgo->tft->fillCircle(cx, cy, holeR, ICON_BG);
+  // Thin ring to make the hole visually crisp
+  ttgo->tft->drawCircle(cx, cy, holeR,     color);
+  ttgo->tft->drawCircle(cx, cy, holeR - 1, color);
+}
+
 // ── Next arrow: bold right-pointing arrow → back to clock ────────────────────
 static void drawNextArrowIcon(int cx, int cy, uint32_t color) {
   uint16_t c = (uint16_t)color;
@@ -191,7 +214,7 @@ static void drawSettingsScreen() {
   const char* iconLabels[3][3] = {
     { "WiFi",      "Messages", "Battery"  },
     { "Watchface", "Steps",    "Timer"    },
-    { "Settings",  "Reboot",   "Clock"    }
+    { "Quick",     "Reboot",   "Clock"    }
   };
 
   for (int row = 0; row < 3; ++row) {
@@ -213,6 +236,7 @@ static void drawSettingsScreen() {
       else if (row == 1 && col == 0) drawWatchfaceLayoutIcon(icx, icy, TFT_WHITE);
       else if (row == 1 && col == 1) drawStepsIcon(icx, icy, TFT_WHITE);
       else if (row == 1 && col == 2) drawStopwatchIcon(icx, icy, TFT_WHITE);
+      else if (row == 2 && col == 0) drawGearIcon(icx, icy, TFT_WHITE);
       else if (row == 2 && col == 1) drawPowerIcon(icx, icy, TFT_WHITE);
       else if (row == 2 && col == 2) drawNextArrowIcon(icx, icy, TFT_WHITE);
 
