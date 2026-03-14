@@ -67,7 +67,9 @@ extern String firmwareVersion;
 
 String getSystemStatusPageHTML()
 {
-  String html = "<!DOCTYPE html><html><head>";
+  String html;
+  html.reserve(56000);
+  html = "<!DOCTYPE html><html><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>System Status - ESP32 RTOS MMDVM</title>";

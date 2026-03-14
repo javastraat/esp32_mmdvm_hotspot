@@ -13,7 +13,9 @@
 
 String getSystemSerialPageHTML()
 {
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Serial Monitor</title>";
+  String html;
+  html.reserve(31000);
+  html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Serial Monitor</title>";
   html += getSharedStyles();
   html += "<style>";
   html += ".log-container{background:var(--bg-secondary);padding:15px;border-radius:8px;margin:20px 0}";

@@ -25,7 +25,9 @@ extern uint16_t mqttSendHardwareInfo;
 extern bool mqttHardwareInfoLog;
 String getServiceMqttPageHTML()
 {
-  String html = "<!DOCTYPE html><html lang='en'><head>";
+  String html;
+  html.reserve(45000);
+  html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>MQTT Configuration</title>";

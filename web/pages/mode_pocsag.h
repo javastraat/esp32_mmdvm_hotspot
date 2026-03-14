@@ -23,7 +23,9 @@ extern String userCallsign;
 
 String getModePocsagPageHTML()
 {
-  String html = "<!DOCTYPE html><html lang='en'><head>";
+  String html;
+  html.reserve(41000);
+  html = "<!DOCTYPE html><html lang='en'><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>POCSAG Configuration</title>";
