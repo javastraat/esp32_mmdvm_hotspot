@@ -259,6 +259,73 @@ static void loopBrightness() {
 }
 
 // ============================================================
+// Buzzer settings & non-blocking tone engine
+// ============================================================
+static bool    buzzerBootEnabled   = true;
+static uint8_t buzzerBootVolume    = BUZZER_VOL_BOOT;
+static bool    buzzerPocsagEnabled = true;
+static uint8_t buzzerPocsagVolume  = BUZZER_VOL_POCSAG;
+static bool    buzzerClickEnabled  = true;
+static uint8_t buzzerClickVolume   = BUZZER_VOL_CLICK;
+
+// Tone queue — written from ESP-NOW callback, processed in main loop
+static volatile uint16_t buzzerQFreq     = 0;
+static volatile uint16_t buzzerQDuration = 0;
+static volatile uint8_t  buzzerQDuty     = 0;
+static volatile bool     buzzerQPending  = false;
+static unsigned long     buzzerEndMs     = 0;
+
+static uint8_t buzzerVolToDuty(uint8_t vol) {
+  uint8_t d = (uint8_t)map(vol, 0, 255, 0, 100);
+  return (d < 1) ? 1 : d;
+}
+
+// Queue a tone — safe to call from any context (incl. ESP-NOW callback)
+static void buzzerPlay(uint16_t freq, uint16_t durationMs, uint8_t duty) {
+  if (duty == 0) return;
+  buzzerQFreq     = freq;
+  buzzerQDuration = durationMs;
+  buzzerQDuty     = duty;
+  buzzerQPending  = true;
+}
+
+static void buzzerBeep() {
+  if (!buzzerPocsagEnabled) return;
+  buzzerPlay(BUZZER_FREQ_BEEP, BUZZER_DUR_BEEP_MS, buzzerVolToDuty(buzzerPocsagVolume));
+}
+
+static void buzzerClick() {
+  if (!buzzerClickEnabled) return;
+  buzzerPlay(BUZZER_FREQ_CLICK, BUZZER_DUR_CLICK_MS, buzzerVolToDuty(buzzerClickVolume));
+}
+
+static void loopBuzzer() {
+  if (buzzerQPending) {
+    buzzerQPending = false;
+    ledcChangeFrequency(BUZZER_PIN, buzzerQFreq, BUZZER_LEDC_RES);
+    ledcWrite(BUZZER_PIN, buzzerQDuty);
+    buzzerEndMs = millis() + buzzerQDuration;
+  }
+  if (buzzerEndMs > 0 && millis() >= buzzerEndMs) {
+    ledcWrite(BUZZER_PIN, 0);
+    buzzerEndMs = 0;
+  }
+}
+
+static void setupBuzzer() {
+  // ledcAttach reconfigures GPIO15 as LEDC output (overrides INPUT_PULLDOWN)
+  ledcAttach(BUZZER_PIN, BUZZER_FREQ_BEEP, BUZZER_LEDC_RES);
+  ledcWrite(BUZZER_PIN, 0);
+  if (buzzerBootEnabled) {
+    uint8_t duty = buzzerVolToDuty(buzzerBootVolume);
+    ledcWrite(BUZZER_PIN, duty);
+    delay(BUZZER_DUR_BEEP_MS);
+    ledcWrite(BUZZER_PIN, 0);
+  }
+}
+
+
+// ============================================================
 // Buttons — debounced, fires once per press
 // ============================================================
 static void loopButtons() {
@@ -279,6 +346,7 @@ static void loopButtons() {
       switch (i) {
         case 0:  // Left — reserved for display mode (step 5)
           Serial.println("[BTN] Left");
+          buzzerClick();
           break;
         case 1:  // Middle — toggle auto-brightness
           autoBrightnessEnabled = !autoBrightnessEnabled;
@@ -286,9 +354,11 @@ static void loopButtons() {
             FastLED.setBrightness(currentBrightness);
           Serial.printf("[BTN] Middle — auto brightness: %s\n",
             autoBrightnessEnabled ? "ON" : "OFF");
+          buzzerClick();
           break;
         case 2:  // Right — reserved for display mode (step 5)
           Serial.println("[BTN] Right");
+          buzzerClick();
           break;
       }
     }
@@ -436,7 +506,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[900];
+    char json[1100];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -465,7 +535,10 @@ static void setupWebServer() {
       "\"last_pocsag\":\"%s\","
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
       "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
-      "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u}",
+      "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u,"
+      "\"buzzer_boot_en\":%s,\"buzzer_boot_vol\":%d,"
+      "\"buzzer_pocsag_en\":%s,\"buzzer_pocsag_vol\":%d,"
+      "\"buzzer_click_en\":%s,\"buzzer_click_vol\":%d}",
       OTA_HOSTNAME,
       "RECEIVER",
       WiFi.localIP().toString().c_str(),
@@ -485,7 +558,10 @@ static void setupWebServer() {
       WiFi.macAddress().c_str(),
       WiFi.SSID().c_str(),
       WiFi.RSSI(),
-      ESP.getFreeHeap()
+      ESP.getFreeHeap(),
+      buzzerBootEnabled   ? "true" : "false", buzzerBootVolume,
+      buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
+      buzzerClickEnabled  ? "true" : "false", buzzerClickVolume
     );
     webServer.send(200, "application/json", json);
   });
@@ -501,6 +577,29 @@ static void setupWebServer() {
     }
     if (!autoBrightnessEnabled)
       FastLED.setBrightness(currentBrightness);
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/buzzer/test", HTTP_POST, []() {
+    String type   = webServer.arg("type");
+    String volStr = webServer.arg("vol");
+    uint8_t vol   = volStr.length() ? (uint8_t)constrain(volStr.toInt(), 1, 255) : 80;
+    uint8_t duty  = buzzerVolToDuty(vol);
+    if (type == "boot" || type == "pocsag")
+      buzzerPlay(BUZZER_FREQ_BEEP,  BUZZER_DUR_BEEP_MS,  duty);
+    else if (type == "click")
+      buzzerPlay(BUZZER_FREQ_CLICK, BUZZER_DUR_CLICK_MS, duty);
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/buzzer", HTTP_POST, []() {
+    String v;
+    v = webServer.arg("boot_en");    if (v.length()) buzzerBootEnabled   = (v == "1" || v == "true");
+    v = webServer.arg("boot_vol");   if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerBootVolume   = (uint8_t)n; }
+    v = webServer.arg("pocsag_en");  if (v.length()) buzzerPocsagEnabled = (v == "1" || v == "true");
+    v = webServer.arg("pocsag_vol"); if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerPocsagVolume = (uint8_t)n; }
+    v = webServer.arg("click_en");   if (v.length()) buzzerClickEnabled  = (v == "1" || v == "true");
+    v = webServer.arg("click_vol");  if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerClickVolume  = (uint8_t)n; }
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -663,6 +762,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
       }
       pocsagMsgLen      = strlen(pocsagMsg);
       pocsagMsgActive   = (pocsagMsgLen > 0);
+      if (pocsagMsgActive) buzzerBeep();
       // fits on screen (≤8 chars) → static 15 s; otherwise → scroll 3×
       pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
       if (pocsagIsScrolling) {
@@ -773,6 +873,7 @@ void loopReceiver() {
 
   loopButtons();
   loopBrightness();
+  loopBuzzer();
   loopDisplay();
 }
 
@@ -795,6 +896,7 @@ void setup() {
   FastLED.clear();
   FastLED.show();
 
+  setupBuzzer();
   setupReceiver();
 }
 

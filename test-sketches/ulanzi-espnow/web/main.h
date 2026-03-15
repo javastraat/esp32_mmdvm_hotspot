@@ -152,6 +152,56 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     </div>
   </div>
 
+  <!-- 9. Buzzer -->
+  <div class="card">
+    <h3>Buzzer</h3>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="metric-label">Boot Sound</span>
+        <label class="switch">
+          <input type="checkbox" id="tog-bz-boot" onchange="onBuzzerChange(this.checked?'boot':null)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bright-bot">
+        <input type="range" id="sld-bz-boot" min="1" max="255" value="80"
+               oninput="document.getElementById('bz-boot-num').textContent=this.value"
+               onchange="onBuzzerChange('boot')">
+        <span class="bright-num" id="bz-boot-num">80</span>
+      </div>
+    </div>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="metric-label">POCSAG Receive</span>
+        <label class="switch">
+          <input type="checkbox" id="tog-bz-poc" onchange="onBuzzerChange(this.checked?'pocsag':null)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bright-bot">
+        <input type="range" id="sld-bz-poc" min="1" max="255" value="80"
+               oninput="document.getElementById('bz-poc-num').textContent=this.value"
+               onchange="onBuzzerChange('pocsag')">
+        <span class="bright-num" id="bz-poc-num">80</span>
+      </div>
+    </div>
+    <div style="padding:6px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="metric-label">Button Click</span>
+        <label class="switch">
+          <input type="checkbox" id="tog-bz-clk" onchange="onBuzzerChange(this.checked?'click':null)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bright-bot">
+        <input type="range" id="sld-bz-clk" min="1" max="255" value="60"
+               oninput="document.getElementById('bz-clk-num').textContent=this.value"
+               onchange="onBuzzerChange('click')">
+        <span class="bright-num" id="bz-clk-num">60</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -217,6 +267,16 @@ function poll(){
       document.getElementById('sld-bright').value=d.brightness;
       document.getElementById('bright-num').textContent=d.brightness;
     }
+    // Buzzer card
+    document.getElementById('tog-bz-boot').checked=d.buzzer_boot_en;
+    document.getElementById('sld-bz-boot').value=d.buzzer_boot_vol;
+    document.getElementById('bz-boot-num').textContent=d.buzzer_boot_vol;
+    document.getElementById('tog-bz-poc').checked=d.buzzer_pocsag_en;
+    document.getElementById('sld-bz-poc').value=d.buzzer_pocsag_vol;
+    document.getElementById('bz-poc-num').textContent=d.buzzer_pocsag_vol;
+    document.getElementById('tog-bz-clk').checked=d.buzzer_click_en;
+    document.getElementById('sld-bz-clk').value=d.buzzer_click_vol;
+    document.getElementById('bz-clk-num').textContent=d.buzzer_click_vol;
   }).catch(function(){});
 }
 function postBright(isAuto,level){
@@ -237,6 +297,28 @@ function onSliderChange(){
   var level=document.getElementById('sld-bright').value;
   document.getElementById('bright-num').textContent=level;
   postBright(false,level);
+}
+function onBuzzerChange(type){
+  var vol=type==='boot'?document.getElementById('sld-bz-boot').value
+         :type==='pocsag'?document.getElementById('sld-bz-poc').value
+         :type==='click'?document.getElementById('sld-bz-clk').value:null;
+  fetch('/api/buzzer',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'boot_en='+(document.getElementById('tog-bz-boot').checked?1:0)
+        +'&boot_vol='+document.getElementById('sld-bz-boot').value
+        +'&pocsag_en='+(document.getElementById('tog-bz-poc').checked?1:0)
+        +'&pocsag_vol='+document.getElementById('sld-bz-poc').value
+        +'&click_en='+(document.getElementById('tog-bz-clk').checked?1:0)
+        +'&click_vol='+document.getElementById('sld-bz-clk').value
+  }).then(function(){
+    if(!type||!vol)return;
+    fetch('/api/buzzer/test',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'type='+type+'&vol='+vol
+    }).catch(function(){});
+  }).catch(function(){});
 }
 poll();
 setInterval(poll,2000);

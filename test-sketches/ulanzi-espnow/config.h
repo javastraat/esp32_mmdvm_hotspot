@@ -98,6 +98,23 @@
 
 
 // ============================================================
+// Buzzer (passive, GPIO15)
+// GPIO15 is held INPUT_PULLDOWN at boot to silence power-on noise;
+// setupBuzzer() reconfigures it as LEDC output for tone generation.
+// ============================================================
+#define BUZZER_PIN            15
+#define BUZZER_LEDC_RES        8     // 8-bit duty resolution (0–255)
+#define BUZZER_FREQ_BEEP    1000     // Hz — boot & POCSAG beep pitch
+#define BUZZER_DUR_BEEP_MS    80     // ms — beep duration
+#define BUZZER_FREQ_CLICK   3000     // Hz — button click pitch
+#define BUZZER_DUR_CLICK_MS   12     // ms — click duration
+// Default volumes (0–255); internally mapped to LEDC duty 0–100
+#define BUZZER_VOL_BOOT       80
+#define BUZZER_VOL_POCSAG     80
+#define BUZZER_VOL_CLICK      60
+
+
+// ============================================================
 // LED matrix display
 // ============================================================
 #define LED_DATA_PIN    32
