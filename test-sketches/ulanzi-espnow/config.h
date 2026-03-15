@@ -101,7 +101,7 @@
 // Calibrate by watching ldr_raw in /api/status:
 //   LDR_ADC_DARK   = value when covering the sensor with your finger
 //   LDR_ADC_BRIGHT = value in your brightest normal lighting condition
-#define LDR_ADC_DARK    1550
+#define LDR_ADC_DARK    1600
 #define LDR_ADC_BRIGHT  4000
 
 // ============================================================
