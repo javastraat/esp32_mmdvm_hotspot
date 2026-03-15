@@ -132,27 +132,139 @@ static const uint8_t FONT_ERROR[5][5] = {
   {0b111, 0b101, 0b111, 0b110, 0b101}, // R
 };
 
-static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
-  FastLED.clear();
-  int width = count * 4 - 1;                          // 3px letter + 1px gap, no trailing gap
-  const int xo = (MATRIX_WIDTH  - width + 1) / 2;
-  const int yo = (MATRIX_HEIGHT - 5)         / 2;     // = 1
+// Internal: render glyphs only — no clear/show
+static void _drawGlyphs(const uint8_t glyphs[][5], int count, CRGB color, int xo, int yo) {
   for (int i = 0; i < count; i++)
     for (int row = 0; row < 5; row++)
       for (int col = 0; col < 3; col++)
         if (glyphs[i][row] & (1 << (2 - col)))
           setLED(xo + i * 4 + col, yo + row, color);
+}
+
+static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
+  FastLED.clear();
+  int width = count * 4 - 1;
+  _drawGlyphs(glyphs, count, color, (MATRIX_WIDTH - width + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
   FastLED.show();
 }
 
-static void drawUpdate() { drawStatusWord(FONT_UPDATE, 6, LED_COLOR_TIME); }
+// drawUpdate: called once on OTA start — sets text + full dim track on row 7
+static void drawUpdate() {
+  FastLED.clear();
+  _drawGlyphs(FONT_UPDATE, 6, LED_COLOR_TIME,
+              (MATRIX_WIDTH - 23 + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
+  for (int x = 0; x < MATRIX_WIDTH; x++)
+    setLED(x, 7, CRGB(0, 25, 25));  // dim track, row 7 only
+  FastLED.show();
+}
+
+// drawProgress: lights up one new pixel per call — never clears, so no flicker
+static void drawProgress(int barW) {
+  if (barW > 0) setLED(barW - 1, 7, CRGB::Cyan);
+  FastLED.show();
+}
 static void drawDone()   { drawStatusWord(FONT_DONE,   4, CRGB::Green);    }
 static void drawError()  { drawStatusWord(FONT_ERROR,  5, CRGB::Red);      }
+
+// 3×5 font for A–Z
+static const uint8_t FONT_ALPHA[26][5] = {
+  {0b010,0b101,0b111,0b101,0b101}, // A
+  {0b110,0b101,0b110,0b101,0b110}, // B
+  {0b011,0b100,0b100,0b100,0b011}, // C
+  {0b110,0b101,0b101,0b101,0b110}, // D
+  {0b111,0b100,0b110,0b100,0b111}, // E
+  {0b111,0b100,0b110,0b100,0b100}, // F
+  {0b011,0b100,0b101,0b101,0b011}, // G
+  {0b101,0b101,0b111,0b101,0b101}, // H
+  {0b111,0b010,0b010,0b010,0b111}, // I
+  {0b001,0b001,0b001,0b101,0b010}, // J
+  {0b101,0b101,0b110,0b101,0b101}, // K
+  {0b100,0b100,0b100,0b100,0b111}, // L
+  {0b101,0b111,0b111,0b101,0b101}, // M
+  {0b101,0b110,0b101,0b011,0b101}, // N  (diagonal stroke)
+  {0b010,0b101,0b101,0b101,0b010}, // O
+  {0b110,0b101,0b110,0b100,0b100}, // P
+  {0b010,0b101,0b101,0b011,0b001}, // Q
+  {0b110,0b101,0b110,0b101,0b101}, // R
+  {0b011,0b100,0b010,0b001,0b110}, // S
+  {0b111,0b010,0b010,0b010,0b010}, // T
+  {0b101,0b101,0b101,0b101,0b111}, // U
+  {0b101,0b101,0b101,0b101,0b010}, // V
+  {0b101,0b101,0b111,0b111,0b101}, // W
+  {0b101,0b101,0b010,0b101,0b101}, // X
+  {0b101,0b101,0b010,0b010,0b010}, // Y
+  {0b111,0b001,0b010,0b100,0b111}, // Z
+};
+
+static void drawChar(int x, int y, char c, CRGB color) {
+  if (c >= 'a' && c <= 'z') c -= 32;
+  if (c >= '0' && c <= '9') { drawDigit(x, y, c - '0', color); return; }
+  if (c >= 'A' && c <= 'Z') {
+    const uint8_t* g = FONT_ALPHA[c - 'A'];
+    for (int row = 0; row < 5; row++)
+      for (int col = 0; col < 3; col++)
+        if (g[row] & (1 << (2 - col)))
+          setLED(x + col, y + row, color);
+  }
+}
+
+#if defined(ROLE_RECEIVER) && TEST_POCSAG
+static char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
+static int   pocsagMsgLen        = 0;
+static bool  pocsagMsgActive     = false;
+static bool  pocsagIsScrolling   = false;
+// scroll-mode state
+static int   pocsagScrollX       = 0;
+static int   pocsagScrollPass    = 0;
+static unsigned long pocsagScrollLast = 0;
+// static-mode state
+static unsigned long pocsagStaticUntil   = 0;
+static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
+#endif
 
 // Update display once per second — call from both role loops
 static bool timeSynced = false;
 
 static void loopDisplay() {
+  // POCSAG message display — takes priority over both clock and scanner
+#if defined(ROLE_RECEIVER) && TEST_POCSAG
+  if (pocsagMsgActive) {
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    if (!pocsagIsScrolling) {
+      // Static: redraw every 500 ms so a clock tick can't erase it
+      if (millis() - pocsagStaticLastDraw >= 500) {
+        pocsagStaticLastDraw = millis();
+        int totalW = pocsagMsgLen * 4 - 1;
+        int xo = (MATRIX_WIDTH - totalW) / 2;
+        FastLED.clear();
+        for (int i = 0; i < pocsagMsgLen; i++)
+          drawChar(xo + i * 4, yo, pocsagMsg[i], CRGB(255, 160, 0));
+        FastLED.show();
+        Serial.printf("[DISP] POCSAG '%s' — %lus left\n", pocsagMsg,
+          (pocsagStaticUntil - millis()) / 1000);
+      }
+      if (millis() >= pocsagStaticUntil)
+        pocsagMsgActive = false;
+    } else {
+      // Scroll 3 passes, 50 ms per pixel
+      if (millis() - pocsagScrollLast < 50) return;
+      pocsagScrollLast = millis();
+      FastLED.clear();
+      for (int i = 0; i < pocsagMsgLen; i++)
+        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], CRGB(255, 160, 0));
+      FastLED.show();
+      pocsagScrollX--;
+      if (pocsagScrollX < -(pocsagMsgLen * 4)) {
+        if (++pocsagScrollPass >= 3)
+          pocsagMsgActive = false;
+        else
+          pocsagScrollX = MATRIX_WIDTH;
+      }
+    }
+    return;
+  }
+#endif
+
   if (!timeSynced) {
     // Scanner animation while waiting for first time beacon
     static unsigned long lastScan = 0;
@@ -203,6 +315,11 @@ static void setupOTA() {
   ArduinoOTA.onStart([]() {
     Serial.println("[OTA] Start");
     drawUpdate();
+  });
+  ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
+    static int lastBarW = -1;
+    int barW = (total > 0) ? (int)((long)MATRIX_WIDTH * current / total) : 0;
+    if (barW != lastBarW) { lastBarW = barW; drawProgress(barW); }
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\n[OTA] Done — rebooting");
@@ -545,9 +662,31 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
 
-    // Time beacon
-    if (pkt.ric == TIME_POCSAG_RIC) {
+    // Time beacon — always apply regardless of exclude list
+    if (pkt.ric == TIME_POCSAG_RIC)
       applyPocsagTime(pkt.message);
+
+    // Display on LED matrix unless RIC is excluded
+    static const uint32_t excludedRics[] = POCSAG_DISPLAY_EXCLUDED_RICS;
+    bool excluded = false;
+    for (size_t i = 0; i < sizeof(excludedRics) / sizeof(excludedRics[0]); i++)
+      if (pkt.ric == excludedRics[i]) { excluded = true; break; }
+
+    if (!excluded) {
+      strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
+      pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
+      pocsagMsgLen      = strlen(pocsagMsg);
+      pocsagMsgActive   = (pocsagMsgLen > 0);
+      // fits on screen (≤8 chars) → static 15 s; otherwise → scroll 3×
+      pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
+      if (pocsagIsScrolling) {
+        pocsagScrollX    = MATRIX_WIDTH;
+        pocsagScrollPass = 0;
+        pocsagScrollLast = millis();
+      } else {
+        pocsagStaticUntil    = millis() + 15000;
+        pocsagStaticLastDraw = 0;  // force immediate draw
+      }
     }
     return;
   }

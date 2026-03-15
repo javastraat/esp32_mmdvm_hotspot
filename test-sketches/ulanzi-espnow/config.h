@@ -71,6 +71,11 @@
   // POCSAG RIC that carries "YYYYMMDDHHMMSS<YYMMDDHHmmSS>" messages
   #define TIME_POCSAG_RIC  224
 
+  // ── Display exclusion list ───────────────────────────────────
+  // RICs that are never shown on the LED matrix display.
+  // Add/remove entries as needed.
+  #define POCSAG_DISPLAY_EXCLUDED_RICS { 224, 208, 200, 216, 4520, 4521 }
+
 #endif  // ROLE_RECEIVER
 
 
