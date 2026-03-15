@@ -184,7 +184,7 @@ static const uint8_t FONT_ALPHA[26][5] = {
   {0b101,0b101,0b110,0b101,0b101}, // K
   {0b100,0b100,0b100,0b100,0b111}, // L
   {0b101,0b111,0b111,0b101,0b101}, // M
-  {0b101,0b110,0b101,0b011,0b101}, // N  (diagonal stroke)
+  {0b101,0b111,0b101,0b101,0b101}, // N
   {0b010,0b101,0b101,0b101,0b010}, // O
   {0b110,0b101,0b110,0b100,0b100}, // P
   {0b010,0b101,0b101,0b011,0b001}, // Q
@@ -407,7 +407,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[720];
+    char json[800];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -435,7 +435,8 @@ static void setupWebServer() {
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
       "\"last_pocsag\":\"%s\","
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
-      "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d}",
+      "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
+      "\"mac\":\"%s\",\"rssi\":%d,\"free_heap\":%u}",
       OTA_HOSTNAME,
 #ifdef ROLE_SENDER
       "SENDER",
@@ -455,7 +456,10 @@ static void setupWebServer() {
       analogRead(LDR_PIN),
       batRaw,
       batMv,
-      batPct
+      batPct,
+      WiFi.macAddress().c_str(),
+      WiFi.RSSI(),
+      ESP.getFreeHeap()
     );
     webServer.send(200, "application/json", json);
   });
