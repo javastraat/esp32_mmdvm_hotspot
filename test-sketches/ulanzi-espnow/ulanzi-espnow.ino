@@ -258,6 +258,7 @@ static void loopDisplay() {
     if (!pocsagIsScrolling) {
       // Static: redraw every 500 ms so a clock tick can't erase it
       if (millis() - pocsagStaticLastDraw >= 500) {
+        bool first = (pocsagStaticLastDraw == 0);
         pocsagStaticLastDraw = millis();
         int totalW = pocsagMsgLen * 4 - 1;
         int xo = (MATRIX_WIDTH - totalW) / 2;
@@ -265,8 +266,8 @@ static void loopDisplay() {
         for (int i = 0; i < pocsagMsgLen; i++)
           drawChar(xo + i * 4, yo, pocsagMsg[i], CRGB(255, 160, 0));
         FastLED.show();
-        Serial.printf("[DISP] POCSAG '%s' — %lus left\n", pocsagMsg,
-          (pocsagStaticUntil - millis()) / 1000);
+        if (first)
+          Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
       }
       if (millis() >= pocsagStaticUntil)
         pocsagMsgActive = false;
