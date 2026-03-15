@@ -1,15 +1,12 @@
 /*
- * ESP-NOW Gateway Test Monitor + Clock Display
+ * ESP-NOW Receiver + Clock Display (Ulanzi TC001)
  *
- * ROLE_SENDER:   sends fake DMRD/POCSAG packets; syncs clock via NTP (WiFi).
- * ROLE_RECEIVER: tries to join WiFi (same router as sender = same channel),
- *                falls back to SoftAP if unavailable. ArduinoOTA always active.
- *                Syncs clock from POCSAG RIC 224 time-beacon
- *                (format "YYYYMMDDHHMMSS<YYMMDDHHmmSS>").
+ * Receives DMRD Homebrew + POCSAG packets from the MMDVM hotspot via ESP-NOW.
+ * Tries to join WiFi (same router as hotspot = same channel).
+ * Syncs clock from POCSAG RIC 224 time-beacon ("YYYYMMDDHHMMSS<YYMMDDHHmmSS>").
+ * ArduinoOTA + web status page always active when WiFi is up.
  *
- * Both roles display the current time on the Ulanzi 32×8 LED matrix.
- *
- * Configure role, modes, and intervals in config.h.
+ * Configure modes and display settings in config.h.
  */
 
 #include "config.h"
@@ -25,14 +22,8 @@
 // ============================================================
 // Sanity checks
 // ============================================================
-#if defined(ROLE_SENDER) && defined(ROLE_RECEIVER)
-  #error "Define ROLE_SENDER *or* ROLE_RECEIVER in config.h, not both."
-#endif
-#if !defined(ROLE_SENDER) && !defined(ROLE_RECEIVER)
-  #error "Define ROLE_SENDER or ROLE_RECEIVER in config.h."
-#endif
-#if TEST_DMR == false && TEST_POCSAG == false
-  #error "Enable at least one of TEST_DMR or TEST_POCSAG in config.h."
+#if RECV_DMR == false && RECV_POCSAG == false
+  #error "Enable at least one of RECV_DMR or RECV_POCSAG in config.h."
 #endif
 
 // ============================================================
@@ -234,7 +225,7 @@ static void drawChar(int x, int y, char c, CRGB color) {
   // space and other unknowns render as a blank gap (no pixels set)
 }
 
-#if defined(ROLE_RECEIVER) && TEST_POCSAG
+#if RECV_POCSAG
 static char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
 static int   pocsagMsgLen        = 0;
 static bool  pocsagMsgActive     = false;
@@ -282,7 +273,7 @@ static bool otaInProgress = false;  // blocks loopDisplay during OTA flash
 static void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
   // POCSAG message display — takes priority over both clock and scanner
-#if defined(ROLE_RECEIVER) && TEST_POCSAG
+#if RECV_POCSAG
   if (pocsagMsgActive) {
     const int yo = (MATRIX_HEIGHT - 5) / 2;
     if (!pocsagIsScrolling) {
@@ -438,11 +429,7 @@ static void setupWebServer() {
       "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
       "\"mac\":\"%s\",\"rssi\":%d,\"free_heap\":%u}",
       OTA_HOSTNAME,
-#ifdef ROLE_SENDER
-      "SENDER",
-#else
       "RECEIVER",
-#endif
       WiFi.localIP().toString().c_str(),
       WiFi.channel(),
       millis() / 1000,
@@ -484,211 +471,11 @@ static void setupWebServer() {
 
 
 // ============================================================
-// SENDER
-// ============================================================
-#ifdef ROLE_SENDER
-
-static uint8_t peerMac[] = RECEIVER_MAC;
-static bool    peerRegistered = false;
-static uint8_t seqCounter = 0;
-
-// ── DMR helpers ─────────────────────────────────────────────
-#if TEST_DMR
-
-static uint8_t buildDmrdPacket(uint8_t* buf, uint32_t srcId, uint32_t dstId,
-                                uint8_t slot, bool group, uint8_t seq)
-{
-  memcpy(buf, "DMRD", 4);
-  buf[4] = seq;
-  buf[5] = (srcId >> 16) & 0xFF;
-  buf[6] = (srcId >>  8) & 0xFF;
-  buf[7] =  srcId        & 0xFF;
-  buf[8] = (dstId >> 16) & 0xFF;
-  buf[9] = (dstId >>  8) & 0xFF;
-  buf[10] =  dstId       & 0xFF;
-  buf[11] = buf[12] = buf[13] = buf[14] = 0x00;
-  buf[15] = (slot == 2 ? 0x80 : 0x00) | (group ? 0x40 : 0x00);
-  buf[16] = 0xAB; buf[17] = 0xCD; buf[18] = buf[19] = seq;
-  for (int i = 20; i < 55; i++) buf[i] = (uint8_t)((seq + i) & 0xFF);
-  return 55;
-}
-
-static void sendDmrdPkt(uint32_t srcId, uint32_t dstId, uint8_t slot, bool group)
-{
-  uint8_t dmrd[60] = {};
-  uint8_t dlen = buildDmrdPacket(dmrd, srcId, dstId, slot, group, ++seqCounter);
-
-  EspNowDmrNetPacket pkt = {};
-  pkt.type = ESPNOW_TYPE_DMR_NET;
-  pkt.len  = dlen;
-  memcpy(pkt.data, dmrd, dlen);
-
-  esp_now_send(peerMac, (uint8_t*)&pkt, sizeof(pkt));
-  wsCountDmr++;
-}
-
-static void loopDmrSender()
-{
-  static unsigned long lastSend = 0;
-  static uint8_t cycle = 0;
-  if (millis() - lastSend < DMR_SEND_INTERVAL_MS) return;
-  lastSend = millis();
-
-  uint32_t src  = (cycle % 2 == 0) ? 2620123 : 2620456;
-  uint32_t dst  = 204;
-  uint8_t  slot = (cycle % 2) + 1;
-
-  Serial.printf("\n[TX-DMR] src=%-8lu  dst=TG%-6lu  slot=%d  seq=%d\n",
-    src, dst, slot, seqCounter + 1);
-
-  sendDmrdPkt(src, dst, slot, true);
-  cycle++;
-}
-
-#endif  // TEST_DMR
-
-// ── POCSAG helpers ───────────────────────────────────────────
-#if TEST_POCSAG
-
-static void sendPocsagPkt(uint32_t ric, uint8_t functional, const char* msg)
-{
-  EspNowPocsagPacket pkt = {};
-  pkt.type       = ESPNOW_TYPE_POCSAG;
-  pkt.ric        = ric;
-  pkt.functional = functional;
-  strncpy(pkt.message, msg, POCSAG_MSG_MAX_LEN);
-  pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
-
-  esp_now_send(peerMac, (uint8_t*)&pkt, sizeof(pkt));
-  wsCountPocsag++;
-}
-
-static const char* functionalName(uint8_t f) {
-  switch (f) {
-    case FUNCTIONAL_NUMERIC:      return "NUMERIC";
-    case FUNCTIONAL_ALPHANUMERIC: return "ALPHA";
-    case 1: return "ALERT1";
-    case 2: return "ALERT2";
-    default: return "?";
-  }
-}
-
-static void loopPocsagSender()
-{
-  static unsigned long lastSend = 0;
-  if (millis() - lastSend < POCSAG_INTERVAL_MS) return;
-  lastSend = millis();
-
-  Serial.printf("\n[TX-POCSAG] RIC=%-10lu  enc=%-6s  msg='%s'\n",
-    (unsigned long)POCSAG_RIC, functionalName(FUNCTIONAL_ALPHANUMERIC), POCSAG_CALLSIGN);
-
-  sendPocsagPkt(POCSAG_RIC, FUNCTIONAL_ALPHANUMERIC, POCSAG_CALLSIGN);
-}
-
-#endif  // TEST_POCSAG
-
-// ── Send callback ────────────────────────────────────────────
-void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t status) {
-  Serial.printf("  delivery: %s\n", status == ESP_NOW_SEND_SUCCESS ? "ACK" : "NO ACK");
-}
-
-// ── Setup / loop ─────────────────────────────────────────────
-void setupSender() {
-  Serial.print("[ROLE] SENDER — modes:");
-#if TEST_DMR
-  Serial.print(" DMR");
-#endif
-#if TEST_POCSAG
-  Serial.print(" POCSAG");
-#endif
-  Serial.println();
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.printf("[WiFi] Connecting to %s ", WIFI_SSID);
-  unsigned long t = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
-    delay(250); Serial.print(".");
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
-    Serial.printf("\n[WiFi] %s\n", WiFi.localIP().toString().c_str());
-    // Sync time via NTP
-    configTime(NTP_GMT_OFFSET_SEC, NTP_DST_OFFSET_SEC, NTP_SERVER);
-    Serial.print("[NTP] Waiting for sync");
-    struct tm tmp;
-    unsigned long tNtp = millis();
-    while (!getLocalTime(&tmp) && millis() - tNtp < 10000) {
-      delay(500); Serial.print(".");
-    }
-    if (getLocalTime(&tmp)) {
-      timeSynced = true;
-      Serial.printf("\n[NTP] Synced: %04d-%02d-%02d %02d:%02d:%02d\n",
-        tmp.tm_year + 1900, tmp.tm_mon + 1, tmp.tm_mday,
-        tmp.tm_hour, tmp.tm_min, tmp.tm_sec);
-    } else {
-      Serial.println("\n[NTP] Sync failed — clock not available");
-    }
-    setupOTA();
-  } else {
-    Serial.println("\n[WiFi] Not connected — ESP-NOW still works, no clock");
-  }
-
-  Serial.printf("[INFO] My MAC: %s\n", WiFi.macAddress().c_str());
-
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("[ESP-NOW] Init FAILED — halting.");
-    while (true) delay(1000);
-  }
-  esp_now_register_send_cb(onSendResult);
-
-  esp_now_peer_info_t peer = {};
-  memcpy(peer.peer_addr, peerMac, 6);
-  peer.channel = 0;
-  peer.encrypt = false;
-
-  if (esp_now_add_peer(&peer) != ESP_OK) {
-    Serial.println("[ESP-NOW] Failed to add peer — check RECEIVER_MAC in config.h");
-  } else {
-    peerRegistered = true;
-    Serial.printf("[ESP-NOW] Peer: %02X:%02X:%02X:%02X:%02X:%02X\n",
-      peerMac[0], peerMac[1], peerMac[2], peerMac[3], peerMac[4], peerMac[5]);
-  }
-
-#if TEST_DMR
-  Serial.printf("[DMR]    Sending fake DMRD every %d ms\n", DMR_SEND_INTERVAL_MS);
-#endif
-#if TEST_POCSAG
-  Serial.printf("[POCSAG] Sending '%s' (RIC %lu) every %d ms\n",
-    POCSAG_CALLSIGN, (unsigned long)POCSAG_RIC, POCSAG_INTERVAL_MS);
-#endif
-  Serial.println();
-}
-
-void loopSender() {
-  if (otaStarted) ArduinoOTA.handle();
-  webServer.handleClient();
-  if (!peerRegistered) return;
-#if TEST_DMR
-  loopDmrSender();
-#endif
-#if TEST_POCSAG
-  loopPocsagSender();
-#endif
-  loopBrightness();
-  loopDisplay();
-}
-
-#endif  // ROLE_SENDER
-
-
-// ============================================================
 // RECEIVER
 // ============================================================
-#ifdef ROLE_RECEIVER
 
 // ── DMR state ────────────────────────────────────────────────
-#if TEST_DMR
+#if RECV_DMR
 static uint32_t rxTotalDmr   = 0;
 static uint32_t callFrames   = 0;
 static uint32_t callSrc      = 0;
@@ -698,7 +485,7 @@ static unsigned long callStart = 0;
 #endif
 
 // ── POCSAG state ─────────────────────────────────────────────
-#if TEST_POCSAG
+#if RECV_POCSAG
 static uint32_t rxTotalPocsag = 0;
 
 static const char* functionalNameRx(uint8_t f) {
@@ -742,7 +529,7 @@ static void applyPocsagTime(const char* msg) {
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
     t.tm_hour, t.tm_min, t.tm_sec);
 }
-#endif  // TEST_POCSAG
+#endif  // RECV_POCSAG
 
 // ── Receive callback ─────────────────────────────────────────
 void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen) {
@@ -750,7 +537,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   uint8_t type = inData[0];
 
   // ── DMR packet ──────────────────────────────────────────────
-#if TEST_DMR
+#if RECV_DMR
   if (type == ESPNOW_TYPE_DMR_NET) {
     EspNowDmrNetPacket pkt = {};
     memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
@@ -799,10 +586,10 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 #endif
     return;
   }
-#endif  // TEST_DMR
+#endif  // RECV_DMR
 
   // ── POCSAG packet ───────────────────────────────────────────
-#if TEST_POCSAG
+#if RECV_POCSAG
   if (type == ESPNOW_TYPE_POCSAG) {
     EspNowPocsagPacket pkt = {};
     memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
@@ -850,7 +637,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     }
     return;
   }
-#endif  // TEST_POCSAG
+#endif  // RECV_POCSAG
 
   Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
 }
@@ -880,17 +667,17 @@ static void setupReceiverNetwork() {
 // ── Setup / loop ─────────────────────────────────────────────
 void setupReceiver() {
   Serial.print("[ROLE] RECEIVER — modes:");
-#if TEST_DMR
+#if RECV_DMR
   Serial.print(" DMR");
 #endif
-#if TEST_POCSAG
+#if RECV_POCSAG
   Serial.print(" POCSAG");
 #endif
   Serial.println();
 
-#if TEST_DMR && ESPNOW_DEBUG
+#if RECV_DMR && ESPNOW_DEBUG
   Serial.println("[MODE] DMR debug: ON");
-#elif TEST_DMR
+#elif RECV_DMR
   Serial.println("[MODE] DMR debug: OFF (set ESPNOW_DEBUG true for full frames)");
 #endif
 
@@ -922,12 +709,12 @@ void loopReceiver() {
     lastHb = millis();
     Serial.printf("[RX] alive %lus | DMR:%lu POCSAG:%lu\n",
       millis() / 1000,
-#if TEST_DMR
+#if RECV_DMR
       rxTotalDmr,
 #else
       0UL,
 #endif
-#if TEST_POCSAG
+#if RECV_POCSAG
       rxTotalPocsag
 #else
       0UL
@@ -936,7 +723,7 @@ void loopReceiver() {
   }
 #endif
 
-#if TEST_DMR && !ESPNOW_DEBUG
+#if RECV_DMR && !ESPNOW_DEBUG
   static unsigned long lastPrint = 0;
   if (callFrames > 0 && millis() - lastPrint >= 5000) {
     lastPrint = millis();
@@ -948,8 +735,6 @@ void loopReceiver() {
   loopBrightness();
   loopDisplay();
 }
-
-#endif  // ROLE_RECEIVER
 
 
 // ============================================================
@@ -970,19 +755,9 @@ void setup() {
   FastLED.clear();
   FastLED.show();
 
-#ifdef ROLE_SENDER
-  setupSender();
-#endif
-#ifdef ROLE_RECEIVER
   setupReceiver();
-#endif
 }
 
 void loop() {
-#ifdef ROLE_SENDER
-  loopSender();
-#endif
-#ifdef ROLE_RECEIVER
   loopReceiver();
-#endif
 }

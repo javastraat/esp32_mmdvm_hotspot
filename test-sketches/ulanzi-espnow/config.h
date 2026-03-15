@@ -1,94 +1,61 @@
 #pragma once
 
 // ============================================================
-// STEP 1 — Select the role for this device
-//           Uncomment exactly ONE line
+// Protocol modes — enable one or both (at least one required)
 // ============================================================
-//#define ROLE_SENDER
-#define ROLE_RECEIVER
-
-
-// ============================================================
-// STEP 2 — Enable test modes (one or both)
-// ============================================================
-#define TEST_DMR    false    // DMR: forward/receive raw DMRD Homebrew packets
-#define TEST_POCSAG true    // POCSAG: forward/receive POCSAG pages
+#define RECV_DMR    false   // receive raw DMRD Homebrew packets via ESP-NOW
+#define RECV_POCSAG true    // receive POCSAG pages via ESP-NOW
 
 
 // ============================================================
-// STEP 3 — SENDER settings (ignored on receiver)
+// WiFi — connect to the same router as the MMDVM hotspot
+// (ensures ESP-NOW uses the correct channel)
+// Leave SSID empty "" to skip WiFi and use SoftAP only.
 // ============================================================
-#ifdef ROLE_SENDER
-
-  // WiFi network — ESP-NOW works even without an internet connection
-  #define WIFI_SSID     "TechInc"
-  #define WIFI_PASSWORD "itoldyoualready"
-
-  // MAC address of the receiver device.
-  // Flash the receiver, open Serial (115200), copy the MAC printed on boot.
-  #define RECEIVER_MAC { 0xE4, 0xB3, 0x23, 0xF1, 0x42, 0xB4 }
-
-  // ── DMR test settings ──────────────────────────────────────
-  #define DMR_SEND_INTERVAL_MS  2000      // send a fake DMRD packet every 2 s
-
-  // ── POCSAG test settings ───────────────────────────────────
-  #define POCSAG_RIC           2041152    // pager RIC to address
-  #define POCSAG_CALLSIGN      "PD2EMC"  // message text
-  #define POCSAG_INTERVAL_MS   30000     // send interval (30 s)
-
-  // ── NTP time sync ───────────────────────────────────────────
-  #define NTP_SERVER           "pool.ntp.org"
-  #define NTP_GMT_OFFSET_SEC   3600      // UTC+1 (CET); use 7200 for UTC+2 (CEST)
-  #define NTP_DST_OFFSET_SEC   0
-
-  // ── OTA ─────────────────────────────────────────────────────
-  #define OTA_HOSTNAME  "ulanzi-sender"
-  #define OTA_PASSWORD  "mmdvm"               // leave empty to disable password
-
-#endif  // ROLE_SENDER
+#define WIFI_SSID     "TechInc"
+#define WIFI_PASSWORD "itoldyoualready"
 
 
 // ============================================================
-// STEP 3 — RECEIVER settings
+// OTA update
 // ============================================================
-#ifdef ROLE_RECEIVER
+#define OTA_HOSTNAME  "ulanzi-clock"
+#define OTA_PASSWORD  "mmdvm"           // leave empty "" to disable password
 
-  // ── WiFi (optional but recommended) ────────────────────────
-  // Connect to the same router as the sender so ESP-NOW uses
-  // the correct channel. Leave SSID empty to skip and go
-  // straight to SoftAP mode.
-  #define WIFI_SSID     "TechInc"
-  #define WIFI_PASSWORD "itoldyoualready"
 
-  // ── OTA ─────────────────────────────────────────────────────
-  #define OTA_HOSTNAME  "ulanzi-clock"
-  #define OTA_PASSWORD  "mmdvm"               // leave empty to disable password
+// ============================================================
+// Debug output — verbose DMR frame logging over Serial
+// ============================================================
+#define ESPNOW_DEBUG false
 
-  // ── Debug output (applies to DMR frames) ───────────────────
-  #define ESPNOW_DEBUG false
 
-  // ── Time beacon RIC ─────────────────────────────────────────
-  // POCSAG RIC that carries "YYYYMMDDHHMMSS<YYMMDDHHmmSS>" messages
-  #define TIME_POCSAG_RIC  224
+// ============================================================
+// Time beacon
+// POCSAG RIC that carries "YYYYMMDDHHMMSS<YYMMDDHHmmSS>" messages
+// ============================================================
+#define TIME_POCSAG_RIC  224
 
-  // ── Transmitter callsign RIC ─────────────────────────────────
-  // RIC that carries the transmitter ID/callsign.
-  // Trailing digits are stripped before display (maintainer sometimes appends "1" etc.)
-  #define CALLSIGN_RIC  8
 
-  // ── Display exclusion list ───────────────────────────────────
-  // RICs that are never shown on the LED matrix display.
-  // Add/remove entries as needed.
-  #define POCSAG_DISPLAY_EXCLUDED_RICS { 224, 208, 200, 216, 4520, 4521 }
+// ============================================================
+// Transmitter callsign RIC
+// RIC that carries the transmitter ID/callsign.
+// Trailing digits are stripped before display.
+// ============================================================
+#define CALLSIGN_RIC  8
 
-  // ── POCSAG display behaviour ─────────────────────────────────
-  // Short messages (fits on screen): hold this long, then return to clock.
-  #define POCSAG_STATIC_MS      15000   // ms to show a short message
-  // Long messages (scrolling): scroll speed and number of passes.
-  #define POCSAG_SCROLL_SPEED_MS   50   // ms per pixel scroll step
-  #define POCSAG_SCROLL_PASSES      3   // how many times to scroll through
 
-#endif  // ROLE_RECEIVER
+// ============================================================
+// POCSAG display settings
+// ============================================================
+// RICs that are never shown on the LED matrix display.
+#define POCSAG_DISPLAY_EXCLUDED_RICS { 224, 208, 200, 216, 4520, 4521 }
+
+// Short messages (fits on screen): hold this long, then return to clock.
+#define POCSAG_STATIC_MS      15000   // ms to show a short message
+
+// Long messages (scrolling): scroll speed and number of passes.
+#define POCSAG_SCROLL_SPEED_MS   50   // ms per pixel scroll step
+#define POCSAG_SCROLL_PASSES      3   // how many times to scroll through
 
 
 // ============================================================
@@ -105,6 +72,7 @@
 #define BAT_FULL_MV    4200    // mV at 100% (for display estimate)
 #define BAT_EMPTY_MV   3000    // mV at 0% (for display estimate)
 
+
 // ============================================================
 // LDR auto-brightness (GL5516 on GPIO35)
 // ============================================================
@@ -117,6 +85,7 @@
 //   LDR_ADC_BRIGHT = value in your brightest normal lighting condition
 #define LDR_ADC_DARK    1600
 #define LDR_ADC_BRIGHT  4000
+
 
 // ============================================================
 // LED matrix display

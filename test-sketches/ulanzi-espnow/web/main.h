@@ -78,7 +78,6 @@ input[type=range]:disabled{opacity:.35;cursor:default}
   <!-- 1. Device -->
   <div class="card">
     <h3>Device</h3>
-    <div class="metric"><span class="metric-label">Role</span><span class="metric-value" id="role">-</span></div>
     <div class="metric"><span class="metric-label">Hostname</span><span class="metric-value" id="hostname">-</span></div>
     <div class="metric"><span class="metric-label">IP Address</span><span class="metric-value" id="ip" style="color:#28a745">-</span></div>
     <div class="metric"><span class="metric-label">WiFi Channel</span><span class="metric-value" id="ch">-</span></div>
@@ -115,8 +114,8 @@ input[type=range]:disabled{opacity:.35;cursor:default}
   <!-- 5. ESP-NOW -->
   <div class="card">
     <h3>ESP-NOW</h3>
-    <div class="metric"><span class="metric-label" id="lbl-dmr">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
-    <div class="metric"><span class="metric-label" id="lbl-poc">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
+    <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
+    <div class="metric"><span class="metric-label">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
   </div>
 
   <!-- 6. Last POCSAG -->
@@ -172,7 +171,6 @@ function poll(){
     document.getElementById('h1').textContent=d.hostname;
     document.getElementById('sub').textContent=d.ip;
     // Device card
-    document.getElementById('role').textContent=d.role;
     document.getElementById('hostname').textContent=d.hostname;
     document.getElementById('ip').textContent=d.ip;
     document.getElementById('ch').textContent='ch '+d.channel;
@@ -185,14 +183,10 @@ function poll(){
     document.getElementById('clk').textContent=d.time_synced?d.time:'--:--:--';
     document.getElementById('sync-lbl').textContent=d.time_synced?'synced':'waiting for sync...';
     // ESP-NOW card
-    var isSender=(d.role==='SENDER');
-    document.getElementById('lbl-dmr').textContent=isSender?'DMR Sent':'DMR Received';
-    document.getElementById('lbl-poc').textContent=isSender?'POCSAG Sent':'POCSAG Received';
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;
     // Last POCSAG card
     var msg=d.last_pocsag||'';
-    document.getElementById('card-msg').style.display=(!isSender||msg)?'':'none';
     document.getElementById('msg').textContent=msg||'(none yet)';
     // Battery card
     var pct=d.battery_pct,mv=d.battery_mv;
