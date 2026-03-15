@@ -20,6 +20,7 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include "web/main.h"
+#include "SHT31.h"
 
 // ============================================================
 // Sanity checks
@@ -363,6 +364,20 @@ static void setupBuzzer() {
 
 
 // ============================================================
+// SHT31 + display mode — declared here so loopButtons() can reference them
+// ============================================================
+static SHT31        sht31Sensor;
+static bool         sht31Available = false;
+static float        sht31Temp      = 0.0f;
+static float        sht31Hum       = 0.0f;
+
+enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_COUNT };
+static DisplayMode   displayMode     = MODE_CLOCK;
+static unsigned long modeActiveUntil = 0;
+#define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock
+
+
+// ============================================================
 // Buttons — debounced, fires once per press
 // ============================================================
 static void loopButtons() {
@@ -393,8 +408,15 @@ static void loopButtons() {
             autoBrightnessEnabled ? "ON" : "OFF");
           buzzerClick();
           break;
-        case 2:  // Right — reserved for display mode (step 5)
-          Serial.println("[BTN] Right");
+        case 2:  // Right — cycle display mode (requires SHT31)
+          if (sht31Available) {
+            displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
+            modeActiveUntil = (displayMode != MODE_CLOCK) ? millis() + MODE_TIMEOUT_MS : 0;
+            Serial.printf("[BTN] Right — mode: %s\n",
+              displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock");
+          } else {
+            Serial.println("[BTN] Right — no SHT31 sensor");
+          }
           buzzerClick();
           break;
       }
@@ -487,11 +509,43 @@ static void setupRTC() {
     t.tm_hour, t.tm_min, t.tm_sec);
 }
 
+// ============================================================
+// SHT31 temperature/humidity sensor — polled every 30 s
+// Globals declared before loopButtons(); Wire started by setupRTC().
+// Uses SHT31 library (Rob Tillaart); no begin() needed — Wire already up.
+// ============================================================
+static void setupSHT31() {
+  // Probe via direct I2C before handing off to the library
+  Wire.beginTransmission(0x44);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("[SHT31] Not found");
+    return;
+  }
+  sht31Available = true;
+  sht31Sensor.read();
+  sht31Temp = sht31Sensor.getTemperature();
+  sht31Hum  = sht31Sensor.getHumidity();
+  Serial.printf("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
+}
+
+static void loopSHT31() {
+  if (!sht31Available) return;
+  static unsigned long last = 0;
+  if (millis() - last < 30000) return;
+  last = millis();
+  sht31Sensor.read();
+  sht31Temp = sht31Sensor.getTemperature();
+  sht31Hum  = sht31Sensor.getHumidity();
+  Serial.printf("[SHT31] %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
+}
+
+
 // Display loop
 
 static void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
-  // POCSAG message display — takes priority over both clock and scanner
+
+  // POCSAG message display — takes priority over all modes
 #if RECV_POCSAG
   if (pocsagMsgActive) {
     const int yo = (MATRIX_HEIGHT - 5) / 2;
@@ -531,8 +585,12 @@ static void loopDisplay() {
   }
 #endif
 
-  if (!timeSynced) {
-    // Scanner animation while waiting for first time beacon
+  // Auto-return to clock after mode timeout
+  if (displayMode != MODE_CLOCK && millis() >= modeActiveUntil)
+    displayMode = MODE_CLOCK;
+
+  // Scanner animation while waiting for first time sync (clock mode only)
+  if (!timeSynced && displayMode == MODE_CLOCK) {
     static unsigned long lastScan = 0;
     if (millis() - lastScan < 40) return;
     lastScan = millis();
@@ -553,6 +611,41 @@ static void loopDisplay() {
 
     scanPos += scanDir;
     if (scanPos >= MATRIX_WIDTH - 1 || scanPos <= 0) scanDir = -scanDir;
+    return;
+  }
+
+  // Temperature / humidity display
+  if (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY) {
+    static DisplayMode   lastMode = MODE_CLOCK;
+    static unsigned long lastDraw = 0;
+    bool modeChanged = (lastMode != displayMode);
+    lastMode = displayMode;
+
+    if (!modeChanged && millis() - lastDraw < 1000) return;
+    lastDraw = millis();
+
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    char buf[8];
+    CRGB color;
+
+    if (displayMode == MODE_TEMP) {
+      int t10 = (int)roundf(sht31Temp * 10.0f);
+      if (t10 >= 0)
+        snprintf(buf, sizeof(buf), "%d.%dC", t10 / 10, t10 % 10);
+      else
+        snprintf(buf, sizeof(buf), "-%d.%dC", (-t10) / 10, (-t10) % 10);
+      color = CRGB(255, 120, 0);   // warm orange
+    } else {
+      snprintf(buf, sizeof(buf), "%d%%", constrain((int)roundf(sht31Hum), 0, 100));
+      color = CRGB(0, 180, 255);   // cyan-blue
+    }
+
+    int len = strlen(buf);
+    int xo  = (MATRIX_WIDTH - (len * 4 - 1) + 1) / 2;
+    FastLED.clear();
+    for (int i = 0; i < len; i++)
+      drawChar(xo + i * 4, yo, buf[i], color);
+    FastLED.show();
     return;
   }
 
@@ -617,7 +710,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[1100];
+    char json[1300];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -649,7 +742,9 @@ static void setupWebServer() {
       "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u,"
       "\"buzzer_boot_en\":%s,\"buzzer_boot_vol\":%d,"
       "\"buzzer_pocsag_en\":%s,\"buzzer_pocsag_vol\":%d,"
-      "\"buzzer_click_en\":%s,\"buzzer_click_vol\":%d}",
+      "\"buzzer_click_en\":%s,\"buzzer_click_vol\":%d,"
+      "\"sht31_available\":%s,\"sht31_temp\":%.1f,\"sht31_hum\":%.1f,"
+      "\"display_mode\":\"%s\"}",
       OTA_HOSTNAME,
       "RECEIVER",
       WiFi.localIP().toString().c_str(),
@@ -673,7 +768,9 @@ static void setupWebServer() {
       ESP.getFreeHeap(),
       buzzerBootEnabled   ? "true" : "false", buzzerBootVolume,
       buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
-      buzzerClickEnabled  ? "true" : "false", buzzerClickVolume
+      buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
+      sht31Available ? "true" : "false", sht31Temp, sht31Hum,
+      displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock"
     );
     webServer.send(200, "application/json", json);
   });
@@ -999,6 +1096,7 @@ void loopReceiver() {
   loopButtons();
   loopBrightness();
   loopBuzzer();
+  loopSHT31();
   loopDisplay();
 }
 
@@ -1022,6 +1120,7 @@ void setup() {
   FastLED.show();
 
   setupRTC();
+  setupSHT31();   // probe 0x44; Wire already started by setupRTC()
   setupBuzzer();
   setupReceiver();
 }

@@ -112,6 +112,8 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <div class="metric"><span class="metric-label">Battery</span><span class="metric-value" id="bat">-</span></div>
     <div class="metric"><span class="metric-label">Battery Raw</span><span class="metric-value" id="bat-raw" style="color:var(--text-muted)">-</span></div>
     <div class="metric"><span class="metric-label">Light (LDR)</span><span class="metric-value" id="ldr" style="color:var(--text-muted)">-</span></div>
+    <div class="metric" id="row-temp" style="display:none"><span class="metric-label">Temperature</span><span class="metric-value" id="temp">-</span></div>
+    <div class="metric" id="row-hum"  style="display:none"><span class="metric-label">Humidity</span><span class="metric-value" id="hum">-</span></div>
   </div>
 
   <!-- 5. Clock -->
@@ -119,6 +121,7 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <h3>Clock</h3>
     <div class="clock-val" id="clk">--:--:--</div>
     <div class="clock-sub" id="sync-lbl">waiting for sync...</div>
+    <div class="clock-sub" id="mode-lbl" style="margin-top:4px">mode: clock</div>
   </div>
 
   <!-- 6. ESP-NOW -->
@@ -254,6 +257,14 @@ function poll(){
     // Clock card
     document.getElementById('clk').textContent=d.time_synced?d.time:'--:--:--';
     document.getElementById('sync-lbl').textContent=d.pocsag_synced?'synced':d.time_synced?'from RTC':'waiting for sync...';
+    document.getElementById('mode-lbl').textContent='mode: '+(d.display_mode||'clock');
+    // Sensors (SHT31)
+    if(d.sht31_available){
+      document.getElementById('row-temp').style.display='';
+      document.getElementById('row-hum').style.display='';
+      document.getElementById('temp').textContent=d.sht31_temp.toFixed(1)+' \u00b0C';
+      document.getElementById('hum').textContent=d.sht31_hum.toFixed(1)+' %';
+    }
     // ESP-NOW card
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;
