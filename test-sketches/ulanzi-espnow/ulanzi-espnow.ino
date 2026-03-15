@@ -259,6 +259,44 @@ static void loopBrightness() {
 }
 
 // ============================================================
+// Buttons — debounced, fires once per press
+// ============================================================
+static void loopButtons() {
+  static bool          lastState[3]  = {HIGH, HIGH, HIGH};
+  static bool          fired[3]      = {false, false, false};
+  static unsigned long lastChange[3] = {0, 0, 0};
+  static const uint8_t pins[3]       = {BTN_LEFT, BTN_MIDDLE, BTN_RIGHT};
+
+  for (int i = 0; i < 3; i++) {
+    bool state = digitalRead(pins[i]);
+    if (state != lastState[i]) {
+      lastChange[i] = millis();
+      lastState[i]  = state;
+      fired[i]      = false;
+    }
+    if (!fired[i] && state == LOW && millis() - lastChange[i] >= BTN_DEBOUNCE_MS) {
+      fired[i] = true;
+      switch (i) {
+        case 0:  // Left — reserved for display mode (step 5)
+          Serial.println("[BTN] Left");
+          break;
+        case 1:  // Middle — toggle auto-brightness
+          autoBrightnessEnabled = !autoBrightnessEnabled;
+          if (!autoBrightnessEnabled)
+            FastLED.setBrightness(currentBrightness);
+          Serial.printf("[BTN] Middle — auto brightness: %s\n",
+            autoBrightnessEnabled ? "ON" : "OFF");
+          break;
+        case 2:  // Right — reserved for display mode (step 5)
+          Serial.println("[BTN] Right");
+          break;
+      }
+    }
+  }
+}
+
+
+// ============================================================
 // Web status (updated by role code, served via /api/status)
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
@@ -733,6 +771,7 @@ void loopReceiver() {
   }
 #endif
 
+  loopButtons();
   loopBrightness();
   loopDisplay();
 }
@@ -742,10 +781,10 @@ void loopReceiver() {
 // Arduino entry points
 // ============================================================
 void setup() {
-  pinMode(15, INPUT_PULLDOWN); // stops high-pitch noise
-  pinMode(27, INPUT_PULLUP);
-  pinMode(26, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
+  pinMode(15,         INPUT_PULLDOWN); // buzzer — stops high-pitch noise
+  pinMode(BTN_LEFT,   INPUT_PULLUP);
+  pinMode(BTN_MIDDLE, INPUT_PULLUP);
+  pinMode(BTN_RIGHT,  INPUT_PULLUP);
   pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
   Serial.begin(115200);
   delay(3000);

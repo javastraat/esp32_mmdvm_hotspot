@@ -88,6 +88,16 @@
 
 
 // ============================================================
+// Buttons (GPIO26=Left, GPIO27=Middle, GPIO14=Right)
+// All wired INPUT_PULLUP — active LOW.
+// ============================================================
+#define BTN_LEFT    26
+#define BTN_MIDDLE  27
+#define BTN_RIGHT   14
+#define BTN_DEBOUNCE_MS  50   // debounce window in ms
+
+
+// ============================================================
 // LED matrix display
 // ============================================================
 #define LED_DATA_PIN    32
