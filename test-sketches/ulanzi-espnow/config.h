@@ -93,13 +93,17 @@
 
 // ============================================================
 // Battery voltage monitoring (GPIO34 ADC)
+// Calibration source: PixelIt TC001 firmware (empirical, real hardware)
+// The TC001 uses a large voltage divider — raw ADC range is 510–660,
+// NOT what a simple 1:2 divider formula would predict.
+// To recalibrate: watch battery_raw in /api/status
+//   fully charged → BAT_RAW_FULL, fully depleted → BAT_RAW_EMPTY
 // ============================================================
 #define BAT_PIN        34      // ADC6 — wired to battery via voltage divider
-#define BAT_DIVIDER    2.0f    // divider ratio: R1=R2 → ×2 (TC001 default)
-#define BAT_VREF_MV    3300    // ADC reference voltage in mV
-#define BAT_ADC_MAX    4095    // 12-bit ADC full scale
-#define BAT_FULL_MV    4200    // mV at 100%
-#define BAT_EMPTY_MV   3000    // mV at 0%
+#define BAT_RAW_EMPTY  510     // ADC raw at 0% (depleted, ~3.0 V)
+#define BAT_RAW_FULL   660     // ADC raw at 100% (fully charged, ~4.2 V)
+#define BAT_FULL_MV    4200    // mV at 100% (for display estimate)
+#define BAT_EMPTY_MV   3000    // mV at 0% (for display estimate)
 
 // ============================================================
 // LDR auto-brightness (GL5516 on GPIO35)

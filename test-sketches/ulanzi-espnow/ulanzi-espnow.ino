@@ -268,17 +268,6 @@ static void loopBrightness() {
 }
 
 // ============================================================
-// Battery voltage
-// ============================================================
-static int readBatteryMv() {
-  int raw = analogRead(BAT_PIN);
-  return (int)((raw / (float)BAT_ADC_MAX) * BAT_VREF_MV * BAT_DIVIDER);
-}
-static int readBatteryPct(int mv) {
-  return (int)constrain(map(mv, BAT_EMPTY_MV, BAT_FULL_MV, 0, 100), 0, 100);
-}
-
-// ============================================================
 // Web status (updated by role code, served via /api/status)
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
@@ -418,7 +407,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[700];
+    char json[720];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -435,8 +424,9 @@ static void setupWebServer() {
     }
     safe[si] = '\0';
 
-    int batMv  = readBatteryMv();
-    int batPct = readBatteryPct(batMv);
+    int batRaw = analogRead(BAT_PIN);
+    int batMv  = (int)map(constrain(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL), BAT_RAW_EMPTY, BAT_RAW_FULL, BAT_EMPTY_MV, BAT_FULL_MV);
+    int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
 
     snprintf(json, sizeof(json),
       "{\"hostname\":\"%s\",\"role\":\"%s\",\"ip\":\"%s\","
@@ -445,7 +435,7 @@ static void setupWebServer() {
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
       "\"last_pocsag\":\"%s\","
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
-      "\"battery_mv\":%d,\"battery_pct\":%d}",
+      "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d}",
       OTA_HOSTNAME,
 #ifdef ROLE_SENDER
       "SENDER",
@@ -463,6 +453,7 @@ static void setupWebServer() {
       currentBrightness,
       autoBrightnessEnabled ? "true" : "false",
       analogRead(LDR_PIN),
+      batRaw,
       batMv,
       batPct
     );
@@ -965,6 +956,7 @@ void setup() {
   pinMode(27, INPUT_PULLUP);
   pinMode(26, INPUT_PULLUP);
   pinMode(14, INPUT_PULLUP);
+  pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
   Serial.begin(115200);
   delay(3000);
   Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
