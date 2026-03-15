@@ -253,7 +253,7 @@ function poll(){
     document.getElementById('mac').textContent=d.mac||'-';
     // Clock card
     document.getElementById('clk').textContent=d.time_synced?d.time:'--:--:--';
-    document.getElementById('sync-lbl').textContent=d.time_synced?'synced':'waiting for sync...';
+    document.getElementById('sync-lbl').textContent=d.pocsag_synced?'synced':d.time_synced?'from RTC':'waiting for sync...';
     // ESP-NOW card
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;

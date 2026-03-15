@@ -412,7 +412,8 @@ static char      wsLastPocsag[POCSAG_MSG_MAX_LEN + 1] = {};
 static WebServer webServer(80);
 
 // Shared display state — declared here so setupRTC() can set timeSynced
-static bool timeSynced    = false;
+static bool timeSynced    = false;  // true once clock is running (RTC or POCSAG)
+static bool pocsagSynced  = false;  // true only after POCSAG RIC 224 has confirmed time
 static bool otaInProgress = false;
 
 // ============================================================
@@ -640,7 +641,7 @@ static void setupWebServer() {
     snprintf(json, sizeof(json),
       "{\"hostname\":\"%s\",\"role\":\"%s\",\"ip\":\"%s\","
       "\"channel\":%d,\"uptime\":%lu,"
-      "\"time_synced\":%s,\"time\":\"%s\","
+      "\"time_synced\":%s,\"pocsag_synced\":%s,\"time\":\"%s\","
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
       "\"last_pocsag\":\"%s\","
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
@@ -654,7 +655,8 @@ static void setupWebServer() {
       WiFi.localIP().toString().c_str(),
       WiFi.channel(),
       millis() / 1000,
-      timeSynced ? "true" : "false",
+      timeSynced   ? "true" : "false",
+      pocsagSynced ? "true" : "false",
       timeStr,
       (unsigned long)wsCountDmr,
       (unsigned long)wsCountPocsag,
@@ -778,7 +780,8 @@ static void applyPocsagTime(const char* msg) {
   time_t epoch = mktime(&t);
   struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
   settimeofday(&tv, nullptr);
-  timeSynced = true;
+  timeSynced   = true;
+  pocsagSynced = true;
 
   if (rtcAvailable)
     ds1307Write(t);
