@@ -523,8 +523,8 @@ static void setupSHT31() {
   }
   sht31Available = true;
   sht31Sensor.read();
-  sht31Temp = sht31Sensor.getTemperature();
-  sht31Hum  = sht31Sensor.getHumidity();
+  sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
+  sht31Hum  = sht31Sensor.getTemperature();
   Serial.printf("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
 }
 
@@ -534,8 +534,8 @@ static void loopSHT31() {
   if (millis() - last < 30000) return;
   last = millis();
   sht31Sensor.read();
-  sht31Temp = sht31Sensor.getTemperature();
-  sht31Hum  = sht31Sensor.getHumidity();
+  sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
+  sht31Hum  = sht31Sensor.getTemperature();
   Serial.printf("[SHT31] %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
 }
 
