@@ -134,7 +134,7 @@ input[type=range]:disabled{opacity:.35;cursor:default}
   <!-- 7. Last POCSAG -->
   <div class="card" id="card-msg">
     <h3>Last POCSAG</h3>
-    <div class="pocsag-msg" id="msg">-</div>
+    <div id="poc-log"><span style="color:#888">none yet</span></div>
   </div>
 
   <!-- 8. Brightness -->
@@ -297,9 +297,19 @@ function poll(){
     // ESP-NOW card
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;
-    // Last POCSAG card
-    var msg=d.last_pocsag||'';
-    document.getElementById('msg').textContent=msg||'(none yet)';
+    // Last POCSAG log
+    var log=d.pocsag_log||[];
+    var el=document.getElementById('poc-log');
+    if(!log.length){el.innerHTML='<span style="color:#888">none yet</span>';}
+    else{
+      var html='<table style="width:100%;border-collapse:collapse;font-size:0.85em">';
+      for(var i=0;i<log.length;i++){
+        html+='<tr><td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0">RIC '+log[i].ric+'</td>'
+             +'<td style="padding:2px 0">'+log[i].msg+'</td></tr>';
+      }
+      html+='</table>';
+      el.innerHTML=html;
+    }
     // Battery card
     var pct=d.battery_pct,mv=d.battery_mv;
     var badgeCls=pct>=60?'badge badge-success':pct>=30?'badge badge-warning':'badge badge-danger';

@@ -439,7 +439,11 @@ static void loopButtons() {
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
 static uint32_t  wsCountPocsag = 0;
-static char      wsLastPocsag[POCSAG_MSG_MAX_LEN + 1] = {};
+#define WS_POCSAG_LOG_SIZE 5
+struct WsPocsagEntry { uint32_t ric; char msg[POCSAG_MSG_MAX_LEN + 1]; };
+static WsPocsagEntry wsPocsagLog[WS_POCSAG_LOG_SIZE] = {};
+static uint8_t       wsPocsagHead = 0;   // next write slot
+static uint8_t       wsPocsagFill = 0;   // valid entries (0..5)
 static WebServer webServer(80);
 
 // Shared display state — declared here so setupRTC() can set timeSynced
@@ -745,22 +749,29 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[1300];
+    char json[2048];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
     if (hasTm) snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d",
                         t.tm_hour, t.tm_min, t.tm_sec);
 
-    // Sanitise last POCSAG: replace " and \ so they don't break JSON
-    char safe[POCSAG_MSG_MAX_LEN + 1];
-    int si = 0;
-    for (int i = 0; wsLastPocsag[i] && si < POCSAG_MSG_MAX_LEN; i++) {
-      char c = wsLastPocsag[i];
-      if (c == '"' || c == '\\') continue;  // skip unsafe chars
-      safe[si++] = c;
+    // Build POCSAG log array (newest first)
+    char logBuf[620]; int lp = 0;
+    lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "[");
+    for (int i = 0; i < wsPocsagFill; i++) {
+      int idx = ((int)wsPocsagHead - 1 - i + WS_POCSAG_LOG_SIZE) % WS_POCSAG_LOG_SIZE;
+      char safe[POCSAG_MSG_MAX_LEN + 1]; int si = 0;
+      for (int j = 0; wsPocsagLog[idx].msg[j] && si < POCSAG_MSG_MAX_LEN; j++) {
+        char c = wsPocsagLog[idx].msg[j];
+        if (c != '"' && c != '\\') safe[si++] = c;
+      }
+      safe[si] = '\0';
+      if (i > 0) lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, ",");
+      lp += snprintf(logBuf + lp, sizeof(logBuf) - lp,
+        "{\"ric\":%lu,\"msg\":\"%s\"}", (unsigned long)wsPocsagLog[idx].ric, safe);
     }
-    safe[si] = '\0';
+    lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "]");
 
     int batRaw = analogRead(BAT_PIN);
     int batMv  = (int)map(constrain(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL), BAT_RAW_EMPTY, BAT_RAW_FULL, BAT_EMPTY_MV, BAT_FULL_MV);
@@ -771,7 +782,7 @@ static void setupWebServer() {
       "\"channel\":%d,\"uptime\":%lu,"
       "\"time_synced\":%s,\"pocsag_synced\":%s,\"time\":\"%s\","
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
-      "\"last_pocsag\":\"%s\","
+      "\"pocsag_log\":%s,"
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
       "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
       "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u,"
@@ -791,7 +802,7 @@ static void setupWebServer() {
       timeStr,
       (unsigned long)wsCountDmr,
       (unsigned long)wsCountPocsag,
-      safe,
+      logBuf,
       currentBrightness,
       autoBrightnessEnabled ? "true" : "false",
       analogRead(LDR_PIN),
@@ -1005,8 +1016,11 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 
     rxTotalPocsag++;
     wsCountPocsag++;
-    strncpy(wsLastPocsag, pkt.message, POCSAG_MSG_MAX_LEN);
-    wsLastPocsag[POCSAG_MSG_MAX_LEN] = '\0';
+    wsPocsagLog[wsPocsagHead].ric = pkt.ric;
+    strncpy(wsPocsagLog[wsPocsagHead].msg, pkt.message, POCSAG_MSG_MAX_LEN);
+    wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
+    wsPocsagHead = (wsPocsagHead + 1) % WS_POCSAG_LOG_SIZE;
+    if (wsPocsagFill < WS_POCSAG_LOG_SIZE) wsPocsagFill++;
     Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
