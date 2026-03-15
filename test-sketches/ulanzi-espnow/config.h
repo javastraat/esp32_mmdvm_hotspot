@@ -71,6 +71,11 @@
   // POCSAG RIC that carries "YYYYMMDDHHMMSS<YYMMDDHHmmSS>" messages
   #define TIME_POCSAG_RIC  224
 
+  // ── Transmitter callsign RIC ─────────────────────────────────
+  // RIC that carries the transmitter ID/callsign.
+  // Trailing digits are stripped before display (maintainer sometimes appends "1" etc.)
+  #define CALLSIGN_RIC  8
+
   // ── Display exclusion list ───────────────────────────────────
   // RICs that are never shown on the LED matrix display.
   // Add/remove entries as needed.

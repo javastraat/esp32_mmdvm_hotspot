@@ -352,8 +352,9 @@ static void setupOTA() {
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\n[OTA] Done — rebooting");
-    FastLED.clear(); FastLED.show();  // blank screen first — clean transition
-    delay(150);
+    delay(500);                   // let WiFi/OTA stack finish before touching display
+    FastLED.clear(); FastLED.show();
+    delay(200);                   // allow the clear to fully latch
     drawDone();
     delay(1500);
     otaInProgress = false;
@@ -708,6 +709,12 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     if (!excluded) {
       strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
       pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
+      // Strip trailing digits from callsign RIC (maintainer sometimes appends "1" etc.)
+      if (pkt.ric == CALLSIGN_RIC) {
+        int len = strlen(pocsagMsg);
+        while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
+          pocsagMsg[--len] = '\0';
+      }
       pocsagMsgLen      = strlen(pocsagMsg);
       pocsagMsgActive   = (pocsagMsgLen > 0);
       // fits on screen (≤8 chars) → static 15 s; otherwise → scroll 3×
