@@ -260,10 +260,8 @@ static void loopBrightness() {
   if (millis() - lastUpdate < LDR_UPDATE_MS) return;
   lastUpdate = millis();
 
-  int ldr = analogRead(LDR_PIN);
-  // Bright room → low ADC → high brightness; dark room → high ADC → low brightness.
-  // Swap last two map() args if inverted on your board.
-  uint8_t target = (uint8_t)map(ldr, 0, 4095, LDR_MIN_BRIGHTNESS, 255);
+  int ldr = constrain(analogRead(LDR_PIN), LDR_ADC_DARK, LDR_ADC_BRIGHT);
+  uint8_t target = (uint8_t)map(ldr, LDR_ADC_DARK, LDR_ADC_BRIGHT, LDR_MIN_BRIGHTNESS, 255);
   // EMA smoothing: blend 1/4 toward target each sample
   currentBrightness = (uint8_t)((currentBrightness * 3 + target + 2) / 4);
   FastLED.setBrightness(currentBrightness);

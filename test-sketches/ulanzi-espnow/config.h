@@ -98,6 +98,11 @@
 #define LDR_MIN_BRIGHTNESS  5   // floor brightness in auto mode (0–255)
 #define LDR_UPDATE_MS    2000   // sample interval
 // GL5516 wiring: bright room → higher ADC value → higher brightness.
+// Calibrate by watching ldr_raw in /api/status:
+//   LDR_ADC_DARK   = value when covering the sensor with your finger
+//   LDR_ADC_BRIGHT = value in your brightest normal lighting condition
+#define LDR_ADC_DARK    1550
+#define LDR_ADC_BRIGHT  4000
 
 // ============================================================
 // LED matrix display
