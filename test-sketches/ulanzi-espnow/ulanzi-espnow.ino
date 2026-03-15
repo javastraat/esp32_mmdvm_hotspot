@@ -17,6 +17,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
+#include <Preferences.h>
 #include "web/main.h"
 
 // ============================================================
@@ -312,7 +313,42 @@ static void loopBuzzer() {
   }
 }
 
+static void loadSettings() {
+  Preferences p;
+  p.begin("ulanzi", true);  // read-only
+  // Brightness
+  autoBrightnessEnabled = p.getBool ("auto_br",   true);
+  currentBrightness     = p.getUChar("brightness", LED_BRIGHTNESS);
+  // Buzzer
+  buzzerBootEnabled     = p.getBool ("boot_en",   true);
+  buzzerBootVolume      = p.getUChar("boot_vol",  BUZZER_VOL_BOOT);
+  buzzerPocsagEnabled   = p.getBool ("poc_en",    true);
+  buzzerPocsagVolume    = p.getUChar("poc_vol",   BUZZER_VOL_POCSAG);
+  buzzerClickEnabled    = p.getBool ("clk_en",    true);
+  buzzerClickVolume     = p.getUChar("clk_vol",   BUZZER_VOL_CLICK);
+  p.end();
+}
+
+static void saveSettings() {
+  Preferences p;
+  p.begin("ulanzi", false);  // read-write
+  // Brightness
+  p.putBool ("auto_br",   autoBrightnessEnabled);
+  p.putUChar("brightness", currentBrightness);
+  // Buzzer
+  p.putBool ("boot_en",  buzzerBootEnabled);
+  p.putUChar("boot_vol", buzzerBootVolume);
+  p.putBool ("poc_en",   buzzerPocsagEnabled);
+  p.putUChar("poc_vol",  buzzerPocsagVolume);
+  p.putBool ("clk_en",   buzzerClickEnabled);
+  p.putUChar("clk_vol",  buzzerClickVolume);
+  p.end();
+}
+
 static void setupBuzzer() {
+  loadSettings();
+  // Apply loaded brightness immediately (before first loopBrightness() tick)
+  FastLED.setBrightness(currentBrightness);
   // ledcAttach reconfigures GPIO15 as LEDC output (overrides INPUT_PULLDOWN)
   ledcAttach(BUZZER_PIN, BUZZER_FREQ_BEEP, BUZZER_LEDC_RES);
   ledcWrite(BUZZER_PIN, 0);
@@ -577,6 +613,7 @@ static void setupWebServer() {
     }
     if (!autoBrightnessEnabled)
       FastLED.setBrightness(currentBrightness);
+    saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -600,6 +637,7 @@ static void setupWebServer() {
     v = webServer.arg("pocsag_vol"); if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerPocsagVolume = (uint8_t)n; }
     v = webServer.arg("click_en");   if (v.length()) buzzerClickEnabled  = (v == "1" || v == "true");
     v = webServer.arg("click_vol");  if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerClickVolume  = (uint8_t)n; }
+    saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
