@@ -50,6 +50,9 @@
 // RICs that are never shown on the LED matrix display.
 #define POCSAG_DISPLAY_EXCLUDED_RICS { 224, 208, 200, 216, 4520, 4521 }
 
+// Number of POCSAG messages kept in the web status log (newest first).
+#define POCSAG_LOG_SIZE          10
+
 // Short messages (fits on screen): hold this long, then return to clock.
 #define POCSAG_STATIC_MS      15000   // ms to show a short message
 

@@ -439,11 +439,10 @@ static void loopButtons() {
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
 static uint32_t  wsCountPocsag = 0;
-#define WS_POCSAG_LOG_SIZE 5
 struct WsPocsagEntry { uint32_t ric; char msg[POCSAG_MSG_MAX_LEN + 1]; };
-static WsPocsagEntry wsPocsagLog[WS_POCSAG_LOG_SIZE] = {};
+static WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE] = {};
 static uint8_t       wsPocsagHead = 0;   // next write slot
-static uint8_t       wsPocsagFill = 0;   // valid entries (0..5)
+static uint8_t       wsPocsagFill = 0;   // valid entries (0..POCSAG_LOG_SIZE)
 static WebServer webServer(80);
 
 // Shared display state — declared here so setupRTC() can set timeSynced
@@ -749,7 +748,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[2048];
+    char json[2500];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -757,10 +756,10 @@ static void setupWebServer() {
                         t.tm_hour, t.tm_min, t.tm_sec);
 
     // Build POCSAG log array (newest first)
-    char logBuf[620]; int lp = 0;
+    char logBuf[1100]; int lp = 0;
     lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "[");
     for (int i = 0; i < wsPocsagFill; i++) {
-      int idx = ((int)wsPocsagHead - 1 - i + WS_POCSAG_LOG_SIZE) % WS_POCSAG_LOG_SIZE;
+      int idx = ((int)wsPocsagHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
       char safe[POCSAG_MSG_MAX_LEN + 1]; int si = 0;
       for (int j = 0; wsPocsagLog[idx].msg[j] && si < POCSAG_MSG_MAX_LEN; j++) {
         char c = wsPocsagLog[idx].msg[j];
@@ -1019,8 +1018,8 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     wsPocsagLog[wsPocsagHead].ric = pkt.ric;
     strncpy(wsPocsagLog[wsPocsagHead].msg, pkt.message, POCSAG_MSG_MAX_LEN);
     wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
-    wsPocsagHead = (wsPocsagHead + 1) % WS_POCSAG_LOG_SIZE;
-    if (wsPocsagFill < WS_POCSAG_LOG_SIZE) wsPocsagFill++;
+    wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
+    if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
     Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
