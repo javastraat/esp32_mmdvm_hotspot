@@ -315,6 +315,9 @@ static void loopBuzzer() {
   }
 }
 
+static bool    autoRotateEnabled     = false;
+static uint8_t autoRotateIntervalSec = 5;    // seconds per screen in rotation
+
 static void loadSettings() {
   Preferences p;
   p.begin("ulanzi", true);  // read-only
@@ -381,9 +384,6 @@ enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_COUN
 static DisplayMode   displayMode     = MODE_CLOCK;
 static unsigned long modeActiveUntil = 0;
 #define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
-
-static bool    autoRotateEnabled     = false;
-static uint8_t autoRotateIntervalSec = 5;    // seconds per screen in rotation
 
 
 // ============================================================
@@ -806,7 +806,7 @@ static void setupWebServer() {
       buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
       buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
       sht31Available ? "true" : "false", sht31Temp, sht31Hum,
-      displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock",
+      pocsagMsgActive ? "message" : displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock",
       autoRotateEnabled ? "true" : "false", autoRotateIntervalSec
     );
     webServer.send(200, "application/json", json);
