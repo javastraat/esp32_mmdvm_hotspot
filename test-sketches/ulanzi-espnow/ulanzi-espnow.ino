@@ -196,6 +196,17 @@ static const uint8_t FONT_ALPHA[26][5] = {
   {0b111,0b001,0b010,0b100,0b111}, // Z
 };
 
+// 3×5 bitmaps for punctuation/symbols found in POCSAG weather messages
+static const char    SPECIAL_CHARS[]   = "-.:/%=";
+static const uint8_t FONT_SPECIAL[][5] = {
+  {0b000,0b000,0b111,0b000,0b000}, // -
+  {0b000,0b000,0b000,0b000,0b010}, // .
+  {0b000,0b010,0b000,0b010,0b000}, // :
+  {0b001,0b001,0b010,0b100,0b100}, // /
+  {0b101,0b001,0b010,0b100,0b101}, // %
+  {0b000,0b111,0b000,0b111,0b000}, // =
+};
+
 static void drawChar(int x, int y, char c, CRGB color) {
   if (c >= 'a' && c <= 'z') c -= 32;
   if (c >= '0' && c <= '9') { drawDigit(x, y, c - '0', color); return; }
@@ -205,7 +216,19 @@ static void drawChar(int x, int y, char c, CRGB color) {
       for (int col = 0; col < 3; col++)
         if (g[row] & (1 << (2 - col)))
           setLED(x + col, y + row, color);
+    return;
   }
+  for (int i = 0; SPECIAL_CHARS[i]; i++) {
+    if (SPECIAL_CHARS[i] == c) {
+      const uint8_t* g = FONT_SPECIAL[i];
+      for (int row = 0; row < 5; row++)
+        for (int col = 0; col < 3; col++)
+          if (g[row] & (1 << (2 - col)))
+            setLED(x + col, y + row, color);
+      return;
+    }
+  }
+  // space and other unknowns render as a blank gap (no pixels set)
 }
 
 #if defined(ROLE_RECEIVER) && TEST_POCSAG
@@ -223,9 +246,11 @@ static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 #endif
 
 // Update display once per second — call from both role loops
-static bool timeSynced = false;
+static bool timeSynced    = false;
+static bool otaInProgress = false;  // blocks loopDisplay during OTA flash
 
 static void loopDisplay() {
+  if (otaInProgress) return;  // OTA owns the display — don't touch it
   // POCSAG message display — takes priority over both clock and scanner
 #if defined(ROLE_RECEIVER) && TEST_POCSAG
   if (pocsagMsgActive) {
@@ -314,6 +339,7 @@ static void setupOTA() {
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
     Serial.println("[OTA] Start");
+    otaInProgress = true;
     drawUpdate();
   });
   ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
@@ -325,9 +351,11 @@ static void setupOTA() {
     Serial.println("\n[OTA] Done — rebooting");
     drawDone();
     delay(1500);
+    otaInProgress = false;
   });
   ArduinoOTA.onError([](ota_error_t e) {
     Serial.printf("[OTA] Error %u\n", e);
+    otaInProgress = false;
     drawError();
     delay(3000);
     timeSynced = false;  // trigger scanner animation until clock resyncs
