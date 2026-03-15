@@ -205,7 +205,31 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     </div>
   </div>
 
-  <!-- 10. System -->
+  <!-- 10. Display Rotation -->
+  <div class="card">
+    <h3>Display Rotation</h3>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="metric-label">Auto-cycle screens</span>
+        <label class="switch">
+          <input type="checkbox" id="tog-rot" onchange="onRotateChange()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bright-bot">
+        <span class="metric-label" style="white-space:nowrap;flex-shrink:0">Speed</span>
+        <input type="range" id="sld-rot" min="1" max="60" value="5"
+               oninput="document.getElementById('rot-num').textContent=this.value+'s'"
+               onchange="onRotateChange()">
+        <span class="bright-num" id="rot-num">5s</span>
+      </div>
+    </div>
+    <div class="metric" style="border-bottom:none;padding-top:8px">
+      <span class="metric-label" style="font-size:.8em;color:var(--text-muted)">clock &#8594; temp &#8594; humidity &#8594; clock</span>
+    </div>
+  </div>
+
+  <!-- 11. System -->
   <div class="card">
     <h3>System</h3>
     <div class="metric">
@@ -258,6 +282,11 @@ function poll(){
     document.getElementById('clk').textContent=d.time_synced?d.time:'--:--:--';
     document.getElementById('sync-lbl').textContent=d.pocsag_synced?'synced':d.time_synced?'from RTC':'waiting for sync...';
     document.getElementById('mode-lbl').textContent='mode: '+(d.display_mode||'clock');
+    // Display rotation card
+    document.getElementById('tog-rot').checked=d.rotate_enabled;
+    var ri=d.rotate_interval||5;
+    document.getElementById('sld-rot').value=ri;
+    document.getElementById('rot-num').textContent=ri+'s';
     // Sensors (SHT31)
     if(d.sht31_available){
       document.getElementById('row-temp').style.display='';
@@ -338,6 +367,14 @@ function onBuzzerChange(type){
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'type='+type+'&vol='+vol
     }).catch(function(){});
+  }).catch(function(){});
+}
+function onRotateChange(){
+  fetch('/api/rotate',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'enabled='+(document.getElementById('tog-rot').checked?1:0)
+        +'&interval='+document.getElementById('sld-rot').value
   }).catch(function(){});
 }
 function doReboot(){

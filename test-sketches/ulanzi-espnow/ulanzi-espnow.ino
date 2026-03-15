@@ -328,6 +328,9 @@ static void loadSettings() {
   buzzerPocsagVolume    = p.getUChar("poc_vol",   BUZZER_VOL_POCSAG);
   buzzerClickEnabled    = p.getBool ("clk_en",    true);
   buzzerClickVolume     = p.getUChar("clk_vol",   BUZZER_VOL_CLICK);
+  // Display rotation
+  autoRotateEnabled     = p.getBool ("rot_en",  false);
+  autoRotateIntervalSec = p.getUChar("rot_sec", 5);
   p.end();
 }
 
@@ -344,6 +347,9 @@ static void saveSettings() {
   p.putUChar("poc_vol",  buzzerPocsagVolume);
   p.putBool ("clk_en",   buzzerClickEnabled);
   p.putUChar("clk_vol",  buzzerClickVolume);
+  // Display rotation
+  p.putBool ("rot_en",  autoRotateEnabled);
+  p.putUChar("rot_sec", autoRotateIntervalSec);
   p.end();
 }
 
@@ -374,7 +380,10 @@ static float        sht31Hum       = 0.0f;
 enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_COUNT };
 static DisplayMode   displayMode     = MODE_CLOCK;
 static unsigned long modeActiveUntil = 0;
-#define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock
+#define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
+
+static bool    autoRotateEnabled     = false;
+static uint8_t autoRotateIntervalSec = 5;    // seconds per screen in rotation
 
 
 // ============================================================
@@ -540,6 +549,31 @@ static void loopSHT31() {
 }
 
 
+// ============================================================
+// Auto-rotation — cycles clock→temp→humidity on a timer
+// ============================================================
+static void loopAutoRotate() {
+  if (!autoRotateEnabled || !sht31Available) return;
+
+  static unsigned long lastRotate = 0;
+
+#if RECV_POCSAG
+  static bool prevPocsag = false;
+  if (pocsagMsgActive) { prevPocsag = true; return; }  // pause during message
+  if (prevPocsag) {                                     // message just ended
+    prevPocsag  = false;
+    displayMode = MODE_CLOCK;
+    lastRotate  = millis();   // restart rotation timer from now
+    return;
+  }
+#endif
+
+  if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
+  lastRotate  = millis();
+  displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
+}
+
+
 // Display loop
 
 static void loopDisplay() {
@@ -585,8 +619,8 @@ static void loopDisplay() {
   }
 #endif
 
-  // Auto-return to clock after mode timeout
-  if (displayMode != MODE_CLOCK && millis() >= modeActiveUntil)
+  // Auto-return to clock after mode timeout (manual presses only; rotation manages itself)
+  if (!autoRotateEnabled && displayMode != MODE_CLOCK && millis() >= modeActiveUntil)
     displayMode = MODE_CLOCK;
 
   // Scanner animation while waiting for first time sync (clock mode only)
@@ -629,14 +663,15 @@ static void loopDisplay() {
     CRGB color;
 
     if (displayMode == MODE_TEMP) {
-      int t10 = (int)roundf(sht31Temp * 10.0f);
-      if (t10 >= 0)
-        snprintf(buf, sizeof(buf), "%d.%dC", t10 / 10, t10 % 10);
+      int t100 = (int)roundf(sht31Temp * 100.0f);
+      if (t100 >= 0)
+        snprintf(buf, sizeof(buf), "%d.%02dC", t100 / 100, t100 % 100);
       else
-        snprintf(buf, sizeof(buf), "-%d.%dC", (-t10) / 10, (-t10) % 10);
+        snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
       color = CRGB(255, 120, 0);   // warm orange
     } else {
-      snprintf(buf, sizeof(buf), "%d%%", constrain((int)roundf(sht31Hum), 0, 100));
+      int h100 = constrain((int)roundf(sht31Hum * 100.0f), 0, 10000);
+      snprintf(buf, sizeof(buf), "%d.%02d%%", h100 / 100, h100 % 100);
       color = CRGB(0, 180, 255);   // cyan-blue
     }
 
@@ -744,7 +779,8 @@ static void setupWebServer() {
       "\"buzzer_pocsag_en\":%s,\"buzzer_pocsag_vol\":%d,"
       "\"buzzer_click_en\":%s,\"buzzer_click_vol\":%d,"
       "\"sht31_available\":%s,\"sht31_temp\":%.1f,\"sht31_hum\":%.1f,"
-      "\"display_mode\":\"%s\"}",
+      "\"display_mode\":\"%s\","
+      "\"rotate_enabled\":%s,\"rotate_interval\":%d}",
       OTA_HOSTNAME,
       "RECEIVER",
       WiFi.localIP().toString().c_str(),
@@ -770,7 +806,8 @@ static void setupWebServer() {
       buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
       buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
       sht31Available ? "true" : "false", sht31Temp, sht31Hum,
-      displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock"
+      displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock",
+      autoRotateEnabled ? "true" : "false", autoRotateIntervalSec
     );
     webServer.send(200, "application/json", json);
   });
@@ -810,6 +847,17 @@ static void setupWebServer() {
     v = webServer.arg("pocsag_vol"); if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerPocsagVolume = (uint8_t)n; }
     v = webServer.arg("click_en");   if (v.length()) buzzerClickEnabled  = (v == "1" || v == "true");
     v = webServer.arg("click_vol");  if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerClickVolume  = (uint8_t)n; }
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/rotate", HTTP_POST, []() {
+    String v;
+    v = webServer.arg("enabled");  if (v.length()) autoRotateEnabled = (v == "1" || v == "true");
+    v = webServer.arg("interval"); if (v.length()) {
+      int n = v.toInt();
+      if (n >= 1 && n <= 60) autoRotateIntervalSec = (uint8_t)n;
+    }
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
@@ -1097,6 +1145,7 @@ void loopReceiver() {
   loopBrightness();
   loopBuzzer();
   loopSHT31();
+  loopAutoRotate();
   loopDisplay();
 }
 
