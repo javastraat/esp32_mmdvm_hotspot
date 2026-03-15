@@ -15,10 +15,12 @@
 #include "config.h"
 #include <FastLED.h>
 #include <WiFi.h>
+#include <WebServer.h>
 #include <ArduinoOTA.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
+#include "web/main.h"
 
 // ============================================================
 // Sanity checks
@@ -246,6 +248,14 @@ static unsigned long pocsagStaticUntil   = 0;
 static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 #endif
 
+// ============================================================
+// Web status (updated by role code, served via /api/status)
+// ============================================================
+static uint32_t  wsCountDmr    = 0;
+static uint32_t  wsCountPocsag = 0;
+static char      wsLastPocsag[POCSAG_MSG_MAX_LEN + 1] = {};
+static WebServer webServer(80);
+
 // Update display once per second — call from both role loops
 static bool timeSynced    = false;
 static bool otaInProgress = false;  // blocks loopDisplay during OTA flash
@@ -369,6 +379,58 @@ static void setupOTA() {
   ArduinoOTA.begin();
   otaStarted = true;
   Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
+  setupWebServer();
+}
+
+static void setupWebServer() {
+  webServer.on("/", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_MAIN);
+  });
+
+  webServer.on("/api/status", HTTP_GET, []() {
+    char json[512];
+    struct tm t;
+    bool hasTm = getLocalTime(&t);
+    char timeStr[12] = "--:--:--";
+    if (hasTm) snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d",
+                        t.tm_hour, t.tm_min, t.tm_sec);
+
+    // Sanitise last POCSAG: replace " and \ so they don't break JSON
+    char safe[POCSAG_MSG_MAX_LEN + 1];
+    int si = 0;
+    for (int i = 0; wsLastPocsag[i] && si < POCSAG_MSG_MAX_LEN; i++) {
+      char c = wsLastPocsag[i];
+      if (c == '"' || c == '\\') continue;  // skip unsafe chars
+      safe[si++] = c;
+    }
+    safe[si] = '\0';
+
+    snprintf(json, sizeof(json),
+      "{\"hostname\":\"%s\",\"role\":\"%s\",\"ip\":\"%s\","
+      "\"channel\":%d,\"uptime\":%lu,"
+      "\"time_synced\":%s,\"time\":\"%s\","
+      "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
+      "\"last_pocsag\":\"%s\"}",
+      OTA_HOSTNAME,
+#ifdef ROLE_SENDER
+      "SENDER",
+#else
+      "RECEIVER",
+#endif
+      WiFi.localIP().toString().c_str(),
+      WiFi.channel(),
+      millis() / 1000,
+      timeSynced ? "true" : "false",
+      timeStr,
+      (unsigned long)wsCountDmr,
+      (unsigned long)wsCountPocsag,
+      safe
+    );
+    webServer.send(200, "application/json", json);
+  });
+
+  webServer.begin();
+  Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
 }
 
 
@@ -413,6 +475,7 @@ static void sendDmrdPkt(uint32_t srcId, uint32_t dstId, uint8_t slot, bool group
   memcpy(pkt.data, dmrd, dlen);
 
   esp_now_send(peerMac, (uint8_t*)&pkt, sizeof(pkt));
+  wsCountDmr++;
 }
 
 static void loopDmrSender()
@@ -448,6 +511,7 @@ static void sendPocsagPkt(uint32_t ric, uint8_t functional, const char* msg)
   pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
   esp_now_send(peerMac, (uint8_t*)&pkt, sizeof(pkt));
+  wsCountPocsag++;
 }
 
 static const char* functionalName(uint8_t f) {
@@ -553,6 +617,7 @@ void setupSender() {
 
 void loopSender() {
   if (otaStarted) ArduinoOTA.handle();
+  webServer.handleClient();
   if (!peerRegistered) return;
 #if TEST_DMR
   loopDmrSender();
@@ -645,6 +710,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     }
 
     rxTotalDmr++;
+    wsCountDmr++;
     uint32_t srcId   = ((uint32_t)pkt.data[5] << 16) | ((uint32_t)pkt.data[6] << 8) | pkt.data[7];
     uint32_t dstId   = ((uint32_t)pkt.data[8] << 16) | ((uint32_t)pkt.data[9] << 8) | pkt.data[10];
     uint8_t  flags   = pkt.data[15];
@@ -692,6 +758,9 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
 
     rxTotalPocsag++;
+    wsCountPocsag++;
+    strncpy(wsLastPocsag, pkt.message, POCSAG_MSG_MAX_LEN);
+    wsLastPocsag[POCSAG_MSG_MAX_LEN] = '\0';
     Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
@@ -794,6 +863,7 @@ void setupReceiver() {
 
 void loopReceiver() {
   if (otaStarted) ArduinoOTA.handle();
+  webServer.handleClient();
 #if ESPNOW_DEBUG
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {
