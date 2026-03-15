@@ -41,6 +41,10 @@
   #define NTP_GMT_OFFSET_SEC   3600      // UTC+1 (CET); use 7200 for UTC+2 (CEST)
   #define NTP_DST_OFFSET_SEC   0
 
+  // ── OTA ─────────────────────────────────────────────────────
+  #define OTA_HOSTNAME  "ulanzi-sender"
+  #define OTA_PASSWORD  "mmdvm"               // leave empty to disable password
+
 #endif  // ROLE_SENDER
 
 
@@ -55,6 +59,10 @@
   // straight to SoftAP mode.
   #define WIFI_SSID     "TechInc"
   #define WIFI_PASSWORD "itoldyoualready"
+
+  // ── OTA ─────────────────────────────────────────────────────
+  #define OTA_HOSTNAME  "ulanzi-clock"
+  #define OTA_PASSWORD  "mmdvm"               // leave empty to disable password
 
   // ── Debug output (applies to DMR frames) ───────────────────
   #define ESPNOW_DEBUG false

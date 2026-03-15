@@ -15,6 +15,7 @@
 #include "config.h"
 #include <FastLED.h>
 #include <WiFi.h>
+#include <ArduinoOTA.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <time.h>
@@ -105,6 +106,49 @@ static void drawTime(int h, int m, int s, CRGB color) {
   drawDigit(xo + 24, yo, s % 10, color);
 }
 
+// 3×5 bitmaps for the letters in "UPDATE"
+static const uint8_t FONT_UPDATE[6][5] = {
+  {0b101, 0b101, 0b101, 0b101, 0b111}, // U
+  {0b111, 0b101, 0b111, 0b100, 0b100}, // P
+  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
+  {0b111, 0b101, 0b111, 0b101, 0b101}, // A
+  {0b111, 0b010, 0b010, 0b010, 0b010}, // T
+  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
+};
+
+// Additional 3×5 bitmaps for "DONE" and "ERR"
+static const uint8_t FONT_DONE[4][5] = {
+  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
+  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
+  {0b101, 0b111, 0b101, 0b101, 0b101}, // N
+  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
+};
+
+static const uint8_t FONT_ERROR[5][5] = {
+  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
+  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
+  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
+  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
+  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
+};
+
+static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
+  FastLED.clear();
+  int width = count * 4 - 1;                          // 3px letter + 1px gap, no trailing gap
+  const int xo = (MATRIX_WIDTH  - width + 1) / 2;
+  const int yo = (MATRIX_HEIGHT - 5)         / 2;     // = 1
+  for (int i = 0; i < count; i++)
+    for (int row = 0; row < 5; row++)
+      for (int col = 0; col < 3; col++)
+        if (glyphs[i][row] & (1 << (2 - col)))
+          setLED(xo + i * 4 + col, yo + row, color);
+  FastLED.show();
+}
+
+static void drawUpdate() { drawStatusWord(FONT_UPDATE, 6, LED_COLOR_TIME); }
+static void drawDone()   { drawStatusWord(FONT_DONE,   4, CRGB::Green);    }
+static void drawError()  { drawStatusWord(FONT_ERROR,  5, CRGB::Red);      }
+
 // Update display once per second — call from both role loops
 static bool timeSynced = false;
 
@@ -145,6 +189,35 @@ static void loopDisplay() {
   FastLED.clear();
   drawTime(t.tm_hour, t.tm_min, t.tm_sec, LED_COLOR_TIME);
   FastLED.show();
+}
+
+
+// ============================================================
+// OTA (shared by both roles — call only when WiFi is up)
+// ============================================================
+static bool otaStarted = false;
+
+static void setupOTA() {
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
+  ArduinoOTA.onStart([]() {
+    Serial.println("[OTA] Start");
+    drawUpdate();
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\n[OTA] Done — rebooting");
+    drawDone();
+    delay(1500);
+  });
+  ArduinoOTA.onError([](ota_error_t e) {
+    Serial.printf("[OTA] Error %u\n", e);
+    drawError();
+    delay(3000);
+    timeSynced = false;  // trigger scanner animation until clock resyncs
+  });
+  ArduinoOTA.begin();
+  otaStarted = true;
+  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
 }
 
 
@@ -291,6 +364,7 @@ void setupSender() {
     } else {
       Serial.println("\n[NTP] Sync failed — clock not available");
     }
+    setupOTA();
   } else {
     Serial.println("\n[WiFi] Not connected — ESP-NOW still works, no clock");
   }
@@ -327,6 +401,7 @@ void setupSender() {
 }
 
 void loopSender() {
+  if (otaStarted) ArduinoOTA.handle();
   if (!peerRegistered) return;
 #if TEST_DMR
   loopDmrSender();
@@ -494,6 +569,7 @@ static void setupReceiverNetwork() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
+      setupOTA();
     } else {
       Serial.println("\n[WiFi] Not connected");
       WiFi.disconnect();
@@ -538,6 +614,7 @@ void setupReceiver() {
 }
 
 void loopReceiver() {
+  if (otaStarted) ArduinoOTA.handle();
 #if ESPNOW_DEBUG
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {
