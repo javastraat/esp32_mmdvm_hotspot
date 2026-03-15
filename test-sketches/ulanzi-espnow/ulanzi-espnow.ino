@@ -91,16 +91,18 @@ static void drawDigit(int x, int y, int d, CRGB color) {
         setLED(x + col, y + row, color);
 }
 
-// Draw HH:MM:SS starting at row 1, fits in 27 columns of the 32-wide matrix
+// Draw HH:MM:SS centered in the 32×8 matrix (27px content, 5px digit height)
 static void drawTime(int h, int m, int s, CRGB color) {
-  drawDigit( 2, 1, h / 10, color);
-  drawDigit( 6, 1, h % 10, color);
-  setLED(10, 2, color); setLED(10, 4, color);  // colon
-  drawDigit(12, 1, m / 10, color);
-  drawDigit(16, 1, m % 10, color);
-  setLED(20, 2, color); setLED(20, 4, color);  // colon
-  drawDigit(22, 1, s / 10, color);
-  drawDigit(26, 1, s % 10, color);
+  const int xo = (MATRIX_WIDTH  - 27 + 1) / 2;  // = 3  (3px left, 2px right)
+  const int yo = (MATRIX_HEIGHT -  5)     / 2;  // = 1  (1px top, 2px bottom)
+  drawDigit(xo +  0, yo, h / 10, color);
+  drawDigit(xo +  4, yo, h % 10, color);
+  setLED(xo +  8, yo + 1, color); setLED(xo +  8, yo + 3, color);  // colon
+  drawDigit(xo + 10, yo, m / 10, color);
+  drawDigit(xo + 14, yo, m % 10, color);
+  setLED(xo + 18, yo + 1, color); setLED(xo + 18, yo + 3, color);  // colon
+  drawDigit(xo + 20, yo, s / 10, color);
+  drawDigit(xo + 24, yo, s % 10, color);
 }
 
 // Update display once per second — call from both role loops
