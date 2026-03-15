@@ -19,7 +19,9 @@ p,div,span,strong,label{color:var(--text-color)}
 .navbar{position:fixed;top:0;left:0;right:0;background:var(--topnav-bg);border-bottom:1px solid var(--border-color);box-shadow:0 2px 5px rgba(0,0,0,.3);z-index:1000;display:flex;align-items:center;padding:0 20px;height:60px}
 .nav-brand{font-size:1.2em;font-weight:bold;color:var(--topnav-text);margin-right:14px}
 .nav-sub{font-size:.8em;color:#aaa;font-family:monospace}
-.theme-toggle{margin-left:auto;cursor:pointer;background:var(--topnav-hover);border:none;padding:10px 15px;border-radius:50%;font-size:1.2em;color:var(--topnav-text)}
+.nav-live{margin-left:auto;color:#00bcd4;font-family:monospace;font-size:.78em;font-weight:bold;text-decoration:none;padding:5px 11px;border:1px solid #00bcd4;border-radius:4px;letter-spacing:.08em;white-space:nowrap}
+.nav-live:hover{background:#00bcd4;color:#000}
+.theme-toggle{margin-left:8px;cursor:pointer;background:var(--topnav-hover);border:none;padding:10px 15px;border-radius:50%;font-size:1.2em;color:var(--topnav-text)}
 .theme-toggle:hover{background:#007bff;color:white}
 /* Container */
 .container{max-width:1100px;margin:20px auto;background:var(--container-bg);padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
@@ -71,13 +73,21 @@ input[type=range]:disabled{opacity:.35;cursor:default}
 <div class="navbar">
   <span class="nav-brand" id="h1">Ulanzi Clock</span>
   <span class="nav-sub" id="sub"></span>
+  <a href="/live" target="_blank" class="nav-live">&#9654; LIVE</a>
   <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">&#127769;</button>
 </div>
 
 <div class="container">
 <div class="grid">
 
-  <!-- 1. Device -->
+  <!-- 1. Display Preview -->
+  <div class="card" style="grid-column:1/-1">
+    <h3>Display Preview</h3>
+    <canvas id="led-canvas" width="320" height="80"
+      style="width:100%;background:#111;border-radius:4px;image-rendering:pixelated;display:block"></canvas>
+  </div>
+
+  <!-- 2. Device -->
   <div class="card">
     <h3>Device</h3>
     <div class="metric"><span class="metric-label">Hostname</span><span class="metric-value" id="hostname">-</span></div>
@@ -124,14 +134,7 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <div class="clock-sub" id="mode-lbl" style="margin-top:4px">mode: clock</div>
   </div>
 
-  <!-- 6. Display Preview -->
-  <div class="card" style="grid-column:1/-1">
-    <h3>Display Preview</h3>
-    <canvas id="led-canvas" width="320" height="80"
-      style="width:100%;background:#111;border-radius:4px;image-rendering:pixelated;display:block"></canvas>
-  </div>
-
-  <!-- 7. ESP-NOW -->
+  <!-- 6. ESP-NOW -->
   <div class="card">
     <h3>ESP-NOW</h3>
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
@@ -428,4 +431,53 @@ pollDisplay();
 </script>
 </body>
 </html>
+)rawliteral";
+
+// ── Standalone live display page ─────────────────────────────
+static const char PAGE_LIVE[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ulanzi Live</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px}
+h2{color:#444;font-family:monospace;font-size:.72em;letter-spacing:.2em;text-transform:uppercase}
+canvas{display:block;width:100%;max-width:640px;border-radius:6px;background:#111;image-rendering:pixelated}
+a{color:#333;font-family:monospace;font-size:.72em;text-decoration:none;letter-spacing:.1em}
+a:hover{color:#00bcd4}
+</style>
+</head>
+<body>
+<h2>&#9679; Display Live</h2>
+<canvas id="c" width="640" height="160"></canvas>
+<a href="/">&#8592; back to dashboard</a>
+<script>
+var canvas=document.getElementById('c');
+var ctx=canvas.getContext('2d');
+var W=32,H=8,S=20;
+function draw(hex){
+  ctx.fillStyle='#111';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var idx=(y%2===0)?y*W+x:(y+1)*W-1-x;
+      var r=parseInt(hex.substr(idx*6,2),16);
+      var g=parseInt(hex.substr(idx*6+2,2),16);
+      var b=parseInt(hex.substr(idx*6+4,2),16);
+      if(r>0||g>0||b>0){
+        ctx.fillStyle='rgb('+r+','+g+','+b+')';
+        ctx.fillRect(x*S+1,y*S+1,S-2,S-2);
+      }
+    }
+  }
+}
+function poll(){
+  fetch('/api/leds').then(function(r){return r.text();}).then(draw).catch(function(){});
+  setTimeout(poll,250);
+}
+poll();
+</script>
+</body></html>
 )rawliteral";
