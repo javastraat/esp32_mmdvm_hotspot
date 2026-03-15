@@ -398,7 +398,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[800];
+    char json[900];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -427,7 +427,7 @@ static void setupWebServer() {
       "\"last_pocsag\":\"%s\","
       "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
       "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
-      "\"mac\":\"%s\",\"rssi\":%d,\"free_heap\":%u}",
+      "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u}",
       OTA_HOSTNAME,
       "RECEIVER",
       WiFi.localIP().toString().c_str(),
@@ -445,6 +445,7 @@ static void setupWebServer() {
       batMv,
       batPct,
       WiFi.macAddress().c_str(),
+      WiFi.SSID().c_str(),
       WiFi.RSSI(),
       ESP.getFreeHeap()
     );

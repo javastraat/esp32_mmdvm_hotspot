@@ -22,7 +22,7 @@ p,div,span,strong,label{color:var(--text-color)}
 .theme-toggle{margin-left:auto;cursor:pointer;background:var(--topnav-hover);border:none;padding:10px 15px;border-radius:50%;font-size:1.2em;color:var(--topnav-text)}
 .theme-toggle:hover{background:#007bff;color:white}
 /* Container */
-.container{max-width:1000px;margin:20px auto;background:var(--container-bg);padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.container{max-width:1100px;margin:20px auto;background:var(--container-bg);padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
 /* Grid — all cards equal, same as main project */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin:10px 0}
 /* Cards */
@@ -51,11 +51,13 @@ p,div,span,strong,label{color:var(--text-color)}
 input:checked+.slider{background-color:#4CAF50}
 input:not(:checked)+.slider{background-color:#f44336}
 input:checked+.slider:before{transform:translateX(26px)}
-.bright-row{display:flex;align-items:center;gap:12px;margin-top:8px}
-.bright-lbl{color:var(--text-muted);font-size:.88em;white-space:nowrap;min-width:52px}
-input[type=range]{flex:1;accent-color:#00bcd4;cursor:pointer}
+/* Brightness card */
+.bright-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.bright-lbl{color:var(--text-muted);font-size:.88em;white-space:nowrap}
+.bright-bot{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1;accent-color:#00bcd4;cursor:pointer;min-width:0}
 input[type=range]:disabled{opacity:.35;cursor:default}
-.bright-num{color:var(--text-muted);font-size:.88em;min-width:30px;text-align:right;font-family:monospace}
+.bright-num{color:var(--text-muted);font-size:.88em;min-width:30px;text-align:right;font-family:monospace;flex-shrink:0}
 </style>
 <script>
 (function(){
@@ -80,23 +82,31 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <h3>Device</h3>
     <div class="metric"><span class="metric-label">Hostname</span><span class="metric-value" id="hostname">-</span></div>
     <div class="metric"><span class="metric-label">IP Address</span><span class="metric-value" id="ip" style="color:#28a745">-</span></div>
-    <div class="metric"><span class="metric-label">WiFi Channel</span><span class="metric-value" id="ch">-</span></div>
     <div class="metric"><span class="metric-label">Uptime</span><span class="metric-value" id="uptime">-</span></div>
+    <div class="metric"><span class="metric-label">Free Heap</span><span class="metric-value" id="heap">-</span></div>
   </div>
 
-  <!-- 2. Hardware -->
+  <!-- 2. WiFi -->
+  <div class="card">
+    <h3>WiFi</h3>
+    <div class="metric"><span class="metric-label">SSID</span><span class="metric-value" id="ssid">-</span></div>
+    <div class="metric"><span class="metric-label">Channel</span><span class="metric-value" id="ch">-</span></div>
+    <div class="metric"><span class="metric-label">RSSI</span><span class="metric-value" id="rssi">-</span></div>
+    <div class="metric"><span class="metric-label">MAC Address</span><span class="metric-value" id="mac">-</span></div>
+  </div>
+
+  <!-- 3. Hardware -->
   <div class="card">
     <h3>Hardware</h3>
     <div class="metric"><span class="metric-label">Platform</span><span class="metric-value">ESP32-WROOM-32D</span></div>
+    <div class="metric"><span class="metric-label">CPU</span><span class="metric-value">Xtensa LX6 240 MHz</span></div>
     <div class="metric"><span class="metric-label">Flash</span><span class="metric-value">8 MB</span></div>
     <div class="metric"><span class="metric-label">LED Matrix</span><span class="metric-value">32&#xd7;8 WS2812B</span></div>
+    <div class="metric"><span class="metric-label">LDR</span><span class="metric-value">GL5516 GPIO35</span></div>
     <div class="metric"><span class="metric-label">Battery</span><span class="metric-value">4400 mAh LiPo</span></div>
-    <div class="metric"><span class="metric-label">MAC Address</span><span class="metric-value" id="mac">-</span></div>
-    <div class="metric"><span class="metric-label">Free Heap</span><span class="metric-value" id="heap">-</span></div>
-    <div class="metric"><span class="metric-label">WiFi RSSI</span><span class="metric-value" id="rssi">-</span></div>
   </div>
 
-  <!-- 3. Battery & Sensors -->
+  <!-- 4. Battery & Sensors -->
   <div class="card">
     <h3>Battery &amp; Sensors</h3>
     <div class="metric"><span class="metric-label">Battery</span><span class="metric-value" id="bat">-</span></div>
@@ -104,35 +114,37 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <div class="metric"><span class="metric-label">Light (LDR)</span><span class="metric-value" id="ldr" style="color:var(--text-muted)">-</span></div>
   </div>
 
-  <!-- 4. Clock -->
+  <!-- 5. Clock -->
   <div class="card">
     <h3>Clock</h3>
     <div class="clock-val" id="clk">--:--:--</div>
     <div class="clock-sub" id="sync-lbl">waiting for sync...</div>
   </div>
 
-  <!-- 5. ESP-NOW -->
+  <!-- 6. ESP-NOW -->
   <div class="card">
     <h3>ESP-NOW</h3>
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
     <div class="metric"><span class="metric-label">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
   </div>
 
-  <!-- 6. Last POCSAG -->
+  <!-- 7. Last POCSAG -->
   <div class="card" id="card-msg">
     <h3>Last POCSAG</h3>
     <div class="pocsag-msg" id="msg">-</div>
   </div>
 
-  <!-- 7. Brightness -->
+  <!-- 8. Brightness -->
   <div class="card">
     <h3>Brightness</h3>
-    <div class="bright-row">
+    <div class="bright-top">
       <label class="switch">
         <input type="checkbox" id="tog-auto" onchange="onAutoToggle()">
         <span class="slider"></span>
       </label>
       <span class="bright-lbl" id="tog-lbl">Auto</span>
+    </div>
+    <div class="bright-bot">
       <input type="range" id="sld-bright" min="1" max="255" value="50" disabled
              oninput="document.getElementById('bright-num').textContent=this.value"
              onchange="onSliderChange()">
@@ -173,12 +185,13 @@ function poll(){
     // Device card
     document.getElementById('hostname').textContent=d.hostname;
     document.getElementById('ip').textContent=d.ip;
-    document.getElementById('ch').textContent='ch '+d.channel;
     document.getElementById('uptime').textContent=fmtUp(d.uptime);
-    // Hardware card
-    document.getElementById('mac').textContent=d.mac||'-';
     document.getElementById('heap').textContent=d.free_heap?Math.round(d.free_heap/1024)+' KB':'-';
+    // WiFi card
+    document.getElementById('ssid').textContent=d.ssid||'-';
+    document.getElementById('ch').textContent='ch '+d.channel;
     document.getElementById('rssi').innerHTML=d.rssi?rssiBar(d.rssi):'-';
+    document.getElementById('mac').textContent=d.mac||'-';
     // Clock card
     document.getElementById('clk').textContent=d.time_synced?d.time:'--:--:--';
     document.getElementById('sync-lbl').textContent=d.time_synced?'synced':'waiting for sync...';
