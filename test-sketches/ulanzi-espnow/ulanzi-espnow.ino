@@ -599,6 +599,7 @@ void setupSender() {
     delay(250); Serial.print(".");
   }
   if (WiFi.status() == WL_CONNECTED) {
+    WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
     Serial.printf("\n[WiFi] %s\n", WiFi.localIP().toString().c_str());
     // Sync time via NTP
     configTime(NTP_GMT_OFFSET_SEC, NTP_DST_OFFSET_SEC, NTP_SERVER);
@@ -853,6 +854,7 @@ static void setupReceiverNetwork() {
       delay(250); Serial.print(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
+      WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
       Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
       setupOTA();
