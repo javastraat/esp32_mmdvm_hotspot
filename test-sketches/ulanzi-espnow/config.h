@@ -76,6 +76,13 @@
   // Add/remove entries as needed.
   #define POCSAG_DISPLAY_EXCLUDED_RICS { 224, 208, 200, 216, 4520, 4521 }
 
+  // ── POCSAG display behaviour ─────────────────────────────────
+  // Short messages (fits on screen): hold this long, then return to clock.
+  #define POCSAG_STATIC_MS      15000   // ms to show a short message
+  // Long messages (scrolling): scroll speed and number of passes.
+  #define POCSAG_SCROLL_SPEED_MS   50   // ms per pixel scroll step
+  #define POCSAG_SCROLL_PASSES      3   // how many times to scroll through
+
 #endif  // ROLE_RECEIVER
 
 
@@ -84,4 +91,5 @@
 // ============================================================
 #define LED_DATA_PIN    32
 #define LED_BRIGHTNESS  50    // 0–255
-#define LED_COLOR_TIME  CRGB::White
+#define LED_COLOR_TIME   CRGB::White
+#define LED_COLOR_POCSAG CRGB(255, 160, 0)  // amber for pager messages

@@ -264,7 +264,7 @@ static void loopDisplay() {
         int xo = (MATRIX_WIDTH - totalW) / 2;
         FastLED.clear();
         for (int i = 0; i < pocsagMsgLen; i++)
-          drawChar(xo + i * 4, yo, pocsagMsg[i], CRGB(255, 160, 0));
+          drawChar(xo + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
         FastLED.show();
         if (first)
           Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
@@ -273,15 +273,15 @@ static void loopDisplay() {
         pocsagMsgActive = false;
     } else {
       // Scroll 3 passes, 50 ms per pixel
-      if (millis() - pocsagScrollLast < 50) return;
+      if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
       FastLED.clear();
       for (int i = 0; i < pocsagMsgLen; i++)
-        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], CRGB(255, 160, 0));
+        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
       FastLED.show();
       pocsagScrollX--;
       if (pocsagScrollX < -(pocsagMsgLen * 4)) {
-        if (++pocsagScrollPass >= 3)
+        if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES)
           pocsagMsgActive = false;
         else
           pocsagScrollX = MATRIX_WIDTH;
@@ -713,7 +713,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
         pocsagScrollPass = 0;
         pocsagScrollLast = millis();
       } else {
-        pocsagStaticUntil    = millis() + 15000;
+        pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
         pocsagStaticLastDraw = 0;  // force immediate draw
       }
     }
