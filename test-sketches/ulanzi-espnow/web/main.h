@@ -21,6 +21,17 @@ h1{color:#00bcd4;font-size:1.35em;margin-bottom:3px}
 .val.amber{color:#ffb300}
 .val.dim{color:#888}
 .full{grid-column:1/-1}
+.bright-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+.tog{position:relative;display:inline-block;width:38px;height:20px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:#444;border-radius:20px;cursor:pointer;transition:.2s}
+.tog-sl:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#aaa;border-radius:50%;transition:.2s}
+.tog input:checked+.tog-sl{background:#00bcd4}
+.tog input:checked+.tog-sl:before{transform:translateX(18px);background:#fff}
+.tog-lbl{color:#aaa;font-size:.85em;white-space:nowrap}
+input[type=range]{flex:1;accent-color:#00bcd4;cursor:pointer}
+input[type=range]:disabled{opacity:.3;cursor:default}
+.bright-val{color:#888;font-size:.85em;min-width:28px;text-align:right}
 @media(max-width:440px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -39,6 +50,20 @@ h1{color:#00bcd4;font-size:1.35em;margin-bottom:3px}
   <div class="card full" id="card-msg">
     <div class="lbl">Last POCSAG</div>
     <div class="val amber" id="msg">-</div>
+  </div>
+  <div class="card full">
+    <div class="lbl">Brightness</div>
+    <div class="bright-row">
+      <label class="tog">
+        <input type="checkbox" id="tog-auto" onchange="onAutoToggle()">
+        <span class="tog-sl"></span>
+      </label>
+      <span class="tog-lbl" id="tog-lbl">Auto</span>
+      <input type="range" id="sld-bright" min="1" max="255" value="50" disabled
+             oninput="document.getElementById('bright-val').textContent=this.value"
+             onchange="onSliderChange()">
+      <span class="bright-val" id="bright-val">50</span>
+    </div>
   </div>
 </div>
 
@@ -65,7 +90,34 @@ function poll(){
     var msg = d.last_pocsag||'';
     document.getElementById('card-msg').style.display = (!isSender||msg)?'':'none';
     document.getElementById('msg').textContent = msg||'(none)';
+    // Brightness — only sync slider from server when auto is on (avoids overriding user drag)
+    document.getElementById('tog-auto').checked = d.auto_brightness;
+    document.getElementById('sld-bright').disabled = d.auto_brightness;
+    document.getElementById('tog-lbl').textContent = d.auto_brightness ? 'Auto' : 'Manual';
+    if (d.auto_brightness) {
+      document.getElementById('sld-bright').value = d.brightness;
+      document.getElementById('bright-val').textContent = d.brightness;
+    }
   }).catch(function(){});
+}
+function postBright(isAuto, level) {
+  fetch('/api/brightness', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'auto='+(isAuto?1:0)+'&level='+level
+  }).catch(function(){});
+}
+function onAutoToggle() {
+  var isAuto = document.getElementById('tog-auto').checked;
+  var level  = document.getElementById('sld-bright').value;
+  document.getElementById('sld-bright').disabled = isAuto;
+  document.getElementById('tog-lbl').textContent = isAuto ? 'Auto' : 'Manual';
+  postBright(isAuto, level);
+}
+function onSliderChange() {
+  var level = document.getElementById('sld-bright').value;
+  document.getElementById('bright-val').textContent = level;
+  postBright(false, level);
 }
 poll();
 setInterval(poll,2000);

@@ -92,9 +92,17 @@
 
 
 // ============================================================
+// LDR auto-brightness (GL5516 on GPIO35)
+// ============================================================
+#define LDR_PIN            35   // ADC pin
+#define LDR_MIN_BRIGHTNESS  5   // floor brightness in auto mode (0–255)
+#define LDR_UPDATE_MS    2000   // sample interval
+// GL5516 wiring: bright room → higher ADC value → higher brightness.
+
+// ============================================================
 // LED matrix display
 // ============================================================
 #define LED_DATA_PIN    32
-#define LED_BRIGHTNESS  50    // 0–255
+#define LED_BRIGHTNESS  50    // 0–255 (also used as initial manual brightness)
 #define LED_COLOR_TIME   CRGB::White
 #define LED_COLOR_POCSAG CRGB(255, 160, 0)  // amber for pager messages

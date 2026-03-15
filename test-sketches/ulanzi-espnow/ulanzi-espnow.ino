@@ -249,6 +249,27 @@ static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 #endif
 
 // ============================================================
+// Brightness (LDR auto + manual)
+// ============================================================
+static bool    autoBrightnessEnabled = true;
+static uint8_t currentBrightness     = LED_BRIGHTNESS;
+
+static void loopBrightness() {
+  if (!autoBrightnessEnabled) return;
+  static unsigned long lastUpdate = 0;
+  if (millis() - lastUpdate < LDR_UPDATE_MS) return;
+  lastUpdate = millis();
+
+  int ldr = analogRead(LDR_PIN);
+  // Bright room → low ADC → high brightness; dark room → high ADC → low brightness.
+  // Swap last two map() args if inverted on your board.
+  uint8_t target = (uint8_t)map(ldr, 0, 4095, LDR_MIN_BRIGHTNESS, 255);
+  // EMA smoothing: blend 1/4 toward target each sample
+  currentBrightness = (uint8_t)((currentBrightness * 3 + target + 2) / 4);
+  FastLED.setBrightness(currentBrightness);
+}
+
+// ============================================================
 // Web status (updated by role code, served via /api/status)
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
@@ -388,7 +409,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[512];
+    char json[600];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -410,7 +431,8 @@ static void setupWebServer() {
       "\"channel\":%d,\"uptime\":%lu,"
       "\"time_synced\":%s,\"time\":\"%s\","
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
-      "\"last_pocsag\":\"%s\"}",
+      "\"last_pocsag\":\"%s\","
+      "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d}",
       OTA_HOSTNAME,
 #ifdef ROLE_SENDER
       "SENDER",
@@ -424,9 +446,26 @@ static void setupWebServer() {
       timeStr,
       (unsigned long)wsCountDmr,
       (unsigned long)wsCountPocsag,
-      safe
+      safe,
+      currentBrightness,
+      autoBrightnessEnabled ? "true" : "false",
+      analogRead(LDR_PIN)
     );
     webServer.send(200, "application/json", json);
+  });
+
+  webServer.on("/api/brightness", HTTP_POST, []() {
+    String autoArg  = webServer.arg("auto");
+    String levelArg = webServer.arg("level");
+    if (autoArg.length() > 0)
+      autoBrightnessEnabled = (autoArg == "1" || autoArg == "true");
+    if (levelArg.length() > 0) {
+      int lvl = levelArg.toInt();
+      if (lvl >= 1 && lvl <= 255) currentBrightness = (uint8_t)lvl;
+    }
+    if (!autoBrightnessEnabled)
+      FastLED.setBrightness(currentBrightness);
+    webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
   webServer.begin();
@@ -625,6 +664,7 @@ void loopSender() {
 #if TEST_POCSAG
   loopPocsagSender();
 #endif
+  loopBrightness();
   loopDisplay();
 }
 
@@ -893,6 +933,7 @@ void loopReceiver() {
   }
 #endif
 
+  loopBrightness();
   loopDisplay();
 }
 
