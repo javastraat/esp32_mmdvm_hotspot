@@ -92,6 +92,16 @@
 
 
 // ============================================================
+// Battery voltage monitoring (GPIO34 ADC)
+// ============================================================
+#define BAT_PIN        34      // ADC6 — wired to battery via voltage divider
+#define BAT_DIVIDER    2.0f    // divider ratio: R1=R2 → ×2 (TC001 default)
+#define BAT_VREF_MV    3300    // ADC reference voltage in mV
+#define BAT_ADC_MAX    4095    // 12-bit ADC full scale
+#define BAT_FULL_MV    4200    // mV at 100%
+#define BAT_EMPTY_MV   3000    // mV at 0%
+
+// ============================================================
 // LDR auto-brightness (GL5516 on GPIO35)
 // ============================================================
 #define LDR_PIN            35   // ADC pin

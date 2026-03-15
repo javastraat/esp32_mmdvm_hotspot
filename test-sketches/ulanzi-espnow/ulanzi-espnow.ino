@@ -268,6 +268,17 @@ static void loopBrightness() {
 }
 
 // ============================================================
+// Battery voltage
+// ============================================================
+static int readBatteryMv() {
+  int raw = analogRead(BAT_PIN);
+  return (int)((raw / (float)BAT_ADC_MAX) * BAT_VREF_MV * BAT_DIVIDER);
+}
+static int readBatteryPct(int mv) {
+  return (int)constrain(map(mv, BAT_EMPTY_MV, BAT_FULL_MV, 0, 100), 0, 100);
+}
+
+// ============================================================
 // Web status (updated by role code, served via /api/status)
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
@@ -407,7 +418,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/status", HTTP_GET, []() {
-    char json[600];
+    char json[700];
     struct tm t;
     bool hasTm = getLocalTime(&t);
     char timeStr[12] = "--:--:--";
@@ -424,13 +435,17 @@ static void setupWebServer() {
     }
     safe[si] = '\0';
 
+    int batMv  = readBatteryMv();
+    int batPct = readBatteryPct(batMv);
+
     snprintf(json, sizeof(json),
       "{\"hostname\":\"%s\",\"role\":\"%s\",\"ip\":\"%s\","
       "\"channel\":%d,\"uptime\":%lu,"
       "\"time_synced\":%s,\"time\":\"%s\","
       "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
       "\"last_pocsag\":\"%s\","
-      "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d}",
+      "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
+      "\"battery_mv\":%d,\"battery_pct\":%d}",
       OTA_HOSTNAME,
 #ifdef ROLE_SENDER
       "SENDER",
@@ -447,7 +462,9 @@ static void setupWebServer() {
       safe,
       currentBrightness,
       autoBrightnessEnabled ? "true" : "false",
-      analogRead(LDR_PIN)
+      analogRead(LDR_PIN),
+      batMv,
+      batPct
     );
     webServer.send(200, "application/json", json);
   });

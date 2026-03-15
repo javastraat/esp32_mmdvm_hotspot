@@ -20,6 +20,7 @@ h1{color:#00bcd4;font-size:1.35em;margin-bottom:3px}
 .val.cyan{color:#00bcd4;font-size:1.25em}
 .val.amber{color:#ffb300}
 .val.dim{color:#888}
+.val.red{color:#f44336}
 .full{grid-column:1/-1}
 .bright-row{display:flex;align-items:center;gap:12px;margin-top:8px}
 .tog{position:relative;display:inline-block;width:38px;height:20px;flex-shrink:0}
@@ -44,6 +45,8 @@ input[type=range]:disabled{opacity:.3;cursor:default}
   <div class="card"><div class="lbl">Uptime</div><div class="val" id="uptime">-</div></div>
   <div class="card"><div class="lbl">IP Address</div><div class="val green" id="ip">-</div></div>
   <div class="card"><div class="lbl">WiFi Channel</div><div class="val" id="ch">-</div></div>
+  <div class="card"><div class="lbl">Battery</div><div class="val" id="bat">-</div></div>
+  <div class="card"><div class="lbl">Light (LDR)</div><div class="val dim" id="ldr">-</div></div>
   <div class="card full"><div class="lbl">Time</div><div class="val cyan" id="clk">-</div></div>
   <div class="card"><div class="lbl" id="lbl-dmr">DMR</div><div class="val" id="dmr">-</div></div>
   <div class="card"><div class="lbl" id="lbl-poc">POCSAG</div><div class="val" id="poc">-</div></div>
@@ -90,6 +93,13 @@ function poll(){
     var msg = d.last_pocsag||'';
     document.getElementById('card-msg').style.display = (!isSender||msg)?'':'none';
     document.getElementById('msg').textContent = msg||'(none)';
+    // Battery
+    var batEl = document.getElementById('bat');
+    var pct = d.battery_pct, mv = d.battery_mv;
+    batEl.textContent = (mv/1000).toFixed(2)+' V \u00B7 '+pct+'%';
+    batEl.className = 'val '+(pct>=60?'green':pct>=30?'amber':'red');
+    // LDR
+    document.getElementById('ldr').textContent = d.ldr_raw+' / 4095';
     // Brightness — only sync slider from server when auto is on (avoids overriding user drag)
     document.getElementById('tog-auto').checked = d.auto_brightness;
     document.getElementById('sld-bright').disabled = d.auto_brightness;
