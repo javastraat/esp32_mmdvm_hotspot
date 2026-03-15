@@ -872,6 +872,13 @@ static void setupWebServer() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/leds", HTTP_GET, []() {
+    char hex[NUM_LEDS * 6 + 1];
+    for (int i = 0; i < NUM_LEDS; i++)
+      snprintf(hex + i * 6, 7, "%02X%02X%02X", leds[i].r, leds[i].g, leds[i].b);
+    webServer.send(200, "text/plain", hex);
+  });
+
   webServer.on("/api/reboot", HTTP_POST, []() {
     webServer.send(200, "application/json", "{\"ok\":true}");
     delay(100);

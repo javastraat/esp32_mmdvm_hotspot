@@ -124,7 +124,14 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     <div class="clock-sub" id="mode-lbl" style="margin-top:4px">mode: clock</div>
   </div>
 
-  <!-- 6. ESP-NOW -->
+  <!-- 6. Display Preview -->
+  <div class="card" style="grid-column:1/-1">
+    <h3>Display Preview</h3>
+    <canvas id="led-canvas" width="320" height="80"
+      style="width:100%;background:#111;border-radius:4px;image-rendering:pixelated;display:block"></canvas>
+  </div>
+
+  <!-- 7. ESP-NOW -->
   <div class="card">
     <h3>ESP-NOW</h3>
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
@@ -392,8 +399,32 @@ function doReboot(){
   fetch('/api/reboot',{method:'POST'}).catch(function(){});
   setTimeout(function(){location.reload();},5000);
 }
+function pollDisplay(){
+  fetch('/api/leds').then(function(r){return r.text();}).then(function(hex){
+    var canvas=document.getElementById('led-canvas');
+    var ctx=canvas.getContext('2d');
+    var W=32,H=8,S=10;
+    ctx.fillStyle='#111';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(var y=0;y<H;y++){
+      for(var x=0;x<W;x++){
+        // serpentine: even rows left→right, odd rows right→left
+        var idx=(y%2===0)?y*W+x:(y+1)*W-1-x;
+        var r=parseInt(hex.substr(idx*6,2),16);
+        var g=parseInt(hex.substr(idx*6+2,2),16);
+        var b=parseInt(hex.substr(idx*6+4,2),16);
+        if(r>0||g>0||b>0){
+          ctx.fillStyle='rgb('+r+','+g+','+b+')';
+          ctx.fillRect(x*S+1,y*S+1,S-2,S-2);
+        }
+      }
+    }
+  }).catch(function(){});
+  setTimeout(pollDisplay,500);
+}
 poll();
 setInterval(poll,2000);
+pollDisplay();
 </script>
 </body>
 </html>
