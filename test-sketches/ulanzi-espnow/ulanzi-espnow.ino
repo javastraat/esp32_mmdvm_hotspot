@@ -158,9 +158,10 @@ static void drawUpdate() {
   FastLED.show();
 }
 
-// drawProgress: lights up one new pixel per call — never clears, so no flicker
+// drawProgress: redraws the full bar row on every call — corrects any corruption
 static void drawProgress(int barW) {
-  if (barW > 0) setLED(barW - 1, 7, CRGB::Cyan);
+  for (int x = 0; x < MATRIX_WIDTH; x++)
+    setLED(x, 7, (x < barW) ? CRGB::Cyan : CRGB(0, 25, 25));
   FastLED.show();
 }
 static void drawDone()   { drawStatusWord(FONT_DONE,   4, CRGB::Green);    }
@@ -333,7 +334,8 @@ static void loopDisplay() {
 // ============================================================
 // OTA (shared by both roles — call only when WiFi is up)
 // ============================================================
-static bool otaStarted = false;
+static bool otaStarted  = false;
+static int  otaLastBarW = -1;   // reset each OTA session in onStart
 
 static void setupOTA() {
   ArduinoOTA.setHostname(OTA_HOSTNAME);
@@ -341,15 +343,17 @@ static void setupOTA() {
   ArduinoOTA.onStart([]() {
     Serial.println("[OTA] Start");
     otaInProgress = true;
+    otaLastBarW   = -1;
     drawUpdate();
   });
   ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
-    static int lastBarW = -1;
     int barW = (total > 0) ? (int)((long)MATRIX_WIDTH * current / total) : 0;
-    if (barW != lastBarW) { lastBarW = barW; drawProgress(barW); }
+    if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\n[OTA] Done — rebooting");
+    FastLED.clear(); FastLED.show();  // blank screen first — clean transition
+    delay(150);
     drawDone();
     delay(1500);
     otaInProgress = false;
