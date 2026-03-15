@@ -202,6 +202,15 @@ input[type=range]:disabled{opacity:.35;cursor:default}
     </div>
   </div>
 
+  <!-- 10. System -->
+  <div class="card">
+    <h3>System</h3>
+    <div class="metric">
+      <span class="metric-label">Reboot device</span>
+      <button onclick="doReboot()" style="background:#dc3545;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold">Reboot</button>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -319,6 +328,11 @@ function onBuzzerChange(type){
       body:'type='+type+'&vol='+vol
     }).catch(function(){});
   }).catch(function(){});
+}
+function doReboot(){
+  if(!confirm('Reboot Ulanzi?'))return;
+  fetch('/api/reboot',{method:'POST'}).catch(function(){});
+  setTimeout(function(){location.reload();},5000);
 }
 poll();
 setInterval(poll,2000);

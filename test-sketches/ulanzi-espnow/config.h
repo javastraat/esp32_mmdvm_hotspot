@@ -98,6 +98,14 @@
 
 
 // ============================================================
+// RTC (DS1307, I2C)
+// Default ESP32 I2C pins — change if your wiring differs.
+// ============================================================
+#define RTC_SDA_PIN  21
+#define RTC_SCL_PIN  22
+
+
+// ============================================================
 // Buzzer (passive, GPIO15)
 // GPIO15 is held INPUT_PULLDOWN at boot to silence power-on noise;
 // setupBuzzer() reconfigures it as LEDC output for tone generation.

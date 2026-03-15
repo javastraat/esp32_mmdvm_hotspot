@@ -18,6 +18,7 @@
 #include <esp_wifi.h>
 #include <time.h>
 #include <Preferences.h>
+#include <Wire.h>
 #include "web/main.h"
 
 // ============================================================
@@ -410,9 +411,82 @@ static uint32_t  wsCountPocsag = 0;
 static char      wsLastPocsag[POCSAG_MSG_MAX_LEN + 1] = {};
 static WebServer webServer(80);
 
-// Update display once per second — call from both role loops
+// Shared display state — declared here so setupRTC() can set timeSynced
 static bool timeSynced    = false;
-static bool otaInProgress = false;  // blocks loopDisplay during OTA flash
+static bool otaInProgress = false;
+
+// ============================================================
+// RTC (DS1307) — direct Wire, no library needed
+// Registers 0x00-0x06: sec, min, hr, dow, day, mon, yr (BCD)
+// Register 0x00 bit 7: CH (Clock Halt) — 0 = running
+// ============================================================
+static bool rtcAvailable = false;
+
+static uint8_t bcd2dec(uint8_t b) { return (b >> 4) * 10 + (b & 0x0F); }
+static uint8_t dec2bcd(uint8_t d) { return ((d / 10) << 4) | (d % 10); }
+
+static bool ds1307Read(struct tm& t) {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
+  if (Wire.endTransmission() != 0) return false;
+  Wire.requestFrom((uint8_t)0x68, (uint8_t)7);
+  if (Wire.available() < 7) return false;
+  uint8_t sec = Wire.read();
+  if (sec & 0x80) return false;          // CH bit set = oscillator stopped
+  uint8_t min = Wire.read();
+  uint8_t hr  = Wire.read();
+  Wire.read();                            // day-of-week (unused)
+  uint8_t day = Wire.read();
+  uint8_t mon = Wire.read();
+  uint8_t yr  = Wire.read();
+  t           = {};
+  t.tm_sec    = bcd2dec(sec & 0x7F);
+  t.tm_min    = bcd2dec(min);
+  t.tm_hour   = bcd2dec(hr  & 0x3F);
+  t.tm_mday   = bcd2dec(day);
+  t.tm_mon    = bcd2dec(mon & 0x1F) - 1;
+  t.tm_year   = bcd2dec(yr) + 100;       // 2-digit year → years since 1900
+  t.tm_isdst  = -1;
+  return true;
+}
+
+static void ds1307Write(const struct tm& t) {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
+  Wire.write(dec2bcd(t.tm_sec));          // CH=0 → oscillator running
+  Wire.write(dec2bcd(t.tm_min));
+  Wire.write(dec2bcd(t.tm_hour));
+  Wire.write(1);                           // day-of-week (unused, set to 1)
+  Wire.write(dec2bcd(t.tm_mday));
+  Wire.write(dec2bcd(t.tm_mon + 1));
+  Wire.write(dec2bcd(t.tm_year % 100));   // 2-digit year
+  Wire.endTransmission();
+}
+
+static void setupRTC() {
+  Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
+  // Probe I2C address
+  Wire.beginTransmission(0x68);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("[RTC] Not found — waiting for POCSAG time beacon");
+    return;
+  }
+  rtcAvailable = true;
+  struct tm t = {};
+  if (!ds1307Read(t)) {
+    Serial.println("[RTC] Found but not running (lost power?) — waiting for POCSAG sync");
+    return;
+  }
+  time_t epoch = mktime(&t);
+  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+  settimeofday(&tv, nullptr);
+  timeSynced = true;
+  Serial.printf("[RTC] Time restored: %04d-%02d-%02d %02d:%02d:%02d\n",
+    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+    t.tm_hour, t.tm_min, t.tm_sec);
+}
+
+// Display loop
 
 static void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
@@ -641,6 +715,12 @@ static void setupWebServer() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/reboot", HTTP_POST, []() {
+    webServer.send(200, "application/json", "{\"ok\":true}");
+    delay(100);
+    ESP.restart();
+  });
+
   webServer.begin();
   Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
 }
@@ -700,10 +780,14 @@ static void applyPocsagTime(const char* msg) {
   settimeofday(&tv, nullptr);
   timeSynced = true;
 
-  Serial.printf("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d\n",
+  if (rtcAvailable)
+    ds1307Write(t);
+
+  Serial.printf("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d%s\n",
     TIME_POCSAG_RIC,
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
-    t.tm_hour, t.tm_min, t.tm_sec);
+    t.tm_hour, t.tm_min, t.tm_sec,
+    rtcAvailable ? " [RTC updated]" : "");
 }
 #endif  // RECV_POCSAG
 
@@ -934,6 +1018,7 @@ void setup() {
   FastLED.clear();
   FastLED.show();
 
+  setupRTC();
   setupBuzzer();
   setupReceiver();
 }
