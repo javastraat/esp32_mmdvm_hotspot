@@ -6,6 +6,9 @@
 #include <PNGdec.h>
 
 // ============================================================
+
+// GIF animation frame tracker (global)
+static int gifFrame = 0;
 // 3×5 pixel fonts
 // ============================================================
 
@@ -228,7 +231,7 @@ static int drawJpegIcon(const char* path, int* delayMs) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return -1;
   }
-  FastLED.clear();
+    FastLED.clear(); // Always clear before decode
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1); // No scaling
   TJpgDec.drawFsJpg(0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
@@ -540,7 +543,7 @@ static void loopDisplay() {
           for (int col = 0; col < 3; col++)
             if (ICON_THERMO[row] & (1 << (2 - col)))
               setLED(xo + col, yo + row, color);
-        textX = xo + 4;
+          FastLED.clear(); // Always clear before GIF frame
       } else {
         // Clear only the text columns — GIF area must NOT be cleared (delta frames)
         for (int x = textX - 1; x < MATRIX_WIDTH; x++)
@@ -549,7 +552,9 @@ static void loopDisplay() {
       }
       for (int i = 0; i < len; i++)
         drawChar(textX + i * 4, yo, buf[i], color);
+            gifFrame = 0;
 
+            gifFrame++;
     } else {
       int h10 = constrain((int)roundf(sht31Hum * 10.0f), 0, 1000);
       snprintf(buf, sizeof(buf), "%d.%d%%", h10 / 10, h10 % 10);
