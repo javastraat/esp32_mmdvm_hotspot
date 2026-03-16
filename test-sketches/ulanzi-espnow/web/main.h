@@ -108,12 +108,26 @@ input[type=range]:disabled{opacity:.35;cursor:default}
   <!-- 3. Hardware -->
   <div class="card">
     <h3>Hardware</h3>
-    <div class="metric"><span class="metric-label">Platform</span><span class="metric-value">ESP32-WROOM-32D</span></div>
-    <div class="metric"><span class="metric-label">CPU</span><span class="metric-value">Xtensa LX6 240 MHz</span></div>
-    <div class="metric"><span class="metric-label">Flash</span><span class="metric-value">8 MB</span></div>
+    <div class="metric"><span class="metric-label">Platform</span><span class="metric-value" id="hw-chip">-</span></div>
+    <div class="metric"><span class="metric-label">Chip Rev</span><span class="metric-value" id="hw-rev">-</span></div>
+    <div class="metric"><span class="metric-label">CPU</span><span class="metric-value" id="hw-cpu">-</span></div>
+    <div class="metric"><span class="metric-label">CPU Temp</span><span class="metric-value" id="hw-temp">-</span></div>
+    <div class="metric"><span class="metric-label">Flash</span><span class="metric-value" id="hw-flash">-</span></div>
     <div class="metric"><span class="metric-label">LED Matrix</span><span class="metric-value">32&#xd7;8 WS2812B</span></div>
     <div class="metric"><span class="metric-label">LDR</span><span class="metric-value">GL5516 GPIO35</span></div>
     <div class="metric"><span class="metric-label">Battery</span><span class="metric-value">4400 mAh LiPo</span></div>
+  </div>
+
+  <!-- 3b. Software -->
+  <div class="card">
+    <h3>Software</h3>
+    <div class="metric"><span class="metric-label">Build</span><span class="metric-value" id="sw-build">-</span></div>
+    <div class="metric"><span class="metric-label">SDK</span><span class="metric-value" id="sw-sdk">-</span></div>
+    <div class="metric"><span class="metric-label">Reset Reason</span><span class="metric-value" id="sw-reset">-</span></div>
+    <div class="metric"><span class="metric-label">Sketch</span><span class="metric-value" id="sw-sketch">-</span></div>
+    <div class="metric"><span class="metric-label">OTA Space</span><span class="metric-value" id="sw-ota">-</span></div>
+    <div class="metric"><span class="metric-label">webTask Stack</span><span class="metric-value" id="sw-stack">-</span></div>
+    <div class="metric"><span class="metric-label">Min Free Heap</span><span class="metric-value" id="sw-minheap">-</span></div>
   </div>
 
   <!-- 4. Battery & Sensors -->
@@ -314,8 +328,8 @@ function poll(){
     else{
       var html='<table style="width:100%;border-collapse:collapse;font-size:0.85em">';
       for(var i=0;i<log.length;i++){
-        html+='<tr><td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0">RIC '+log[i].ric+'</td>'
-             +'<td style="padding:2px 0">'+log[i].msg+'</td></tr>';
+        html+='<tr><td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">RIC '+log[i].ric+'</td>'
+             +'<td style="padding:2px 0;word-break:break-all">'+log[i].msg+'</td></tr>';
       }
       html+='</table>';
       el.innerHTML=html;
@@ -425,8 +439,29 @@ function pollDisplay(){
   }).catch(function(){});
   setTimeout(pollDisplay,500);
 }
+function fetchSysInfo(){
+  fetch('/api/sysinfo').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('hw-chip').textContent=d.chip_model||'-';
+    document.getElementById('hw-rev').textContent='rev '+d.chip_rev;
+    document.getElementById('hw-cpu').textContent=d.cpu_cores+' cores @ '+d.cpu_mhz+' MHz';
+    document.getElementById('hw-temp').textContent=d.cpu_temp.toFixed(1)+' \u00b0C';
+    document.getElementById('hw-flash').textContent=d.flash_mb+' MB';
+    document.getElementById('sw-build').textContent=d.build||'-';
+    document.getElementById('sw-sdk').textContent=d.sdk_version||'-';
+    document.getElementById('sw-reset').textContent=d.reset_reason||'-';
+    document.getElementById('sw-sketch').textContent=d.sketch_kb+' KB used';
+    document.getElementById('sw-ota').textContent=d.free_sketch_kb+' KB free';
+    var sf=d.webtask_stack_free;
+    var sc=sf<512?'#f44336':sf<1024?'#ff9800':'';
+    var se=document.getElementById('sw-stack');
+    se.textContent=(sf>=1024?(sf/1024).toFixed(1)+' KB':sf+' B')+' free';
+    if(sc)se.style.color=sc;
+    document.getElementById('sw-minheap').textContent=d.min_free_heap?Math.round(d.min_free_heap/1024)+' KB':'-';
+  }).catch(function(){});
+}
 poll();
 setInterval(poll,2000);
+fetchSysInfo();
 pollDisplay();
 </script>
 </body>

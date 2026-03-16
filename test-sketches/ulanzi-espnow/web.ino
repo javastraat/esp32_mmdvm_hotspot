@@ -191,6 +191,44 @@ static void setupWebServer() {
     ESP.restart();
   });
 
+  webServer.on("/api/sysinfo", HTTP_GET, []() {
+    const char* resetReasons[] = {
+      "Unknown","Power-on","External","Software","Panic",
+      "Int WDT","Task WDT","WDT","Deepsleep","Brownout","SDIO"
+    };
+    esp_reset_reason_t rr = esp_reset_reason();
+    const char* rrStr = ((int)rr < 11) ? resetReasons[(int)rr] : "Unknown";
+
+    float cpuTemp = temperatureRead();
+
+    // webTask stack watermark — NULL = this task (runs in webTaskFn)
+    uint32_t stackFreeB = uxTaskGetStackHighWaterMark(NULL) * sizeof(StackType_t);
+
+    char buf[600];
+    snprintf(buf, sizeof(buf),
+      "{\"chip_model\":\"%s\",\"chip_rev\":%d,\"cpu_cores\":%d,\"cpu_mhz\":%d,"
+      "\"cpu_temp\":%.1f,\"heap_size\":%u,\"min_free_heap\":%u,"
+      "\"flash_mb\":%u,\"sketch_kb\":%u,\"free_sketch_kb\":%u,"
+      "\"reset_reason\":\"%s\",\"sdk_version\":\"%s\","
+      "\"build\":\"%s %s\",\"webtask_stack_free\":%lu}",
+      ESP.getChipModel(),
+      (int)ESP.getChipRevision(),
+      (int)ESP.getChipCores(),
+      (int)ESP.getCpuFreqMHz(),
+      cpuTemp,
+      ESP.getHeapSize(),
+      ESP.getMinFreeHeap(),
+      ESP.getFlashChipSize() / 1024 / 1024,
+      ESP.getSketchSize() / 1024,
+      ESP.getFreeSketchSpace() / 1024,
+      rrStr,
+      ESP.getSdkVersion(),
+      __DATE__, __TIME__,
+      (unsigned long)stackFreeB
+    );
+    webServer.send(200, "application/json", buf);
+  });
+
   webServer.begin();
   Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
 }

@@ -26,6 +26,7 @@
 #include <ArduinoOTA.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <esp_system.h>
 #include <time.h>
 #include <Preferences.h>
 #include <Wire.h>
