@@ -31,6 +31,8 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include "web/main.h"
+#include "web/settings.h"
+#include "web/system.h"
 #include "SHT31.h"
 
 // ============================================================

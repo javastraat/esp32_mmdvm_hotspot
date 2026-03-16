@@ -51,6 +51,14 @@ static void setupWebServer() {
     webServer.send_P(200, "text/html", PAGE_LIVE);
   });
 
+  webServer.on("/settings", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_SETTINGS);
+  });
+
+  webServer.on("/system", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_SYSTEM);
+  });
+
   webServer.on("/api/status", HTTP_GET, []() {
     char json[2500];
     struct tm t;
