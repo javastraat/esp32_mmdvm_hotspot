@@ -1,0 +1,51 @@
+##############################################################
+# Ulanzi TC001 — 8 MB flash, 3+3+1.875 MB partition layout
+#
+# INSTALL INSTRUCTIONS
+# --------------------
+# 1. Find your ESP32 core version directory:
+#      ~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/
+#
+# 2. Copy THIS FILE into that directory:
+#      boards.local.txt
+#    (If boards.local.txt already exists there, append the lines below.)
+#
+# 3. Copy ulanzi_8mb.csv into:
+#      ~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/tools/partitions/
+#
+# 4. Restart Arduino IDE.
+#    "Ulanzi TC001 (8 MB)" will appear in Tools → Board → esp32.
+##############################################################
+
+ulanzi_tc001.name=Ulanzi TC001 (8 MB)
+
+ulanzi_tc001.vid.0=0x1A86
+ulanzi_tc001.pid.0=0x7523
+
+ulanzi_tc001.upload.tool=esptool_py
+ulanzi_tc001.upload.tool.default=esptool_py
+ulanzi_tc001.upload.tool.network=esp_ota
+ulanzi_tc001.upload.maximum_size=3145728
+ulanzi_tc001.upload.maximum_data_size=327680
+ulanzi_tc001.upload.flags=
+ulanzi_tc001.upload.extra_flags=
+ulanzi_tc001.upload.use_1200bps_touch=false
+ulanzi_tc001.upload.wait_for_upload_port=false
+
+ulanzi_tc001.serial.disableDTR=true
+ulanzi_tc001.serial.disableRTS=true
+
+ulanzi_tc001.build.tarch=xtensa
+ulanzi_tc001.build.bootloader_addr=0x1000
+ulanzi_tc001.build.target=esp32
+ulanzi_tc001.build.mcu=esp32
+ulanzi_tc001.build.core=esp32
+ulanzi_tc001.build.variant=esp32
+ulanzi_tc001.build.board=ESP32_DEV
+ulanzi_tc001.build.f_cpu=240000000L
+ulanzi_tc001.build.flash_size=8MB
+ulanzi_tc001.build.flash_freq=80m
+ulanzi_tc001.build.flash_mode=qio
+ulanzi_tc001.build.boot=qio
+ulanzi_tc001.build.partitions=ulanzi_8mb
+ulanzi_tc001.build.defines=

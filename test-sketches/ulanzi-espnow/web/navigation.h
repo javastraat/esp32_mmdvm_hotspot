@@ -19,6 +19,7 @@
     "<button class=\"nav-tab\" id=\"nt-more\" onclick=\"toggleMore(event)\">More &#9662;</button>" \
     "<div class=\"nav-more-menu\" id=\"nav-more-menu\">" \
       "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
+      "<a href=\"/files\" class=\"nav-more-item\">Files</a>" \
       "<a href=\"/system\" class=\"nav-more-item\">System</a>" \
     "</div>" \
   "</div>" \

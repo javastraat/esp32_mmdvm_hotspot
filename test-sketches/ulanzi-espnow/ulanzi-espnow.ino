@@ -35,6 +35,7 @@
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
+#include "web/files.h"
 #include "SHT31.h"
 
 // ============================================================

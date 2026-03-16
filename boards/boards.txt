@@ -327,111 +327,54 @@ espnowatch.menu.EraseFlash.all.upload.erase_cmd=-e
 
 ##############################################################
 
-twatch.name= LilyGo T-Watch 2020
+##############################################################
+# Ulanzi TC001 — 8 MB flash, 3+3+1.875 MB partition layout
+#
+# INSTALL INSTRUCTIONS
+# --------------------
+# 1. Find your ESP32 core version directory:
+#      ~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/
+#
+# 2. Copy THIS FILE into that directory:
+#      boards.local.txt
+#    (If boards.local.txt already exists there, append the lines below.)
+#
+# 3. Copy ulanzi_8mb.csv into:
+#      ~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/tools/partitions/
+#
+# 4. Restart Arduino IDE.
+#    "Ulanzi TC001 (8 MB)" will appear in Tools → Board → esp32.
+##############################################################
 
-twatch.bootloader.tool=esptool_py
-twatch.bootloader.tool.default=esptool_py
+ulanzi_tc001.name=Ulanzi TC001 (8 MB)
 
-twatch.upload.tool=esptool_py
-twatch.upload.tool.default=esptool_py
-twatch.upload.tool.network=esp_ota
-twatch.upload.maximum_size=8257536
-twatch.upload.maximum_data_size=327680
-twatch.upload.flags=
-twatch.upload.extra_flags=
-twatch.upload.use_1200bps_touch=false
-twatch.upload.wait_for_upload_port=false
-twatch.upload.speed=921600
+ulanzi_tc001.vid.0=0x1A86
+ulanzi_tc001.pid.0=0x7523
 
-twatch.serial.disableDTR=false
-twatch.serial.disableRTS=false
+ulanzi_tc001.upload.tool=esptool_py
+ulanzi_tc001.upload.tool.default=esptool_py
+ulanzi_tc001.upload.tool.network=esp_ota
+ulanzi_tc001.upload.maximum_size=3145728
+ulanzi_tc001.upload.maximum_data_size=327680
+ulanzi_tc001.upload.flags=
+ulanzi_tc001.upload.extra_flags=
+ulanzi_tc001.upload.use_1200bps_touch=false
+ulanzi_tc001.upload.wait_for_upload_port=false
 
-twatch.build.tarch=xtensa
-twatch.build.bootloader_addr=0x1000
-twatch.build.target=esp32
-twatch.build.mcu=esp32
-twatch.build.core=esp32
-twatch.build.variant=esp32
-twatch.build.board=ESP32_DEV
+ulanzi_tc001.serial.disableDTR=true
+ulanzi_tc001.serial.disableRTS=true
 
-twatch.build.f_cpu=240000000L
-twatch.build.flash_size=16MB
-twatch.build.flash_freq=80m
-twatch.build.flash_mode=dio
-twatch.build.boot=qio
-twatch.build.partitions=twatch_16MB
-twatch.build.defines=-DBOARD_HAS_PSRAM
-twatch.build.loop_core=-DARDUINO_RUNNING_CORE=1
-twatch.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
-twatch.build.code_debug=0
-
-## PSRAM
-twatch.menu.PSRAM.enabled=Enabled
-twatch.menu.PSRAM.enabled.build.defines=-DBOARD_HAS_PSRAM
-twatch.menu.PSRAM.disabled=Disabled
-twatch.menu.PSRAM.disabled.build.defines=
-
-## Flash Mode
-twatch.menu.FlashMode.qio=QIO 80MHz
-twatch.menu.FlashMode.qio.build.flash_mode=dio
-twatch.menu.FlashMode.qio.build.boot=qio
-twatch.menu.FlashMode.qio.build.flash_freq=80m
-twatch.menu.FlashMode.dio=DIO 80MHz
-twatch.menu.FlashMode.dio.build.flash_mode=dio
-twatch.menu.FlashMode.dio.build.boot=dio
-twatch.menu.FlashMode.dio.build.flash_freq=80m
-
-## Flash Size
-twatch.menu.FlashSize.16M=16MB (128Mb)
-twatch.menu.FlashSize.16M.build.flash_size=16MB
-
-## Partition Scheme
-twatch.menu.PartitionScheme.twatch_16MB=16MB Flash (8MB APP/OTA + 192KB SPIFFS)
-twatch.menu.PartitionScheme.twatch_16MB.build.partitions=twatch_16MB
-twatch.menu.PartitionScheme.twatch_16MB.upload.maximum_size=8257536
-
-## CPU Frequency
-twatch.menu.CPUFreq.240=240MHz (WiFi/BT)
-twatch.menu.CPUFreq.240.build.f_cpu=240000000L
-twatch.menu.CPUFreq.160=160MHz (WiFi)
-twatch.menu.CPUFreq.160.build.f_cpu=160000000L
-twatch.menu.CPUFreq.80=80MHz (WiFi)
-twatch.menu.CPUFreq.80.build.f_cpu=80000000L
-
-## Loop Core
-twatch.menu.LoopCore.1=Core 1
-twatch.menu.LoopCore.1.build.loop_core=-DARDUINO_RUNNING_CORE=1
-twatch.menu.LoopCore.0=Core 0
-twatch.menu.LoopCore.0.build.loop_core=-DARDUINO_RUNNING_CORE=0
-
-## Events Core
-twatch.menu.EventsCore.1=Core 1
-twatch.menu.EventsCore.1.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=1
-twatch.menu.EventsCore.0=Core 0
-twatch.menu.EventsCore.0.build.event_core=-DARDUINO_EVENT_RUNNING_CORE=0
-
-## Upload Speed
-twatch.menu.UploadSpeed.921600=921600
-twatch.menu.UploadSpeed.921600.upload.speed=921600
-twatch.menu.UploadSpeed.460800=460800
-twatch.menu.UploadSpeed.460800.upload.speed=460800
-twatch.menu.UploadSpeed.115200=115200
-twatch.menu.UploadSpeed.115200.upload.speed=115200
-
-## Debug Level
-twatch.menu.DebugLevel.none=None
-twatch.menu.DebugLevel.none.build.code_debug=0
-twatch.menu.DebugLevel.error=Error
-twatch.menu.DebugLevel.error.build.code_debug=1
-twatch.menu.DebugLevel.info=Info
-twatch.menu.DebugLevel.info.build.code_debug=3
-twatch.menu.DebugLevel.debug=Debug
-twatch.menu.DebugLevel.debug.build.code_debug=4
-twatch.menu.DebugLevel.verbose=Verbose
-twatch.menu.DebugLevel.verbose.build.code_debug=5
-
-## Erase Flash
-twatch.menu.EraseFlash.none=Disabled
-twatch.menu.EraseFlash.none.upload.erase_cmd=
-twatch.menu.EraseFlash.all=Enabled
-twatch.menu.EraseFlash.all.upload.erase_cmd=-e
+ulanzi_tc001.build.tarch=xtensa
+ulanzi_tc001.build.bootloader_addr=0x1000
+ulanzi_tc001.build.target=esp32
+ulanzi_tc001.build.mcu=esp32
+ulanzi_tc001.build.core=esp32
+ulanzi_tc001.build.variant=esp32
+ulanzi_tc001.build.board=ESP32_DEV
+ulanzi_tc001.build.f_cpu=240000000L
+ulanzi_tc001.build.flash_size=8MB
+ulanzi_tc001.build.flash_freq=80m
+ulanzi_tc001.build.flash_mode=qio
+ulanzi_tc001.build.boot=qio
+ulanzi_tc001.build.partitions=ulanzi_8mb
+ulanzi_tc001.build.defines=

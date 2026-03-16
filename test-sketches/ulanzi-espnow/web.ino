@@ -1,7 +1,12 @@
 // web.ino — ArduinoOTA setup and WebServer route handlers.
 // All globals (webServer, otaInProgress, otaStarted, otaLastBarW, timeSynced,
 // pocsagSynced, wsCount*, wsPocsagLog, currentBrightness, autoBrightnessEnabled,
-// buzzer*, sht31*, displayMode, autoRotate*, leds[]) declared in ulanzi-espnow.ino.
+// buzzer*, sht31*, displayMode, autoRotate*, leds[], fsAvailable) declared in ulanzi-espnow.ino.
+
+// Upload state — persists across the two upload callbacks
+static File   _uploadFile;
+static String _uploadedName;
+static bool   _uploadOk;
 
 // ── OTA ──────────────────────────────────────────────────────
 
@@ -207,6 +212,98 @@ static void setupWebServer() {
     delay(100);
     ESP.restart();
   });
+
+  // ── Filesystem page + API ─────────────────────────────────
+
+  webServer.on("/files", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_FILES);
+  });
+
+  webServer.on("/api/fs", HTTP_GET, []() {
+    if (!fsAvailable) {
+      webServer.send(503, "application/json", "{\"error\":\"fs unavailable\"}");
+      return;
+    }
+    char buf[80];
+    snprintf(buf, sizeof(buf), "{\"total\":%u,\"used\":%u,\"available\":%u}",
+      LittleFS.totalBytes(), LittleFS.usedBytes(),
+      LittleFS.totalBytes() - LittleFS.usedBytes());
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/files", HTTP_GET, []() {
+    if (!fsAvailable) {
+      webServer.send(503, "application/json", "[]");
+      return;
+    }
+    String json = "[";
+    File root = LittleFS.open("/");
+    File f = root.openNextFile();
+    bool first = true;
+    while (f) {
+      if (!f.isDirectory()) {
+        if (!first) json += ",";
+        json += "{\"name\":\"";
+        json += f.name();
+        json += "\",\"size\":";
+        json += f.size();
+        json += "}";
+        first = false;
+      }
+      f = root.openNextFile();
+    }
+    json += "]";
+    webServer.send(200, "application/json", json);
+  });
+
+  webServer.on("/api/files/delete", HTTP_POST, []() {
+    if (!fsAvailable) {
+      webServer.send(503, "application/json", "{\"ok\":false,\"error\":\"fs unavailable\"}");
+      return;
+    }
+    String name = webServer.arg("name");
+    if (name.length() == 0) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing name\"}");
+      return;
+    }
+    // Ensure leading slash
+    if (name[0] != '/') name = "/" + name;
+    bool ok = LittleFS.remove(name);
+    webServer.send(200, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false,\"error\":\"not found\"}");
+  });
+
+  webServer.on("/api/files/upload", HTTP_POST,
+    // Finish handler — fires after all upload chunks are received
+    []() {
+      if (_uploadOk) {
+        char resp[120];
+        snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\"}", _uploadedName.c_str());
+        webServer.send(200, "application/json", resp);
+      } else {
+        webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"write failed\"}");
+      }
+    },
+    // Upload handler — called repeatedly with each chunk
+    []() {
+      HTTPUpload& up = webServer.upload();
+      if (up.status == UPLOAD_FILE_START) {
+        _uploadedName = "/" + up.filename;
+        _uploadOk     = false;
+        LittleFS.remove(_uploadedName);
+        _uploadFile = LittleFS.open(_uploadedName, "w");
+        Serial.printf("[FS] Upload start: %s\n", _uploadedName.c_str());
+      } else if (up.status == UPLOAD_FILE_WRITE) {
+        if (_uploadFile)
+          _uploadOk = (_uploadFile.write(up.buf, up.currentSize) == up.currentSize);
+      } else if (up.status == UPLOAD_FILE_END) {
+        if (_uploadFile) {
+          _uploadFile.close();
+          Serial.printf("[FS] Upload done: %s  %u bytes\n",
+            _uploadedName.c_str(), up.totalSize);
+        }
+      }
+    }
+  );
 
   webServer.on("/api/sysinfo", HTTP_GET, []() {
     const char* resetReasons[] = {
