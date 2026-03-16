@@ -113,6 +113,81 @@ static const uint8_t FONT_SPECIAL[][5] = {
 };
 
 // ============================================================
+// GIF icon rendering (AnimatedGIF + LittleFS)
+// fsAvailable and LittleFS declared in ulanzi-espnow.ino.
+// ============================================================
+
+static AnimatedGIF _gif;
+static File        _gifFile;
+static int         _gifX0, _gifY0;
+static bool        _gifIsOpen   = false;
+static char        _gifCurPath[64] = "";
+
+static void* _gifOpen(const char* fname, int32_t* pSize) {
+  _gifFile = LittleFS.open(fname);
+  if (_gifFile) { *pSize = (int32_t)_gifFile.size(); return &_gifFile; }
+  return nullptr;
+}
+static void _gifClose(void* h) { if (h) ((File*)h)->close(); }
+static int32_t _gifRead(GIFFILE* pf, uint8_t* pBuf, int32_t iLen) {
+  return (int32_t)((File*)pf->fHandle)->read(pBuf, iLen);
+}
+static int32_t _gifSeek(GIFFILE* pf, int32_t iPos) {
+  ((File*)pf->fHandle)->seek(iPos); return iPos;
+}
+static void _gifDraw(GIFDRAW* pDraw) {
+  int row      = _gifY0 + pDraw->iY + pDraw->y;
+  uint8_t*  s  = pDraw->pPixels;
+  uint16_t* p  = pDraw->pPalette;
+  for (int x = 0; x < pDraw->iWidth; x++) {
+    uint8_t idx = s[x];
+    if (pDraw->ucHasTransparency && idx == pDraw->ucTransparent) continue;
+    uint16_t c  = p[idx];
+    uint8_t  r  = ((c >> 11) & 0x1F) << 3;
+    uint8_t  g  = ((c >>  5) & 0x3F) << 2;
+    uint8_t  b  = ( c        & 0x1F) << 3;
+    setLED(_gifX0 + pDraw->iX + x, row, CRGB(r, g, b));
+  }
+}
+
+// Open GIF for path if not already open; returns true if ready.
+static bool _gifEnsureOpen(const char* path) {
+  if (_gifIsOpen && strcmp(_gifCurPath, path) == 0) return true;
+  if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; }
+  _gif.begin(LITTLE_ENDIAN_PIXELS);   // palette in native ESP32 byte order → correct RGB
+  if (!_gif.open(path, _gifOpen, _gifClose, _gifRead, _gifSeek, _gifDraw)) return false;
+  strncpy(_gifCurPath, path, sizeof(_gifCurPath) - 1);
+  _gifCurPath[sizeof(_gifCurPath) - 1] = '\0';
+  _gifIsOpen = true;
+  return true;
+}
+
+static void _gifCloseIfOpen() {
+  if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; }
+}
+
+// Advance one GIF frame. Keeps the file open for the next call (animation).
+// *delayMs is set to the frame delay for the caller's redraw scheduling.
+// Returns x position for text, or -1 on failure (use bitmap fallback).
+static int drawGifIcon(const char* path, int textW, int* delayMs) {
+  *delayMs = 1000;
+  if (!fsAvailable) return -1;
+  if (!_gifEnsureOpen(path)) return -1;
+  int w = _gif.getCanvasWidth();
+  int h = _gif.getCanvasHeight();
+  _gifX0 = (MATRIX_WIDTH  - (w + 1 + textW)) / 2;
+  _gifY0 = (MATRIX_HEIGHT - h) / 2;
+  int delay = 100;
+  int result = _gif.playFrame(false, &delay);
+  *delayMs = max(delay, 33);          // honour frame delay, at least 33 ms
+  if (result == 0) {                  // last frame — close so next call reopens (loops)
+    _gif.close();
+    _gifIsOpen = false;
+  }
+  return _gifX0 + w + 1;
+}
+
+// ============================================================
 // LED drawing primitives
 // ============================================================
 
@@ -364,19 +439,24 @@ static void loopDisplay() {
     return;
   }
 
+  // Close GIF when not in a mode that uses it
+  if (displayMode != MODE_TEMP && displayMode != MODE_HUMIDITY)
+    _gifCloseIfOpen();
+
   // Temperature / humidity display
   if (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY) {
     static DisplayMode   lastMode = MODE_CLOCK;
-    static unsigned long lastDraw = 0;
+    static unsigned long nextDraw = 0;
     bool modeChanged = (lastMode != displayMode);
     lastMode = displayMode;
 
-    if (!modeChanged && millis() - lastDraw < 1000) return;
-    lastDraw = millis();
+    if (modeChanged) { _gifCloseIfOpen(); nextDraw = 0; }
+    if (millis() < nextDraw) return;
 
-    const int yo = (MATRIX_HEIGHT - 5) / 2;  // vertically centre the text (=1)
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
     char buf[8];
     CRGB color;
+    int gifDelay = 1000;
     FastLED.clear();
 
     if (displayMode == MODE_TEMP) {
@@ -385,38 +465,48 @@ static void loopDisplay() {
         snprintf(buf, sizeof(buf), "%d.%02dC", t100 / 100, t100 % 100);
       else
         snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
-      color = CRGB(255, 120, 0);   // warm orange
+      color = CRGB(255, 120, 0);
 
-      // 3×5 thermometer icon + text, centred together
-      int len    = strlen(buf);
-      int totalW = 4 + len * 4 - 1;  // 3px icon + 1px gap + text
-      int xo     = (MATRIX_WIDTH - totalW + 1) / 2;
-      for (int row = 0; row < 5; row++)
-        for (int col = 0; col < 3; col++)
-          if (ICON_THERMO[row] & (1 << (2 - col)))
-            setLED(xo + col, yo + row, color);
+      int len   = strlen(buf);
+      int textW = len * 4 - 1;
+      int textX = drawGifIcon("/temp.gif", textW, &gifDelay);
+      if (textX < 0) {
+        gifDelay = 1000;
+        int totalW = 4 + textW;
+        int xo = (MATRIX_WIDTH - totalW + 1) / 2;
+        for (int row = 0; row < 5; row++)
+          for (int col = 0; col < 3; col++)
+            if (ICON_THERMO[row] & (1 << (2 - col)))
+              setLED(xo + col, yo + row, color);
+        textX = xo + 4;
+      }
       for (int i = 0; i < len; i++)
-        drawChar(xo + 4 + i * 4, yo, buf[i], color);
+        drawChar(textX + i * 4, yo, buf[i], color);
 
     } else {
-      // 1 decimal place keeps max width to 6 chars ("100.0%") so icon fits
       int h10 = constrain((int)roundf(sht31Hum * 10.0f), 0, 1000);
       snprintf(buf, sizeof(buf), "%d.%d%%", h10 / 10, h10 % 10);
-      color = CRGB(0, 180, 255);   // cyan-blue
+      color = CRGB(0, 180, 255);
 
-      // 5×8 water drop icon (full matrix height) + text centred vertically
-      int len    = strlen(buf);
-      int totalW = 6 + len * 4 - 1;  // 5px icon + 1px gap + text
-      int xo     = (MATRIX_WIDTH - totalW + 1) / 2;
-      for (int row = 0; row < 8; row++)
-        for (int col = 0; col < 5; col++)
-          if (ICON_DROP[row] & (1 << (4 - col)))
-            setLED(xo + col, row, color);
+      int len   = strlen(buf);
+      int textW = len * 4 - 1;
+      int textX = drawGifIcon("/hum.gif", textW, &gifDelay);
+      if (textX < 0) {
+        gifDelay = 1000;
+        int totalW = 6 + textW;
+        int xo = (MATRIX_WIDTH - totalW + 1) / 2;
+        for (int row = 0; row < 8; row++)
+          for (int col = 0; col < 5; col++)
+            if (ICON_DROP[row] & (1 << (4 - col)))
+              setLED(xo + col, row, color);
+        textX = xo + 6;
+      }
       for (int i = 0; i < len; i++)
-        drawChar(xo + 6 + i * 4, yo, buf[i], color);
+        drawChar(textX + i * 4, yo, buf[i], color);
     }
 
     FastLED.show();
+    nextDraw = millis() + gifDelay;
     return;
   }
 
