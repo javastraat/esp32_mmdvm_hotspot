@@ -33,6 +33,7 @@
 #include <Wire.h>
 #include <LittleFS.h>
 #include <AnimatedGIF.h>
+#include <JPEGDEC.h>
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
@@ -136,6 +137,11 @@ enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_BATT
 static DisplayMode   displayMode     = MODE_CLOCK;
 static unsigned long modeActiveUntil = 0;
 #define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
+
+// Icon filenames (GIF from LittleFS; missing file = built-in bitmap fallback)
+static char iconTempFile[32] = "/temp.gif";
+static char iconHumFile[32]  = "/hum.gif";
+static char iconBatFile[32]  = "/bat.gif";
 
 // ============================================================
 // Web status (updated by receive code, served via /api/status)

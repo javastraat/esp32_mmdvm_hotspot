@@ -18,6 +18,10 @@ static void loadSettings() {
   // Display rotation
   autoRotateEnabled     = p.getBool ("rot_en",  false);
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
+  // Icon filenames
+  { String s = p.getString("icon_temp", "/temp.gif"); strncpy(iconTempFile, s.c_str(), 31); iconTempFile[31] = '\0'; }
+  { String s = p.getString("icon_hum",  "/hum.gif");  strncpy(iconHumFile,  s.c_str(), 31); iconHumFile[31]  = '\0'; }
+  { String s = p.getString("icon_bat",  "/bat.gif");  strncpy(iconBatFile,  s.c_str(), 31); iconBatFile[31]  = '\0'; }
   p.end();
 }
 
@@ -37,5 +41,9 @@ static void saveSettings() {
   // Display rotation
   p.putBool ("rot_en",  autoRotateEnabled);
   p.putUChar("rot_sec", autoRotateIntervalSec);
+  // Icon filenames
+  p.putString("icon_temp", iconTempFile);
+  p.putString("icon_hum",  iconHumFile);
+  p.putString("icon_bat",  iconBatFile);
   p.end();
 }

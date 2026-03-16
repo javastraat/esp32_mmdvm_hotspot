@@ -191,6 +191,23 @@ static void setupWebServer() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/icons", HTTP_GET, []() {
+    char buf[128];
+    snprintf(buf, sizeof(buf), "{\"temp\":\"%s\",\"hum\":\"%s\",\"bat\":\"%s\"}",
+      iconTempFile, iconHumFile, iconBatFile);
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/icons", HTTP_POST, []() {
+    String v;
+    v = webServer.arg("temp_icon"); if (v.length()) { strncpy(iconTempFile, v.c_str(), 31); iconTempFile[31] = '\0'; }
+    v = webServer.arg("hum_icon");  if (v.length()) { strncpy(iconHumFile,  v.c_str(), 31); iconHumFile[31]  = '\0'; }
+    v = webServer.arg("bat_icon");  if (v.length()) { strncpy(iconBatFile,  v.c_str(), 31); iconBatFile[31]  = '\0'; }
+    _gifCloseIfOpen();  // force reload with new path on next frame
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/leds", HTTP_GET, []() {
     char hex[NUM_LEDS * 6 + 1];
     for (int i = 0; i < NUM_LEDS; i++)

@@ -112,6 +112,40 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
+  <!-- Icons -->
+  <div class="card">
+    <h3>Icons</h3>
+    <div class="metric">
+      <span class="metric-label">Temp</span>
+      <input type="text" id="icon-temp" maxlength="31"
+             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
+                    color:var(--text-color);border:1px solid var(--border-color);
+                    border-radius:4px;font-family:monospace;font-size:.88em">
+    </div>
+    <div class="metric">
+      <span class="metric-label">Humidity</span>
+      <input type="text" id="icon-hum" maxlength="31"
+             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
+                    color:var(--text-color);border:1px solid var(--border-color);
+                    border-radius:4px;font-family:monospace;font-size:.88em">
+    </div>
+    <div class="metric" style="border-bottom:none">
+      <span class="metric-label">Battery</span>
+      <input type="text" id="icon-bat" maxlength="31"
+             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
+                    color:var(--text-color);border:1px solid var(--border-color);
+                    border-radius:4px;font-family:monospace;font-size:.88em">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
+      <span id="icon-status" style="font-size:.82em;color:var(--text-muted)"></span>
+      <button onclick="saveIcons()"
+              style="background:#00bcd4;color:#000;border:none;padding:6px 18px;
+                     border-radius:4px;cursor:pointer;font-weight:bold;font-size:.88em">
+        Save Icons
+      </button>
+    </div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -154,6 +188,17 @@ function testBuzzer(type){
     body:'type='+type+'&vol='+vol
   }).catch(function(){});
 }
+function saveIcons(){
+  var body='temp_icon='+encodeURIComponent(document.getElementById('icon-temp').value)
+          +'&hum_icon='+encodeURIComponent(document.getElementById('icon-hum').value)
+          +'&bat_icon='+encodeURIComponent(document.getElementById('icon-bat').value);
+  fetch('/api/icons',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('icon-status');
+    s.textContent=d.ok?'Saved':'Error';s.style.color=d.ok?'#28a745':'#dc3545';
+    setTimeout(function(){s.textContent='';},2500);
+  }).catch(function(){});
+}
 function onRotateChange(){
   fetch('/api/rotate',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -183,6 +228,11 @@ function onRotateChange(){
     document.getElementById('tog-rot').checked=d.rotate_enabled;
     document.getElementById('sld-rot').value=ri;
     document.getElementById('rot-num').textContent=ri+'s';
+  }).catch(function(){});
+  fetch('/api/icons').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('icon-temp').value=d.temp||'';
+    document.getElementById('icon-hum').value=d.hum||'';
+    document.getElementById('icon-bat').value=d.bat||'';
   }).catch(function(){});
 })();
 </script>
