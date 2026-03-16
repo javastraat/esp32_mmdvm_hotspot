@@ -450,14 +450,13 @@ static void loopDisplay() {
     bool modeChanged = (lastMode != displayMode);
     lastMode = displayMode;
 
-    if (modeChanged) { _gifCloseIfOpen(); nextDraw = 0; }
+    if (modeChanged) { _gifCloseIfOpen(); nextDraw = 0; FastLED.clear(); }
     if (millis() < nextDraw) return;
 
     const int yo = (MATRIX_HEIGHT - 5) / 2;
     char buf[8];
     CRGB color;
     int gifDelay = 1000;
-    FastLED.clear();
 
     if (displayMode == MODE_TEMP) {
       int t100 = (int)roundf(sht31Temp * 100.0f);
@@ -471,6 +470,8 @@ static void loopDisplay() {
       int textW = len * 4 - 1;
       int textX = drawGifIcon("/temp.gif", textW, &gifDelay);
       if (textX < 0) {
+        // Bitmap fallback — needs a full clear since there's no GIF managing the area
+        FastLED.clear();
         gifDelay = 1000;
         int totalW = 4 + textW;
         int xo = (MATRIX_WIDTH - totalW + 1) / 2;
@@ -479,6 +480,11 @@ static void loopDisplay() {
             if (ICON_THERMO[row] & (1 << (2 - col)))
               setLED(xo + col, yo + row, color);
         textX = xo + 4;
+      } else {
+        // Clear only the text columns — GIF area must NOT be cleared (delta frames)
+        for (int x = textX - 1; x < MATRIX_WIDTH; x++)
+          for (int y = 0; y < MATRIX_HEIGHT; y++)
+            setLED(x, y, CRGB::Black);
       }
       for (int i = 0; i < len; i++)
         drawChar(textX + i * 4, yo, buf[i], color);
@@ -492,6 +498,7 @@ static void loopDisplay() {
       int textW = len * 4 - 1;
       int textX = drawGifIcon("/hum.gif", textW, &gifDelay);
       if (textX < 0) {
+        FastLED.clear();
         gifDelay = 1000;
         int totalW = 6 + textW;
         int xo = (MATRIX_WIDTH - totalW + 1) / 2;
@@ -500,6 +507,10 @@ static void loopDisplay() {
             if (ICON_DROP[row] & (1 << (4 - col)))
               setLED(xo + col, row, color);
         textX = xo + 6;
+      } else {
+        for (int x = textX - 1; x < MATRIX_WIDTH; x++)
+          for (int y = 0; y < MATRIX_HEIGHT; y++)
+            setLED(x, y, CRGB::Black);
       }
       for (int i = 0; i < len; i++)
         drawChar(textX + i * 4, yo, buf[i], color);
