@@ -195,44 +195,22 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
 }
 
 // ============================================================
-// JPEG icon rendering (JPEGDEC + LittleFS)
+// JPEG icon rendering (TJpg_Decoder + LittleFS)
 // ============================================================
 
-static JPEGDEC _jpeg;
-static File    _jpegFile;
-static int     _jpegX0, _jpegY0;
 
-static void* _jpegOpenCb(const char* fname, int32_t* pSize) {
-  _jpegFile = LittleFS.open(fname);
-  if (_jpegFile) { *pSize = (int32_t)_jpegFile.size(); return &_jpegFile; }
-  return nullptr;
-}
-static void _jpegCloseCb(void* h) { if (h) ((File*)h)->close(); }
-static int32_t _jpegReadCb(JPEGFILE* pf, uint8_t* pBuf, int32_t iLen) {
-  return (int32_t)((File*)pf->fHandle)->read(pBuf, iLen);
-}
-static int32_t _jpegSeekCb(JPEGFILE* pf, int32_t iPos) {
-  ((File*)pf->fHandle)->seek(iPos); return iPos;
-}
-static int _jpegDrawCb(JPEGDRAW* pDraw) {
-  uint16_t* s = pDraw->pPixels;
-  // Ensure 1:1 mapping for 8x8 icons, ignore MCU stride if image is exactly 8x8
-  int imgW = _jpeg.getWidth();
-  int imgH = _jpeg.getHeight();
-  for (int ty = 0; ty < pDraw->iHeight; ty++) {
-    for (int tx = 0; tx < pDraw->iWidthUsed; tx++) {
-      // Only map pixels within the actual icon size
-      if ((pDraw->x + tx) < imgW && (pDraw->y + ty) < imgH) {
-        uint16_t c = s[tx];
-        uint8_t r = ((c >> 11) & 0x1F) << 3;
-        uint8_t g = ((c >>  5) & 0x3F) << 2;
-        uint8_t b = ( c        & 0x1F) << 3;
-        setLED(_jpegX0 + pDraw->x + tx, _jpegY0 + pDraw->y + ty, CRGB(r, g, b));
-      }
+// Callback for TJpg_Decoder to render pixels to matrix
+static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+  for (int row = 0; row < h; row++) {
+    for (int col = 0; col < w; col++) {
+      uint16_t color = bitmap[row * w + col];
+      uint8_t r = ((color >> 11) & 0x1F) << 3;
+      uint8_t g = ((color >> 5) & 0x3F) << 2;
+      uint8_t b = (color & 0x1F) << 3;
+      setLED(x + col, y + row, CRGB(r, g, b));
     }
-    s += pDraw->iWidth;  // advance by full MCU stride
   }
-  return 1;
+  return true;
 }
 
 // Decode a JPEG icon from LittleFS, draw it into the LED buffer.
@@ -241,27 +219,17 @@ static int _jpegDrawCb(JPEGDRAW* pDraw) {
 static int drawJpegIcon(const char* path, int* delayMs) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
-  if (!_jpeg.open(path, _jpegOpenCb, _jpegCloseCb, _jpegReadCb, _jpegSeekCb, _jpegDrawCb)) {
+  File jpgFile = LittleFS.open(path);
+  if (!jpgFile) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return -1;
   }
-  int w = _jpeg.getWidth();
-  int h = _jpeg.getHeight();
-  // Ensure icon is 8x8, otherwise warn
-  if (w != 8 || h != 8) {
-    Serial.printf("[JPEG] icon size is %dx%d, expected 8x8\n", w, h);
-  }
-  _jpegX0 = 0;
-  _jpegY0 = (MATRIX_HEIGHT - h) / 2;
-  _jpeg.setPixelType(RGB565_BIG_ENDIAN);
-  FastLED.clear();  // JPEG is a full frame — clear everything first
-  int ok = _jpeg.decode(0, 0, 0); // No scaling
-  _jpeg.close();
-  if (!ok) {
-    Serial.printf("[JPEG] decode FAILED: %s\n", path);
-    return -1;
-  }
-  return w + 1;
+  FastLED.clear(); // Always clear before decode
+  TJpgDec.setCallback(jpgMatrixOutput);
+  TJpgDec.setJpgScale(1); // No scaling
+  TJpgDec.drawFsJpg(0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
+  jpgFile.close();
+  return 9; // icon width + 1
 }
 
 static bool _isJpeg(const char* path) {

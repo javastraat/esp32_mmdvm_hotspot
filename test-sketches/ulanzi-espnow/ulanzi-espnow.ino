@@ -33,7 +33,7 @@
 #include <Wire.h>
 #include <LittleFS.h>
 #include <AnimatedGIF.h>
-#include <JPEGDEC.h>
+#include <TJpg_Decoder.h>
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
