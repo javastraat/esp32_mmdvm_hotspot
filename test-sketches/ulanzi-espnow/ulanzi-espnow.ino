@@ -7,6 +7,16 @@
  * ArduinoOTA + web status page always active when WiFi is up.
  *
  * Configure modes and display settings in config.h.
+ *
+ * File layout (all compiled as one unit by Arduino):
+ *   ulanzi-espnow.ino  — this file: includes, ALL globals, setup(), loop()
+ *   buttons.ino        — loopButtons()
+ *   buzzer.ino         — buzzer engine + setupBuzzer()
+ *   display.ino        — fonts, drawing helpers, loopDisplay/Brightness/AutoRotate
+ *   receiver.ino       — ESP-NOW onReceive(), processPocsagPacket(), setupReceiver()
+ *   sensor.ino         — DS1307 RTC + SHT31
+ *   settings.ino       — loadSettings() / saveSettings()
+ *   web.ino            — setupOTA() + setupWebServer() + all HTTP handlers
  */
 
 #include "config.h"
@@ -61,173 +71,9 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 
 CRGB leds[NUM_LEDS];
 
-// 3×5 pixel font for digits 0–9
-static const uint8_t FONT_DIGITS[10][5] = {
-  {0b111, 0b101, 0b101, 0b101, 0b111}, // 0
-  {0b010, 0b110, 0b010, 0b010, 0b111}, // 1
-  {0b111, 0b001, 0b111, 0b100, 0b111}, // 2
-  {0b111, 0b001, 0b111, 0b001, 0b111}, // 3
-  {0b101, 0b101, 0b111, 0b001, 0b001}, // 4
-  {0b111, 0b100, 0b111, 0b001, 0b111}, // 5
-  {0b111, 0b100, 0b111, 0b101, 0b111}, // 6
-  {0b111, 0b001, 0b010, 0b010, 0b010}, // 7
-  {0b111, 0b101, 0b111, 0b101, 0b111}, // 8
-  {0b111, 0b101, 0b111, 0b001, 0b111}  // 9
-};
-
-static void setLED(int x, int y, CRGB color) {
-  if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT) return;
-  int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
-  leds[idx] = color;
-}
-
-static void drawDigit(int x, int y, int d, CRGB color) {
-  for (int row = 0; row < 5; row++)
-    for (int col = 0; col < 3; col++)
-      if (FONT_DIGITS[d][row] & (1 << (2 - col)))
-        setLED(x + col, y + row, color);
-}
-
-// Draw HH:MM:SS centered in the 32×8 matrix (27px content, 5px digit height)
-static void drawTime(int h, int m, int s, CRGB color) {
-  const int xo = (MATRIX_WIDTH  - 27 + 1) / 2;  // = 3  (3px left, 2px right)
-  const int yo = (MATRIX_HEIGHT -  5)     / 2;  // = 1  (1px top, 2px bottom)
-  drawDigit(xo +  0, yo, h / 10, color);
-  drawDigit(xo +  4, yo, h % 10, color);
-  setLED(xo +  8, yo + 1, color); setLED(xo +  8, yo + 3, color);  // colon
-  drawDigit(xo + 10, yo, m / 10, color);
-  drawDigit(xo + 14, yo, m % 10, color);
-  setLED(xo + 18, yo + 1, color); setLED(xo + 18, yo + 3, color);  // colon
-  drawDigit(xo + 20, yo, s / 10, color);
-  drawDigit(xo + 24, yo, s % 10, color);
-}
-
-// 3×5 bitmaps for the letters in "UPDATE"
-static const uint8_t FONT_UPDATE[6][5] = {
-  {0b101, 0b101, 0b101, 0b101, 0b111}, // U
-  {0b111, 0b101, 0b111, 0b100, 0b100}, // P
-  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
-  {0b111, 0b101, 0b111, 0b101, 0b101}, // A
-  {0b111, 0b010, 0b010, 0b010, 0b010}, // T
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-};
-
-// Additional 3×5 bitmaps for "DONE" and "ERR"
-static const uint8_t FONT_DONE[4][5] = {
-  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
-  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
-  {0b101, 0b111, 0b101, 0b101, 0b101}, // N
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-};
-
-static const uint8_t FONT_ERROR[5][5] = {
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-};
-
-// Internal: render glyphs only — no clear/show
-static void _drawGlyphs(const uint8_t glyphs[][5], int count, CRGB color, int xo, int yo) {
-  for (int i = 0; i < count; i++)
-    for (int row = 0; row < 5; row++)
-      for (int col = 0; col < 3; col++)
-        if (glyphs[i][row] & (1 << (2 - col)))
-          setLED(xo + i * 4 + col, yo + row, color);
-}
-
-static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
-  FastLED.clear();
-  int width = count * 4 - 1;
-  _drawGlyphs(glyphs, count, color, (MATRIX_WIDTH - width + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
-  FastLED.show();
-}
-
-// drawUpdate: called once on OTA start — sets text + full dim track on row 7
-static void drawUpdate() {
-  FastLED.clear();
-  _drawGlyphs(FONT_UPDATE, 6, LED_COLOR_TIME,
-              (MATRIX_WIDTH - 23 + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
-  for (int x = 0; x < MATRIX_WIDTH; x++)
-    setLED(x, 7, CRGB(0, 25, 25));  // dim track, row 7 only
-  FastLED.show();
-}
-
-// drawProgress: redraws the full bar row on every call — corrects any corruption
-static void drawProgress(int barW) {
-  for (int x = 0; x < MATRIX_WIDTH; x++)
-    setLED(x, 7, (x < barW) ? CRGB::Cyan : CRGB(0, 25, 25));
-  FastLED.show();
-}
-static void drawDone()   { drawStatusWord(FONT_DONE,   4, CRGB::Green);    }
-static void drawError()  { drawStatusWord(FONT_ERROR,  5, CRGB::Red);      }
-
-// 3×5 font for A–Z
-static const uint8_t FONT_ALPHA[26][5] = {
-  {0b010,0b101,0b111,0b101,0b101}, // A
-  {0b110,0b101,0b110,0b101,0b110}, // B
-  {0b011,0b100,0b100,0b100,0b011}, // C
-  {0b110,0b101,0b101,0b101,0b110}, // D
-  {0b111,0b100,0b110,0b100,0b111}, // E
-  {0b111,0b100,0b110,0b100,0b100}, // F
-  {0b011,0b100,0b101,0b101,0b011}, // G
-  {0b101,0b101,0b111,0b101,0b101}, // H
-  {0b111,0b010,0b010,0b010,0b111}, // I
-  {0b001,0b001,0b001,0b101,0b010}, // J
-  {0b101,0b101,0b110,0b101,0b101}, // K
-  {0b100,0b100,0b100,0b100,0b111}, // L
-  {0b101,0b111,0b111,0b101,0b101}, // M
-  {0b101,0b111,0b101,0b101,0b101}, // N
-  {0b010,0b101,0b101,0b101,0b010}, // O
-  {0b110,0b101,0b110,0b100,0b100}, // P
-  {0b010,0b101,0b101,0b011,0b001}, // Q
-  {0b110,0b101,0b110,0b101,0b101}, // R
-  {0b011,0b100,0b010,0b001,0b110}, // S
-  {0b111,0b010,0b010,0b010,0b010}, // T
-  {0b101,0b101,0b101,0b101,0b111}, // U
-  {0b101,0b101,0b101,0b101,0b010}, // V
-  {0b101,0b101,0b111,0b111,0b101}, // W
-  {0b101,0b101,0b010,0b101,0b101}, // X
-  {0b101,0b101,0b010,0b010,0b010}, // Y
-  {0b111,0b001,0b010,0b100,0b111}, // Z
-};
-
-// 3×5 bitmaps for punctuation/symbols found in POCSAG weather messages
-static const char    SPECIAL_CHARS[]   = "-.:/%=";
-static const uint8_t FONT_SPECIAL[][5] = {
-  {0b000,0b000,0b111,0b000,0b000}, // -
-  {0b000,0b000,0b000,0b000,0b010}, // .
-  {0b000,0b010,0b000,0b010,0b000}, // :
-  {0b001,0b001,0b010,0b100,0b100}, // /
-  {0b101,0b001,0b010,0b100,0b101}, // %
-  {0b000,0b111,0b000,0b111,0b000}, // =
-};
-
-static void drawChar(int x, int y, char c, CRGB color) {
-  if (c >= 'a' && c <= 'z') c -= 32;
-  if (c >= '0' && c <= '9') { drawDigit(x, y, c - '0', color); return; }
-  if (c >= 'A' && c <= 'Z') {
-    const uint8_t* g = FONT_ALPHA[c - 'A'];
-    for (int row = 0; row < 5; row++)
-      for (int col = 0; col < 3; col++)
-        if (g[row] & (1 << (2 - col)))
-          setLED(x + col, y + row, color);
-    return;
-  }
-  for (int i = 0; SPECIAL_CHARS[i]; i++) {
-    if (SPECIAL_CHARS[i] == c) {
-      const uint8_t* g = FONT_SPECIAL[i];
-      for (int row = 0; row < 5; row++)
-        for (int col = 0; col < 3; col++)
-          if (g[row] & (1 << (2 - col)))
-            setLED(x + col, y + row, color);
-      return;
-    }
-  }
-  // space and other unknowns render as a blank gap (no pixels set)
-}
-
+// ============================================================
+// POCSAG display state
+// ============================================================
 #if RECV_POCSAG
 static char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
 static int   pocsagMsgLen        = 0;
@@ -248,19 +94,6 @@ static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 static bool    autoBrightnessEnabled = true;
 static uint8_t currentBrightness     = LED_BRIGHTNESS;
 
-static void loopBrightness() {
-  if (!autoBrightnessEnabled) return;
-  static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate < LDR_UPDATE_MS) return;
-  lastUpdate = millis();
-
-  int ldr = constrain(analogRead(LDR_PIN), LDR_ADC_DARK, LDR_ADC_BRIGHT);
-  uint8_t target = (uint8_t)map(ldr, LDR_ADC_DARK, LDR_ADC_BRIGHT, LDR_MIN_BRIGHTNESS, 255);
-  // EMA smoothing: blend 1/4 toward target each sample
-  currentBrightness = (uint8_t)((currentBrightness * 3 + target + 2) / 4);
-  FastLED.setBrightness(currentBrightness);
-}
-
 // ============================================================
 // Buzzer settings & non-blocking tone engine
 // ============================================================
@@ -271,109 +104,21 @@ static uint8_t buzzerPocsagVolume  = BUZZER_VOL_POCSAG;
 static bool    buzzerClickEnabled  = true;
 static uint8_t buzzerClickVolume   = BUZZER_VOL_CLICK;
 
-// Tone queue — written from ESP-NOW callback, processed in main loop
+// Tone queue — written from ESP-NOW callback (Core 0), processed in loop() (Core 1)
 static volatile uint16_t buzzerQFreq     = 0;
 static volatile uint16_t buzzerQDuration = 0;
 static volatile uint8_t  buzzerQDuty     = 0;
 static volatile bool     buzzerQPending  = false;
 static unsigned long     buzzerEndMs     = 0;
 
-static uint8_t buzzerVolToDuty(uint8_t vol) {
-  uint8_t d = (uint8_t)map(vol, 0, 255, 0, 100);
-  return (d < 1) ? 1 : d;
-}
-
-// Queue a tone — safe to call from any context (incl. ESP-NOW callback)
-static void buzzerPlay(uint16_t freq, uint16_t durationMs, uint8_t duty) {
-  if (duty == 0) return;
-  buzzerQFreq     = freq;
-  buzzerQDuration = durationMs;
-  buzzerQDuty     = duty;
-  buzzerQPending  = true;
-}
-
-static void buzzerBeep() {
-  if (!buzzerPocsagEnabled) return;
-  buzzerPlay(BUZZER_FREQ_BEEP, BUZZER_DUR_BEEP_MS, buzzerVolToDuty(buzzerPocsagVolume));
-}
-
-static void buzzerClick() {
-  if (!buzzerClickEnabled) return;
-  buzzerPlay(BUZZER_FREQ_CLICK, BUZZER_DUR_CLICK_MS, buzzerVolToDuty(buzzerClickVolume));
-}
-
-static void loopBuzzer() {
-  if (buzzerQPending) {
-    buzzerQPending = false;
-    ledcChangeFrequency(BUZZER_PIN, buzzerQFreq, BUZZER_LEDC_RES);
-    ledcWrite(BUZZER_PIN, buzzerQDuty);
-    buzzerEndMs = millis() + buzzerQDuration;
-  }
-  if (buzzerEndMs > 0 && millis() >= buzzerEndMs) {
-    ledcWrite(BUZZER_PIN, 0);
-    buzzerEndMs = 0;
-  }
-}
-
+// ============================================================
+// Auto-rotation
+// ============================================================
 static bool    autoRotateEnabled     = false;
 static uint8_t autoRotateIntervalSec = 5;    // seconds per screen in rotation
 
-static void loadSettings() {
-  Preferences p;
-  p.begin("ulanzi", true);  // read-only
-  // Brightness
-  autoBrightnessEnabled = p.getBool ("auto_br",   true);
-  currentBrightness     = p.getUChar("brightness", LED_BRIGHTNESS);
-  // Buzzer
-  buzzerBootEnabled     = p.getBool ("boot_en",   true);
-  buzzerBootVolume      = p.getUChar("boot_vol",  BUZZER_VOL_BOOT);
-  buzzerPocsagEnabled   = p.getBool ("poc_en",    true);
-  buzzerPocsagVolume    = p.getUChar("poc_vol",   BUZZER_VOL_POCSAG);
-  buzzerClickEnabled    = p.getBool ("clk_en",    true);
-  buzzerClickVolume     = p.getUChar("clk_vol",   BUZZER_VOL_CLICK);
-  // Display rotation
-  autoRotateEnabled     = p.getBool ("rot_en",  false);
-  autoRotateIntervalSec = p.getUChar("rot_sec", 5);
-  p.end();
-}
-
-static void saveSettings() {
-  Preferences p;
-  p.begin("ulanzi", false);  // read-write
-  // Brightness
-  p.putBool ("auto_br",   autoBrightnessEnabled);
-  p.putUChar("brightness", currentBrightness);
-  // Buzzer
-  p.putBool ("boot_en",  buzzerBootEnabled);
-  p.putUChar("boot_vol", buzzerBootVolume);
-  p.putBool ("poc_en",   buzzerPocsagEnabled);
-  p.putUChar("poc_vol",  buzzerPocsagVolume);
-  p.putBool ("clk_en",   buzzerClickEnabled);
-  p.putUChar("clk_vol",  buzzerClickVolume);
-  // Display rotation
-  p.putBool ("rot_en",  autoRotateEnabled);
-  p.putUChar("rot_sec", autoRotateIntervalSec);
-  p.end();
-}
-
-static void setupBuzzer() {
-  loadSettings();
-  // Apply loaded brightness immediately (before first loopBrightness() tick)
-  FastLED.setBrightness(currentBrightness);
-  // ledcAttach reconfigures GPIO15 as LEDC output (overrides INPUT_PULLDOWN)
-  ledcAttach(BUZZER_PIN, BUZZER_FREQ_BEEP, BUZZER_LEDC_RES);
-  ledcWrite(BUZZER_PIN, 0);
-  if (buzzerBootEnabled) {
-    uint8_t duty = buzzerVolToDuty(buzzerBootVolume);
-    ledcWrite(BUZZER_PIN, duty);
-    delay(BUZZER_DUR_BEEP_MS);
-    ledcWrite(BUZZER_PIN, 0);
-  }
-}
-
-
 // ============================================================
-// SHT31 + display mode — declared here so loopButtons() can reference them
+// SHT31 + display mode
 // ============================================================
 static SHT31        sht31Sensor;
 static bool         sht31Available = false;
@@ -385,57 +130,8 @@ static DisplayMode   displayMode     = MODE_CLOCK;
 static unsigned long modeActiveUntil = 0;
 #define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
 
-
 // ============================================================
-// Buttons — debounced, fires once per press
-// ============================================================
-static void loopButtons() {
-  static bool          lastState[3]  = {HIGH, HIGH, HIGH};
-  static bool          fired[3]      = {false, false, false};
-  static unsigned long lastChange[3] = {0, 0, 0};
-  static const uint8_t pins[3]       = {BTN_LEFT, BTN_MIDDLE, BTN_RIGHT};
-
-  for (int i = 0; i < 3; i++) {
-    bool state = digitalRead(pins[i]);
-    if (state != lastState[i]) {
-      lastChange[i] = millis();
-      lastState[i]  = state;
-      fired[i]      = false;
-    }
-    if (!fired[i] && state == LOW && millis() - lastChange[i] >= BTN_DEBOUNCE_MS) {
-      fired[i] = true;
-      switch (i) {
-        case 0:  // Left — reserved for display mode (step 5)
-          Serial.println("[BTN] Left");
-          buzzerClick();
-          break;
-        case 1:  // Middle — toggle auto-brightness
-          autoBrightnessEnabled = !autoBrightnessEnabled;
-          if (!autoBrightnessEnabled)
-            FastLED.setBrightness(currentBrightness);
-          Serial.printf("[BTN] Middle — auto brightness: %s\n",
-            autoBrightnessEnabled ? "ON" : "OFF");
-          buzzerClick();
-          break;
-        case 2:  // Right — cycle display mode (requires SHT31)
-          if (sht31Available) {
-            displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
-            modeActiveUntil = (displayMode != MODE_CLOCK) ? millis() + MODE_TIMEOUT_MS : 0;
-            Serial.printf("[BTN] Right — mode: %s\n",
-              displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock");
-          } else {
-            Serial.println("[BTN] Right — no SHT31 sensor");
-          }
-          buzzerClick();
-          break;
-      }
-    }
-  }
-}
-
-
-// ============================================================
-// Web status (updated by role code, served via /api/status)
+// Web status (updated by receive code, served via /api/status)
 // ============================================================
 static uint32_t  wsCountDmr    = 0;
 static uint32_t  wsCountPocsag = 0;
@@ -446,460 +142,25 @@ static uint8_t       wsPocsagFill = 0;   // valid entries (0..POCSAG_LOG_SIZE)
 static WebServer     webServer(80);
 static QueueHandle_t pocsagRxQueue = nullptr;
 
-// Shared display state — declared here so setupRTC() can set timeSynced
+// Shared state — set by sensor/receiver tasks, read by display and web handler
 static bool          timeSynced    = false;  // true once clock is running (RTC or POCSAG)
 static bool          pocsagSynced  = false;  // true only after POCSAG RIC 224 has confirmed time
 static volatile bool otaInProgress = false;
 
 // ============================================================
-// RTC (DS1307) — direct Wire, no library needed
-// Registers 0x00-0x06: sec, min, hr, dow, day, mon, yr (BCD)
-// Register 0x00 bit 7: CH (Clock Halt) — 0 = running
+// RTC state
 // ============================================================
 static bool rtcAvailable = false;
 
-static uint8_t bcd2dec(uint8_t b) { return (b >> 4) * 10 + (b & 0x0F); }
-static uint8_t dec2bcd(uint8_t d) { return ((d / 10) << 4) | (d % 10); }
-
-static bool ds1307Read(struct tm& t) {
-  Wire.beginTransmission(0x68);
-  Wire.write(0x00);
-  if (Wire.endTransmission() != 0) return false;
-  Wire.requestFrom((uint8_t)0x68, (uint8_t)7);
-  if (Wire.available() < 7) return false;
-  uint8_t sec = Wire.read();
-  if (sec & 0x80) return false;          // CH bit set = oscillator stopped
-  uint8_t min = Wire.read();
-  uint8_t hr  = Wire.read();
-  Wire.read();                            // day-of-week (unused)
-  uint8_t day = Wire.read();
-  uint8_t mon = Wire.read();
-  uint8_t yr  = Wire.read();
-  t           = {};
-  t.tm_sec    = bcd2dec(sec & 0x7F);
-  t.tm_min    = bcd2dec(min);
-  t.tm_hour   = bcd2dec(hr  & 0x3F);
-  t.tm_mday   = bcd2dec(day);
-  t.tm_mon    = bcd2dec(mon & 0x1F) - 1;
-  t.tm_year   = bcd2dec(yr) + 100;       // 2-digit year → years since 1900
-  t.tm_isdst  = -1;
-  return true;
-}
-
-static void ds1307Write(const struct tm& t) {
-  Wire.beginTransmission(0x68);
-  Wire.write(0x00);
-  Wire.write(dec2bcd(t.tm_sec));          // CH=0 → oscillator running
-  Wire.write(dec2bcd(t.tm_min));
-  Wire.write(dec2bcd(t.tm_hour));
-  Wire.write(1);                           // day-of-week (unused, set to 1)
-  Wire.write(dec2bcd(t.tm_mday));
-  Wire.write(dec2bcd(t.tm_mon + 1));
-  Wire.write(dec2bcd(t.tm_year % 100));   // 2-digit year
-  Wire.endTransmission();
-}
-
-static void setupRTC() {
-  Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
-  // Probe I2C address
-  Wire.beginTransmission(0x68);
-  if (Wire.endTransmission() != 0) {
-    Serial.println("[RTC] Not found — waiting for POCSAG time beacon");
-    return;
-  }
-  rtcAvailable = true;
-  struct tm t = {};
-  if (!ds1307Read(t)) {
-    Serial.println("[RTC] Found but not running (lost power?) — waiting for POCSAG sync");
-    return;
-  }
-  time_t epoch = mktime(&t);
-  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-  settimeofday(&tv, nullptr);
-  timeSynced = true;
-  Serial.printf("[RTC] Time restored: %04d-%02d-%02d %02d:%02d:%02d\n",
-    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
-    t.tm_hour, t.tm_min, t.tm_sec);
-}
-
 // ============================================================
-// SHT31 temperature/humidity sensor — polled every 30 s
-// Globals declared before loopButtons(); Wire started by setupRTC().
-// Uses SHT31 library (Rob Tillaart); no begin() needed — Wire already up.
-// ============================================================
-static void setupSHT31() {
-  // Probe via direct I2C before handing off to the library
-  Wire.beginTransmission(0x44);
-  if (Wire.endTransmission() != 0) {
-    Serial.println("[SHT31] Not found");
-    return;
-  }
-  sht31Available = true;
-  sht31Sensor.read();
-  sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
-  sht31Hum  = sht31Sensor.getTemperature();
-  Serial.printf("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
-}
-
-static void loopSHT31() {
-  if (!sht31Available) return;
-  static unsigned long last = 0;
-  if (millis() - last < 30000) return;
-  last = millis();
-  sht31Sensor.read();
-  sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
-  sht31Hum  = sht31Sensor.getTemperature();
-  Serial.printf("[SHT31] %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
-}
-
-
-// ============================================================
-// Auto-rotation — cycles clock→temp→humidity on a timer
-// ============================================================
-static void loopAutoRotate() {
-  if (!autoRotateEnabled || !sht31Available) return;
-
-  static unsigned long lastRotate = 0;
-
-#if RECV_POCSAG
-  static bool prevPocsag = false;
-  if (pocsagMsgActive) { prevPocsag = true; return; }  // pause during message
-  if (prevPocsag) {                                     // message just ended
-    prevPocsag  = false;
-    displayMode = MODE_CLOCK;
-    lastRotate  = millis();   // restart rotation timer from now
-    return;
-  }
-#endif
-
-  if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
-  lastRotate  = millis();
-  displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
-}
-
-
-// Display loop
-
-static void loopDisplay() {
-  if (otaInProgress) return;  // OTA owns the display — don't touch it
-
-  // POCSAG message display — takes priority over all modes
-#if RECV_POCSAG
-  if (pocsagMsgActive) {
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
-    if (!pocsagIsScrolling) {
-      // Static: redraw every 500 ms so a clock tick can't erase it
-      if (millis() - pocsagStaticLastDraw >= 500) {
-        bool first = (pocsagStaticLastDraw == 0);
-        pocsagStaticLastDraw = millis();
-        int totalW = pocsagMsgLen * 4 - 1;
-        int xo = (MATRIX_WIDTH - totalW) / 2;
-        FastLED.clear();
-        for (int i = 0; i < pocsagMsgLen; i++)
-          drawChar(xo + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
-        FastLED.show();
-        if (first)
-          Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
-      }
-      if (millis() >= pocsagStaticUntil)
-        pocsagMsgActive = false;
-    } else {
-      // Scroll 3 passes, 50 ms per pixel
-      if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
-      pocsagScrollLast = millis();
-      FastLED.clear();
-      for (int i = 0; i < pocsagMsgLen; i++)
-        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
-      FastLED.show();
-      pocsagScrollX--;
-      if (pocsagScrollX < -(pocsagMsgLen * 4)) {
-        if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES)
-          pocsagMsgActive = false;
-        else
-          pocsagScrollX = MATRIX_WIDTH;
-      }
-    }
-    return;
-  }
-#endif
-
-  // Auto-return to clock after mode timeout (manual presses only; rotation manages itself)
-  if (!autoRotateEnabled && displayMode != MODE_CLOCK && millis() >= modeActiveUntil)
-    displayMode = MODE_CLOCK;
-
-  // Scanner animation while waiting for first time sync (clock mode only)
-  if (!timeSynced && displayMode == MODE_CLOCK) {
-    static unsigned long lastScan = 0;
-    if (millis() - lastScan < 40) return;
-    lastScan = millis();
-
-    static int scanPos = 0;
-    static int scanDir = 1;
-
-    FastLED.clear();
-    for (int x = 0; x < MATRIX_WIDTH; x++) {
-      int dist = abs(x - scanPos);
-      uint8_t bright = (dist == 0) ? 200 : (dist == 1) ? 80 : (dist == 2) ? 30 : (dist == 3) ? 10 : 0;
-      if (bright > 0) {
-        CRGB col(0, bright / 4, bright);  // blue-ish
-        for (int y = 0; y < MATRIX_HEIGHT; y++) setLED(x, y, col);
-      }
-    }
-    FastLED.show();
-
-    scanPos += scanDir;
-    if (scanPos >= MATRIX_WIDTH - 1 || scanPos <= 0) scanDir = -scanDir;
-    return;
-  }
-
-  // Temperature / humidity display
-  if (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY) {
-    static DisplayMode   lastMode = MODE_CLOCK;
-    static unsigned long lastDraw = 0;
-    bool modeChanged = (lastMode != displayMode);
-    lastMode = displayMode;
-
-    if (!modeChanged && millis() - lastDraw < 1000) return;
-    lastDraw = millis();
-
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
-    char buf[8];
-    CRGB color;
-
-    if (displayMode == MODE_TEMP) {
-      int t100 = (int)roundf(sht31Temp * 100.0f);
-      if (t100 >= 0)
-        snprintf(buf, sizeof(buf), "%d.%02dC", t100 / 100, t100 % 100);
-      else
-        snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
-      color = CRGB(255, 120, 0);   // warm orange
-    } else {
-      int h100 = constrain((int)roundf(sht31Hum * 100.0f), 0, 10000);
-      snprintf(buf, sizeof(buf), "%d.%02d%%", h100 / 100, h100 % 100);
-      color = CRGB(0, 180, 255);   // cyan-blue
-    }
-
-    int len = strlen(buf);
-    int xo  = (MATRIX_WIDTH - (len * 4 - 1) + 1) / 2;
-    FastLED.clear();
-    for (int i = 0; i < len; i++)
-      drawChar(xo + i * 4, yo, buf[i], color);
-    FastLED.show();
-    return;
-  }
-
-  // Clock — update once per second
-  static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate < 1000) return;
-  lastUpdate = millis();
-
-  struct tm t;
-  if (!getLocalTime(&t)) return;
-
-  FastLED.clear();
-  drawTime(t.tm_hour, t.tm_min, t.tm_sec, LED_COLOR_TIME);
-  FastLED.show();
-}
-
-
-// ============================================================
-// OTA (shared by both roles — call only when WiFi is up)
+// OTA state
 // ============================================================
 static bool otaStarted  = false;
 static int  otaLastBarW = -1;   // reset each OTA session in onStart
 
-static void setupOTA() {
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
-  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
-  ArduinoOTA.onStart([]() {
-    Serial.println("[OTA] Start");
-    otaInProgress = true;
-    otaLastBarW   = -1;
-    drawUpdate();
-  });
-  ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
-    int barW = (total > 0) ? (int)((long)MATRIX_WIDTH * current / total) : 0;
-    if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\n[OTA] Done — rebooting");
-    delay(500);                   // let WiFi/OTA stack finish before touching display
-    FastLED.clear(); FastLED.show();
-    delay(200);                   // allow the clear to fully latch
-    drawDone();
-    delay(1500);
-    otaInProgress = false;
-  });
-  ArduinoOTA.onError([](ota_error_t e) {
-    Serial.printf("[OTA] Error %u\n", e);
-    otaInProgress = false;
-    drawError();
-    delay(3000);
-    timeSynced = false;  // trigger scanner animation until clock resyncs
-  });
-  ArduinoOTA.begin();
-  otaStarted = true;
-  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
-  setupWebServer();
-}
-
-static void setupWebServer() {
-  webServer.on("/", HTTP_GET, []() {
-    webServer.send_P(200, "text/html", PAGE_MAIN);
-  });
-
-  webServer.on("/live", HTTP_GET, []() {
-    webServer.send_P(200, "text/html", PAGE_LIVE);
-  });
-
-  webServer.on("/api/status", HTTP_GET, []() {
-    char json[2500];
-    struct tm t;
-    bool hasTm = getLocalTime(&t);
-    char timeStr[12] = "--:--:--";
-    if (hasTm) snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d",
-                        t.tm_hour, t.tm_min, t.tm_sec);
-
-    // Build POCSAG log array (newest first)
-    char logBuf[1100]; int lp = 0;
-    lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "[");
-    for (int i = 0; i < wsPocsagFill; i++) {
-      int idx = ((int)wsPocsagHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
-      char safe[POCSAG_MSG_MAX_LEN + 1]; int si = 0;
-      for (int j = 0; wsPocsagLog[idx].msg[j] && si < POCSAG_MSG_MAX_LEN; j++) {
-        char c = wsPocsagLog[idx].msg[j];
-        if (c != '"' && c != '\\') safe[si++] = c;
-      }
-      safe[si] = '\0';
-      if (i > 0) lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, ",");
-      lp += snprintf(logBuf + lp, sizeof(logBuf) - lp,
-        "{\"ric\":%lu,\"msg\":\"%s\"}", (unsigned long)wsPocsagLog[idx].ric, safe);
-    }
-    lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "]");
-
-    int batRaw = analogRead(BAT_PIN);
-    int batMv  = (int)map(constrain(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL), BAT_RAW_EMPTY, BAT_RAW_FULL, BAT_EMPTY_MV, BAT_FULL_MV);
-    int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
-
-    snprintf(json, sizeof(json),
-      "{\"hostname\":\"%s\",\"role\":\"%s\",\"ip\":\"%s\","
-      "\"channel\":%d,\"uptime\":%lu,"
-      "\"time_synced\":%s,\"pocsag_synced\":%s,\"time\":\"%s\","
-      "\"dmr_count\":%lu,\"pocsag_count\":%lu,"
-      "\"pocsag_log\":%s,"
-      "\"brightness\":%d,\"auto_brightness\":%s,\"ldr_raw\":%d,"
-      "\"battery_raw\":%d,\"battery_mv\":%d,\"battery_pct\":%d,"
-      "\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"free_heap\":%u,"
-      "\"buzzer_boot_en\":%s,\"buzzer_boot_vol\":%d,"
-      "\"buzzer_pocsag_en\":%s,\"buzzer_pocsag_vol\":%d,"
-      "\"buzzer_click_en\":%s,\"buzzer_click_vol\":%d,"
-      "\"sht31_available\":%s,\"sht31_temp\":%.1f,\"sht31_hum\":%.1f,"
-      "\"display_mode\":\"%s\","
-      "\"rotate_enabled\":%s,\"rotate_interval\":%d}",
-      OTA_HOSTNAME,
-      "RECEIVER",
-      WiFi.localIP().toString().c_str(),
-      WiFi.channel(),
-      millis() / 1000,
-      timeSynced   ? "true" : "false",
-      pocsagSynced ? "true" : "false",
-      timeStr,
-      (unsigned long)wsCountDmr,
-      (unsigned long)wsCountPocsag,
-      logBuf,
-      currentBrightness,
-      autoBrightnessEnabled ? "true" : "false",
-      analogRead(LDR_PIN),
-      batRaw,
-      batMv,
-      batPct,
-      WiFi.macAddress().c_str(),
-      WiFi.SSID().c_str(),
-      WiFi.RSSI(),
-      ESP.getFreeHeap(),
-      buzzerBootEnabled   ? "true" : "false", buzzerBootVolume,
-      buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
-      buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
-      sht31Available ? "true" : "false", sht31Temp, sht31Hum,
-      pocsagMsgActive ? "message" : displayMode == MODE_TEMP ? "temp" : displayMode == MODE_HUMIDITY ? "humidity" : "clock",
-      autoRotateEnabled ? "true" : "false", autoRotateIntervalSec
-    );
-    webServer.send(200, "application/json", json);
-  });
-
-  webServer.on("/api/brightness", HTTP_POST, []() {
-    String autoArg  = webServer.arg("auto");
-    String levelArg = webServer.arg("level");
-    if (autoArg.length() > 0)
-      autoBrightnessEnabled = (autoArg == "1" || autoArg == "true");
-    if (levelArg.length() > 0) {
-      int lvl = levelArg.toInt();
-      if (lvl >= 1 && lvl <= 255) currentBrightness = (uint8_t)lvl;
-    }
-    if (!autoBrightnessEnabled)
-      FastLED.setBrightness(currentBrightness);
-    saveSettings();
-    webServer.send(200, "application/json", "{\"ok\":true}");
-  });
-
-  webServer.on("/api/buzzer/test", HTTP_POST, []() {
-    String type   = webServer.arg("type");
-    String volStr = webServer.arg("vol");
-    uint8_t vol   = volStr.length() ? (uint8_t)constrain(volStr.toInt(), 1, 255) : 80;
-    uint8_t duty  = buzzerVolToDuty(vol);
-    if (type == "boot" || type == "pocsag")
-      buzzerPlay(BUZZER_FREQ_BEEP,  BUZZER_DUR_BEEP_MS,  duty);
-    else if (type == "click")
-      buzzerPlay(BUZZER_FREQ_CLICK, BUZZER_DUR_CLICK_MS, duty);
-    webServer.send(200, "application/json", "{\"ok\":true}");
-  });
-
-  webServer.on("/api/buzzer", HTTP_POST, []() {
-    String v;
-    v = webServer.arg("boot_en");    if (v.length()) buzzerBootEnabled   = (v == "1" || v == "true");
-    v = webServer.arg("boot_vol");   if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerBootVolume   = (uint8_t)n; }
-    v = webServer.arg("pocsag_en");  if (v.length()) buzzerPocsagEnabled = (v == "1" || v == "true");
-    v = webServer.arg("pocsag_vol"); if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerPocsagVolume = (uint8_t)n; }
-    v = webServer.arg("click_en");   if (v.length()) buzzerClickEnabled  = (v == "1" || v == "true");
-    v = webServer.arg("click_vol");  if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerClickVolume  = (uint8_t)n; }
-    saveSettings();
-    webServer.send(200, "application/json", "{\"ok\":true}");
-  });
-
-  webServer.on("/api/rotate", HTTP_POST, []() {
-    String v;
-    v = webServer.arg("enabled");  if (v.length()) autoRotateEnabled = (v == "1" || v == "true");
-    v = webServer.arg("interval"); if (v.length()) {
-      int n = v.toInt();
-      if (n >= 1 && n <= 60) autoRotateIntervalSec = (uint8_t)n;
-    }
-    saveSettings();
-    webServer.send(200, "application/json", "{\"ok\":true}");
-  });
-
-  webServer.on("/api/leds", HTTP_GET, []() {
-    char hex[NUM_LEDS * 6 + 1];
-    for (int i = 0; i < NUM_LEDS; i++)
-      snprintf(hex + i * 6, 7, "%02X%02X%02X", leds[i].r, leds[i].g, leds[i].b);
-    webServer.send(200, "text/plain", hex);
-  });
-
-  webServer.on("/api/reboot", HTTP_POST, []() {
-    webServer.send(200, "application/json", "{\"ok\":true}");
-    delay(100);
-    ESP.restart();
-  });
-
-  webServer.begin();
-  Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
-}
-
-
 // ============================================================
-// RECEIVER
+// DMR receive state
 // ============================================================
-
-// ── DMR state ────────────────────────────────────────────────
 #if RECV_DMR
 static uint32_t rxTotalDmr   = 0;
 static uint32_t callFrames   = 0;
@@ -909,236 +170,16 @@ static uint8_t  callSlot     = 0;
 static unsigned long callStart = 0;
 #endif
 
-// ── POCSAG state ─────────────────────────────────────────────
+// ============================================================
+// POCSAG receive state
+// ============================================================
 #if RECV_POCSAG
 static uint32_t rxTotalPocsag = 0;
-
-static const char* functionalNameRx(uint8_t f) {
-  switch (f) {
-    case 0: return "NUMERIC";
-    case 1: return "ALERT1";
-    case 2: return "ALERT2";
-    case 3: return "ALPHA";
-    default: return "?";
-  }
-}
-
-// Parse time beacon from RIC 224.
-// Message format: "YYYYMMDDHHMMSS" + "YYMMDDHHmmSS"
-// Example:         YYYYMMDDHHMMSS    260314171800
-// Calls settimeofday() to set the system clock.
-static void applyPocsagTime(const char* msg) {
-  size_t len = strlen(msg);
-  if (len < 26) {
-    Serial.printf("[TIME] RIC 224 message too short (%u chars), expected >=26\n", len);
-    return;
-  }
-  const char* d = msg + 14;  // skip the "YYYYMMDDHHMMSS" format label
-
-  char tmp[3] = {};
-  struct tm t = {};
-  memcpy(tmp, d +  0, 2); t.tm_year = 100 + atoi(tmp); // YY → years since 1900
-  memcpy(tmp, d +  2, 2); t.tm_mon  = atoi(tmp) - 1;   // 1-based → 0-based
-  memcpy(tmp, d +  4, 2); t.tm_mday = atoi(tmp);
-  memcpy(tmp, d +  6, 2); t.tm_hour = atoi(tmp);
-  memcpy(tmp, d +  8, 2); t.tm_min  = atoi(tmp);
-  memcpy(tmp, d + 10, 2); t.tm_sec  = atoi(tmp);
-
-  time_t epoch = mktime(&t);
-  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-  settimeofday(&tv, nullptr);
-  timeSynced   = true;
-  pocsagSynced = true;
-
-  if (rtcAvailable)
-    ds1307Write(t);
-
-  Serial.printf("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d%s\n",
-    TIME_POCSAG_RIC,
-    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
-    t.tm_hour, t.tm_min, t.tm_sec,
-    rtcAvailable ? " [RTC updated]" : "");
-}
-#endif  // RECV_POCSAG
-
-// ── POCSAG display processing (runs on Core 1 display task) ──
-#if RECV_POCSAG
-static void processPocsagPacket(const EspNowPocsagPacket& pkt) {
-  if (pkt.ric == TIME_POCSAG_RIC)
-    applyPocsagTime(pkt.message);
-
-  static const uint32_t excludedRics[] = POCSAG_DISPLAY_EXCLUDED_RICS;
-  bool excluded = false;
-  for (size_t i = 0; i < sizeof(excludedRics) / sizeof(excludedRics[0]); i++)
-    if (pkt.ric == excludedRics[i]) { excluded = true; break; }
-
-  if (!excluded) {
-    strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
-    pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
-    if (pkt.ric == CALLSIGN_RIC) {
-      int len = strlen(pocsagMsg);
-      while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
-        pocsagMsg[--len] = '\0';
-    }
-    pocsagMsgLen    = strlen(pocsagMsg);
-    pocsagMsgActive = (pocsagMsgLen > 0);
-    if (pocsagMsgActive) buzzerBeep();
-    pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
-    if (pocsagIsScrolling) {
-      pocsagScrollX    = MATRIX_WIDTH;
-      pocsagScrollPass = 0;
-      pocsagScrollLast = millis();
-    } else {
-      pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
-      pocsagStaticLastDraw = 0;
-    }
-  }
-}
-#endif  // RECV_POCSAG
-
-// ── Receive callback ─────────────────────────────────────────
-void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen) {
-  if (inLen < 1) return;
-  uint8_t type = inData[0];
-
-  // ── DMR packet ──────────────────────────────────────────────
-#if RECV_DMR
-  if (type == ESPNOW_TYPE_DMR_NET) {
-    EspNowDmrNetPacket pkt = {};
-    memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
-
-    if (pkt.len < 21 || memcmp(pkt.data, "DMRD", 4) != 0) {
-      Serial.printf("[RX-DMR] Bad DMRD payload (len=%d)\n", pkt.len);
-      return;
-    }
-
-    rxTotalDmr++;
-    wsCountDmr++;
-    uint32_t srcId   = ((uint32_t)pkt.data[5] << 16) | ((uint32_t)pkt.data[6] << 8) | pkt.data[7];
-    uint32_t dstId   = ((uint32_t)pkt.data[8] << 16) | ((uint32_t)pkt.data[9] << 8) | pkt.data[10];
-    uint8_t  flags   = pkt.data[15];
-    uint8_t  slot    = (flags & 0x80) ? 2 : 1;
-    bool     isGroup = (flags & 0x40) != 0;
-    uint8_t  seq     = pkt.data[4];
-
-    bool isNewCall = (srcId != callSrc || dstId != callDst || slot != callSlot);
-    if (isNewCall) {
-      if (callFrames > 0) {
-        unsigned long dur = (millis() - callStart) / 1000;
-        Serial.printf("[RX-DMR] ── END   src=%-8lu  dst=TG%-6lu  slot=%d  frames=%lu  dur=%lus\n\n",
-          callSrc, callDst, callSlot, callFrames, dur);
-      }
-      callSrc    = srcId;
-      callDst    = dstId;
-      callSlot   = slot;
-      callFrames = 0;
-      callStart  = millis();
-      Serial.printf("[RX-DMR] ══ NEW   src=%-8lu  dst=%s%-6lu  slot=%d  pkt#%lu\n",
-        srcId, isGroup ? "TG" : "", dstId, slot, rxTotalDmr);
-    }
-    callFrames++;
-
-#if ESPNOW_DEBUG
-    char streamHex[9];
-    snprintf(streamHex, sizeof(streamHex), "%02X%02X%02X%02X",
-      pkt.data[16], pkt.data[17], pkt.data[18], pkt.data[19]);
-    Serial.printf("  [#%lu] seq=%3d  stream=%s  frame: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-      callFrames, seq, streamHex,
-      pkt.data[20], pkt.data[21], pkt.data[22], pkt.data[23],
-      pkt.data[24], pkt.data[25], pkt.data[26], pkt.data[27]);
-#else
-    (void)seq;
-#endif
-    return;
-  }
-#endif  // RECV_DMR
-
-  // ── POCSAG packet ───────────────────────────────────────────
-#if RECV_POCSAG
-  if (type == ESPNOW_TYPE_POCSAG) {
-    EspNowPocsagPacket pkt = {};
-    memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
-    pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
-
-    rxTotalPocsag++;
-    wsCountPocsag++;
-    wsPocsagLog[wsPocsagHead].ric = pkt.ric;
-    strncpy(wsPocsagLog[wsPocsagHead].msg, pkt.message, POCSAG_MSG_MAX_LEN);
-    wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
-    wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
-    if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
-    Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
-      rxTotalPocsag, (unsigned long)pkt.ric,
-      functionalNameRx(pkt.functional), pkt.message);
-
-    // Hand off to display task (Core 1) via queue
-    xQueueSendFromISR(pocsagRxQueue, &pkt, nullptr);
-    return;
-  }
-#endif  // RECV_POCSAG
-
-  Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
-}
-
-// ── WiFi setup ────────────────────────────────────────────────
-static void setupReceiverNetwork() {
-  WiFi.mode(WIFI_STA);
-  if (strlen(WIFI_SSID) > 0) {
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.printf("[WiFi] Connecting to %s ", WIFI_SSID);
-    unsigned long t = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
-      delay(250); Serial.print(".");
-    }
-    if (WiFi.status() == WL_CONNECTED) {
-      WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
-      Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
-        WiFi.localIP().toString().c_str(), WiFi.channel());
-      setupOTA();
-    } else {
-      Serial.println("\n[WiFi] Not connected");
-      WiFi.disconnect();
-    }
-  }
-}
-
-// ── Setup / loop ─────────────────────────────────────────────
-void setupReceiver() {
-  Serial.print("[ROLE] RECEIVER — modes:");
-#if RECV_DMR
-  Serial.print(" DMR");
-#endif
-#if RECV_POCSAG
-  Serial.print(" POCSAG");
-#endif
-  Serial.println();
-
-#if RECV_DMR && ESPNOW_DEBUG
-  Serial.println("[MODE] DMR debug: ON");
-#elif RECV_DMR
-  Serial.println("[MODE] DMR debug: OFF (set ESPNOW_DEBUG true for full frames)");
 #endif
 
-  setupReceiverNetwork();
-
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("[ESP-NOW] Init FAILED — halting.");
-    while (true) delay(1000);
-  }
-
-  uint8_t macBytes[6];
-  esp_wifi_get_mac(WIFI_IF_STA, macBytes);
-  Serial.println("[INFO] My MAC (use as RECEIVER_MAC in sender config.h):");
-  Serial.printf("       %02X:%02X:%02X:%02X:%02X:%02X\n",
-    macBytes[0], macBytes[1], macBytes[2],
-    macBytes[3], macBytes[4], macBytes[5]);
-
-  esp_now_register_recv_cb(onReceive);
-  Serial.printf("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n\n",
-    TIME_POCSAG_RIC);
-}
-
-// ── Web + OTA task (Core 0) ───────────────────────────────────
+// ============================================================
+// Web + OTA task (Core 0)
+// ============================================================
 static void webTaskFn(void*) {
   for (;;) {
     if (otaStarted) ArduinoOTA.handle();
@@ -1178,7 +219,8 @@ void setup() {
 }
 
 void loop() {
-  // Core 1: display, sensors, buttons
+  // Core 1: POCSAG queue drain, display, sensors, buttons
+
 #if RECV_POCSAG
   EspNowPocsagPacket pkt;
   while (xQueueReceive(pocsagRxQueue, &pkt, 0) == pdTRUE)

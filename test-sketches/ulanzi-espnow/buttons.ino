@@ -1,0 +1,48 @@
+// buttons.ino — Debounced button handler.
+// Globals (autoBrightnessEnabled, currentBrightness, sht31Available,
+// displayMode, modeActiveUntil, MODE_TIMEOUT_MS) declared in ulanzi-espnow.ino.
+
+static void loopButtons() {
+  static bool          lastState[3]  = {HIGH, HIGH, HIGH};
+  static bool          fired[3]      = {false, false, false};
+  static unsigned long lastChange[3] = {0, 0, 0};
+  static const uint8_t pins[3]       = {BTN_LEFT, BTN_MIDDLE, BTN_RIGHT};
+
+  for (int i = 0; i < 3; i++) {
+    bool state = digitalRead(pins[i]);
+    if (state != lastState[i]) {
+      lastChange[i] = millis();
+      lastState[i]  = state;
+      fired[i]      = false;
+    }
+    if (!fired[i] && state == LOW && millis() - lastChange[i] >= BTN_DEBOUNCE_MS) {
+      fired[i] = true;
+      switch (i) {
+        case 0:  // Left — reserved
+          Serial.println("[BTN] Left");
+          buzzerClick();
+          break;
+        case 1:  // Middle — toggle auto-brightness
+          autoBrightnessEnabled = !autoBrightnessEnabled;
+          if (!autoBrightnessEnabled)
+            FastLED.setBrightness(currentBrightness);
+          Serial.printf("[BTN] Middle — auto brightness: %s\n",
+            autoBrightnessEnabled ? "ON" : "OFF");
+          buzzerClick();
+          break;
+        case 2:  // Right — cycle display mode (requires SHT31)
+          if (sht31Available) {
+            displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
+            modeActiveUntil = (displayMode != MODE_CLOCK) ? millis() + MODE_TIMEOUT_MS : 0;
+            Serial.printf("[BTN] Right — mode: %s\n",
+              displayMode == MODE_TEMP ? "temp" :
+              displayMode == MODE_HUMIDITY ? "humidity" : "clock");
+          } else {
+            Serial.println("[BTN] Right — no SHT31 sensor");
+          }
+          buzzerClick();
+          break;
+      }
+    }
+  }
+}
