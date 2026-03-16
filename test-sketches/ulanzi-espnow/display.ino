@@ -3,6 +3,8 @@
 // All globals (leds[], displayMode, pocsagMsg*, currentBrightness, sht31Temp/Hum,
 // otaInProgress, timeSynced, autoRotateEnabled, etc.) declared in ulanzi-espnow.ino.
 
+#include <PNGdec.h>
+
 // ============================================================
 // 3×5 pixel fonts
 // ============================================================
@@ -197,59 +199,52 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
 // ============================================================
 // JPEG icon rendering (JPEGDEC + LittleFS)
 // ============================================================
-#include <PNGdec.h>
+// PNG icon rendering (PNGdec + LittleFS)
+// JPEG icon rendering (JPEGDEC + LittleFS)
+// JPEG icon rendering (TJpg_Decoder + LittleFS)
+#include <TJpg_Decoder.h>
 
-static PNG png;
-
-// PNG draw callback for 8x8 icons
-static int pngDrawCb(PNGDRAW* pDraw) {
-  for (int x = 0; x < pDraw->width; x++) {
-    uint8_t r = pDraw->pPixels[x * 3 + 0];
-    uint8_t g = pDraw->pPixels[x * 3 + 1];
-    uint8_t b = pDraw->pPixels[x * 3 + 2];
-    setLED(pDraw->x + x, pDraw->y, CRGB(r, g, b));
+// Callback for TJpg_Decoder: maps decoded MCU block to LED matrix
+static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap)
+{
+  for (uint16_t row = 0; row < h; row++) {
+    for (uint16_t col = 0; col < w; col++) {
+      uint16_t color = bitmap[row * w + col];
+      // Convert RGB565 to CRGB
+      uint8_t r = ((color >> 11) & 0x1F) << 3;
+      uint8_t g = ((color >> 5) & 0x3F) << 2;
+      uint8_t b = (color & 0x1F) << 3;
+      setLED(x + col, y + row, CRGB(r, g, b));
+    }
   }
-  return 1;
+  return true;
 }
 
-// Decode a PNG icon from LittleFS, draw it into the LED buffer.
-// Clears the full display first (PNG is a complete fresh frame).
-// Returns x for text (= pngWidth + 1), or -1 on failure.
-static int drawPngIcon(const char* path, int* delayMs) {
+static int drawJpegIcon(const char* path, int* delayMs) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
-  File pngFile = LittleFS.open(path);
-  if (!pngFile) {
-    Serial.printf("[PNG] open FAILED: %s\n", path);
+  fs::File jpgFile = LittleFS.open(path);
+  if (!jpgFile) {
+    Serial.printf("[JPEG] open FAILED: %s\n", path);
     return -1;
   }
   FastLED.clear();
-  int res = png.open(&pngFile, pngDrawCb);
-  if (res != PNG_SUCCESS) {
-    Serial.printf("[PNG] decode FAILED: %s\n", path);
-    pngFile.close();
-    return -1;
-  }
-  int w = png.getWidth();
-  int h = png.getHeight();
-  if (w != 8 || h != 8) {
-    Serial.printf("[PNG] icon size is %dx%d, expected 8x8\n", w, h);
-  }
-  png.decode(NULL, 0);
-  png.close();
-  pngFile.close();
-  return w + 1;
+  TJpgDec.setCallback(jpgMatrixOutput);
+  TJpgDec.setJpgScale(1); // No scaling
+  TJpgDec.drawFsJpg(0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
+  jpgFile.close();
+  return 9; // icon width + 1
 }
 
-static bool _isPng(const char* path) {
+static bool _isJpeg(const char* path) {
   const char* dot = strrchr(path, '.');
   if (!dot) return false;
-  return strcasecmp(dot, ".png") == 0;
+  return strcasecmp(dot, ".jpg") == 0 || strcasecmp(dot, ".jpeg") == 0;
 }
 
-// Unified icon draw: routes to GIF or PNG decoder based on file extension.
+// Unified icon draw: routes to GIF or JPEG decoder based on file extension.
 static int drawIcon(const char* path, int textW, int* delayMs) {
-  if (_isPng(path)) return drawPngIcon(path, delayMs);
+  if (_isJpeg(path)) return drawJpegIcon(path, delayMs);
   return drawGifIcon(path, textW, delayMs);
 }
 
