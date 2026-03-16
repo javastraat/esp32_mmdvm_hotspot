@@ -443,12 +443,13 @@ struct WsPocsagEntry { uint32_t ric; char msg[POCSAG_MSG_MAX_LEN + 1]; };
 static WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE] = {};
 static uint8_t       wsPocsagHead = 0;   // next write slot
 static uint8_t       wsPocsagFill = 0;   // valid entries (0..POCSAG_LOG_SIZE)
-static WebServer webServer(80);
+static WebServer     webServer(80);
+static QueueHandle_t pocsagRxQueue = nullptr;
 
 // Shared display state — declared here so setupRTC() can set timeSynced
-static bool timeSynced    = false;  // true once clock is running (RTC or POCSAG)
-static bool pocsagSynced  = false;  // true only after POCSAG RIC 224 has confirmed time
-static bool otaInProgress = false;
+static bool          timeSynced    = false;  // true once clock is running (RTC or POCSAG)
+static bool          pocsagSynced  = false;  // true only after POCSAG RIC 224 has confirmed time
+static volatile bool otaInProgress = false;
 
 // ============================================================
 // RTC (DS1307) — direct Wire, no library needed
@@ -960,6 +961,41 @@ static void applyPocsagTime(const char* msg) {
 }
 #endif  // RECV_POCSAG
 
+// ── POCSAG display processing (runs on Core 1 display task) ──
+#if RECV_POCSAG
+static void processPocsagPacket(const EspNowPocsagPacket& pkt) {
+  if (pkt.ric == TIME_POCSAG_RIC)
+    applyPocsagTime(pkt.message);
+
+  static const uint32_t excludedRics[] = POCSAG_DISPLAY_EXCLUDED_RICS;
+  bool excluded = false;
+  for (size_t i = 0; i < sizeof(excludedRics) / sizeof(excludedRics[0]); i++)
+    if (pkt.ric == excludedRics[i]) { excluded = true; break; }
+
+  if (!excluded) {
+    strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
+    pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
+    if (pkt.ric == CALLSIGN_RIC) {
+      int len = strlen(pocsagMsg);
+      while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
+        pocsagMsg[--len] = '\0';
+    }
+    pocsagMsgLen    = strlen(pocsagMsg);
+    pocsagMsgActive = (pocsagMsgLen > 0);
+    if (pocsagMsgActive) buzzerBeep();
+    pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
+    if (pocsagIsScrolling) {
+      pocsagScrollX    = MATRIX_WIDTH;
+      pocsagScrollPass = 0;
+      pocsagScrollLast = millis();
+    } else {
+      pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
+      pocsagStaticLastDraw = 0;
+    }
+  }
+}
+#endif  // RECV_POCSAG
+
 // ── Receive callback ─────────────────────────────────────────
 void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen) {
   if (inLen < 1) return;
@@ -1035,39 +1071,8 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
 
-    // Time beacon — always apply regardless of exclude list
-    if (pkt.ric == TIME_POCSAG_RIC)
-      applyPocsagTime(pkt.message);
-
-    // Display on LED matrix unless RIC is excluded
-    static const uint32_t excludedRics[] = POCSAG_DISPLAY_EXCLUDED_RICS;
-    bool excluded = false;
-    for (size_t i = 0; i < sizeof(excludedRics) / sizeof(excludedRics[0]); i++)
-      if (pkt.ric == excludedRics[i]) { excluded = true; break; }
-
-    if (!excluded) {
-      strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
-      pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
-      // Strip trailing digits from callsign RIC (maintainer sometimes appends "1" etc.)
-      if (pkt.ric == CALLSIGN_RIC) {
-        int len = strlen(pocsagMsg);
-        while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
-          pocsagMsg[--len] = '\0';
-      }
-      pocsagMsgLen      = strlen(pocsagMsg);
-      pocsagMsgActive   = (pocsagMsgLen > 0);
-      if (pocsagMsgActive) buzzerBeep();
-      // fits on screen (≤8 chars) → static 15 s; otherwise → scroll 3×
-      pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
-      if (pocsagIsScrolling) {
-        pocsagScrollX    = MATRIX_WIDTH;
-        pocsagScrollPass = 0;
-        pocsagScrollLast = millis();
-      } else {
-        pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
-        pocsagStaticLastDraw = 0;  // force immediate draw
-      }
-    }
+    // Hand off to display task (Core 1) via queue
+    xQueueSendFromISR(pocsagRxQueue, &pkt, nullptr);
     return;
   }
 #endif  // RECV_POCSAG
@@ -1133,9 +1138,53 @@ void setupReceiver() {
     TIME_POCSAG_RIC);
 }
 
-void loopReceiver() {
-  if (otaStarted) ArduinoOTA.handle();
-  webServer.handleClient();
+// ── Web + OTA task (Core 0) ───────────────────────────────────
+static void webTaskFn(void*) {
+  for (;;) {
+    if (otaStarted) ArduinoOTA.handle();
+    webServer.handleClient();
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+// ============================================================
+// Arduino entry points
+// ============================================================
+void setup() {
+  pinMode(15,         INPUT_PULLDOWN); // buzzer — stops high-pitch noise
+  pinMode(BTN_LEFT,   INPUT_PULLUP);
+  pinMode(BTN_MIDDLE, INPUT_PULLUP);
+  pinMode(BTN_RIGHT,  INPUT_PULLUP);
+  pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
+  Serial.begin(115200);
+  delay(3000);
+  Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
+
+  FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(LED_BRIGHTNESS);
+  FastLED.clear();
+  FastLED.show();
+
+  setupRTC();
+  setupSHT31();   // probe 0x44; Wire already started by setupRTC()
+  setupBuzzer();
+  setupReceiver();
+
+#if RECV_POCSAG
+  pocsagRxQueue = xQueueCreate(4, sizeof(EspNowPocsagPacket));
+#endif
+  xTaskCreatePinnedToCore(webTaskFn, "webTask", 8192, nullptr, 1, nullptr, 0);
+  Serial.println("[RTOS] webTask started on core 0");
+}
+
+void loop() {
+  // Core 1: display, sensors, buttons
+#if RECV_POCSAG
+  EspNowPocsagPacket pkt;
+  while (xQueueReceive(pocsagRxQueue, &pkt, 0) == pdTRUE)
+    processPocsagPacket(pkt);
+#endif
+
 #if ESPNOW_DEBUG
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {
@@ -1171,33 +1220,4 @@ void loopReceiver() {
   loopSHT31();
   loopAutoRotate();
   loopDisplay();
-}
-
-
-// ============================================================
-// Arduino entry points
-// ============================================================
-void setup() {
-  pinMode(15,         INPUT_PULLDOWN); // buzzer — stops high-pitch noise
-  pinMode(BTN_LEFT,   INPUT_PULLUP);
-  pinMode(BTN_MIDDLE, INPUT_PULLUP);
-  pinMode(BTN_RIGHT,  INPUT_PULLUP);
-  pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
-  Serial.begin(115200);
-  delay(3000);
-  Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
-
-  FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness(LED_BRIGHTNESS);
-  FastLED.clear();
-  FastLED.show();
-
-  setupRTC();
-  setupSHT31();   // probe 0x44; Wire already started by setupRTC()
-  setupBuzzer();
-  setupReceiver();
-}
-
-void loop() {
-  loopReceiver();
 }
