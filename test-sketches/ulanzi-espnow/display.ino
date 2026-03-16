@@ -197,82 +197,59 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
 // ============================================================
 // JPEG icon rendering (JPEGDEC + LittleFS)
 // ============================================================
+#include <PNGdec.h>
 
-static JPEGDEC _jpeg;
-static File    _jpegFile;
-static int     _jpegX0, _jpegY0;
+static PNG png;
 
-static void* _jpegOpenCb(const char* fname, int32_t* pSize) {
-  _jpegFile = LittleFS.open(fname);
-  if (_jpegFile) { *pSize = (int32_t)_jpegFile.size(); return &_jpegFile; }
-  return nullptr;
-}
-static void _jpegCloseCb(void* h) { if (h) ((File*)h)->close(); }
-static int32_t _jpegReadCb(JPEGFILE* pf, uint8_t* pBuf, int32_t iLen) {
-  return (int32_t)((File*)pf->fHandle)->read(pBuf, iLen);
-}
-static int32_t _jpegSeekCb(JPEGFILE* pf, int32_t iPos) {
-  ((File*)pf->fHandle)->seek(iPos); return iPos;
-}
-static int _jpegDrawCb(JPEGDRAW* pDraw) {
-  uint16_t* s = pDraw->pPixels;
-  // Ensure 1:1 mapping for 8x8 icons, ignore MCU stride if image is exactly 8x8
-  int imgW = _jpeg.getWidth();
-  int imgH = _jpeg.getHeight();
-  for (int ty = 0; ty < pDraw->iHeight; ty++) {
-    for (int tx = 0; tx < pDraw->iWidthUsed; tx++) {
-      // Only map pixels within the actual icon size
-      if ((pDraw->x + tx) < imgW && (pDraw->y + ty) < imgH) {
-        uint16_t c = s[tx];
-        uint8_t r = ((c >> 11) & 0x1F) << 3;
-        uint8_t g = ((c >>  5) & 0x3F) << 2;
-        uint8_t b = ( c        & 0x1F) << 3;
-        setLED(_jpegX0 + pDraw->x + tx, _jpegY0 + pDraw->y + ty, CRGB(r, g, b));
-      }
-    }
-    s += pDraw->iWidth;  // advance by full MCU stride
+// PNG draw callback for 8x8 icons
+static int pngDrawCb(PNGDRAW* pDraw) {
+  for (int x = 0; x < pDraw->width; x++) {
+    uint8_t r = pDraw->pPixels[x * 3 + 0];
+    uint8_t g = pDraw->pPixels[x * 3 + 1];
+    uint8_t b = pDraw->pPixels[x * 3 + 2];
+    setLED(pDraw->x + x, pDraw->y, CRGB(r, g, b));
   }
   return 1;
 }
 
-// Decode a JPEG icon from LittleFS, draw it into the LED buffer.
-// Clears the full display first (JPEG is a complete fresh frame).
-// Returns x for text (= jpegWidth + 1), or -1 on failure.
-static int drawJpegIcon(const char* path, int* delayMs) {
+// Decode a PNG icon from LittleFS, draw it into the LED buffer.
+// Clears the full display first (PNG is a complete fresh frame).
+// Returns x for text (= pngWidth + 1), or -1 on failure.
+static int drawPngIcon(const char* path, int* delayMs) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
-  if (!_jpeg.open(path, _jpegOpenCb, _jpegCloseCb, _jpegReadCb, _jpegSeekCb, _jpegDrawCb)) {
-    Serial.printf("[JPEG] open FAILED: %s\n", path);
+  File pngFile = LittleFS.open(path);
+  if (!pngFile) {
+    Serial.printf("[PNG] open FAILED: %s\n", path);
     return -1;
   }
-  int w = _jpeg.getWidth();
-  int h = _jpeg.getHeight();
-  // Ensure icon is 8x8, otherwise warn
+  FastLED.clear();
+  int res = png.open(&pngFile, pngDrawCb);
+  if (res != PNG_SUCCESS) {
+    Serial.printf("[PNG] decode FAILED: %s\n", path);
+    pngFile.close();
+    return -1;
+  }
+  int w = png.getWidth();
+  int h = png.getHeight();
   if (w != 8 || h != 8) {
-    Serial.printf("[JPEG] icon size is %dx%d, expected 8x8\n", w, h);
+    Serial.printf("[PNG] icon size is %dx%d, expected 8x8\n", w, h);
   }
-  _jpegX0 = 0;
-  _jpegY0 = (MATRIX_HEIGHT - h) / 2;
-  _jpeg.setPixelType(RGB565_BIG_ENDIAN);
-  FastLED.clear();  // JPEG is a full frame — clear everything first
-  int ok = _jpeg.decode(0, 0, 0); // No scaling
-  _jpeg.close();
-  if (!ok) {
-    Serial.printf("[JPEG] decode FAILED: %s\n", path);
-    return -1;
-  }
+  png.decode(NULL, 0);
+  png.close();
+  pngFile.close();
   return w + 1;
 }
 
-static bool _isJpeg(const char* path) {
+static bool _isPng(const char* path) {
   const char* dot = strrchr(path, '.');
   if (!dot) return false;
-  return strcasecmp(dot, ".jpg") == 0 || strcasecmp(dot, ".jpeg") == 0;
+  return strcasecmp(dot, ".png") == 0;
 }
 
-// Unified icon draw: routes to GIF or JPEG decoder based on file extension.
+// Unified icon draw: routes to GIF or PNG decoder based on file extension.
 static int drawIcon(const char* path, int textW, int* delayMs) {
-  if (_isJpeg(path)) return drawJpegIcon(path, delayMs);
+  if (_isPng(path)) return drawPngIcon(path, delayMs);
   return drawGifIcon(path, textW, delayMs);
 }
 
