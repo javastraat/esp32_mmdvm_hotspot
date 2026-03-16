@@ -1,4 +1,6 @@
 // web.ino — ArduinoOTA setup and WebServer route handlers.
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 // All globals (webServer, otaInProgress, otaStarted, otaLastBarW, timeSynced,
 // pocsagSynced, wsCount*, wsPocsagLog, currentBrightness, autoBrightnessEnabled,
 // buzzer*, sht31*, displayMode, autoRotate*, leds[], fsAvailable) declared in ulanzi-espnow.ino.
@@ -253,22 +255,30 @@ static void setupWebServer() {
       webServer.send(503, "application/json", "[]");
       return;
     }
+    // Recursive listing via explicit dir stack
     String json = "[";
-    File root = LittleFS.open("/");
-    File f = root.openNextFile();
     bool first = true;
-    while (f) {
-      if (!f.isDirectory()) {
-        if (!first) json += ",";
-        json += "{\"name\":\"";
-        json += f.name();
-        json += "\",\"size\":";
-        json += f.size();
-        json += "}";
-        first = false;
+    // Use two passes: root files then one level of subdirs
+    std::function<void(const String&)> listDir = [&](const String& dirPath) {
+      File dir = LittleFS.open(dirPath);
+      if (!dir) return;
+      File f = dir.openNextFile();
+      while (f) {
+        if (f.isDirectory()) {
+          listDir(String("/") + f.name());
+        } else {
+          if (!first) json += ",";
+          json += "{\"name\":\"/";
+          json += f.name();
+          json += "\",\"size\":";
+          json += f.size();
+          json += "}";
+          first = false;
+        }
+        f = dir.openNextFile();
       }
-      f = root.openNextFile();
-    }
+    };
+    listDir("/");
     json += "]";
     webServer.send(200, "application/json", json);
   });
@@ -304,7 +314,8 @@ static void setupWebServer() {
     []() {
       HTTPUpload& up = webServer.upload();
       if (up.status == UPLOAD_FILE_START) {
-        _uploadedName = "/" + up.filename;
+        if (!LittleFS.exists("/icons")) LittleFS.mkdir("/icons");
+        _uploadedName = "/icons/" + up.filename;
         _uploadOk     = false;
         LittleFS.remove(_uploadedName);
         _uploadFile = LittleFS.open(_uploadedName, "w");
@@ -358,6 +369,81 @@ static void setupWebServer() {
       (unsigned long)stackFreeB
     );
     webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/icons/download", HTTP_POST, []() {
+    if (!fsAvailable) {
+      webServer.send(503, "application/json", "{\"ok\":false,\"error\":\"fs unavailable\"}");
+      return;
+    }
+    String id = webServer.arg("id");
+    // Basic validation — digits only, 1-6 chars
+    if (id.length() == 0 || id.length() > 6) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid id\"}");
+      return;
+    }
+    for (size_t i = 0; i < id.length(); i++) {
+      if (!isDigit(id[i])) {
+        webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid id\"}");
+        return;
+      }
+    }
+
+    WiFiClientSecure tlsClient;
+    tlsClient.setInsecure();
+    HTTPClient http;
+    String url = "https://developer.lametric.com/content/apps/icon_thumbs/" + id;
+    http.begin(tlsClient, url);
+    http.setTimeout(8000);
+    int code = http.GET();
+    if (code != 200) {
+      http.end();
+      char msg[80];
+      snprintf(msg, sizeof(msg), "{\"ok\":false,\"error\":\"http %d\"}", code);
+      webServer.send(404, "application/json", msg);
+      return;
+    }
+
+    String ct = http.header("Content-Type");
+    String ext = (ct.indexOf("gif") >= 0) ? ".gif" : ".jpg";
+
+    if (!LittleFS.exists("/icons"))
+      LittleFS.mkdir("/icons");
+
+    String path = "/icons/" + id + ext;
+    LittleFS.remove(path);
+    File f = LittleFS.open(path, "w");
+    if (!f) {
+      http.end();
+      webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"fs open failed\"}");
+      return;
+    }
+
+    WiFiClient* stream = http.getStreamPtr();
+    uint8_t buf[512];
+    int total = 0;
+    uint32_t deadline = millis() + 8000;
+    while (http.connected() && millis() < deadline) {
+      int avail = stream->available();
+      if (avail > 0) {
+        int n = stream->readBytes(buf, min(avail, (int)sizeof(buf)));
+        f.write(buf, n);
+        total += n;
+        deadline = millis() + 4000;  // extend on progress
+      } else {
+        delay(10);
+      }
+      int contentLen = http.getSize();
+      if (contentLen > 0 && total >= contentLen) break;
+    }
+    f.close();
+    http.end();
+
+    Serial.printf("[FS] Icon saved: %s  %d bytes\n", path.c_str(), total);
+    char resp[120];
+    snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\",\"size\":%d}",
+      path.c_str(), total);
+    webServer.send(200, "application/json", resp);
   });
 
   webServer.begin();

@@ -44,6 +44,31 @@ static const char PAGE_FILES[] PROGMEM =
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:15px">
+    <h3>Download Icon</h3>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="icon-id" placeholder="LaMetric Icon ID e.g. 2867"
+        style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border-color);
+               background:var(--card-bg);color:var(--text-color);border-radius:4px;font-size:.9em">
+      <button onclick="previewIcon()"
+        style="background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);
+               padding:8px 16px;border-radius:4px;cursor:pointer;font-size:.9em;white-space:nowrap">
+        Preview
+      </button>
+      <button onclick="downloadIcon()"
+        style="background:#00bcd4;color:#000;border:none;padding:8px 20px;border-radius:4px;
+               cursor:pointer;font-weight:bold;white-space:nowrap;font-size:.9em">
+        Download
+      </button>
+    </div>
+    <div id="icon-status" style="margin-top:8px;font-size:.85em;color:var(--text-muted);min-height:1.2em"></div>
+    <div id="icon-preview" style="display:none;margin-top:8px">
+      <img id="icon-img"
+        style="image-rendering:pixelated;width:64px;height:64px;background:#000;
+               border-radius:4px;object-fit:contain;display:block">
+    </div>
+  </div>
+
   <div class="card">
     <h3>Files</h3>
     <div id="file-list" style="min-height:40px">
@@ -148,6 +173,48 @@ function doUpload(){
     st.textContent='Upload failed';st.style.color='#dc3545';
   };
   xhr.send(fd);
+}
+function previewIcon(){
+  var id=document.getElementById('icon-id').value.trim();
+  var st=document.getElementById('icon-status');
+  var prev=document.getElementById('icon-preview');
+  var img=document.getElementById('icon-img');
+  if(!id){st.textContent='Enter an icon ID.';st.style.color='#dc3545';return;}
+  st.textContent='';
+  img.onerror=function(){
+    prev.style.display='none';
+    st.textContent='Icon not found.';
+    st.style.color='#dc3545';
+  };
+  img.onload=function(){
+    prev.style.display='block';
+    st.textContent='';
+  };
+  img.src='https://developer.lametric.com/content/apps/icon_thumbs/'+id;
+}
+function downloadIcon(){
+  var id=document.getElementById('icon-id').value.trim();
+  var st=document.getElementById('icon-status');
+  if(!id){st.textContent='Enter an icon ID.';st.style.color='#dc3545';return;}
+  st.textContent='Downloading\u2026';
+  st.style.color='var(--text-muted)';
+  var fd=new URLSearchParams();
+  fd.append('id',id);
+  fetch('/api/icons/download',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:fd.toString()})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      st.textContent='Saved: '+d.name+' ('+fmtSize(d.size)+')';
+      st.style.color='#28a745';
+      loadFiles();loadFs();
+    }else{
+      st.textContent='Error: '+(d.error||'download failed');
+      st.style.color='#dc3545';
+    }
+  })
+  .catch(function(){st.textContent='Request failed';st.style.color='#dc3545';});
 }
 loadFs();
 loadFiles();
