@@ -1,0 +1,12 @@
+# Ulanzi TC001 — AWTRIX-compatible partition table (4 MB flash)
+# app0/app1 : 1.875 MB each
+# spiffs    : 256 KB  (~341 raw 32×8 RGB frames at 768 B each)
+#
+# Select "Custom" under Tools → Partition Scheme in Arduino IDE.
+#
+# Name,     Type, SubType,  Offset,    Size,
+nvs,        data, nvs,      0x9000,    0x5000,
+otadata,    data, ota,      0xe000,    0x2000,
+app0,       app,  ota_0,    0x10000,   0x1D0000,
+app1,       app,  ota_1,    0x1F0000,  0x1D0000,
+spiffs,     data, spiffs,   0x3C0000,  0x40000,

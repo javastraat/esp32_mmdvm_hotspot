@@ -76,6 +76,31 @@ static const uint8_t FONT_ALPHA[26][5] = {
   {0b111,0b001,0b010,0b100,0b111}, // Z
 };
 
+// 3×5 thermometer icon (temperature)
+static const uint8_t ICON_THERMO[5] = {0b010, 0b010, 0b011, 0b111, 0b111};
+
+// 5×8 water drop icon, full matrix height (humidity)
+// bit 4 = leftmost column, bit 0 = rightmost column
+static const uint8_t ICON_DROP[8] = {
+  0b00100,  // row 0 — tip
+  0b00100,  // row 1 — tip
+  0b01110,  // row 2 — shoulder
+  0b11111,  // row 3 — body
+  0b11111,  // row 4 — body
+  0b11111,  // row 5 — body
+  0b11111,  // row 6 — body
+  0b01110,  // row 7 — rounded base
+};
+
+// 6×5 battery outline icon (battery level); interior cols 1–3, rows 1–3 filled by level
+static const uint8_t ICON_BAT[5] = {
+  0b111110,  // row 0 — top border
+  0b100011,  // row 1 — left border + right terminal bump
+  0b100011,  // row 2
+  0b100011,  // row 3
+  0b111110,  // row 4 — bottom border
+};
+
 // 3×5 bitmaps for punctuation/symbols found in POCSAG weather messages
 static const char    SPECIAL_CHARS[]   = "-.:/%=";
 static const uint8_t FONT_SPECIAL[][5] = {
@@ -349,9 +374,10 @@ static void loopDisplay() {
     if (!modeChanged && millis() - lastDraw < 1000) return;
     lastDraw = millis();
 
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    const int yo = (MATRIX_HEIGHT - 5) / 2;  // vertically centre the text (=1)
     char buf[8];
     CRGB color;
+    FastLED.clear();
 
     if (displayMode == MODE_TEMP) {
       int t100 = (int)roundf(sht31Temp * 100.0f);
@@ -360,17 +386,71 @@ static void loopDisplay() {
       else
         snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
       color = CRGB(255, 120, 0);   // warm orange
+
+      // 3×5 thermometer icon + text, centred together
+      int len    = strlen(buf);
+      int totalW = 4 + len * 4 - 1;  // 3px icon + 1px gap + text
+      int xo     = (MATRIX_WIDTH - totalW + 1) / 2;
+      for (int row = 0; row < 5; row++)
+        for (int col = 0; col < 3; col++)
+          if (ICON_THERMO[row] & (1 << (2 - col)))
+            setLED(xo + col, yo + row, color);
+      for (int i = 0; i < len; i++)
+        drawChar(xo + 4 + i * 4, yo, buf[i], color);
+
     } else {
-      int h100 = constrain((int)roundf(sht31Hum * 100.0f), 0, 10000);
-      snprintf(buf, sizeof(buf), "%d.%02d%%", h100 / 100, h100 % 100);
+      // 1 decimal place keeps max width to 6 chars ("100.0%") so icon fits
+      int h10 = constrain((int)roundf(sht31Hum * 10.0f), 0, 1000);
+      snprintf(buf, sizeof(buf), "%d.%d%%", h10 / 10, h10 % 10);
       color = CRGB(0, 180, 255);   // cyan-blue
+
+      // 5×8 water drop icon (full matrix height) + text centred vertically
+      int len    = strlen(buf);
+      int totalW = 6 + len * 4 - 1;  // 5px icon + 1px gap + text
+      int xo     = (MATRIX_WIDTH - totalW + 1) / 2;
+      for (int row = 0; row < 8; row++)
+        for (int col = 0; col < 5; col++)
+          if (ICON_DROP[row] & (1 << (4 - col)))
+            setLED(xo + col, row, color);
+      for (int i = 0; i < len; i++)
+        drawChar(xo + 6 + i * 4, yo, buf[i], color);
     }
 
-    int len = strlen(buf);
-    int xo  = (MATRIX_WIDTH - (len * 4 - 1) + 1) / 2;
+    FastLED.show();
+    return;
+  }
+
+  // Battery display
+  if (displayMode == MODE_BATTERY) {
+    static unsigned long lastDraw = 0;
+    if (millis() - lastDraw < 2000) return;
+    lastDraw = millis();
+
+    int batRaw = analogRead(BAT_PIN);
+    int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
+    CRGB color = batPct > 60 ? CRGB(0, 200, 50) : batPct > 30 ? CRGB(220, 180, 0) : CRGB(220, 40, 0);
+
+    char buf[5];
+    snprintf(buf, sizeof(buf), "%d%%", batPct);
+    int len    = strlen(buf);
+    int totalW = 7 + len * 4 - 1;  // 6px icon + 1px gap + text
+    int xo     = (MATRIX_WIDTH - totalW + 1) / 2;
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
+
     FastLED.clear();
+    // Battery outline (6 wide, 5 tall, centred vertically)
+    for (int row = 0; row < 5; row++)
+      for (int col = 0; col < 6; col++)
+        if (ICON_BAT[row] & (1 << (5 - col)))
+          setLED(xo + col, yo + row, color);
+    // Fill interior (cols 1–3, rows 1–3) based on level
+    int fillCols = (batPct * 3 + 50) / 100;  // 0..3
+    for (int row = 1; row <= 3; row++)
+      for (int col = 1; col <= fillCols; col++)
+        setLED(xo + col, yo + row, color);
+    // Text
     for (int i = 0; i < len; i++)
-      drawChar(xo + i * 4, yo, buf[i], color);
+      drawChar(xo + 7 + i * 4, yo, buf[i], color);
     FastLED.show();
     return;
   }

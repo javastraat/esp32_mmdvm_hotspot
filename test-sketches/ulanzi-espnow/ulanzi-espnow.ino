@@ -17,6 +17,7 @@
  *   sensor.ino         — DS1307 RTC + SHT31
  *   settings.ino       — loadSettings() / saveSettings()
  *   web.ino            — setupOTA() + setupWebServer() + all HTTP handlers
+ *   filesystem.ino     — LittleFS init (setupFilesystem())
  */
 
 #include "config.h"
@@ -30,6 +31,7 @@
 #include <time.h>
 #include <Preferences.h>
 #include <Wire.h>
+#include <LittleFS.h>
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
@@ -128,7 +130,7 @@ static bool         sht31Available = false;
 static float        sht31Temp      = 0.0f;
 static float        sht31Hum       = 0.0f;
 
-enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_COUNT };
+enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_BATTERY, MODE_COUNT };
 static DisplayMode   displayMode     = MODE_CLOCK;
 static unsigned long modeActiveUntil = 0;
 #define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
@@ -154,6 +156,11 @@ static volatile bool otaInProgress = false;
 // RTC state
 // ============================================================
 static bool rtcAvailable = false;
+
+// ============================================================
+// Filesystem state
+// ============================================================
+static bool fsAvailable = false;
 
 // ============================================================
 // OTA state
@@ -222,6 +229,7 @@ void setup() {
   // FastLED.clear();    // clear boot logo immediately; loop() will run scanner
   // FastLED.show();
 
+  setupFilesystem();
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
   setupBuzzer();
