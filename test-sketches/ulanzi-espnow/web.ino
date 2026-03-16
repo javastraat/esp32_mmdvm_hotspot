@@ -193,6 +193,15 @@ static void setupWebServer() {
     webServer.send(200, "text/plain", hex);
   });
 
+  webServer.on("/api/rtc/clear", HTTP_POST, []() {
+    if (rtcAvailable) ds1307Stop();  // stop oscillator so setupRTC() skips time restore on next boot
+    timeSynced   = false;
+    pocsagSynced = false;
+    webServer.send(200, "application/json", "{\"ok\":true}");
+    delay(100);
+    ESP.restart();
+  });
+
   webServer.on("/api/reboot", HTTP_POST, []() {
     webServer.send(200, "application/json", "{\"ok\":true}");
     delay(100);

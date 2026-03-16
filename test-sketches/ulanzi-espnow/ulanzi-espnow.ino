@@ -162,6 +162,16 @@ static bool otaStarted  = false;
 static int  otaLastBarW = -1;   // reset each OTA session in onStart
 
 // ============================================================
+// IP address scroll — armed once after WiFi connects
+// ============================================================
+static bool          ipScrollActive = false;
+static char          ipScrollMsg[32] = {};
+static int           ipScrollLen     = 0;
+static int           ipScrollX       = 0;
+static int           ipScrollPass    = 0;
+static unsigned long ipScrollLast    = 0;
+
+// ============================================================
 // DMR receive state
 // ============================================================
 #if RECV_DMR
@@ -208,11 +218,25 @@ void setup() {
   FastLED.setBrightness(LED_BRIGHTNESS);
   FastLED.clear();
   FastLED.show();
+  drawBootScreen();
+  // FastLED.clear();    // clear boot logo immediately; loop() will run scanner
+  // FastLED.show();
 
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
   setupBuzzer();
   setupReceiver();
+
+  // Arm IP scroll if WiFi connected (plays as first display in loop())
+  if (WiFi.status() == WL_CONNECTED) {
+    snprintf(ipScrollMsg, sizeof(ipScrollMsg), "IP:%s",
+             WiFi.localIP().toString().c_str());
+    ipScrollLen  = strlen(ipScrollMsg);
+    ipScrollX    = MATRIX_WIDTH;
+    ipScrollPass = 0;
+    ipScrollActive = true;
+    Serial.printf("[DISP] IP scroll: %s\n", ipScrollMsg);
+  }
 
 #if RECV_POCSAG
   pocsagRxQueue = xQueueCreate(4, sizeof(EspNowPocsagPacket));

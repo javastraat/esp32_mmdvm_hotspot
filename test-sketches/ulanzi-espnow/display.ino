@@ -154,6 +154,30 @@ static void drawProgress(int barW) {
 static void drawDone()   { drawStatusWord(FONT_DONE,  4, CRGB::Green); }
 static void drawError()  { drawStatusWord(FONT_ERROR, 5, CRGB::Red);   }
 
+// Boot screen — "ULANZI" in rainbow colours, letters appear one by one.
+// Called from setup(); setup() clears the frame immediately after return so
+// the scanner animation takes over as soon as loop() starts.
+static void drawBootScreen() {
+  static const CRGB colors[6] = {
+    CRGB(255,   0,   0),  // U — red
+    CRGB(255, 100,   0),  // L — orange
+    CRGB(200, 200,   0),  // A — yellow
+    CRGB(  0, 200,   0),  // N — green
+    CRGB(  0, 160, 255),  // Z — cyan-blue
+    CRGB(160,   0, 255),  // I — violet
+  };
+  const char* word = "ULANZI";
+  const int xo = (MATRIX_WIDTH  - 23 + 1) / 2;  // centre 23 px across 32
+  const int yo = (MATRIX_HEIGHT -  5)     / 2;   // centre 5-row font in 8 rows
+  FastLED.clear();
+  for (int i = 0; i < 6; i++) {
+    drawChar(xo + i * 4, yo, word[i], colors[i]);
+    FastLED.show();
+    delay(200);
+  }
+  delay(1200);  // hold complete word visible
+}
+
 static void drawChar(int x, int y, char c, CRGB color) {
   if (c >= 'a' && c <= 'z') c -= 32;
   if (c >= '0' && c <= '9') { drawDigit(x, y, c - '0', color); return; }
@@ -266,6 +290,25 @@ static void loopDisplay() {
     return;
   }
 #endif
+
+  // IP address scroll — shown once after WiFi connects (2 passes)
+  if (ipScrollActive) {
+    if (millis() - ipScrollLast < POCSAG_SCROLL_SPEED_MS) return;
+    ipScrollLast = millis();
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    FastLED.clear();
+    for (int i = 0; i < ipScrollLen; i++)
+      drawChar(ipScrollX + i * 4, yo, ipScrollMsg[i], CRGB(0, 220, 120));
+    FastLED.show();
+    ipScrollX--;
+    if (ipScrollX < -(ipScrollLen * 4)) {
+      if (++ipScrollPass >= 2)
+        ipScrollActive = false;
+      else
+        ipScrollX = MATRIX_WIDTH;
+    }
+    return;
+  }
 
   // Auto-return to clock after mode timeout (manual presses only; rotation manages itself)
   if (!autoRotateEnabled && displayMode != MODE_CLOCK && millis() >= modeActiveUntil)

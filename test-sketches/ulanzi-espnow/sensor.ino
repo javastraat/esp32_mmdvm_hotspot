@@ -32,6 +32,17 @@ static bool ds1307Read(struct tm& t) {
   return true;
 }
 
+// Stop the DS1307 oscillator by setting the CH (clock halt) bit.
+// ds1307Read() checks this bit and returns false, so setupRTC() will not
+// restore the time on next boot — but rtcAvailable stays true so that
+// applyPocsagTime() can write back to the RTC when a time beacon arrives.
+static void ds1307Stop() {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
+  Wire.write(0x80);  // CH bit set → oscillator stopped
+  Wire.endTransmission();
+}
+
 static void ds1307Write(const struct tm& t) {
   Wire.beginTransmission(0x68);
   Wire.write(0x00);
