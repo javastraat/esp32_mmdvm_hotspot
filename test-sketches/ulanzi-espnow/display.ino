@@ -130,10 +130,14 @@ static void* _gifOpen(const char* fname, int32_t* pSize) {
 }
 static void _gifClose(void* h) { if (h) ((File*)h)->close(); }
 static int32_t _gifRead(GIFFILE* pf, uint8_t* pBuf, int32_t iLen) {
-  return (int32_t)((File*)pf->fHandle)->read(pBuf, iLen);
+  int32_t n = (int32_t)((File*)pf->fHandle)->read(pBuf, iLen);
+  pf->iPos += n;
+  return n;
 }
 static int32_t _gifSeek(GIFFILE* pf, int32_t iPos) {
-  ((File*)pf->fHandle)->seek(iPos); return iPos;
+  ((File*)pf->fHandle)->seek(iPos);
+  pf->iPos = iPos;
+  return iPos;
 }
 static void _gifDraw(GIFDRAW* pDraw) {
   int row      = _gifY0 + pDraw->iY + pDraw->y;
