@@ -1,51 +1,69 @@
 #pragma once
 // Shared navigation bar and inline LIVE modal for all three pages.
 //
-// Usage in each page:
-//   NAV_BAR          ← nav bar HTML (just after <body>)
-//   NAV_LIVE_MODAL   ← modal overlay HTML (just after NAV_BAR)
-//   In the <script> block: NAV_LIVE_JS
+// Usage in each page body:
+//   NAV_BAR          ← nav bar + More dropdown + active-tab JS
+//   NAV_LIVE_MODAL   ← fullscreen LIVE overlay (place right after NAV_BAR)
+// In the page <script> block also include: NAV_LIVE_JS
 
 // ── Nav bar ──────────────────────────────────────────────────────────────
-// Active tab highlighted client-side via window.location.pathname.
-// LIVE button opens the inline modal instead of a new tab.
+// Layout: [Brand] [Home] [More ▾ → Settings / System] ··· [► LIVE] [🌙]
+// IP is kept in a hidden element so JS pages can still update it without errors.
 
 #define NAV_BAR \
   "<div class=\"navbar\">" \
   "<span class=\"nav-brand\" id=\"h1\">Ulanzi</span>" \
-  "<span class=\"nav-sub\" id=\"sub\"></span>" \
+  "<span id=\"sub\" style=\"display:none\"></span>" \
   "<a href=\"/\" class=\"nav-tab\" id=\"nt-home\">Home</a>" \
-  "<a href=\"/settings\" class=\"nav-tab\" id=\"nt-set\">Settings</a>" \
-  "<a href=\"/system\" class=\"nav-tab\" id=\"nt-sys\">System</a>" \
+  "<div class=\"nav-more\" id=\"nav-more\">" \
+    "<button class=\"nav-tab\" id=\"nt-more\" onclick=\"toggleMore(event)\">More &#9662;</button>" \
+    "<div class=\"nav-more-menu\" id=\"nav-more-menu\">" \
+      "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
+      "<a href=\"/system\" class=\"nav-more-item\">System</a>" \
+    "</div>" \
+  "</div>" \
   "<button class=\"nav-live\" onclick=\"showLive()\">&#9654; LIVE</button>" \
   "<button class=\"theme-toggle\" id=\"theme-btn\" onclick=\"toggleTheme()\">&#127769;</button>" \
   "</div>" \
-  "<script>(function(){" \
-  "var p=location.pathname;" \
-  "var id=p==='/'?'nt-home':p.startsWith('/settings')?'nt-set':'nt-sys';" \
-  "var el=document.getElementById(id);if(el)el.classList.add('active');" \
-  "})();</script>"
+  "<script>" \
+  "function toggleMore(e){" \
+    "e.stopPropagation();" \
+    "document.getElementById('nav-more-menu').classList.toggle('open');}" \
+  "(function(){" \
+    "var p=location.pathname;" \
+    "var id=p==='/'?'nt-home':'nt-more';" \
+    "var el=document.getElementById(id);if(el)el.classList.add('active');" \
+    "if(p!=='/'){var items=document.querySelectorAll('.nav-more-item');" \
+      "for(var i=0;i<items.length;i++)" \
+        "if(items[i].getAttribute('href')===p)items[i].classList.add('active');}" \
+    "document.addEventListener('click',function(){" \
+      "document.getElementById('nav-more-menu').classList.remove('open');});" \
+  "})();" \
+  "</script>"
 
-// ── Inline LIVE modal overlay ─────────────────────────────────────────────
-// Place immediately after NAV_BAR in the page body.
+// ── Fullscreen LIVE modal overlay ─────────────────────────────────────────
+// Canvas spans full viewport width; aspect-ratio:4/1 maintains 32×8 proportions.
+// Close via ✕ button or Esc key.
 
 #define NAV_LIVE_MODAL \
-  "<div id=\"live-modal\" onclick=\"hideLive()\" style=\"" \
+  "<div id=\"live-modal\" style=\"" \
     "display:none;position:fixed;top:0;left:0;right:0;bottom:0;" \
-    "background:rgba(0,0,0,.92);z-index:2000;" \
-    "flex-direction:column;align-items:center;justify-content:center;gap:14px\">" \
-  "<p style=\"color:#444;font-family:monospace;font-size:.72em;letter-spacing:.2em;" \
-    "text-transform:uppercase\">&#9679; Display Live</p>" \
-  "<div style=\"width:min(640px,95vw)\" onclick=\"event.stopPropagation()\">" \
+    "background:#0a0a0a;z-index:2000;flex-direction:column;" \
+    "align-items:stretch;justify-content:center\">" \
+  "<div style=\"display:flex;justify-content:space-between;align-items:center;" \
+    "padding:0 16px;height:40px;flex-shrink:0\">" \
+  "<span style=\"color:#555;font-family:monospace;font-size:.7em;" \
+    "letter-spacing:.15em;text-transform:uppercase\">&#9679; Live Display</span>" \
+  "<button onclick=\"hideLive()\" style=\"background:none;border:none;color:#666;" \
+    "font-size:1.5em;cursor:pointer;line-height:1;padding:4px 8px\">&#x2715;</button>" \
+  "</div>" \
   "<canvas id=\"live-c\" width=\"640\" height=\"160\" style=\"" \
-    "display:block;width:100%;background:#111;border-radius:6px;image-rendering:pixelated\">" \
-  "</canvas></div>" \
-  "<p style=\"color:#555;font-family:monospace;font-size:.7em\">" \
-    "click outside or press Esc to close</p>" \
+    "display:block;width:100%;aspect-ratio:4/1;" \
+    "background:#111;image-rendering:pixelated\"></canvas>" \
   "</div>"
 
 // ── Live modal JS ─────────────────────────────────────────────────────────
-// Included in each page's <script> block alongside COMMON_JS.
+// Include in each page's <script> block alongside COMMON_JS.
 
 #define NAV_LIVE_JS \
   "var _lt=null;" \

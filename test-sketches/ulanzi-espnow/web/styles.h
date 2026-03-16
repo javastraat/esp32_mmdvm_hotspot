@@ -22,12 +22,14 @@
   ".nav-brand{font-size:1.1em;font-weight:bold;color:var(--topnav-text);margin-right:6px;white-space:nowrap}" \
   ".nav-sub{font-size:.75em;color:#aaa;font-family:monospace;margin-right:10px;white-space:nowrap}" \
   ".nav-tab{color:var(--topnav-text);text-decoration:none;padding:0 12px;font-size:.85em;" \
-  "display:flex;align-items:center;height:60px;border-bottom:3px solid transparent;box-sizing:border-box;white-space:nowrap}" \
+  "display:flex;align-items:center;height:60px;border-bottom:3px solid transparent;" \
+  "box-sizing:border-box;white-space:nowrap;" \
+  "background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;font:inherit}" \
   ".nav-tab:hover{color:var(--topnav-hover-text);background:var(--topnav-hover)}" \
   ".nav-tab.active{border-bottom-color:#00bcd4;color:#00bcd4}" \
   ".nav-live{margin-left:auto;color:#00bcd4;font-family:monospace;font-size:.78em;" \
   "font-weight:bold;text-decoration:none;padding:5px 11px;border:1px solid #00bcd4;" \
-  "border-radius:4px;letter-spacing:.08em;white-space:nowrap}" \
+  "border-radius:4px;letter-spacing:.08em;white-space:nowrap;background:none;cursor:pointer}" \
   ".nav-live:hover{background:#00bcd4;color:#000}" \
   ".theme-toggle{margin-left:8px;cursor:pointer;background:var(--topnav-hover);border:none;" \
   "padding:8px 12px;border-radius:50%;font-size:1.2em;color:var(--topnav-text);flex-shrink:0}" \
@@ -65,7 +67,16 @@
   "input[type=range]{flex:1;accent-color:#00bcd4;cursor:pointer;min-width:0}" \
   "input[type=range]:disabled{opacity:.35;cursor:default}" \
   ".bright-num{color:var(--text-muted);font-size:.88em;min-width:30px;text-align:right;" \
-  "font-family:monospace;flex-shrink:0}"
+  "font-family:monospace;flex-shrink:0}" \
+  ".nav-more{position:relative}" \
+  ".nav-more-menu{display:none;position:absolute;top:60px;left:0;background:var(--topnav-bg);" \
+  "border:1px solid var(--border-color);min-width:130px;z-index:1001;" \
+  "box-shadow:0 4px 8px rgba(0,0,0,.4)}" \
+  ".nav-more-menu.open{display:block}" \
+  ".nav-more-item{display:block;padding:11px 16px;color:var(--topnav-text);" \
+  "text-decoration:none;font-size:.85em}" \
+  ".nav-more-item:hover{background:var(--topnav-hover);color:var(--topnav-hover-text)}" \
+  ".nav-more-item.active{color:#00bcd4}"
 
 // Inline theme init — placed in <head> to prevent flash of unstyled content
 #define THEME_INIT_SCRIPT \
