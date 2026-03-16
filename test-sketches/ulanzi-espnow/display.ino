@@ -190,9 +190,10 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
   int result = _gif.playFrame(false, &delay);
   *delayMs = max(delay, 33);
   Serial.printf("[GIF] playFrame result=%d delay=%dms\n", result, delay);
-  if (result != 1) {
-    // result=0 (last frame) or result<0 (decode error): close and reopen next call
-    _gif.close();
+  if (result == 0) {
+    _gif.reset();  // last frame: rewind for seamless loop
+  } else if (result < 0) {
+    _gif.close();  // decode error: reopen on next call
     _gifIsOpen = false;
   }
   return w + 1;                       // text starts right after GIF + 1px gap
