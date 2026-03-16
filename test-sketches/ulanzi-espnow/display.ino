@@ -135,6 +135,15 @@ static int32_t _gifRead(GIFFILE* pf, uint8_t* pBuf, int32_t iLen) {
   return n;
 }
 static int32_t _gifSeek(GIFFILE* pf, int32_t iPos) {
+  if (iPos == 0 && pf->iPos > 0) {
+    // Auto-rewind: clear the icon area so frame 0 draws on black (not stale last frame)
+    Serial.printf("[GIF] loop rewind iPos=%d\n", pf->iPos);
+    int cw = _gif.getCanvasWidth();
+    int ch = _gif.getCanvasHeight();
+    for (int x = 0; x < cw; x++)
+      for (int y = _gifY0; y < _gifY0 + ch; y++)
+        setLED(x, y, CRGB::Black);
+  }
   ((File*)pf->fHandle)->seek(iPos);
   pf->iPos = iPos;
   return iPos;
@@ -189,7 +198,6 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
   int delay = 100;
   int result = _gif.playFrame(false, &delay);
   *delayMs = max(delay, 33);
-  Serial.printf("[GIF] playFrame result=%d delay=%dms\n", result, delay);
   if (result == 0) {
     _gif.reset();  // last frame: rewind for seamless loop
   } else if (result < 0) {

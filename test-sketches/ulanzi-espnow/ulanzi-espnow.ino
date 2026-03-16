@@ -227,7 +227,7 @@ void setup() {
   pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
   Serial.begin(115200);
   delay(3000);
-  Serial.println("\n\n=== ESP-NOW Gateway Test Monitor + Clock ===");
+  Serial.println("\n\n=== ULANZI ESP-NOW Monitor + Clock ===");
 
   FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(LED_BRIGHTNESS);
