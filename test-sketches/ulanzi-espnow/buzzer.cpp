@@ -1,7 +1,6 @@
 // buzzer.cpp — Non-blocking LEDC buzzer engine and boot chime.
 #include "buzzer.h"
 #include "globals.h"
-#include "nvs_settings.h"
 
 uint8_t buzzerVolToDuty(uint8_t vol) {
   uint8_t d = (uint8_t)map(vol, 0, 255, 0, 100);
@@ -41,9 +40,6 @@ void loopBuzzer() {
 }
 
 void setupBuzzer() {
-  loadSettings();
-  // Apply loaded brightness immediately (before first loopBrightness() tick)
-  FastLED.setBrightness(currentBrightness);
   // ledcAttach reconfigures GPIO15 as LEDC output (overrides INPUT_PULLDOWN)
   ledcAttach(BUZZER_PIN, BUZZER_FREQ_BEEP, BUZZER_LEDC_RES);
   ledcWrite(BUZZER_PIN, 0);

@@ -155,9 +155,11 @@ void setup() {
   drawBootScreen();
 
   setupFilesystem();
+  loadSettings();                     // load NVS settings before anything uses them
+  FastLED.setBrightness(currentBrightness);  // apply brightness before first display tick
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
-  setupBuzzer();  // also calls loadSettings()
+  setupBuzzer();
   setupReceiver();// connects WiFi → calls setupOTA() → starts webServer
 
   // Arm IP scroll if WiFi connected (plays as first display in loop())
