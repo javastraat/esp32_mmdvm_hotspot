@@ -8,6 +8,7 @@
 // Upload state — persists across the two upload callbacks
 static File   _uploadFile;
 static String _uploadedName;
+static String _uploadDir;
 static bool   _uploadOk;
 
 // ── OTA ──────────────────────────────────────────────────────
@@ -314,8 +315,10 @@ static void setupWebServer() {
     []() {
       HTTPUpload& up = webServer.upload();
       if (up.status == UPLOAD_FILE_START) {
-        if (!LittleFS.exists("/icons")) LittleFS.mkdir("/icons");
-        _uploadedName = "/icons/" + up.filename;
+        _uploadDir = webServer.arg("dir");
+        if (_uploadDir.length() == 0 || _uploadDir[0] != '/') _uploadDir = "/icons";
+        if (!LittleFS.exists(_uploadDir)) LittleFS.mkdir(_uploadDir);
+        _uploadedName = (_uploadDir == "/") ? "/" + up.filename : _uploadDir + "/" + up.filename;
         _uploadOk     = false;
         LittleFS.remove(_uploadedName);
         _uploadFile = LittleFS.open(_uploadedName, "w");
@@ -444,6 +447,71 @@ static void setupWebServer() {
     snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\",\"size\":%d}",
       path.c_str(), total);
     webServer.send(200, "application/json", resp);
+  });
+
+  // ── Filesystem browser API ───────────────────────────────────
+
+  webServer.on("/api/fs/ls", HTTP_GET, []() {
+    if (!fsAvailable) { webServer.send(503, "application/json", "{\"entries\":[]}"); return; }
+    String path = webServer.arg("path");
+    if (!path.length()) path = "/";
+    File dir = LittleFS.open(path);
+    if (!dir || !dir.isDirectory()) {
+      webServer.send(200, "application/json", "{\"entries\":[]}"); return;
+    }
+    String json = "{\"entries\":[";
+    bool first = true;
+    File f = dir.openNextFile();
+    while (f) {
+      // f.name() may return just "filename.ext" or a full path — extract basename either way
+      String raw = f.name();
+      int sl = raw.lastIndexOf('/');
+      String bname = (sl >= 0) ? raw.substring(sl + 1) : raw;
+      // Build the correct full path from the listing directory + basename
+      String fullPath = (path == "/") ? "/" + bname : path + "/" + bname;
+      if (!first) json += ",";
+      json += "{\"name\":\"" + bname + "\",\"path\":\"" + fullPath + "\",\"isDir\":";
+      json += f.isDirectory() ? "true" : "false";
+      json += ",\"size\":" + String((unsigned long)f.size()) + "}";
+      first = false;
+      f = dir.openNextFile();
+    }
+    json += "]}";
+    webServer.send(200, "application/json", json);
+  });
+
+  webServer.on("/api/fs/download", HTTP_GET, []() {
+    if (!fsAvailable) { webServer.send(503, "text/plain", "FS unavailable"); return; }
+    String path = webServer.arg("path");
+    if (!path.length() || path[0] != '/') { webServer.send(400, "text/plain", "Bad path"); return; }
+    File f = LittleFS.open(path, "r");
+    if (!f || f.isDirectory()) { if (f) f.close(); webServer.send(404, "text/plain", "Not found"); return; }
+    int sl = path.lastIndexOf('/');
+    String fname = (sl >= 0) ? path.substring(sl + 1) : path;
+    webServer.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+    webServer.streamFile(f, "application/octet-stream");
+    f.close();
+  });
+
+  webServer.on("/api/fs/delete", HTTP_POST, []() {
+    if (!fsAvailable) { webServer.send(503, "text/plain", "FS unavailable"); return; }
+    String path = webServer.arg("path");
+    if (!path.length() || path[0] != '/') { webServer.send(400, "text/plain", "Bad path"); return; }
+    File f = LittleFS.open(path);
+    bool isDir = f && f.isDirectory();
+    if (f) f.close();
+    bool ok = isDir ? LittleFS.rmdir(path) : LittleFS.remove(path);
+    if (!ok && isDir) { webServer.send(500, "text/plain", "Cannot delete — folder may not be empty"); return; }
+    if (!ok)          { webServer.send(500, "text/plain", "Delete failed"); return; }
+    webServer.send(200, "text/plain", "Deleted: " + path);
+  });
+
+  webServer.on("/api/fs/mkdir", HTTP_POST, []() {
+    if (!fsAvailable) { webServer.send(503, "text/plain", "FS unavailable"); return; }
+    String path = webServer.arg("path");
+    if (!path.length() || path[0] != '/') { webServer.send(400, "text/plain", "Bad path"); return; }
+    bool ok = LittleFS.mkdir(path);
+    webServer.send(ok ? 200 : 500, "text/plain", ok ? "Created: " + path : "Failed");
   });
 
   webServer.begin();

@@ -20,7 +20,7 @@
 // OTA update
 // ============================================================
 #define OTA_HOSTNAME  "ulanzi-clock"
-#define OTA_PASSWORD  "mmdvm"           // leave empty "" to disable password
+#define OTA_PASSWORD  "ulanzi"           // leave empty "" to disable password
 
 
 // ============================================================

@@ -139,9 +139,9 @@ static unsigned long modeActiveUntil = 0;
 #define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
 
 // Icon filenames (GIF from LittleFS; missing file = built-in bitmap fallback)
-static char iconTempFile[32] = "/temp.gif";
-static char iconHumFile[32]  = "/hum.gif";
-static char iconBatFile[32]  = "/bat.gif";
+static char iconTempFile[32] = "/icons/ani_temp.gif";
+static char iconHumFile[32]  = "/icons/ani_hum.gif";
+static char iconBatFile[32]  = "/icons/icon_bat.jpg";
 
 // ============================================================
 // Web status (updated by receive code, served via /api/status)
