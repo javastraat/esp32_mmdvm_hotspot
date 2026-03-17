@@ -300,22 +300,52 @@ function downloadIcon(){
   var id=document.getElementById('icon-id').value.trim();
   var st=document.getElementById('icon-status');
   if(!id){st.textContent='Enter an icon ID.';st.style.color='#dc3545';return;}
-  st.textContent='Downloading\u2026';st.style.color='var(--text-muted)';
-  var fd=new URLSearchParams();fd.append('id',id);
-  fetch('/api/icons/download',{method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd.toString()})
+  st.textContent='Fetching\u2026';st.style.color='var(--text-muted)';
+  // Fetch via ESP32 proxy (avoids CORS issues)
+  fetch('/api/icons/proxy?id='+encodeURIComponent(id))
+  .then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var ct=r.headers.get('content-type')||'';
+    return r.blob().then(function(blob){return{blob:blob,ct:ct};});
+  })
+  .then(function(d){
+    var blob=d.blob,ct=d.ct;
+    if(ct.indexOf('gif')>=0){
+      // GIF — upload as-is
+      return _saveIconBlob(id+'.gif',blob,st);
+    }
+    // PNG or JPEG — convert to JPEG via canvas so TJpg_Decoder can display it
+    st.textContent='Converting\u2026';st.style.color='var(--text-muted)';
+    return new Promise(function(resolve,reject){
+      var blobUrl=URL.createObjectURL(blob);
+      var img=new Image();
+      img.onload=function(){
+        URL.revokeObjectURL(blobUrl);
+        var canvas=document.createElement('canvas');
+        canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+        canvas.getContext('2d').drawImage(img,0,0);
+        canvas.toBlob(function(jpegBlob){
+          if(!jpegBlob){reject(new Error('canvas conversion failed'));return;}
+          resolve(_saveIconBlob(id+'.jpg',jpegBlob,st));
+        },'image/jpeg',1.0);
+      };
+      img.onerror=function(){URL.revokeObjectURL(blobUrl);reject(new Error('image load failed'));};
+      img.src=blobUrl;
+    });
+  })
+  .catch(function(e){st.textContent='Error: '+e.message;st.style.color='#dc3545';});
+}
+function _saveIconBlob(filename,blob,st){
+  st.textContent='Saving\u2026';st.style.color='var(--text-muted)';
+  var fd=new FormData();fd.append('file',blob,filename);
+  return fetch('/api/files/upload?dir=%2Ficons',{method:'POST',body:fd})
   .then(function(r){return r.json();})
   .then(function(d){
     if(d.ok){
-      st.textContent='Saved: '+d.name+' ('+fmtSize(d.size)+')';
-      st.style.color='#28a745';
-      fbRefresh();loadFs();
-    }else{
-      st.textContent='Error: '+(d.error||'download failed');
-      st.style.color='#dc3545';
-    }
-  })
-  .catch(function(){st.textContent='Request failed';st.style.color='#dc3545';});
+      st.textContent='Saved: /icons/'+d.name.split('/').pop()+' ('+fmtSize(blob.size)+')';
+      st.style.color='#28a745';fbRefresh();loadFs();
+    }else{throw new Error(d.error||'save failed');}
+  });
 }
 function fbRename(path){
   var sl=path.lastIndexOf('/');
