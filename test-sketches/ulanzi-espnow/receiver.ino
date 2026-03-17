@@ -221,8 +221,8 @@ void setupReceiver() {
 
   uint8_t macBytes[6];
   esp_wifi_get_mac(WIFI_IF_STA, macBytes);
-  Serial.println("[INFO] My MAC (use as RECEIVER_MAC in sender config.h):");
-  Serial.printf("       %02X:%02X:%02X:%02X:%02X:%02X\n",
+  Serial.printf("[INFO] My MAC : ");
+  Serial.printf("%02X:%02X:%02X:%02X:%02X:%02X\n",
     macBytes[0], macBytes[1], macBytes[2],
     macBytes[3], macBytes[4], macBytes[5]);
 
