@@ -1,14 +1,15 @@
-// buzzer.ino — Non-blocking LEDC buzzer engine and boot chime.
-// State globals (buzzerQFreq/Duration/Duty/Pending, buzzerEndMs, buzzerBoot*,
-// buzzerPocsag*, buzzerClick*) declared in ulanzi-espnow.ino.
+// buzzer.cpp — Non-blocking LEDC buzzer engine and boot chime.
+#include "buzzer.h"
+#include "globals.h"
+#include "nvs_settings.h"
 
-static uint8_t buzzerVolToDuty(uint8_t vol) {
+uint8_t buzzerVolToDuty(uint8_t vol) {
   uint8_t d = (uint8_t)map(vol, 0, 255, 0, 100);
   return (d < 1) ? 1 : d;
 }
 
 // Queue a tone — safe to call from any context (incl. ESP-NOW callback)
-static void buzzerPlay(uint16_t freq, uint16_t durationMs, uint8_t duty) {
+void buzzerPlay(uint16_t freq, uint16_t durationMs, uint8_t duty) {
   if (duty == 0) return;
   buzzerQFreq     = freq;
   buzzerQDuration = durationMs;
@@ -16,17 +17,17 @@ static void buzzerPlay(uint16_t freq, uint16_t durationMs, uint8_t duty) {
   buzzerQPending  = true;
 }
 
-static void buzzerBeep() {
+void buzzerBeep() {
   if (!buzzerPocsagEnabled) return;
   buzzerPlay(BUZZER_FREQ_BEEP, BUZZER_DUR_BEEP_MS, buzzerVolToDuty(buzzerPocsagVolume));
 }
 
-static void buzzerClick() {
+void buzzerClick() {
   if (!buzzerClickEnabled) return;
   buzzerPlay(BUZZER_FREQ_CLICK, BUZZER_DUR_CLICK_MS, buzzerVolToDuty(buzzerClickVolume));
 }
 
-static void loopBuzzer() {
+void loopBuzzer() {
   if (buzzerQPending) {
     buzzerQPending = false;
     ledcChangeFrequency(BUZZER_PIN, buzzerQFreq, BUZZER_LEDC_RES);
@@ -39,7 +40,7 @@ static void loopBuzzer() {
   }
 }
 
-static void setupBuzzer() {
+void setupBuzzer() {
   loadSettings();
   // Apply loaded brightness immediately (before first loopBrightness() tick)
   FastLED.setBrightness(currentBrightness);

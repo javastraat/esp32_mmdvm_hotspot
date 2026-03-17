@@ -1,10 +1,13 @@
-// display.ino — Font tables, LED drawing helpers, brightness, auto-rotate,
+// display.cpp — Font tables, LED drawing helpers, brightness, auto-rotate,
 // and the main display loop.
-// All globals (leds[], displayMode, pocsagMsg*, currentBrightness, sht31Temp/Hum,
-// otaInProgress, timeSynced, autoRotateEnabled, etc.) declared in ulanzi-espnow.ino.
+#include "display.h"
+#include "globals.h"
+#include <AnimatedGIF.h>
+#include <TJpg_Decoder.h>
+#include <LittleFS.h>
 
 // ============================================================
-// 3×5 pixel fonts
+// 3×5 pixel fonts (file-private)
 // ============================================================
 
 static const uint8_t FONT_DIGITS[10][5] = {
@@ -113,8 +116,7 @@ static const uint8_t FONT_SPECIAL[][5] = {
 };
 
 // ============================================================
-// GIF icon rendering (AnimatedGIF + LittleFS)
-// fsAvailable and LittleFS declared in ulanzi-espnow.ino.
+// GIF icon rendering (AnimatedGIF + LittleFS) — file-private state
 // ============================================================
 
 static AnimatedGIF _gif;
@@ -180,7 +182,7 @@ static bool _gifEnsureOpen(const char* path) {
   return true;
 }
 
-static void _gifCloseIfOpen() {
+void _gifCloseIfOpen() {
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; }
 }
 
@@ -211,8 +213,6 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
 // JPEG icon rendering (TJpg_Decoder + LittleFS)
 // ============================================================
 
-
-// Callback for TJpg_Decoder to render pixels to matrix
 static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
   for (int row = 0; row < h; row++) {
     for (int col = 0; col < w; col++) {
@@ -237,9 +237,9 @@ static int drawJpegIcon(const char* path, int* delayMs) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return -1;
   }
-  FastLED.clear(); // Always clear before decode
+  FastLED.clear();
   TJpgDec.setCallback(jpgMatrixOutput);
-  TJpgDec.setJpgScale(1); // No scaling
+  TJpgDec.setJpgScale(1);
   TJpgDec.drawFsJpg(0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
   jpgFile.close();
   return 9; // icon width + 1
@@ -261,7 +261,7 @@ static int drawIcon(const char* path, int textW, int* delayMs) {
 // LED drawing primitives
 // ============================================================
 
-static void setLED(int x, int y, CRGB color) {
+void setLED(int x, int y, CRGB color) {
   if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT) return;
   int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
   leds[idx] = color;
@@ -305,7 +305,7 @@ static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
 }
 
 // drawUpdate: called once on OTA start — sets text + full dim track on row 7
-static void drawUpdate() {
+void drawUpdate() {
   FastLED.clear();
   _drawGlyphs(FONT_UPDATE, 6, LED_COLOR_TIME,
               (MATRIX_WIDTH - 23 + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
@@ -315,19 +315,17 @@ static void drawUpdate() {
 }
 
 // drawProgress: redraws the full bar row on every call — corrects any corruption
-static void drawProgress(int barW) {
+void drawProgress(int barW) {
   for (int x = 0; x < MATRIX_WIDTH; x++)
     setLED(x, 7, (x < barW) ? CRGB::Cyan : CRGB(0, 25, 25));
   FastLED.show();
 }
 
-static void drawDone()   { drawStatusWord(FONT_DONE,  4, CRGB::Green); }
-static void drawError()  { drawStatusWord(FONT_ERROR, 5, CRGB::Red);   }
+void drawDone()   { drawStatusWord(FONT_DONE,  4, CRGB::Green); }
+void drawError()  { drawStatusWord(FONT_ERROR, 5, CRGB::Red);   }
 
 // Boot screen — "ULANZI" in rainbow colours, letters appear one by one.
-// Called from setup(); setup() clears the frame immediately after return so
-// the scanner animation takes over as soon as loop() starts.
-static void drawBootScreen() {
+void drawBootScreen() {
   static const CRGB colors[6] = {
     CRGB(255,   0,   0),  // U — red
     CRGB(255, 100,   0),  // L — orange
@@ -348,7 +346,7 @@ static void drawBootScreen() {
   delay(1200);  // hold complete word visible
 }
 
-static void drawChar(int x, int y, char c, CRGB color) {
+void drawChar(int x, int y, char c, CRGB color) {
   if (c >= 'a' && c <= 'z') c -= 32;
   if (c >= '0' && c <= '9') { drawDigit(x, y, c - '0', color); return; }
   if (c >= 'A' && c <= 'Z') {
@@ -376,7 +374,7 @@ static void drawChar(int x, int y, char c, CRGB color) {
 // Brightness — LDR auto-dim
 // ============================================================
 
-static void loopBrightness() {
+void loopBrightness() {
   if (!autoBrightnessEnabled) return;
   static unsigned long lastUpdate = 0;
   if (millis() - lastUpdate < LDR_UPDATE_MS) return;
@@ -393,7 +391,7 @@ static void loopBrightness() {
 // Auto-rotation — cycles clock→temp→humidity on a timer
 // ============================================================
 
-static void loopAutoRotate() {
+void loopAutoRotate() {
   if (!autoRotateEnabled || !sht31Available) return;
 
   static unsigned long lastRotate = 0;
@@ -418,7 +416,7 @@ static void loopAutoRotate() {
 // Main display loop
 // ============================================================
 
-static void loopDisplay() {
+void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
 
   // POCSAG message display — takes priority over all modes
@@ -523,7 +521,7 @@ static void loopDisplay() {
     if (modeChanged) { _gifCloseIfOpen(); nextDraw = 0; FastLED.clear(); }
     if (millis() < nextDraw) return;
 
-    const int yo = (MATRIX_HEIGHT - 5) / 2;  // 1 row lower than center
+    const int yo = (MATRIX_HEIGHT - 5) / 2;
     char buf[8];
     CRGB color;
     int gifDelay = 1000;
@@ -540,7 +538,6 @@ static void loopDisplay() {
       int textW = len * 4 - 1;
       int textX = drawIcon(iconTempFile, textW, &gifDelay);
       if (textX < 0) {
-        // Bitmap fallback — needs a full clear since there's no GIF managing the area
         FastLED.clear();
         gifDelay = 1000;
         int totalW = 4 + textW;
@@ -551,7 +548,6 @@ static void loopDisplay() {
               setLED(xo + col, yo + row, color);
         textX = xo + 4;
       } else {
-        // Clear only the text columns — GIF area must NOT be cleared (delta frames)
         for (int x = textX - 1; x < MATRIX_WIDTH; x++)
           for (int y = 0; y < MATRIX_HEIGHT; y++)
             setLED(x, y, CRGB::Black);
@@ -614,7 +610,6 @@ static void loopDisplay() {
 
     int textX = drawIcon(iconBatFile, textW, &gifDelay);
     if (textX < 0) {
-      // Bitmap fallback
       FastLED.clear();
       gifDelay = 2000;
       const int yf = (MATRIX_HEIGHT - 5) / 2;

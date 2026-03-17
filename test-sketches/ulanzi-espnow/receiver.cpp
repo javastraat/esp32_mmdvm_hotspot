@@ -1,9 +1,15 @@
-// receiver.ino — ESP-NOW receive callback, POCSAG processing, and receiver setup.
-// All globals (pocsagMsg*, wsCount*, wsPocsagLog, pocsagRxQueue, timeSynced,
-// pocsagSynced, rtcAvailable, rxTotal*, callFrames/Src/Dst/Slot/Start)
-// are declared in ulanzi-espnow.ino.
+// receiver.cpp — ESP-NOW receive callback, POCSAG processing, and receiver setup.
+#include "receiver.h"
+#include "globals.h"
+#include "buzzer.h"
+#include "sensor.h"
+#include "web_server.h"
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <WiFi.h>
+#include <time.h>
 
-// ── POCSAG helpers ───────────────────────────────────────────
+// ── POCSAG helpers ────────────────────────────────────────────────────────────
 
 #if RECV_POCSAG
 
@@ -54,7 +60,7 @@ static void applyPocsagTime(const char* msg) {
 }
 
 // Runs on Core 1 (loop()) after being dequeued from pocsagRxQueue.
-static void processPocsagPacket(const EspNowPocsagPacket& pkt) {
+void processPocsagPacket(const EspNowPocsagPacket& pkt) {
   if (pkt.ric == TIME_POCSAG_RIC)
     applyPocsagTime(pkt.message);
 
@@ -88,13 +94,13 @@ static void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 
 #endif  // RECV_POCSAG
 
-// ── Receive callback (Core 0 WiFi stack) ─────────────────────
+// ── Receive callback (Core 0 WiFi stack) ──────────────────────────────────────
 
 void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen) {
   if (inLen < 1) return;
   uint8_t type = inData[0];
 
-  // ── DMR packet ──────────────────────────────────────────────
+  // ── DMR packet ──────────────────────────────────────────────────────────────
 #if RECV_DMR
   if (type == ESPNOW_TYPE_DMR_NET) {
     EspNowDmrNetPacket pkt = {};
@@ -146,7 +152,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   }
 #endif  // RECV_DMR
 
-  // ── POCSAG packet ───────────────────────────────────────────
+  // ── POCSAG packet ────────────────────────────────────────────────────────────
 #if RECV_POCSAG
   if (type == ESPNOW_TYPE_POCSAG) {
     EspNowPocsagPacket pkt = {};
@@ -173,7 +179,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
 }
 
-// ── WiFi + ESP-NOW setup ──────────────────────────────────────
+// ── WiFi + ESP-NOW setup ──────────────────────────────────────────────────────
 
 static void setupReceiverNetwork() {
   WiFi.mode(WIFI_STA);
@@ -188,7 +194,7 @@ static void setupReceiverNetwork() {
       WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
       Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
-      setupOTA();
+      setupOTA();            // ArduinoOTA + WebServer (in web_server.cpp)
     } else {
       Serial.println("\n[WiFi] Not connected");
       WiFi.disconnect();

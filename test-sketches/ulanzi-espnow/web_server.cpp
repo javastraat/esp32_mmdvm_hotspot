@@ -1,9 +1,19 @@
-// web.ino — ArduinoOTA setup and WebServer route handlers.
+// web_server.cpp — ArduinoOTA setup and WebServer route handlers.
+// Web page HTML constants are in web/*.h — edit those files to change the UI.
+#include "web_server.h"
+#include "globals.h"
+#include "display.h"
+#include "buzzer.h"
+#include "nvs_settings.h"
+#include "sensor.h"
+#include <ArduinoOTA.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
-// All globals (webServer, otaInProgress, otaStarted, otaLastBarW, timeSynced,
-// pocsagSynced, wsCount*, wsPocsagLog, currentBrightness, autoBrightnessEnabled,
-// buzzer*, sht31*, displayMode, autoRotate*, leds[], fsAvailable) declared in ulanzi-espnow.ino.
+#include <LittleFS.h>
+#include "web/main.h"
+#include "web/settings.h"
+#include "web/system.h"
+#include "web/files.h"
 
 // Upload state — persists across the two upload callbacks
 static File   _uploadFile;
@@ -11,45 +21,21 @@ static String _uploadedName;
 static String _uploadDir;
 static bool   _uploadOk;
 
+// ── Web + OTA task (Core 0) ───────────────────────────────────────────────────
 
-// ── OTA ──────────────────────────────────────────────────────
-
-static void setupOTA() {
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
-  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
-  ArduinoOTA.onStart([]() {
-    Serial.println("[OTA] Start");
-    otaInProgress = true;
-    otaLastBarW   = -1;
-    drawUpdate();
-  });
-  ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
-    int barW = (total > 0) ? (int)((long)MATRIX_WIDTH * current / total) : 0;
-    if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\n[OTA] Done — rebooting");
-    delay(500);                   // let WiFi/OTA stack finish before touching display
-    FastLED.clear(); FastLED.show();
-    delay(200);                   // allow the clear to fully latch
-    drawDone();
-    delay(1500);
-    otaInProgress = false;
-  });
-  ArduinoOTA.onError([](ota_error_t e) {
-    Serial.printf("[OTA] Error %u\n", e);
-    otaInProgress = false;
-    drawError();
-    delay(3000);
-    timeSynced = false;  // trigger scanner animation until clock resyncs
-  });
-  ArduinoOTA.begin();
-  otaStarted = true;
-  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
-  setupWebServer();
+static void webTaskFn(void*) {
+  for (;;) {
+    if (otaStarted) ArduinoOTA.handle();
+    webServer.handleClient();
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
 }
 
-// ── HTTP handlers ─────────────────────────────────────────────
+void initWebTask() {
+  xTaskCreatePinnedToCore(webTaskFn, "webTask", 8192, nullptr, 1, nullptr, 0);
+}
+
+// ── HTTP handlers ─────────────────────────────────────────────────────────────
 
 static void setupWebServer() {
   webServer.on("/", HTTP_GET, []() {
@@ -234,7 +220,7 @@ static void setupWebServer() {
     ESP.restart();
   });
 
-  // ── Filesystem page + API ─────────────────────────────────
+  // ── Filesystem page + API ──────────────────────────────────────────────────
 
   webServer.on("/files", HTTP_GET, []() {
     webServer.send_P(200, "text/html", PAGE_FILES);
@@ -257,10 +243,8 @@ static void setupWebServer() {
       webServer.send(503, "application/json", "[]");
       return;
     }
-    // Recursive listing via explicit dir stack
     String json = "[";
     bool first = true;
-    // Use two passes: root files then one level of subdirs
     std::function<void(const String&)> listDir = [&](const String& dirPath) {
       File dir = LittleFS.open(dirPath);
       if (!dir) return;
@@ -295,14 +279,12 @@ static void setupWebServer() {
       webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing name\"}");
       return;
     }
-    // Ensure leading slash
     if (name[0] != '/') name = "/" + name;
     bool ok = LittleFS.remove(name);
     webServer.send(200, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false,\"error\":\"not found\"}");
   });
 
   webServer.on("/api/files/upload", HTTP_POST,
-    // Finish handler — fires after all upload chunks are received
     []() {
       if (_uploadOk) {
         char resp[120];
@@ -312,7 +294,6 @@ static void setupWebServer() {
         webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"write failed\"}");
       }
     },
-    // Upload handler — called repeatedly with each chunk
     []() {
       HTTPUpload& up = webServer.upload();
       if (up.status == UPLOAD_FILE_START) {
@@ -396,9 +377,6 @@ static void setupWebServer() {
       webServer.send(404, "text/plain", "not found");
       return;
     }
-    String ct = http.header("Content-Type");
-    if (ct.length() == 0) ct = "application/octet-stream";
-
     const int MAX_DL = 8192;
     uint8_t* buf = (uint8_t*)malloc(MAX_DL);
     if (!buf) { http.end(); webServer.send(500, "text/plain", "no memory"); return; }
@@ -418,12 +396,24 @@ static void setupWebServer() {
     }
     http.end();
 
+    // Detect type from magic bytes — http.header("Content-Type") requires
+    // collectHeaders() and is unreliable here; magic bytes always work.
+    const char* ct;
+    if (total >= 3 && buf[0] == 'G' && buf[1] == 'I' && buf[2] == 'F')
+      ct = "image/gif";
+    else if (total >= 2 && buf[0] == 0xFF && buf[1] == 0xD8)
+      ct = "image/jpeg";
+    else if (total >= 4 && buf[0] == 0x89 && buf[1] == 'P' && buf[2] == 'N' && buf[3] == 'G')
+      ct = "image/png";
+    else
+      ct = "application/octet-stream";
+
     webServer.sendHeader("Access-Control-Allow-Origin", "*");
-    webServer.send_P(200, ct.c_str(), (const char*)buf, total);
+    webServer.send_P(200, ct, (const char*)buf, total);
     free(buf);
   });
 
-  // ── Filesystem browser API ───────────────────────────────────
+  // ── Filesystem browser API ─────────────────────────────────────────────────
 
   webServer.on("/api/fs/ls", HTTP_GET, []() {
     if (!fsAvailable) { webServer.send(503, "application/json", "{\"entries\":[]}"); return; }
@@ -437,11 +427,9 @@ static void setupWebServer() {
     bool first = true;
     File f = dir.openNextFile();
     while (f) {
-      // f.name() may return just "filename.ext" or a full path — extract basename either way
       String raw = f.name();
       int sl = raw.lastIndexOf('/');
       String bname = (sl >= 0) ? raw.substring(sl + 1) : raw;
-      // Build the correct full path from the listing directory + basename
       String fullPath = (path == "/") ? "/" + bname : path + "/" + bname;
       if (!first) json += ",";
       json += "{\"name\":\"" + bname + "\",\"path\":\"" + fullPath + "\",\"isDir\":";
@@ -501,4 +489,41 @@ static void setupWebServer() {
 
   webServer.begin();
   Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
+}
+
+// ── OTA ───────────────────────────────────────────────────────────────────────
+
+void setupOTA() {
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
+  ArduinoOTA.onStart([]() {
+    Serial.println("[OTA] Start");
+    otaInProgress = true;
+    otaLastBarW   = -1;
+    drawUpdate();
+  });
+  ArduinoOTA.onProgress([](unsigned int current, unsigned int total) {
+    int barW = (total > 0) ? (int)((long)MATRIX_WIDTH * current / total) : 0;
+    if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\n[OTA] Done — rebooting");
+    delay(500);
+    FastLED.clear(); FastLED.show();
+    delay(200);
+    drawDone();
+    delay(1500);
+    otaInProgress = false;
+  });
+  ArduinoOTA.onError([](ota_error_t e) {
+    Serial.printf("[OTA] Error %u\n", e);
+    otaInProgress = false;
+    drawError();
+    delay(3000);
+    timeSynced = false;  // trigger scanner animation until clock resyncs
+  });
+  ArduinoOTA.begin();
+  otaStarted = true;
+  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
+  setupWebServer();
 }

@@ -1,7 +1,9 @@
-// filesystem.ino — LittleFS initialisation.
-// Global fsAvailable declared in ulanzi-espnow.ino.
+// filesystem.cpp — LittleFS initialisation.
+#include "filesystem.h"
+#include "globals.h"
+#include <LittleFS.h>
 
-static void setupFilesystem() {
+void setupFilesystem() {
   if (!LittleFS.begin(true)) {    // true = format on first boot if empty
     Serial.println("[FS] LittleFS mount failed — filesystem unavailable");
     return;

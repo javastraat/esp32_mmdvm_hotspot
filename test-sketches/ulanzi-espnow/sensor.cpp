@@ -1,13 +1,14 @@
-// sensor.ino — DS1307 RTC (direct I2C) and SHT31 temperature/humidity sensor.
-// Globals (rtcAvailable, timeSynced, sht31Sensor, sht31Available, sht31Temp, sht31Hum)
-// declared in ulanzi-espnow.ino.
+// sensor.cpp — DS1307 RTC (direct I2C) and SHT31 temperature/humidity sensor.
+#include "sensor.h"
+#include "globals.h"
+#include <Wire.h>
 
-// ── DS1307 RTC ───────────────────────────────────────────────
+// ── DS1307 RTC ────────────────────────────────────────────────────────────────
 
 static uint8_t bcd2dec(uint8_t b) { return (b >> 4) * 10 + (b & 0x0F); }
 static uint8_t dec2bcd(uint8_t d) { return ((d / 10) << 4) | (d % 10); }
 
-static bool ds1307Read(struct tm& t) {
+bool ds1307Read(struct tm& t) {
   Wire.beginTransmission(0x68);
   Wire.write(0x00);
   if (Wire.endTransmission() != 0) return false;
@@ -36,14 +37,14 @@ static bool ds1307Read(struct tm& t) {
 // ds1307Read() checks this bit and returns false, so setupRTC() will not
 // restore the time on next boot — but rtcAvailable stays true so that
 // applyPocsagTime() can write back to the RTC when a time beacon arrives.
-static void ds1307Stop() {
+void ds1307Stop() {
   Wire.beginTransmission(0x68);
   Wire.write(0x00);
   Wire.write(0x80);  // CH bit set → oscillator stopped
   Wire.endTransmission();
 }
 
-static void ds1307Write(const struct tm& t) {
+void ds1307Write(const struct tm& t) {
   Wire.beginTransmission(0x68);
   Wire.write(0x00);
   Wire.write(dec2bcd(t.tm_sec));          // CH=0 → oscillator running
@@ -56,7 +57,7 @@ static void ds1307Write(const struct tm& t) {
   Wire.endTransmission();
 }
 
-static void setupRTC() {
+void setupRTC() {
   Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
   Wire.beginTransmission(0x68);
   if (Wire.endTransmission() != 0) {
@@ -78,10 +79,10 @@ static void setupRTC() {
     t.tm_hour, t.tm_min, t.tm_sec);
 }
 
-// ── SHT31 ────────────────────────────────────────────────────
+// ── SHT31 ─────────────────────────────────────────────────────────────────────
 // Wire already started by setupRTC(). Uses SHT31 library (Rob Tillaart).
 
-static void setupSHT31() {
+void setupSHT31() {
   Wire.beginTransmission(0x44);
   if (Wire.endTransmission() != 0) {
     Serial.println("[SHT31] Not found");
@@ -94,7 +95,7 @@ static void setupSHT31() {
   Serial.printf("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
 }
 
-static void loopSHT31() {
+void loopSHT31() {
   if (!sht31Available) return;
   static unsigned long last = 0;
   if (millis() - last < 30000) return;

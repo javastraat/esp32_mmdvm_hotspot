@@ -1,8 +1,9 @@
-// buttons.ino — Debounced button handler.
-// Globals (autoBrightnessEnabled, currentBrightness, sht31Available,
-// displayMode, modeActiveUntil, MODE_TIMEOUT_MS) declared in ulanzi-espnow.ino.
+// buttons.cpp — Debounced button handler.
+#include "buttons.h"
+#include "globals.h"
+#include "buzzer.h"
 
-static void loopButtons() {
+void loopButtons() {
   static bool          lastState[3]  = {HIGH, HIGH, HIGH};
   static bool          fired[3]      = {false, false, false};
   static unsigned long lastChange[3] = {0, 0, 0};

@@ -1,8 +1,9 @@
-// settings.ino — NVS Preferences: load and save all user-configurable settings.
-// All globals (autoBrightnessEnabled, currentBrightness, buzzer*, autoRotate*)
-// are declared in ulanzi-espnow.ino.
+// nvs_settings.cpp — NVS Preferences: load and save all user-configurable settings.
+#include "nvs_settings.h"
+#include "globals.h"
+#include <Preferences.h>
 
-static void loadSettings() {
+void loadSettings() {
   Preferences p;
   p.begin("ulanzi", true);  // read-only
   // Brightness
@@ -25,7 +26,7 @@ static void loadSettings() {
   p.end();
 }
 
-static void saveSettings() {
+void saveSettings() {
   Preferences p;
   p.begin("ulanzi", false);  // read-write
   // Brightness

@@ -8,223 +8,141 @@
  *
  * Configure modes and display settings in config.h.
  *
- * File layout (all compiled as one unit by Arduino):
- *   ulanzi-espnow.ino  — this file: includes, ALL globals, setup(), loop()
- *   buttons.ino        — loopButtons()
- *   buzzer.ino         — buzzer engine + setupBuzzer()
- *   display.ino        — fonts, drawing helpers, loopDisplay/Brightness/AutoRotate
- *   receiver.ino       — ESP-NOW onReceive(), processPocsagPacket(), setupReceiver()
- *   sensor.ino         — DS1307 RTC + SHT31
- *   settings.ino       — loadSettings() / saveSettings()
- *   web.ino            — setupOTA() + setupWebServer() + all HTTP handlers
- *   filesystem.ino     — LittleFS init (setupFilesystem())
+ * File layout:
+ *   ulanzi-espnow.ino    — global variable definitions, setup(), loop()
+ *   globals.h            — shared extern declarations (included by every module)
+ *   buzzer.h/.cpp        — LEDC buzzer engine
+ *   buttons.h/.cpp       — debounced button handler
+ *   display.h/.cpp       — LED matrix fonts, drawing helpers, display loop
+ *   filesystem.h/.cpp    — LittleFS initialisation
+ *   nvs_settings.h/.cpp  — NVS Preferences load/save
+ *   receiver.h/.cpp      — ESP-NOW receive callback + POCSAG processing
+ *   sensor.h/.cpp        — DS1307 RTC + SHT31 temperature/humidity
+ *   web_server.h/.cpp    — ArduinoOTA + WebServer routes + web task
+ *   web/                 — web page HTML constants (edit these to change the UI)
  */
 
-#include "config.h"
-#include <FastLED.h>
-#include <WiFi.h>
-#include <WebServer.h>
-#include <ArduinoOTA.h>
-#include <esp_now.h>
-#include <esp_wifi.h>
-#include <esp_system.h>
-#include <time.h>
-#include <Preferences.h>
-#include <Wire.h>
-#include <LittleFS.h>
-#include <AnimatedGIF.h>
-#include <TJpg_Decoder.h>
-#include "web/main.h"
-#include "web/settings.h"
-#include "web/system.h"
-#include "web/files.h"
-#include "SHT31.h"
+#include "globals.h"
+#include "buzzer.h"
+#include "buttons.h"
+#include "display.h"
+#include "filesystem.h"
+#include "nvs_settings.h"
+#include "receiver.h"
+#include "sensor.h"
+#include "web_server.h"
 
-// ============================================================
-// Sanity checks
-// ============================================================
+// ── Sanity checks ─────────────────────────────────────────────────────────────
+
 #if RECV_DMR == false && RECV_POCSAG == false
   #error "Enable at least one of RECV_DMR or RECV_POCSAG in config.h."
 #endif
 
-// ============================================================
-// Packet definitions — MUST match system/system_espnow.h exactly
-// ============================================================
-#define ESPNOW_TYPE_DMR_NET  0x10
-#define ESPNOW_TYPE_POCSAG   0x11
-
-#define POCSAG_MSG_MAX_LEN   80
-#define FUNCTIONAL_NUMERIC       0
-#define FUNCTIONAL_ALPHANUMERIC  3
-
-struct __attribute__((packed)) EspNowDmrNetPacket {
-  uint8_t type;
-  uint8_t len;
-  uint8_t data[60];
-};
-
-struct __attribute__((packed)) EspNowPocsagPacket {
-  uint8_t  type;
-  uint32_t ric;
-  uint8_t  functional;
-  char     message[POCSAG_MSG_MAX_LEN + 1];
-};
-
-// ============================================================
-// LED matrix — 32×8 WS2812B serpentine
-// ============================================================
-#define NUM_LEDS      256
-#define MATRIX_WIDTH   32
-#define MATRIX_HEIGHT   8
+// ── Global variable definitions ───────────────────────────────────────────────
+// All extern declarations for these are in globals.h.
 
 CRGB leds[NUM_LEDS];
 
-// ============================================================
+// Display state
+DisplayMode   displayMode     = MODE_CLOCK;
+unsigned long modeActiveUntil = 0;
+
+// Icon filenames (GIF/JPEG from LittleFS; missing file = built-in bitmap fallback)
+char iconTempFile[32] = "/icons/ani_temp.gif";
+char iconHumFile[32]  = "/icons/ani_hum.gif";
+char iconBatFile[32]  = "/icons/icon_bat.jpg";
+
 // POCSAG display state
-// ============================================================
 #if RECV_POCSAG
-static char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
-static int   pocsagMsgLen        = 0;
-static bool  pocsagMsgActive     = false;
-static bool  pocsagIsScrolling   = false;
-// scroll-mode state
-static int   pocsagScrollX       = 0;
-static int   pocsagScrollPass    = 0;
-static unsigned long pocsagScrollLast = 0;
-// static-mode state
-static unsigned long pocsagStaticUntil   = 0;
-static unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
+char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
+int   pocsagMsgLen        = 0;
+bool  pocsagMsgActive     = false;
+bool  pocsagIsScrolling   = false;
+int   pocsagScrollX       = 0;
+int   pocsagScrollPass    = 0;
+unsigned long pocsagScrollLast    = 0;
+unsigned long pocsagStaticUntil   = 0;
+unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 #endif
 
-// ============================================================
 // Brightness (LDR auto + manual)
-// ============================================================
-static bool    autoBrightnessEnabled = true;
-static uint8_t currentBrightness     = LED_BRIGHTNESS;
+bool    autoBrightnessEnabled = true;
+uint8_t currentBrightness     = LED_BRIGHTNESS;
 
-// ============================================================
 // Buzzer settings & non-blocking tone engine
-// ============================================================
-static bool    buzzerBootEnabled   = true;
-static uint8_t buzzerBootVolume    = BUZZER_VOL_BOOT;
-static bool    buzzerPocsagEnabled = true;
-static uint8_t buzzerPocsagVolume  = BUZZER_VOL_POCSAG;
-static bool    buzzerClickEnabled  = true;
-static uint8_t buzzerClickVolume   = BUZZER_VOL_CLICK;
-
 // Tone queue — written from ESP-NOW callback (Core 0), processed in loop() (Core 1)
-static volatile uint16_t buzzerQFreq     = 0;
-static volatile uint16_t buzzerQDuration = 0;
-static volatile uint8_t  buzzerQDuty     = 0;
-static volatile bool     buzzerQPending  = false;
-static unsigned long     buzzerEndMs     = 0;
+bool    buzzerBootEnabled   = true;
+uint8_t buzzerBootVolume    = BUZZER_VOL_BOOT;
+bool    buzzerPocsagEnabled = true;
+uint8_t buzzerPocsagVolume  = BUZZER_VOL_POCSAG;
+bool    buzzerClickEnabled  = true;
+uint8_t buzzerClickVolume   = BUZZER_VOL_CLICK;
+volatile uint16_t buzzerQFreq     = 0;
+volatile uint16_t buzzerQDuration = 0;
+volatile uint8_t  buzzerQDuty     = 0;
+volatile bool     buzzerQPending  = false;
+unsigned long     buzzerEndMs     = 0;
 
-// ============================================================
 // Auto-rotation
-// ============================================================
-static bool    autoRotateEnabled     = false;
-static uint8_t autoRotateIntervalSec = 5;    // seconds per screen in rotation
+bool    autoRotateEnabled     = false;
+uint8_t autoRotateIntervalSec = 5;
 
-// ============================================================
-// SHT31 + display mode
-// ============================================================
-static SHT31        sht31Sensor;
-static bool         sht31Available = false;
-static float        sht31Temp      = 0.0f;
-static float        sht31Hum       = 0.0f;
+// SHT31 + RTC
+SHT31  sht31Sensor;
+bool   sht31Available = false;
+float  sht31Temp      = 0.0f;
+float  sht31Hum       = 0.0f;
+bool   rtcAvailable   = false;
 
-enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_BATTERY, MODE_COUNT };
-static DisplayMode   displayMode     = MODE_CLOCK;
-static unsigned long modeActiveUntil = 0;
-#define MODE_TIMEOUT_MS  10000   // ms before auto-returning to clock (manual mode)
-
-// Icon filenames (GIF from LittleFS; missing file = built-in bitmap fallback)
-static char iconTempFile[32] = "/icons/ani_temp.gif";
-static char iconHumFile[32]  = "/icons/ani_hum.gif";
-static char iconBatFile[32]  = "/icons/icon_bat.jpg";
-
-// ============================================================
 // Web status (updated by receive code, served via /api/status)
-// ============================================================
-static uint32_t  wsCountDmr    = 0;
-static uint32_t  wsCountPocsag = 0;
-struct WsPocsagEntry { uint32_t ric; char msg[POCSAG_MSG_MAX_LEN + 1]; };
-static WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE] = {};
-static uint8_t       wsPocsagHead = 0;   // next write slot
-static uint8_t       wsPocsagFill = 0;   // valid entries (0..POCSAG_LOG_SIZE)
-static WebServer     webServer(80);
-static QueueHandle_t pocsagRxQueue = nullptr;
+uint32_t      wsCountDmr    = 0;
+uint32_t      wsCountPocsag = 0;
+WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE] = {};
+uint8_t       wsPocsagHead = 0;
+uint8_t       wsPocsagFill = 0;
+WebServer     webServer(80);
+QueueHandle_t pocsagRxQueue  = nullptr;
 
-// Shared state — set by sensor/receiver tasks, read by display and web handler
-static bool          timeSynced    = false;  // true once clock is running (RTC or POCSAG)
-static bool          pocsagSynced  = false;  // true only after POCSAG RIC 224 has confirmed time
-static volatile bool otaInProgress = false;
+// Shared runtime state
+bool          timeSynced     = false;  // true once clock is running (RTC or POCSAG)
+bool          pocsagSynced   = false;  // true only after POCSAG RIC 224 has confirmed time
+volatile bool otaInProgress  = false;
+bool          fsAvailable    = false;
+bool          otaStarted     = false;
+int           otaLastBarW    = -1;
 
-// ============================================================
-// RTC state
-// ============================================================
-static bool rtcAvailable = false;
-
-// ============================================================
-// Filesystem state
-// ============================================================
-static bool fsAvailable = false;
-
-// ============================================================
-// OTA state
-// ============================================================
-static bool otaStarted  = false;
-static int  otaLastBarW = -1;   // reset each OTA session in onStart
-
-// ============================================================
 // IP address scroll — armed once after WiFi connects
-// ============================================================
-static bool          ipScrollActive = false;
-static char          ipScrollMsg[32] = {};
-static int           ipScrollLen     = 0;
-static int           ipScrollX       = 0;
-static int           ipScrollPass    = 0;
-static unsigned long ipScrollLast    = 0;
+bool          ipScrollActive = false;
+char          ipScrollMsg[32] = {};
+int           ipScrollLen     = 0;
+int           ipScrollX       = 0;
+int           ipScrollPass    = 0;
+unsigned long ipScrollLast    = 0;
 
-// ============================================================
 // DMR receive state
-// ============================================================
 #if RECV_DMR
-static uint32_t rxTotalDmr   = 0;
-static uint32_t callFrames   = 0;
-static uint32_t callSrc      = 0;
-static uint32_t callDst      = 0;
-static uint8_t  callSlot     = 0;
-static unsigned long callStart = 0;
+uint32_t      rxTotalDmr   = 0;
+uint32_t      callFrames   = 0;
+uint32_t      callSrc      = 0;
+uint32_t      callDst      = 0;
+uint8_t       callSlot     = 0;
+unsigned long callStart    = 0;
 #endif
 
-// ============================================================
-// POCSAG receive state
-// ============================================================
+// POCSAG receive count
 #if RECV_POCSAG
-static uint32_t rxTotalPocsag = 0;
+uint32_t rxTotalPocsag = 0;
 #endif
 
-// ============================================================
-// Web + OTA task (Core 0)
-// ============================================================
-static void webTaskFn(void*) {
-  for (;;) {
-    if (otaStarted) ArduinoOTA.handle();
-    webServer.handleClient();
-    vTaskDelay(pdMS_TO_TICKS(5));
-  }
-}
+// ── Arduino entry points ──────────────────────────────────────────────────────
 
-// ============================================================
-// Arduino entry points
-// ============================================================
 void setup() {
-  pinMode(15,         INPUT_PULLDOWN); // buzzer — stops high-pitch noise
+  pinMode(15,         INPUT_PULLDOWN); // buzzer — stops high-pitch noise at boot
   pinMode(BTN_LEFT,   INPUT_PULLUP);
   pinMode(BTN_MIDDLE, INPUT_PULLUP);
   pinMode(BTN_RIGHT,  INPUT_PULLUP);
-  pinMode(BAT_PIN, INPUT);     // battery ADC — explicit INPUT per TC001 reference
+  pinMode(BAT_PIN,    INPUT);          // battery ADC
+
   Serial.begin(115200);
   delay(3000);
   Serial.println("\n\n=== ULANZI ESP-NOW Monitor + Clock ===");
@@ -234,14 +152,12 @@ void setup() {
   FastLED.clear();
   FastLED.show();
   drawBootScreen();
-  // FastLED.clear();    // clear boot logo immediately; loop() will run scanner
-  // FastLED.show();
 
   setupFilesystem();
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
-  setupBuzzer();
-  setupReceiver();
+  setupBuzzer();  // also calls loadSettings()
+  setupReceiver();// connects WiFi → calls setupOTA() → starts webServer
 
   // Arm IP scroll if WiFi connected (plays as first display in loop())
   if (WiFi.status() == WL_CONNECTED) {
@@ -257,12 +173,13 @@ void setup() {
 #if RECV_POCSAG
   pocsagRxQueue = xQueueCreate(4, sizeof(EspNowPocsagPacket));
 #endif
-  xTaskCreatePinnedToCore(webTaskFn, "webTask", 8192, nullptr, 1, nullptr, 0);
+
+  initWebTask();  // starts webTask on Core 0 (ArduinoOTA.handle + webServer.handleClient)
   Serial.println("[RTOS] webTask started on core 0");
 }
 
 void loop() {
-  // Core 1: POCSAG queue drain, display, sensors, buttons
+  // Core 1: drain POCSAG queue, update display, sensors, buttons
 
 #if RECV_POCSAG
   EspNowPocsagPacket pkt;

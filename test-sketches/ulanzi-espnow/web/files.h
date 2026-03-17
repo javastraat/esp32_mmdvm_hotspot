@@ -27,12 +27,12 @@ static const char PAGE_FILES[] PROGMEM =
   NAV_BAR
   NAV_LIVE_MODAL
   R"html(
-<div class="container">
+<div class="container"><div class="grid">
 
   <!-- Storage -->
-  <div class="card" style="margin-bottom:15px">
+  <div class="card">
     <h3>Storage</h3>
-    <div class="metric">
+    <div class="metric" style="border-bottom:none">
       <span class="metric-label">LittleFS</span>
       <span class="metric-value" id="fs-info">-</span>
     </div>
@@ -42,24 +42,24 @@ static const char PAGE_FILES[] PROGMEM =
   </div>
 
   <!-- LaMetric icon downloader -->
-  <div class="card" style="margin-bottom:15px">
+  <div class="card">
     <h3>Download LaMetric Icon
       <a href="https://developer.lametric.com/icons" target="_blank"
-        style="font-size:.7em;font-weight:normal;color:#00bcd4;margin-left:8px;text-decoration:none">
-        Browse icons &#8599;
+        style="font-size:.85em;font-weight:normal;color:#00bcd4;margin-left:8px;text-decoration:none">
+        Browse &#8599;
       </a>
     </h3>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <input type="text" id="icon-id" placeholder="Icon ID e.g. 2867"
         style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border-color);
-               background:var(--card-bg);color:var(--text-color);border-radius:4px;font-size:.9em">
+               background:var(--bg-secondary);color:var(--text-color);border-radius:4px;font-size:.9em">
       <button onclick="previewIcon()"
-        style="background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);
-               padding:8px 16px;border-radius:4px;cursor:pointer;font-size:.9em;white-space:nowrap">
+        style="background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);
+               padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.9em;white-space:nowrap">
         Preview
       </button>
       <button onclick="downloadIcon()"
-        style="background:#00bcd4;color:#000;border:none;padding:8px 20px;border-radius:4px;
+        style="background:#00bcd4;color:#000;border:none;padding:6px 18px;border-radius:4px;
                cursor:pointer;font-weight:bold;white-space:nowrap;font-size:.9em">
         Save to /icons/
       </button>
@@ -78,15 +78,16 @@ static const char PAGE_FILES[] PROGMEM =
 
     <!-- Path bar -->
     <div style="background:var(--bg-secondary);border-radius:4px;padding:5px 10px;
-                margin-bottom:6px;display:flex;align-items:center;gap:8px">
-      <span style="color:var(--text-muted);font-size:.82em;flex-shrink:0">Path:</span>
+                margin-bottom:8px;display:flex;align-items:center;gap:8px;
+                border:1px solid var(--border-color)">
+      <span class="metric-label" style="flex-shrink:0">Path:</span>
       <span id="fb-path"
         style="font-family:monospace;font-size:.9em;flex:1;overflow:hidden;
                text-overflow:ellipsis;white-space:nowrap">/</span>
     </div>
 
     <!-- Toolbar -->
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
       <button id="fb-up-btn" class="fb-tbtn" style="background:#555;color:#fff"
               onclick="fbGoUp()" disabled>&#8593; Up</button>
       <button class="fb-tbtn" style="background:#444;color:#fff"
@@ -140,7 +141,7 @@ static const char PAGE_FILES[] PROGMEM =
     </div>
   </div>
 
-</div>
+</div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
   R"html(
@@ -316,7 +317,7 @@ function downloadIcon(){
   .then(function(d){
     var blob=d.blob,ct=d.ct;
     if(ct.indexOf('gif')>=0){
-      // GIF — upload as-is
+      // GIF — upload as-is, animation preserved
       return _saveIconBlob(id+'.gif',blob,st);
     }
     // PNG or JPEG — convert to JPEG via canvas so TJpg_Decoder can display it
