@@ -80,7 +80,7 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
     pocsagMsgLen    = strlen(pocsagMsg);
     pocsagMsgActive = (pocsagMsgLen > 0);
     if (pocsagMsgActive) buzzerBeep();
-    pocsagIsScrolling = (pocsagMsgLen * 4 > MATRIX_WIDTH);
+    pocsagIsScrolling = (POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4 - 1 > MATRIX_WIDTH);
     if (pocsagIsScrolling) {
       pocsagScrollX    = MATRIX_WIDTH;
       pocsagScrollPass = 0;

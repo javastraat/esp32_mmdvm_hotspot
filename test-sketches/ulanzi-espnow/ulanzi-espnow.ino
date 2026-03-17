@@ -48,9 +48,10 @@ DisplayMode   displayMode     = MODE_CLOCK;
 unsigned long modeActiveUntil = 0;
 
 // Icon filenames (GIF/JPEG from LittleFS; missing file = built-in bitmap fallback)
-char iconTempFile[32] = "/icons/ani_temp.gif";
-char iconHumFile[32]  = "/icons/ani_hum.gif";
-char iconBatFile[32]  = "/icons/icon_bat.jpg";
+char iconTempFile[32]   = "/icons/70122.jpg";
+char iconHumFile[32]    = "/icons/71006.jpg";
+char iconBatFile[32]    = "/icons/390.jpg";
+char iconPocsagFile[32] = "/icons/18675.jpg";
 
 // POCSAG display state
 #if RECV_POCSAG

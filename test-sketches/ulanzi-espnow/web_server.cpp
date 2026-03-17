@@ -182,17 +182,18 @@ static void setupWebServer() {
   });
 
   webServer.on("/api/icons", HTTP_GET, []() {
-    char buf[128];
-    snprintf(buf, sizeof(buf), "{\"temp\":\"%s\",\"hum\":\"%s\",\"bat\":\"%s\"}",
-      iconTempFile, iconHumFile, iconBatFile);
+    char buf[192];
+    snprintf(buf, sizeof(buf), "{\"temp\":\"%s\",\"hum\":\"%s\",\"bat\":\"%s\",\"poc\":\"%s\"}",
+      iconTempFile, iconHumFile, iconBatFile, iconPocsagFile);
     webServer.send(200, "application/json", buf);
   });
 
   webServer.on("/api/icons", HTTP_POST, []() {
     String v;
-    v = webServer.arg("temp_icon"); v.trim(); if (v.length()) { strncpy(iconTempFile, v.c_str(), 31); iconTempFile[31] = '\0'; }
-    v = webServer.arg("hum_icon");  v.trim(); if (v.length()) { strncpy(iconHumFile,  v.c_str(), 31); iconHumFile[31]  = '\0'; }
-    v = webServer.arg("bat_icon");  v.trim(); if (v.length()) { strncpy(iconBatFile,  v.c_str(), 31); iconBatFile[31]  = '\0'; }
+    v = webServer.arg("temp_icon"); v.trim(); if (v.length()) { strncpy(iconTempFile,   v.c_str(), 31); iconTempFile[31]   = '\0'; }
+    v = webServer.arg("hum_icon");  v.trim(); if (v.length()) { strncpy(iconHumFile,    v.c_str(), 31); iconHumFile[31]    = '\0'; }
+    v = webServer.arg("bat_icon");  v.trim(); if (v.length()) { strncpy(iconBatFile,    v.c_str(), 31); iconBatFile[31]    = '\0'; }
+    v = webServer.arg("poc_icon");  v.trim(); if (v.length()) { strncpy(iconPocsagFile, v.c_str(), 31); iconPocsagFile[31] = '\0'; }
     _gifCloseIfOpen();  // force reload with new path on next frame
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");

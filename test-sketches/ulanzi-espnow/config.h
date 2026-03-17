@@ -53,6 +53,10 @@
 // Number of POCSAG messages kept in the web status log (newest first).
 #define POCSAG_LOG_SIZE          10
 
+// Reserved pixel columns for the POCSAG icon (icon width + 1 px gap).
+// Used by the scroll-threshold calculation and the display renderer.
+#define POCSAG_ICON_RESERVED_PX  9   // 8 px icon + 1 px gap
+
 // Short messages (fits on screen): hold this long, then return to clock.
 #define POCSAG_STATIC_MS      15000   // ms to show a short message
 

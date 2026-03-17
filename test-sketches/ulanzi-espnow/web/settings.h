@@ -129,9 +129,16 @@ static const char PAGE_SETTINGS[] PROGMEM =
                     color:var(--text-color);border:1px solid var(--border-color);
                     border-radius:4px;font-family:monospace;font-size:.88em">
     </div>
-    <div class="metric" style="border-bottom:none">
+    <div class="metric">
       <span class="metric-label">Battery</span>
       <input type="text" id="icon-bat" maxlength="31"
+             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
+                    color:var(--text-color);border:1px solid var(--border-color);
+                    border-radius:4px;font-family:monospace;font-size:.88em">
+    </div>
+    <div class="metric" style="border-bottom:none">
+      <span class="metric-label">POCSAG</span>
+      <input type="text" id="icon-poc" maxlength="31"
              style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
                     color:var(--text-color);border:1px solid var(--border-color);
                     border-radius:4px;font-family:monospace;font-size:.88em">
@@ -191,7 +198,8 @@ function testBuzzer(type){
 function saveIcons(){
   var body='temp_icon='+encodeURIComponent(document.getElementById('icon-temp').value)
           +'&hum_icon='+encodeURIComponent(document.getElementById('icon-hum').value)
-          +'&bat_icon='+encodeURIComponent(document.getElementById('icon-bat').value);
+          +'&bat_icon='+encodeURIComponent(document.getElementById('icon-bat').value)
+          +'&poc_icon='+encodeURIComponent(document.getElementById('icon-poc').value);
   fetch('/api/icons',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
   .then(function(r){return r.json();}).then(function(d){
     var s=document.getElementById('icon-status');
@@ -233,6 +241,7 @@ function onRotateChange(){
     document.getElementById('icon-temp').value=d.temp||'';
     document.getElementById('icon-hum').value=d.hum||'';
     document.getElementById('icon-bat').value=d.bat||'';
+    document.getElementById('icon-poc').value=d.poc||'';
   }).catch(function(){});
 })();
 </script>

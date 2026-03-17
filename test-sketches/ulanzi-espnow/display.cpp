@@ -82,6 +82,15 @@ static const uint8_t FONT_ALPHA[26][5] = {
 // 3×5 thermometer icon (temperature)
 static const uint8_t ICON_THERMO[5] = {0b010, 0b010, 0b011, 0b111, 0b111};
 
+// 5×5 bell icon — POCSAG message fallback
+static const uint8_t ICON_MSG[5] = {
+  0b00100,  // stem
+  0b01110,  // bell top
+  0b01110,  // bell body
+  0b11111,  // bell base
+  0b00100,  // clapper
+};
+
 // 5×8 water drop icon, full matrix height (humidity)
 // bit 4 = leftmost column, bit 0 = rightmost column
 static const uint8_t ICON_DROP[8] = {
@@ -188,14 +197,15 @@ void _gifCloseIfOpen() {
 
 // Advance one GIF frame. Keeps the file open for the next call (animation).
 // *delayMs is set to the frame delay for the caller's redraw scheduling.
-// Returns x position for text (= gifWidth + 1), or -1 on failure (use bitmap fallback).
-static int drawGifIcon(const char* path, int textW, int* delayMs) {
+// x0: left edge of icon on the matrix (use 0 for static; pocsagScrollX for scrolling).
+// Returns x position for text (= x0 + gifWidth + 1), or -1 on failure (use bitmap fallback).
+static int drawGifIcon(const char* path, int textW, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
   if (!_gifEnsureOpen(path)) return -1;
   int w = _gif.getCanvasWidth();
   int h = _gif.getCanvasHeight();
-  _gifX0 = 0;                         // always start at column 0
+  _gifX0 = x0;
   _gifY0 = (MATRIX_HEIGHT - h) / 2;
   int delay = 100;
   int result = _gif.playFrame(false, &delay);
@@ -206,7 +216,7 @@ static int drawGifIcon(const char* path, int textW, int* delayMs) {
     _gif.close();  // decode error: reopen on next call
     _gifIsOpen = false;
   }
-  return w + 1;                       // text starts right after GIF + 1px gap
+  return x0 + w + 1;                 // text starts right after GIF + 1px gap
 }
 
 // ============================================================
@@ -226,10 +236,9 @@ static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16
   return true;
 }
 
-// Decode a JPEG icon from LittleFS, draw it into the LED buffer.
-// Clears the full display first (JPEG is a complete fresh frame).
-// Returns x for text (= jpegWidth + 1), or -1 on failure.
-static int drawJpegIcon(const char* path, int* delayMs) {
+// Decode a JPEG icon from LittleFS, draw it at x0.
+// Returns x for text (= x0 + jpegWidth + 1), or -1 on failure.
+static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
   File jpgFile = LittleFS.open(path);
@@ -237,12 +246,11 @@ static int drawJpegIcon(const char* path, int* delayMs) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return -1;
   }
-  FastLED.clear();
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1);
-  TJpgDec.drawFsJpg(0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
+  TJpgDec.drawFsJpg(x0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
   jpgFile.close();
-  return 9; // icon width + 1
+  return x0 + 9; // icon width (8) + 1px gap
 }
 
 static bool _isJpeg(const char* path) {
@@ -252,9 +260,10 @@ static bool _isJpeg(const char* path) {
 }
 
 // Unified icon draw: routes to GIF or JPEG decoder based on file extension.
-static int drawIcon(const char* path, int textW, int* delayMs) {
-  if (_isJpeg(path)) return drawJpegIcon(path, delayMs);
-  return drawGifIcon(path, textW, delayMs);
+// x0: left edge of icon; 0 for static displays, pocsagScrollX for scrolling.
+static int drawIcon(const char* path, int textW, int* delayMs, int x0 = 0) {
+  if (_isJpeg(path)) return drawJpegIcon(path, delayMs, x0);
+  return drawGifIcon(path, textW, delayMs, x0);
 }
 
 // ============================================================
@@ -424,31 +433,56 @@ void loopDisplay() {
   if (pocsagMsgActive) {
     const int yo = (MATRIX_HEIGHT - 5) / 2;
     if (!pocsagIsScrolling) {
-      // Static: redraw every 500 ms so a clock tick can't erase it
-      if (millis() - pocsagStaticLastDraw >= 500) {
+      // Static: redraw at GIF frame rate (animated icon) or 500 ms for bitmaps
+      static int _pocsagStaticGifDelay = 100;
+      if (pocsagStaticLastDraw == 0 ||
+          millis() - pocsagStaticLastDraw >= (unsigned long)_pocsagStaticGifDelay) {
         bool first = (pocsagStaticLastDraw == 0);
-        pocsagStaticLastDraw = millis();
-        int totalW = pocsagMsgLen * 4 - 1;
-        int xo = (MATRIX_WIDTH - totalW) / 2;
         FastLED.clear();
+        int gifDelay = 500;
+        int textX = drawIcon(iconPocsagFile, 0, &gifDelay);
+        if (textX < 0) {
+          // Bitmap fallback: 5×5 bell icon at x=0
+          for (int row = 0; row < 5; row++)
+            for (int col = 0; col < 5; col++)
+              if (ICON_MSG[row] & (1 << (4 - col)))
+                setLED(col, yo + row, LED_COLOR_POCSAG);
+          textX = 6;
+          gifDelay = 500;
+        }
+        _pocsagStaticGifDelay = max(gifDelay, 50);
+        // Center text in the space to the right of the icon
+        int textW = pocsagMsgLen * 4 - 1;
+        int availW = MATRIX_WIDTH - textX;
+        int xo = textX + max(0, (availW - textW) / 2);
         for (int i = 0; i < pocsagMsgLen; i++)
           drawChar(xo + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
         FastLED.show();
-        if (first)
-          Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
+        pocsagStaticLastDraw = millis();
+        if (first) Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
       }
       if (millis() >= pocsagStaticUntil)
         pocsagMsgActive = false;
     } else {
-      // Scroll 3 passes, 50 ms per pixel
+      // Scroll: icon and text scroll together, POCSAG_SCROLL_PASSES passes
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
       FastLED.clear();
+      int gifDelay = POCSAG_SCROLL_SPEED_MS;
+      int textX = drawIcon(iconPocsagFile, 0, &gifDelay, pocsagScrollX);
+      if (textX < 0) {
+        // Bitmap fallback: bell at pocsagScrollX
+        for (int row = 0; row < 5; row++)
+          for (int col = 0; col < 5; col++)
+            if (ICON_MSG[row] & (1 << (4 - col)))
+              setLED(pocsagScrollX + col, yo + row, LED_COLOR_POCSAG);
+        textX = pocsagScrollX + 6;
+      }
       for (int i = 0; i < pocsagMsgLen; i++)
-        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
+        drawChar(textX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
       FastLED.show();
       pocsagScrollX--;
-      if (pocsagScrollX < -(pocsagMsgLen * 4)) {
+      if (pocsagScrollX < -(POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4)) {
         if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES)
           pocsagMsgActive = false;
         else

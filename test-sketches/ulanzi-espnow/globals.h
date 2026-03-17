@@ -61,6 +61,7 @@ extern unsigned long modeActiveUntil;
 extern char iconTempFile[32];
 extern char iconHumFile[32];
 extern char iconBatFile[32];
+extern char iconPocsagFile[32];
 
 // ── POCSAG display state ──────────────────────────────────────────────────────
 
