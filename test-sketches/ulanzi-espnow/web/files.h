@@ -43,7 +43,12 @@ static const char PAGE_FILES[] PROGMEM =
 
   <!-- LaMetric icon downloader -->
   <div class="card" style="margin-bottom:15px">
-    <h3>Download LaMetric Icon</h3>
+    <h3>Download LaMetric Icon
+      <a href="https://developer.lametric.com/icons" target="_blank"
+        style="font-size:.7em;font-weight:normal;color:#00bcd4;margin-left:8px;text-decoration:none">
+        Browse icons &#8599;
+      </a>
+    </h3>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <input type="text" id="icon-id" placeholder="Icon ID e.g. 2867"
         style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border-color);
@@ -125,7 +130,7 @@ static const char PAGE_FILES[] PROGMEM =
           <tr style="border-bottom:2px solid var(--border-color)">
             <th style="text-align:left;padding:5px 4px;color:var(--text-muted);font-weight:bold">Name</th>
             <th style="text-align:right;padding:5px 4px;color:var(--text-muted);font-weight:bold">Size</th>
-            <th style="text-align:right;padding:5px 2px;width:90px"></th>
+            <th style="text-align:right;padding:5px 2px;width:120px"></th>
           </tr>
         </thead>
         <tbody id="fb-body">
@@ -185,7 +190,10 @@ function fbNavigate(path){
         rows+='<td style="padding:5px 4px;cursor:pointer;color:#00bcd4;font-family:monospace"'
              +' onclick="fbNavigate(\''+esc+'\')">&#128193; '+e.name+'/</td>';
         rows+='<td style="padding:5px 4px;color:var(--text-muted);text-align:right;font-size:.82em">dir</td>';
-        rows+='<td style="padding:5px 2px;text-align:right">'
+        rows+='<td style="padding:5px 2px;text-align:right;white-space:nowrap">'
+             +'<button onclick="fbRename(\''+esc+'\')"'
+             +' style="background:#1565c0;color:#fff;border:none;padding:2px 8px;'
+             +'border-radius:4px;cursor:pointer;font-size:.8em;margin-right:4px">Ren</button>'
              +'<button onclick="fbDelete(\''+esc+'\')"'
              +' style="background:#dc3545;color:#fff;border:none;padding:2px 8px;'
              +'border-radius:4px;cursor:pointer;font-size:.8em">Del</button></td>';
@@ -198,6 +206,9 @@ function fbNavigate(path){
              +' download="'+e.name+'"'
              +' style="background:#555;color:#fff;text-decoration:none;padding:2px 8px;'
              +'border-radius:4px;font-size:.8em;margin-right:4px;display:inline-block">DL</a>'
+             +'<button onclick="fbRename(\''+esc+'\')"'
+             +' style="background:#1565c0;color:#fff;border:none;padding:2px 8px;'
+             +'border-radius:4px;cursor:pointer;font-size:.8em;margin-right:4px">Ren</button>'
              +'<button onclick="fbDelete(\''+esc+'\')"'
              +' style="background:#dc3545;color:#fff;border:none;padding:2px 8px;'
              +'border-radius:4px;cursor:pointer;font-size:.8em">Del</button>'
@@ -306,6 +317,20 @@ function downloadIcon(){
   })
   .catch(function(){st.textContent='Request failed';st.style.color='#dc3545';});
 }
+function fbRename(path){
+  var sl=path.lastIndexOf('/');
+  var dir=sl>0?path.substring(0,sl):'/';
+  var name=path.substring(sl+1);
+  fbPrompt('Rename: '+name,name,function(newName){
+    newName=newName.trim();
+    if(!newName||newName===name)return;
+    var newPath=(dir==='/')?'/'+newName:dir+'/'+newName;
+    fetch('/api/fs/rename?from='+encodeURIComponent(path)+'&to='+encodeURIComponent(newPath),{method:'POST'})
+    .then(function(r){return r.text();})
+    .then(function(msg){fbAlert(msg);fbRefresh();})
+    .catch(function(){fbAlert('Rename failed');});
+  });
+}
 // ── Modal helpers ──────────────────────────────────────────────
 function fbAlert(msg){
   var ov=document.createElement('div');ov.className='fb-modal-ov';
@@ -315,6 +340,26 @@ function fbAlert(msg){
   var btn=document.createElement('button');btn.textContent='OK';btn.className='fb-btn-ok';
   btn.onclick=function(){document.body.removeChild(ov);};
   d.appendChild(btn);box.appendChild(d);ov.appendChild(box);document.body.appendChild(ov);
+}
+function fbPrompt(msg,defaultVal,onOk){
+  var ov=document.createElement('div');ov.className='fb-modal-ov';
+  var box=document.createElement('div');box.className='fb-modal-box';
+  var h=document.createElement('h4');h.textContent=msg;box.appendChild(h);
+  var inp=document.createElement('input');inp.type='text';inp.value=defaultVal;
+  inp.style.cssText='width:100%;box-sizing:border-box;padding:6px 8px;margin:10px 0 4px;'+
+    'background:var(--bg-secondary);color:var(--text-color);'+
+    'border:1px solid var(--border-color);border-radius:4px;font-size:.9em';
+  box.appendChild(inp);
+  var d=document.createElement('div');
+  d.style.cssText='display:flex;gap:10px;justify-content:center;margin-top:10px';
+  var ok=document.createElement('button');ok.textContent='Rename';ok.className='fb-btn-ok';
+  ok.onclick=function(){document.body.removeChild(ov);onOk(inp.value);};
+  var no=document.createElement('button');no.textContent='Cancel';no.className='fb-btn-cancel';
+  no.onclick=function(){document.body.removeChild(ov);};
+  d.appendChild(ok);d.appendChild(no);box.appendChild(d);ov.appendChild(box);
+  document.body.appendChild(ov);
+  inp.focus();inp.select();
+  inp.onkeydown=function(e){if(e.key==='Enter')ok.onclick();if(e.key==='Escape')no.onclick();};
 }
 function fbConfirm(msg,onYes){
   var ov=document.createElement('div');ov.className='fb-modal-ov';

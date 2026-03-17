@@ -199,10 +199,21 @@ Edit `config.h`:
 #define POCSAG_DISPLAY_EXCLUDED_RICS  { 224, 208, 200, 216, 4520, 4521 }
 ```
 
-Flash with Arduino IDE or `arduino-cli`. Requires:
-- **FastLED**
-- **SHT31** (Rob Tillaart)
-- ESP32 Arduino core (tested with ESP32 Arduino 3.x)
+Flash with Arduino IDE or `arduino-cli`.
+
+#### Required Arduino libraries
+
+| Library | Author | Install name | Purpose |
+|---|---|---|---|
+| **ESP32 Arduino core** | Espressif | *(board manager)* | ESP32 board support, tested with 3.x |
+| **FastLED** | Daniel Garcia | `FastLED` | WS2812B LED matrix driver |
+| **AnimatedGIF** | Larry Bank | `AnimatedGIF` | Animated GIF icon playback on LED matrix |
+| **TJpg_Decoder** | Bodmer | `TJpg_Decoder` | JPEG icon decode and render |
+| **PNGdec** | Larry Bank | `PNGdec` | PNG detection and decode (used during icon download) |
+| **JPEGENC** | Larry Bank | `JPEGENC` | Re-encode downloaded PNG icons as JPEG for display |
+| **SHT31** | Rob Tillaart | `SHT31` | Temperature/humidity sensor |
+
+All libraries are available through the Arduino Library Manager (**Sketch → Include Library → Manage Libraries**).
 
 ### 3. WiFi channel matching
 

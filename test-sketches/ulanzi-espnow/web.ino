@@ -11,6 +11,59 @@ static String _uploadedName;
 static String _uploadDir;
 static bool   _uploadOk;
 
+// ── PNG → JPEG conversion (for /api/icons/download) ─────────
+// PNG and JPEGENC are heap-allocated per call — their internal line buffers
+// are several KB each and would overflow static BSS if declared globally.
+static PNG* _convPngPtr = nullptr;
+
+static int _pngRow(PNGDRAW* pDraw) {
+  uint16_t* row = (uint16_t*)((uint8_t*)pDraw->pUser + pDraw->y * pDraw->iWidth * 2);
+  _convPngPtr->getLineAsRGB565(pDraw, row, PNG_RGB565_LITTLE_ENDIAN, 0xffff);
+  return 1;
+}
+
+// Decode PNG buffer → JPEG buffer. Returns JPEG byte count, 0 on failure.
+static int pngBufToJpeg(const uint8_t* pngBuf, int pngLen,
+                         uint8_t* jpegOut, int jpegBufSize) {
+  Serial.printf("[PNG2JPG] input %d bytes, heap free %u\n", pngLen, ESP.getFreeHeap());
+  _convPngPtr = new PNG();
+  if (!_convPngPtr) { Serial.println("[PNG2JPG] new PNG() failed"); return 0; }
+  int rc = _convPngPtr->openRAM((uint8_t*)pngBuf, pngLen, _pngRow);
+  if (rc != PNG_SUCCESS) {
+    Serial.printf("[PNG2JPG] openRAM failed rc=%d\n", rc);
+    delete _convPngPtr; _convPngPtr = nullptr; return 0;
+  }
+  int w = _convPngPtr->getWidth();
+  int h = _convPngPtr->getHeight();
+  Serial.printf("[PNG2JPG] PNG %dx%d bpp=%d\n", w, h, _convPngPtr->getBpp());
+  if (w <= 0 || h <= 0 || w > 64 || h > 64) {
+    Serial.printf("[PNG2JPG] size rejected %dx%d\n", w, h);
+    _convPngPtr->close(); delete _convPngPtr; _convPngPtr = nullptr; return 0;
+  }
+  uint8_t* px = (uint8_t*)malloc(w * h * 2);  // RGB565 = 2 bytes/pixel
+  if (!px) { Serial.println("[PNG2JPG] malloc px failed"); _convPngPtr->close(); delete _convPngPtr; _convPngPtr = nullptr; return 0; }
+  int dec = _convPngPtr->decode(px, 0);
+  Serial.printf("[PNG2JPG] decode rc=%d\n", dec);
+  _convPngPtr->close();
+  delete _convPngPtr; _convPngPtr = nullptr;
+
+  JPEGENC* jpg = new JPEGENC();
+  if (!jpg) { Serial.println("[PNG2JPG] new JPEGENC() failed"); free(px); return 0; }
+  JPEGENCODE jei;
+  int opened = jpg->open(jpegOut, jpegBufSize);
+  Serial.printf("[PNG2JPG] JPEGENC open rc=%d bufSize=%d\n", opened, jpegBufSize);
+  if (opened != JPEGE_SUCCESS) { free(px); delete jpg; return 0; }
+  int enc = jpg->encodeBegin(&jei, w, h, JPEGE_PIXEL_RGB565, JPEGE_SUBSAMPLE_444, 90);
+  Serial.printf("[PNG2JPG] encodeBegin rc=%d\n", enc);
+  int af = jpg->addFrame(&jei, px, w * 2);
+  Serial.printf("[PNG2JPG] addFrame rc=%d\n", af);
+  int n = jpg->close();
+  Serial.printf("[PNG2JPG] close (jpeg size) = %d\n", n);
+  free(px);
+  delete jpg;
+  return (n > 0) ? n : 0;
+}
+
 // ── OTA ──────────────────────────────────────────────────────
 
 static void setupOTA() {
@@ -413,40 +466,70 @@ static void setupWebServer() {
     if (!LittleFS.exists("/icons"))
       LittleFS.mkdir("/icons");
 
-    String path = "/icons/" + id + ext;
-    LittleFS.remove(path);
-    File f = LittleFS.open(path, "w");
-    if (!f) {
+    // Buffer the full download — icons are tiny, cap at 8 KB
+    const int MAX_DL = 8192;
+    uint8_t* dlBuf = (uint8_t*)malloc(MAX_DL);
+    if (!dlBuf) {
       http.end();
-      webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"fs open failed\"}");
+      webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"no memory\"}");
       return;
     }
-
     WiFiClient* stream = http.getStreamPtr();
-    uint8_t buf[512];
     int total = 0;
     uint32_t deadline = millis() + 8000;
-    while (http.connected() && millis() < deadline) {
+    while (http.connected() && millis() < deadline && total < MAX_DL) {
       int avail = stream->available();
       if (avail > 0) {
-        int n = stream->readBytes(buf, min(avail, (int)sizeof(buf)));
-        f.write(buf, n);
+        int n = stream->readBytes(dlBuf + total, min(avail, MAX_DL - total));
         total += n;
-        deadline = millis() + 4000;  // extend on progress
+        deadline = millis() + 4000;
       } else {
         delay(10);
       }
       int contentLen = http.getSize();
       if (contentLen > 0 && total >= contentLen) break;
     }
-    f.close();
     http.end();
 
-    Serial.printf("[FS] Icon saved: %s  %d bytes\n", path.c_str(), total);
-    char resp[120];
-    snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\",\"size\":%d}",
-      path.c_str(), total);
-    webServer.send(200, "application/json", resp);
+    // Detect PNG from magic bytes; convert to JPEG so TJpg_Decoder can display it
+    bool isPng = (total >= 4 &&
+                  dlBuf[0] == 0x89 && dlBuf[1] == 'P' &&
+                  dlBuf[2] == 'N' && dlBuf[3] == 'G');
+    if (isPng) {
+      uint8_t* jpegBuf = (uint8_t*)malloc(2048);
+      if (!jpegBuf) { free(dlBuf); webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"no memory\"}"); return; }
+      int jpegLen = pngBufToJpeg(dlBuf, total, jpegBuf, 2048);
+      free(dlBuf);
+      if (jpegLen <= 0) {
+        free(jpegBuf);
+        webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"PNG conversion failed\"}");
+        return;
+      }
+      ext = ".jpg";
+      String path = "/icons/" + id + ext;
+      LittleFS.remove(path);
+      File f = LittleFS.open(path, "w");
+      if (!f) { free(jpegBuf); webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"fs open failed\"}"); return; }
+      f.write(jpegBuf, jpegLen);
+      f.close();
+      free(jpegBuf);
+      Serial.printf("[FS] Icon saved (PNG→JPEG): %s  %d bytes\n", path.c_str(), jpegLen);
+      char resp[120];
+      snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\",\"size\":%d}", path.c_str(), jpegLen);
+      webServer.send(200, "application/json", resp);
+    } else {
+      String path = "/icons/" + id + ext;
+      LittleFS.remove(path);
+      File f = LittleFS.open(path, "w");
+      if (!f) { free(dlBuf); webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"fs open failed\"}"); return; }
+      f.write(dlBuf, total);
+      f.close();
+      free(dlBuf);
+      Serial.printf("[FS] Icon saved: %s  %d bytes\n", path.c_str(), total);
+      char resp[120];
+      snprintf(resp, sizeof(resp), "{\"ok\":true,\"name\":\"%s\",\"size\":%d}", path.c_str(), total);
+      webServer.send(200, "application/json", resp);
+    }
   });
 
   // ── Filesystem browser API ───────────────────────────────────
@@ -512,6 +595,17 @@ static void setupWebServer() {
     if (!path.length() || path[0] != '/') { webServer.send(400, "text/plain", "Bad path"); return; }
     bool ok = LittleFS.mkdir(path);
     webServer.send(ok ? 200 : 500, "text/plain", ok ? "Created: " + path : "Failed");
+  });
+
+  webServer.on("/api/fs/rename", HTTP_POST, []() {
+    if (!fsAvailable) { webServer.send(503, "text/plain", "FS unavailable"); return; }
+    String from = webServer.arg("from");
+    String to   = webServer.arg("to");
+    if (!from.length() || from[0] != '/' || !to.length() || to[0] != '/') {
+      webServer.send(400, "text/plain", "Bad path"); return;
+    }
+    bool ok = LittleFS.rename(from, to);
+    webServer.send(ok ? 200 : 500, "text/plain", ok ? "Renamed" : "Rename failed");
   });
 
   webServer.begin();

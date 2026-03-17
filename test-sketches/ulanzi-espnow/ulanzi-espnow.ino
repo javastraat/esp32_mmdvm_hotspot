@@ -34,6 +34,8 @@
 #include <LittleFS.h>
 #include <AnimatedGIF.h>
 #include <TJpg_Decoder.h>
+#include <PNGdec.h>
+#include <JPEGENC.h>
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
