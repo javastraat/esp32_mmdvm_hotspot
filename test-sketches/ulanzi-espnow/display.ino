@@ -277,7 +277,7 @@ static void drawDigit(int x, int y, int d, CRGB color) {
 // Draw HH:MM:SS centered in the 32×8 matrix (27px content, 5px digit height)
 static void drawTime(int h, int m, int s, CRGB color) {
   const int xo = (MATRIX_WIDTH  - 27 + 1) / 2;  // = 3  (3px left, 2px right)
-  const int yo = (MATRIX_HEIGHT -  5)     / 2;  // = 1  (1px top, 2px bottom)
+  const int yo = (MATRIX_HEIGHT -  5)     / 2 + 1;  // = 2  (text shifted 1px down)
   drawDigit(xo +  0, yo, h / 10, color);
   drawDigit(xo +  4, yo, h % 10, color);
   setLED(xo +  8, yo + 1, color); setLED(xo +  8, yo + 3, color);  // colon
@@ -424,7 +424,7 @@ static void loopDisplay() {
   // POCSAG message display — takes priority over all modes
 #if RECV_POCSAG
   if (pocsagMsgActive) {
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    const int yo = (MATRIX_HEIGHT - 5) / 2 + 1;
     if (!pocsagIsScrolling) {
       // Static: redraw every 500 ms so a clock tick can't erase it
       if (millis() - pocsagStaticLastDraw >= 500) {
@@ -465,7 +465,7 @@ static void loopDisplay() {
   if (ipScrollActive) {
     if (millis() - ipScrollLast < POCSAG_SCROLL_SPEED_MS) return;
     ipScrollLast = millis();
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    const int yo = (MATRIX_HEIGHT - 5) / 2 + 1;
     FastLED.clear();
     for (int i = 0; i < ipScrollLen; i++)
       drawChar(ipScrollX + i * 4, yo, ipScrollMsg[i], CRGB(0, 220, 120));
@@ -557,7 +557,7 @@ static void loopDisplay() {
             setLED(x, y, CRGB::Black);
       }
       for (int i = 0; i < len; i++)
-        drawChar(textX + i * 4, yo, buf[i], color);
+        drawChar(textX + i * 4, yo + 1, buf[i], color);
 
     } else {
       int h10 = constrain((int)roundf(sht31Hum * 10.0f), 0, 1000);
@@ -583,7 +583,7 @@ static void loopDisplay() {
             setLED(x, y, CRGB::Black);
       }
       for (int i = 0; i < len; i++)
-        drawChar(textX + i * 4, yo, buf[i], color);
+        drawChar(textX + i * 4, yo + 1, buf[i], color);
     }
 
     FastLED.show();
@@ -604,7 +604,7 @@ static void loopDisplay() {
     int batRaw = analogRead(BAT_PIN);
     int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
     CRGB color = batPct > 60 ? CRGB(0, 200, 50) : batPct > 30 ? CRGB(220, 180, 0) : CRGB(220, 40, 0);
-    const int yo = (MATRIX_HEIGHT - 5) / 2;
+    const int yo = (MATRIX_HEIGHT - 5) / 2 + 1;
 
     char buf[5];
     snprintf(buf, sizeof(buf), "%d%%", batPct);
