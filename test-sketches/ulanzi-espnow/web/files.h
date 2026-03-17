@@ -198,7 +198,12 @@ function fbNavigate(path){
              +' style="background:#dc3545;color:#fff;border:none;padding:2px 8px;'
              +'border-radius:4px;cursor:pointer;font-size:.8em">Del</button></td>';
       }else{
-        rows+='<td style="padding:5px 4px;font-family:monospace;word-break:break-all">&#128196; '+e.name+'</td>';
+        var isImg=/\.(jpe?g|gif|png|bmp)$/i.test(e.name);
+        var nameCell=isImg
+          ?'<span onclick="fbPreviewFile(\''+encodeURIComponent(e.path)+'\',\''+e.name+'\')"'
+           +' style="cursor:pointer;color:#00bcd4;text-decoration:underline dotted">'+e.name+'</span>'
+          :e.name;
+        rows+='<td style="padding:5px 4px;font-family:monospace;word-break:break-all">&#128196; '+nameCell+'</td>';
         rows+='<td style="padding:5px 4px;text-align:right;font-family:monospace;'
              +'font-size:.82em;white-space:nowrap">'+fmtSize(e.size)+'</td>';
         rows+='<td style="padding:5px 2px;text-align:right;white-space:nowrap">'
@@ -346,6 +351,16 @@ function _saveIconBlob(filename,blob,st){
       st.style.color='#28a745';fbRefresh();loadFs();
     }else{throw new Error(d.error||'save failed');}
   });
+}
+function fbPreviewFile(encodedPath,name){
+  var prev=document.getElementById('icon-preview');
+  var img=document.getElementById('icon-img');
+  var st=document.getElementById('icon-status');
+  img.onerror=function(){st.textContent='Cannot preview: '+name;st.style.color='#dc3545';prev.style.display='none';};
+  img.onload=function(){prev.style.display='block';st.textContent=name;st.style.color='var(--text-muted)';};
+  img.src='/api/fs/download?path='+encodedPath;
+  prev.style.display='none';
+  prev.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function fbRename(path){
   var sl=path.lastIndexOf('/');
