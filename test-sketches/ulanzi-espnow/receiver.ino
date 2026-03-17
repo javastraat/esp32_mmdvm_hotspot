@@ -227,6 +227,6 @@ void setupReceiver() {
     macBytes[3], macBytes[4], macBytes[5]);
 
   esp_now_register_recv_cb(onReceive);
-  Serial.printf("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n\n",
+  Serial.printf("[RECEIVER] Listening — clock will sync on first RIC %d beacon",
     TIME_POCSAG_RIC);
 }
