@@ -364,22 +364,24 @@ void drawProgress(int barW) {
 void drawDone()   { drawStatusWord(FONT_DONE,  4, CRGB::Green); }
 void drawError()  { drawStatusWord(FONT_ERROR, 5, CRGB::Red);   }
 
-// Boot screen — "ULANZI" in rainbow colours, letters appear one by one.
+// Boot screen — device name in rainbow colours, letters appear one by one.
 void drawBootScreen() {
-  static const CRGB colors[6] = {
-    CRGB(255,   0,   0),  // U — red
-    CRGB(255, 100,   0),  // L — orange
-    CRGB(200, 200,   0),  // A — yellow
-    CRGB(  0, 200,   0),  // N — green
-    CRGB(  0, 160, 255),  // Z — cyan-blue
-    CRGB(160,   0, 255),  // I — violet
+  static const CRGB bootColors[] = {
+    CRGB(255,   0,   0),  // red
+    CRGB(255, 100,   0),  // orange
+    CRGB(200, 200,   0),  // yellow
+    CRGB(  0, 200,   0),  // green
+    CRGB(  0, 160, 255),  // cyan-blue
+    CRGB(160,   0, 255),  // violet
   };
-  const char* word = "ULANZI";
-  const int xo = (MATRIX_WIDTH  - 23 + 1) / 2;  // centre 23 px across 32
-  const int yo = (MATRIX_HEIGHT -  5)     / 2;   // centre 5-row font in 8 rows
+  int len = strlen(bootName);
+  if (len == 0) return;
+  int width = len * 4 - 1;
+  const int xo = (MATRIX_WIDTH  - width + 1) / 2;
+  const int yo = (MATRIX_HEIGHT -  5)        / 2;
   FastLED.clear();
-  for (int i = 0; i < 6; i++) {
-    drawChar(xo + i * 4, yo, word[i], colors[i]);
+  for (int i = 0; i < len; i++) {
+    drawChar(xo + i * 4, yo, bootName[i], bootColors[i % 6]);
     FastLED.show();
     delay(200);
   }

@@ -332,6 +332,33 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
+  <!-- Device Name -->
+  <div class="card">
+    <h3>Device Name</h3>
+    <div style="margin-bottom:12px">
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Boot screen name (max 8 chars)</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="text" id="boot-name" maxlength="8"
+               style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em;text-transform:uppercase;letter-spacing:.1em"
+               oninput="this.value=this.value.toUpperCase()">
+        <button onclick="saveBootName()"
+                style="background:#00bcd4;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold;white-space:nowrap">Save</button>
+      </div>
+      <div id="bootname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
+    </div>
+    <div>
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">mDNS hostname (<span id="mdns-preview">ulanzi</span>.local)</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="text" id="mdns-name" maxlength="31"
+               style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
+               oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');document.getElementById('mdns-preview').textContent=this.value||'ulanzi'">
+        <button onclick="saveMdnsName()"
+                style="background:#00bcd4;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold;white-space:nowrap">Save</button>
+      </div>
+      <div id="mdnsname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
+    </div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -471,6 +498,37 @@ function onSsChange(){
         +'&file='+encodeURIComponent(document.getElementById('ss-file').value)
   }).catch(function(){});
 }
+function saveMdnsName(){
+  var v=document.getElementById('mdns-name').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+  if(v.length===0||v.length>31){
+    document.getElementById('mdnsname-status').textContent='1–31 chars (a-z, 0-9, -)';
+    document.getElementById('mdnsname-status').style.color='#f44';
+    return;
+  }
+  fetch('/api/mdnsname',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name='+encodeURIComponent(v)})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('mdnsname-status');
+    s.textContent=d.ok?'Saved — reachable at '+v+'.local':'Error: '+(d.error||'?');
+    s.style.color=d.ok?'#4caf50':'#f44';
+    if(d.ok)document.getElementById('mdns-preview').textContent=v;
+    setTimeout(function(){s.textContent='';},3000);
+  }).catch(function(){});
+}
+function saveBootName(){
+  var v=document.getElementById('boot-name').value.trim().toUpperCase();
+  if(v.length===0||v.length>8){
+    document.getElementById('bootname-status').textContent='1–8 characters required.';
+    document.getElementById('bootname-status').style.color='#f44';
+    return;
+  }
+  fetch('/api/bootname',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name='+encodeURIComponent(v)})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('bootname-status');
+    s.textContent=d.ok?'Saved.':'Error: '+(d.error||'?');
+    s.style.color=d.ok?'#4caf50':'#f44';
+    setTimeout(function(){s.textContent='';},2000);
+  }).catch(function(){});
+}
 function saveColors(){
   fetch('/api/colors',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -563,6 +621,15 @@ function testSs(){
     if(d.b_lo)document.getElementById('b-col-lo').value=d.b_lo;
     if(d.b_mid)document.getElementById('b-col-mid').value=d.b_mid;
     if(d.b_hi)document.getElementById('b-col-hi').value=d.b_hi;
+  }).catch(function(){});
+  fetch('/api/bootname').then(function(r){return r.json();}).then(function(d){
+    if(d.name)document.getElementById('boot-name').value=d.name;
+  }).catch(function(){});
+  fetch('/api/mdnsname').then(function(r){return r.json();}).then(function(d){
+    if(d.name){
+      document.getElementById('mdns-name').value=d.name;
+      document.getElementById('mdns-preview').textContent=d.name;
+    }
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;

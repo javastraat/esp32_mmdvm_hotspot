@@ -47,6 +47,11 @@ CRGB leds[NUM_LEDS];
 DisplayMode   displayMode     = MODE_CLOCK;
 unsigned long modeActiveUntil = 0;
 
+// Device name — shown on boot screen (max 8 chars, uppercase)
+char bootName[9]  = "ULANZI";
+// mDNS hostname — device reachable as <name>.local (max 31 chars, lowercase)
+char mdnsName[32] = "ulanzi";
+
 // Icon filenames (GIF/JPEG from LittleFS)
 char iconTempFile[32]   = "/icons/70122.jpg";
 char iconHumFile[32]    = "/icons/71006.jpg";
@@ -187,11 +192,10 @@ void setup() {
   FastLED.clear();
   FastLED.show();
   setupDisplay();
-  drawBootScreen();
-
   setupFilesystem();
-  loadSettings();                     // load NVS settings before anything uses them
-  FastLED.setBrightness(currentBrightness);  // apply brightness before first display tick
+  loadSettings();                     // load NVS before boot screen so bootName/brightness are applied
+  FastLED.setBrightness(currentBrightness);  // apply saved brightness before first display tick
+  drawBootScreen();
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
   setupBuzzer();

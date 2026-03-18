@@ -56,6 +56,11 @@ enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_BATT
 extern DisplayMode   displayMode;
 extern unsigned long modeActiveUntil;
 
+// ── Device name (boot screen) and mDNS hostname ──────────────────────────────
+
+extern char bootName[9];   // max 8 chars, always uppercase
+extern char mdnsName[32];  // mDNS hostname (e.g. "ulanzi" → ulanzi.local)
+
 // ── Icon filenames ────────────────────────────────────────────────────────────
 
 extern char iconTempFile[32];

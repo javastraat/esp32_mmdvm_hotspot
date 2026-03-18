@@ -7,6 +7,7 @@
 #include "nvs_settings.h"
 #include "sensor.h"
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <LittleFS.h>
@@ -610,6 +611,56 @@ static void setupWebServer() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/mdnsname", HTTP_GET, []() {
+    char buf[48];
+    snprintf(buf, sizeof(buf), "{\"name\":\"%s\"}", mdnsName);
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/mdnsname", HTTP_POST, []() {
+    String v = webServer.arg("name");
+    v.trim();
+    v.toLowerCase();
+    // Allow a-z, 0-9, hyphens only
+    bool valid = (v.length() >= 1 && v.length() <= 31);
+    for (int i = 0; valid && i < (int)v.length(); i++) {
+      char c = v[i];
+      if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) valid = false;
+    }
+    if (!valid) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"1-31 chars, a-z 0-9 -\"}");
+      return;
+    }
+    strncpy(mdnsName, v.c_str(), 31);
+    mdnsName[31] = '\0';
+    saveSettings();
+    MDNS.end();
+    MDNS.begin(mdnsName);
+    MDNS.addService("http", "tcp", 80);
+    ArduinoOTA.setHostname(mdnsName);
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/bootname", HTTP_GET, []() {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "{\"name\":\"%s\"}", bootName);
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/bootname", HTTP_POST, []() {
+    String v = webServer.arg("name");
+    v.trim();
+    v.toUpperCase();
+    if (v.length() == 0 || v.length() > 8) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"1-8 chars\"}");
+      return;
+    }
+    strncpy(bootName, v.c_str(), 8);
+    bootName[8] = '\0';
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.begin();
   Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
 }
@@ -617,7 +668,15 @@ static void setupWebServer() {
 // ── OTA ───────────────────────────────────────────────────────────────────────
 
 void setupOTA() {
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  // Start mDNS — device reachable as <mdnsName>.local
+  if (MDNS.begin(mdnsName)) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("[mDNS] Started: http://%s.local/\n", mdnsName);
+  } else {
+    Serial.println("[mDNS] Start FAILED");
+  }
+
+  ArduinoOTA.setHostname(mdnsName);  // OTA hostname matches mDNS name
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
     Serial.println("[OTA] Start");
@@ -647,6 +706,6 @@ void setupOTA() {
   });
   ArduinoOTA.begin();
   otaStarted = true;
-  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", OTA_HOSTNAME);
+  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", mdnsName);
   setupWebServer();
 }
