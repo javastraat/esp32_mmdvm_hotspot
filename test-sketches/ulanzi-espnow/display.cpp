@@ -423,7 +423,7 @@ void loopBrightness() {
 // ============================================================
 
 void loopAutoRotate() {
-  if (!autoRotateEnabled || !sht31Available) return;
+  if (!autoRotateEnabled) return;
   if (screensaverActive || iconPreviewActive) return;
 
   static unsigned long lastRotate = 0;
@@ -445,8 +445,11 @@ void loopAutoRotate() {
 #endif
 
   if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
-  lastRotate  = millis();
-  displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
+  lastRotate = millis();
+  // Advance to next mode; skip sensor modes if SHT31 not available
+  do {
+    displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
+  } while (!sht31Available && (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY));
 }
 
 // ============================================================
