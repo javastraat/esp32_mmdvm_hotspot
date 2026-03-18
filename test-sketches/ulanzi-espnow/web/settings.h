@@ -61,7 +61,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
                oninput="document.getElementById('bz-boot-num').textContent=this.value"
                onchange="onBuzzerChange('boot')">
         <span class="bright-num" id="bz-boot-num">80</span>
-        <button onclick="testBuzzer('boot')" style="background:#444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Test</button>
+        <button onclick="testBuzzer('boot')" class="btn btn-secondary" style="flex-shrink:0">Test</button>
       </div>
     </div>
     <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
@@ -77,7 +77,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
                oninput="document.getElementById('bz-poc-num').textContent=this.value"
                onchange="onBuzzerChange('pocsag')">
         <span class="bright-num" id="bz-poc-num">80</span>
-        <button onclick="testBuzzer('pocsag')" style="background:#444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Test</button>
+        <button onclick="testBuzzer('pocsag')" class="btn btn-secondary" style="flex-shrink:0">Test</button>
       </div>
     </div>
     <div style="padding:6px 0">
@@ -93,7 +93,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
                oninput="document.getElementById('bz-clk-num').textContent=this.value"
                onchange="onBuzzerChange('click')">
         <span class="bright-num" id="bz-clk-num">60</span>
-        <button onclick="testBuzzer('click')" style="background:#444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Test</button>
+        <button onclick="testBuzzer('click')" class="btn btn-secondary" style="flex-shrink:0">Test</button>
       </div>
     </div>
   </div>
@@ -341,8 +341,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
         <input type="text" id="boot-name" maxlength="8"
                style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em;text-transform:uppercase;letter-spacing:.1em"
                oninput="this.value=this.value.toUpperCase()">
-        <button onclick="saveBootName()"
-                style="background:#00bcd4;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold;white-space:nowrap">Save</button>
+        <button onclick="saveBootName()" class="btn btn-info">Save</button>
       </div>
       <div id="bootname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
@@ -352,8 +351,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
         <input type="text" id="mdns-name" maxlength="31"
                style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
                oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');document.getElementById('mdns-preview').textContent=this.value||'ulanzi'">
-        <button onclick="saveMdnsName()"
-                style="background:#00bcd4;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold;white-space:nowrap">Save</button>
+        <button onclick="saveMdnsName()" class="btn btn-info">Save</button>
       </div>
       <div id="mdnsname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
@@ -363,8 +361,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
         <input type="text" id="ota-hostname" maxlength="31"
                style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
                oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
-        <button onclick="saveOtaHostname()"
-                style="background:#00bcd4;color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold;white-space:nowrap">Save</button>
+        <button onclick="saveOtaHostname()" class="btn btn-info">Save</button>
       </div>
       <div id="otahostname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
@@ -375,13 +372,11 @@ static const char PAGE_SETTINGS[] PROGMEM =
     <h3>System</h3>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div>
-        <button onclick="doClearRtc()"
-                style="width:100%;background:#e67e22;color:#fff;border:none;padding:7px 0;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold">Clear RTC &amp; Time Sync</button>
+        <button onclick="doClearRtc()" class="btn btn-warning" style="width:100%">Clear RTC &amp; Time Sync</button>
         <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.</div>
       </div>
       <div>
-        <button onclick="doReboot()"
-                style="width:100%;background:#e53935;color:#fff;border:none;padding:7px 0;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold">Reboot Device</button>
+        <button onclick="doReboot()" class="btn btn-danger" style="width:100%">Reboot Device</button>
         <div id="reboot-status" style="font-size:.78em;color:#aaa;margin-top:3px;min-height:1em"></div>
       </div>
     </div>
@@ -527,19 +522,21 @@ function onSsChange(){
   }).catch(function(){});
 }
 function doClearRtc(){
-  if(!confirm('Clear RTC and reboot?\nScanner animation will run until the next time beacon.'))return;
-  fetch('/api/rtc/clear',{method:'POST'}).catch(function(){});
-  var s=document.getElementById('reboot-status');
-  s.textContent='Clearing RTC and rebooting…';
-  setTimeout(function(){location.reload();},6000);
+  showConfirm('Clear RTC and reboot? Scanner animation will run until the next time beacon.',function(){
+    fetch('/api/rtc/clear',{method:'POST'}).catch(function(){});
+    var s=document.getElementById('reboot-status');
+    s.textContent='Clearing RTC and rebooting…';
+    setTimeout(function(){location.reload();},6000);
+  });
 }
 function doReboot(){
-  if(!confirm('Reboot device?'))return;
-  var s=document.getElementById('reboot-status');
-  s.textContent='Rebooting…';
-  fetch('/api/reboot',{method:'POST'}).catch(function(){});
-  setTimeout(function(){s.textContent='Reconnecting…';},1500);
-  setTimeout(function(){location.reload();},6000);
+  showConfirm('Reboot device?',function(){
+    var s=document.getElementById('reboot-status');
+    s.textContent='Rebooting…';
+    fetch('/api/reboot',{method:'POST'}).catch(function(){});
+    setTimeout(function(){s.textContent='Reconnecting…';},1500);
+    setTimeout(function(){location.reload();},6000);
+  });
 }
 function saveOtaHostname(){
   var v=document.getElementById('ota-hostname').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');

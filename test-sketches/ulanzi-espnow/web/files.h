@@ -9,19 +9,7 @@ static const char PAGE_FILES[] PROGMEM =
   "<meta charset=\"utf-8\">"
   "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
   "<title>Ulanzi Files</title>"
-  "<style>" COMMON_CSS
-  ".fb-modal-ov{position:fixed;top:0;left:0;width:100%;height:100%;"
-  "background:rgba(0,0,0,.65);z-index:9000;display:flex;align-items:center;justify-content:center}"
-  ".fb-modal-box{background:var(--container-bg);border:1px solid var(--border-color);"
-  "border-radius:8px;padding:22px 24px;min-width:240px;max-width:380px;text-align:center;"
-  "box-shadow:0 4px 20px rgba(0,0,0,.5)}"
-  ".fb-modal-box h4{margin-bottom:4px;font-size:.95em;line-height:1.45;word-break:break-all}"
-  ".fb-btn-ok{background:#00bcd4;color:#000;border:none;padding:7px 22px;border-radius:4px;"
-  "cursor:pointer;font-weight:bold;font-size:.9em}"
-  ".fb-btn-cancel{background:#555;color:#fff;border:none;padding:7px 18px;border-radius:4px;"
-  "cursor:pointer;font-size:.9em}"
-  ".fb-tbtn{border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.82em;font-weight:bold}"
-  "</style>"
+  "<style>" COMMON_CSS "</style>"
   THEME_INIT_SCRIPT
   "</head><body>"
   NAV_BAR
@@ -53,16 +41,8 @@ static const char PAGE_FILES[] PROGMEM =
       <input type="text" id="icon-id" placeholder="Icon ID e.g. 2867"
         style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border-color);
                background:var(--bg-secondary);color:var(--text-color);border-radius:4px;font-size:.9em">
-      <button onclick="previewIcon()"
-        style="background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);
-               padding:6px 14px;border-radius:4px;cursor:pointer;font-size:.9em;white-space:nowrap">
-        Preview
-      </button>
-      <button onclick="downloadIcon()"
-        style="background:#00bcd4;color:#000;border:none;padding:6px 18px;border-radius:4px;
-               cursor:pointer;font-weight:bold;white-space:nowrap;font-size:.9em">
-        Save to /icons/
-      </button>
+      <button onclick="previewIcon()" class="btn btn-secondary">Preview</button>
+      <button onclick="downloadIcon()" class="btn btn-info">Save to /icons/</button>
     </div>
     <div id="icon-status" style="margin-top:8px;font-size:.85em;color:var(--text-muted);min-height:1.2em"></div>
     <div id="icon-preview" style="display:none;margin-top:8px">
@@ -88,14 +68,10 @@ static const char PAGE_FILES[] PROGMEM =
 
     <!-- Toolbar -->
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-      <button id="fb-up-btn" class="fb-tbtn" style="background:#555;color:#fff"
-              onclick="fbGoUp()" disabled>&#8593; Up</button>
-      <button class="fb-tbtn" style="background:#444;color:#fff"
-              onclick="fbRefresh()">&#8635; Refresh</button>
-      <button class="fb-tbtn" style="background:#2e7d32;color:#fff"
-              onclick="fbMkdirToggle()">&#128193;+ Folder</button>
-      <button class="fb-tbtn" style="background:#1565c0;color:#fff"
-              onclick="fbUploadToggle()">&#8679; Upload</button>
+      <button id="fb-up-btn" class="btn btn-secondary" onclick="fbGoUp()" disabled>&#8593; Up</button>
+      <button class="btn btn-secondary" onclick="fbRefresh()">&#8635; Refresh</button>
+      <button class="btn btn-success" onclick="fbMkdirToggle()">&#128193;+ Folder</button>
+      <button class="btn btn-primary" onclick="fbUploadToggle()">&#8679; Upload</button>
     </div>
 
     <!-- Mkdir row (hidden) -->
@@ -105,10 +81,8 @@ static const char PAGE_FILES[] PROGMEM =
         style="flex:1;padding:4px 8px;background:var(--bg-secondary);color:var(--text-color);
                border:1px solid var(--border-color);border-radius:4px;font-size:.88em"
         onkeydown="if(event.key==='Enter')fbMkdir()">
-      <button class="fb-tbtn" style="background:#2e7d32;color:#fff;flex-shrink:0"
-              onclick="fbMkdir()">Create</button>
-      <button class="fb-tbtn" style="background:#555;color:#fff;flex-shrink:0"
-              onclick="fbMkdirHide()">Cancel</button>
+      <button class="btn btn-success" style="flex-shrink:0" onclick="fbMkdir()">Create</button>
+      <button class="btn btn-secondary" style="flex-shrink:0" onclick="fbMkdirHide()">Cancel</button>
     </div>
 
     <!-- Upload row (hidden) -->
@@ -116,10 +90,8 @@ static const char PAGE_FILES[] PROGMEM =
          style="display:none;align-items:center;gap:6px;margin-bottom:4px">
       <input type="file" id="fb-upload-file"
         style="flex:1;font-size:.82em;min-width:0;color:var(--text-color)">
-      <button class="fb-tbtn" style="background:#2e7d32;color:#fff;flex-shrink:0"
-              onclick="fbDoUpload()">Upload</button>
-      <button class="fb-tbtn" style="background:#555;color:#fff;flex-shrink:0"
-              onclick="fbUploadHide()">Cancel</button>
+      <button class="btn btn-success" style="flex-shrink:0" onclick="fbDoUpload()">Upload</button>
+      <button class="btn btn-secondary" style="flex-shrink:0" onclick="fbUploadHide()">Cancel</button>
     </div>
     <div id="fb-upload-status"
          style="display:none;font-size:.82em;margin-bottom:6px;padding:0 2px"></div>
@@ -193,11 +165,9 @@ function fbNavigate(path){
         rows+='<td style="padding:5px 4px;color:var(--text-muted);text-align:right;font-size:.82em">dir</td>';
         rows+='<td style="padding:5px 2px;text-align:right;white-space:nowrap">'
              +'<button onclick="fbRename(\''+esc+'\')"'
-             +' style="background:#1565c0;color:#fff;border:none;padding:2px 8px;'
-             +'border-radius:4px;cursor:pointer;font-size:.8em;margin-right:4px">Ren</button>'
+             +' class="btn btn-primary" style="padding:2px 8px;margin-right:4px">Ren</button>'
              +'<button onclick="fbDelete(\''+esc+'\')"'
-             +' style="background:#dc3545;color:#fff;border:none;padding:2px 8px;'
-             +'border-radius:4px;cursor:pointer;font-size:.8em">Del</button></td>';
+             +' class="btn btn-danger" style="padding:2px 8px">Del</button></td>';
       }else{
         var isImg=/\.(jpe?g|gif|png|bmp)$/i.test(e.name);
         var nameCell=isImg
@@ -210,14 +180,11 @@ function fbNavigate(path){
         rows+='<td style="padding:5px 2px;text-align:right;white-space:nowrap">'
              +'<a href="/api/fs/download?path='+encodeURIComponent(e.path)+'"'
              +' download="'+e.name+'"'
-             +' style="background:#555;color:#fff;text-decoration:none;padding:2px 8px;'
-             +'border-radius:4px;font-size:.8em;margin-right:4px;display:inline-block">DL</a>'
+             +' class="btn btn-secondary" style="padding:2px 8px;margin-right:4px;text-decoration:none;display:inline-block">DL</a>'
              +'<button onclick="fbRename(\''+esc+'\')"'
-             +' style="background:#1565c0;color:#fff;border:none;padding:2px 8px;'
-             +'border-radius:4px;cursor:pointer;font-size:.8em;margin-right:4px">Ren</button>'
+             +' class="btn btn-primary" style="padding:2px 8px;margin-right:4px">Ren</button>'
              +'<button onclick="fbDelete(\''+esc+'\')"'
-             +' style="background:#dc3545;color:#fff;border:none;padding:2px 8px;'
-             +'border-radius:4px;cursor:pointer;font-size:.8em">Del</button>'
+             +' class="btn btn-danger" style="padding:2px 8px">Del</button>'
              +'</td>';
       }
       rows+='</tr>';
@@ -230,11 +197,11 @@ function fbNavigate(path){
   });
 }
 function fbDelete(path){
-  fbConfirm('Delete: '+path+'?',function(){
+  showConfirm('Delete: '+path+'?',function(){
     fetch('/api/fs/delete?path='+encodeURIComponent(path),{method:'POST'})
     .then(function(r){return r.text();})
-    .then(function(msg){fbAlert(msg);fbRefresh();loadFs();})
-    .catch(function(){fbAlert('Delete failed');});
+    .then(function(msg){showAlert(msg);fbRefresh();loadFs();})
+    .catch(function(){showAlert('Delete failed');});
   });
 }
 function fbMkdirToggle(){
@@ -253,8 +220,8 @@ function fbMkdir(){
   var path=(fbPath==='/')?'/'+name:fbPath+'/'+name;
   fetch('/api/fs/mkdir?path='+encodeURIComponent(path),{method:'POST'})
   .then(function(r){return r.text();})
-  .then(function(msg){fbAlert(msg);fbMkdirHide();fbRefresh();})
-  .catch(function(){fbAlert('Error creating folder');});
+  .then(function(msg){showAlert(msg);fbMkdirHide();fbRefresh();})
+  .catch(function(){showAlert('Error creating folder');});
 }
 function fbUploadToggle(){
   fbMkdirHide();
@@ -269,7 +236,7 @@ function fbUploadHide(){
 }
 function fbDoUpload(){
   var fi=document.getElementById('fb-upload-file');
-  if(!fi.files.length){fbAlert('Select a file first');return;}
+  if(!fi.files.length){showAlert('Select a file first');return;}
   var file=fi.files[0];
   var fd=new FormData();fd.append('file',file,file.name);
   var st=document.getElementById('fb-upload-status');
@@ -367,57 +334,28 @@ function fbRename(path){
   var sl=path.lastIndexOf('/');
   var dir=sl>0?path.substring(0,sl):'/';
   var name=path.substring(sl+1);
-  fbPrompt('Rename: '+name,name,function(newName){
-    newName=newName.trim();
-    if(!newName||newName===name)return;
-    var newPath=(dir==='/')?'/'+newName:dir+'/'+newName;
-    fetch('/api/fs/rename?from='+encodeURIComponent(path)+'&to='+encodeURIComponent(newPath),{method:'POST'})
-    .then(function(r){return r.text();})
-    .then(function(msg){fbAlert(msg);fbRefresh();})
-    .catch(function(){fbAlert('Rename failed');});
+  showModal(function(box,close){
+    var h=document.createElement('h4');h.textContent='Rename: '+name;box.appendChild(h);
+    var inp=document.createElement('input');inp.type='text';inp.value=name;
+    box.appendChild(inp);
+    var d=document.createElement('div');d.className='modal-buttons';
+    var ok=document.createElement('button');ok.textContent='Rename';ok.className='btn btn-info';
+    ok.onclick=function(){
+      var newName=inp.value.trim();
+      if(!newName||newName===name){close();return;}
+      var newPath=(dir==='/')?'/'+newName:dir+'/'+newName;
+      close();
+      fetch('/api/fs/rename?from='+encodeURIComponent(path)+'&to='+encodeURIComponent(newPath),{method:'POST'})
+      .then(function(r){return r.text();})
+      .then(function(msg){showAlert(msg);fbRefresh();})
+      .catch(function(){showAlert('Rename failed');});
+    };
+    var no=document.createElement('button');no.textContent='Cancel';no.className='btn btn-secondary';
+    no.onclick=close;
+    d.appendChild(ok);d.appendChild(no);box.appendChild(d);
+    setTimeout(function(){inp.focus();inp.select();},50);
+    inp.onkeydown=function(e){if(e.key==='Enter')ok.onclick();if(e.key==='Escape')no.onclick();};
   });
-}
-// ── Modal helpers ──────────────────────────────────────────────
-function fbAlert(msg){
-  var ov=document.createElement('div');ov.className='fb-modal-ov';
-  var box=document.createElement('div');box.className='fb-modal-box';
-  var h=document.createElement('h4');h.textContent=msg;box.appendChild(h);
-  var d=document.createElement('div');d.style.marginTop='14px';
-  var btn=document.createElement('button');btn.textContent='OK';btn.className='fb-btn-ok';
-  btn.onclick=function(){document.body.removeChild(ov);};
-  d.appendChild(btn);box.appendChild(d);ov.appendChild(box);document.body.appendChild(ov);
-}
-function fbPrompt(msg,defaultVal,onOk){
-  var ov=document.createElement('div');ov.className='fb-modal-ov';
-  var box=document.createElement('div');box.className='fb-modal-box';
-  var h=document.createElement('h4');h.textContent=msg;box.appendChild(h);
-  var inp=document.createElement('input');inp.type='text';inp.value=defaultVal;
-  inp.style.cssText='width:100%;box-sizing:border-box;padding:6px 8px;margin:10px 0 4px;'+
-    'background:var(--bg-secondary);color:var(--text-color);'+
-    'border:1px solid var(--border-color);border-radius:4px;font-size:.9em';
-  box.appendChild(inp);
-  var d=document.createElement('div');
-  d.style.cssText='display:flex;gap:10px;justify-content:center;margin-top:10px';
-  var ok=document.createElement('button');ok.textContent='Rename';ok.className='fb-btn-ok';
-  ok.onclick=function(){document.body.removeChild(ov);onOk(inp.value);};
-  var no=document.createElement('button');no.textContent='Cancel';no.className='fb-btn-cancel';
-  no.onclick=function(){document.body.removeChild(ov);};
-  d.appendChild(ok);d.appendChild(no);box.appendChild(d);ov.appendChild(box);
-  document.body.appendChild(ov);
-  inp.focus();inp.select();
-  inp.onkeydown=function(e){if(e.key==='Enter')ok.onclick();if(e.key==='Escape')no.onclick();};
-}
-function fbConfirm(msg,onYes){
-  var ov=document.createElement('div');ov.className='fb-modal-ov';
-  var box=document.createElement('div');box.className='fb-modal-box';
-  var h=document.createElement('h4');h.textContent=msg;box.appendChild(h);
-  var d=document.createElement('div');
-  d.style.cssText='display:flex;gap:10px;justify-content:center;margin-top:14px';
-  var yes=document.createElement('button');yes.textContent='Yes';yes.className='fb-btn-ok';
-  yes.onclick=function(){document.body.removeChild(ov);onYes();};
-  var no=document.createElement('button');no.textContent='Cancel';no.className='fb-btn-cancel';
-  no.onclick=function(){document.body.removeChild(ov);};
-  d.appendChild(yes);d.appendChild(no);box.appendChild(d);ov.appendChild(box);document.body.appendChild(ov);
 }
 loadFs();
 fbNavigate('/');
