@@ -121,8 +121,10 @@ static const char PAGE_MQTT[] PROGMEM =
 
     </div>
 
-    <!-- HA Auto-Discovery section -->
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-color)">
+
+    <!-- Home Assistant Integration Card -->
+    <div class="card" style="margin-top:18px">
+      <h3>Home Assistant Integration</h3>
       <div class="metric" style="border-bottom:none">
         <div>
           <span class="metric-label">HA Auto-Discovery</span>
@@ -133,13 +135,16 @@ static const char PAGE_MQTT[] PROGMEM =
           <span class="slider"></span>
         </label>
       </div>
-
+      <div style="margin-top:10px">
+        <label class="metric-label" for="mqtt-ha-name-in">Device Name</label>
+        <input type="text" id="mqtt-ha-name-in" placeholder="(defaults to boot name)"
+          style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Name shown in Home Assistant. Leave empty to use boot logo name.</div>
+      </div>
       <div style="margin-top:10px">
         <label class="metric-label" for="mqtt-prefix-in">Discovery Prefix</label>
         <input type="text" id="mqtt-prefix-in" value="homeassistant"
-          style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);
-                 color:var(--text-color);border:1px solid var(--border-color);
-                 border-radius:4px;font-size:.9em;box-sizing:border-box">
+          style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
         <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Must match HA's MQTT discovery prefix (default: homeassistant).</div>
       </div>
     </div>
@@ -164,6 +169,7 @@ function updatePreview(){
   var node=document.getElementById('mqtt-node-in').value.trim()||'ulanzi';
   document.getElementById('node-preview').textContent=node+'/sensor/temperature/state  etc.';
 }
+
 function saveMqtt(){
   var broker=document.getElementById('mqtt-broker-in').value.trim();
   var port=parseInt(document.getElementById('mqtt-port-in').value)||1883;
@@ -173,6 +179,7 @@ function saveMqtt(){
   var prefix=document.getElementById('mqtt-prefix-in').value.trim();
   var en=document.getElementById('mqtt-en').checked;
   var disc=document.getElementById('mqtt-disc').checked;
+  var haName=document.getElementById('mqtt-ha-name-in').value.trim();
 
   if(en && !broker){
     showAlert('Enter a broker host or IP address.');
@@ -193,7 +200,8 @@ function saveMqtt(){
     +'&pass='+encodeURIComponent(pass)
     +'&node='+encodeURIComponent(node)
     +'&prefix='+encodeURIComponent(prefix)
-    +'&discovery='+(disc?'1':'0');
+    +'&discovery='+(disc?'1':'0')
+    +'&ha_name='+encodeURIComponent(haName);
 
   fetch('/api/mqtt',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
@@ -256,6 +264,7 @@ function loadForm(){
     document.getElementById('mqtt-node-in').value=node;
     document.getElementById('mqtt-prefix-in').value=d.prefix||'homeassistant';
     document.getElementById('mqtt-disc').checked=d.discovery;
+    document.getElementById('mqtt-ha-name-in').value=d.ha_name||'';
     updatePreview();
   })
   .catch(function(){});

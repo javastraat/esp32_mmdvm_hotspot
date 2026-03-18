@@ -34,6 +34,7 @@ void loadSettings() {
   { String s = p.getString("mqtt_pass",   ""); s.trim(); strncpy(mqttPass,   s.c_str(), 63); mqttPass[63]   = '\0'; }
   { String s = p.getString("mqtt_prefix", "homeassistant"); s.trim(); strncpy(mqttPrefix, s.c_str(), 31); mqttPrefix[31] = '\0'; }
   { String s = p.getString("mqtt_node",   "ulanzi");        s.trim(); strncpy(mqttNodeId, s.c_str(), 31); mqttNodeId[31] = '\0'; }
+  { String s = p.getString("mqtt_ha_name", ""); s.trim(); strncpy(mqttHaName, s.c_str(), 31); mqttHaName[31] = '\0'; }
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
   { String s = p.getString("mdns_name",    "ulanzi");     s.trim(); s.toLowerCase(); strncpy(mdnsName,    s.c_str(), 31); mdnsName[31]    = '\0'; }
   { String s = p.getString("ota_hostname", "ulanzi-ota"); s.trim(); s.toLowerCase(); strncpy(otaHostname, s.c_str(), 31); otaHostname[31] = '\0'; }
@@ -94,6 +95,7 @@ void saveSettings() {
   p.putString("mqtt_pass",   mqttPass);
   p.putString("mqtt_prefix", mqttPrefix);
   p.putString("mqtt_node",   mqttNodeId);
+  p.putString("mqtt_ha_name", mqttHaName);
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
   p.putString("mdns_name",    mdnsName);

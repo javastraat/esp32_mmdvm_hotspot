@@ -276,11 +276,11 @@ static void setupWebServer() {
   webServer.on("/api/mqtt", HTTP_GET, []() {
     char buf[512];
     snprintf(buf, sizeof(buf),
-      "{\"enabled\":%s,\"connected\":%s,\"status\":\"%s\","
-      "\"broker\":\"%s\",\"port\":%u,"
-      "\"user\":\"%s\",\"pass\":\"%s\","
-      "\"node_id\":\"%s\",\"prefix\":\"%s\","
-      "\"discovery\":%s}",
+      "{\"enabled\":%s,\"connected\":%s,\"status\":\"%s\"," 
+      "\"broker\":\"%s\",\"port\":%u," 
+      "\"user\":\"%s\",\"pass\":\"%s\"," 
+      "\"node_id\":\"%s\",\"prefix\":\"%s\"," 
+      "\"discovery\":%s,\"ha_name\":\"%s\"}",
       mqttEnabled   ? "true" : "false",
       mqttIsConnected() ? "true" : "false",
       mqttGetStatus(),
@@ -288,7 +288,8 @@ static void setupWebServer() {
       mqttUser,
       mqttPass,   // password is returned so the form can pre-fill it
       mqttNodeId, mqttPrefix,
-      mqttDiscovery ? "true" : "false");
+      mqttDiscovery ? "true" : "false",
+      mqttHaName);
     webServer.send(200, "application/json", buf);
   });
 
@@ -311,6 +312,10 @@ static void setupWebServer() {
     }
     if (webServer.hasArg("prefix")) {
       strncpy(mqttPrefix, webServer.arg("prefix").c_str(), 31); mqttPrefix[31] = '\0';
+    }
+    if (webServer.hasArg("ha_name")) {
+      String v = webServer.arg("ha_name"); v.trim();
+      strncpy(mqttHaName, v.c_str(), 31); mqttHaName[31] = '\0';
     }
     saveSettings();
     mqttRequestReconnect();

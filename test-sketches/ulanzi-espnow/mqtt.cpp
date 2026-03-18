@@ -21,6 +21,7 @@ char     mqttPass[64]  = "";
 bool     mqttDiscovery = true;
 char     mqttPrefix[32]= "homeassistant";
 char     mqttNodeId[32]= "ulanzi";
+char     mqttHaName[32]= "ulanzi";
 
 // ── Internal state ─────────────────────────────────────────────────────────────
 static WiFiClient    _wc;
@@ -48,7 +49,9 @@ static void _availTopic(char* b, int n)
   { snprintf(b, n, "%s/availability",  mqttNodeId); }
 
 // Build the shared "device" JSON fragment (no trailing comma)
+// Use mqttHaName if set, else fallback to bootName
 static int _devBlock(char* buf, int len) {
+  const char* haName = (mqttHaName[0] != '\0') ? mqttHaName : bootName;
   return snprintf(buf, len,
     "\"device\":{"
       "\"identifiers\":[\"%s_%s\"],"
@@ -58,7 +61,7 @@ static int _devBlock(char* buf, int len) {
       "\"configuration_url\":\"http://%s/\""
     "}",
     mqttNodeId, _mac,
-    bootName,
+    haName,
     WiFi.localIP().toString().c_str());
 }
 
