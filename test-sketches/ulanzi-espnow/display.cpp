@@ -207,7 +207,7 @@ void resetScreensaverIdle() {
 // *delayMs is set to the frame delay for the caller's redraw scheduling.
 // x0: left edge of icon on the matrix (use 0 for static; pocsagScrollX for scrolling).
 // Returns x position for text (= x0 + gifWidth + 1), or -1 on failure (use bitmap fallback).
-static int drawGifIcon(const char* path, int textW, int* delayMs, int x0 = 0) {
+static int drawGifIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return -1;
   if (!_gifEnsureOpen(path)) return -1;
@@ -218,9 +218,7 @@ static int drawGifIcon(const char* path, int textW, int* delayMs, int x0 = 0) {
   int delay = 100;
   int result = _gif.playFrame(false, &delay);
   *delayMs = max(delay, 33);
-  if (result == 0) {
-    _gif.reset();  // last frame: rewind for seamless loop
-  } else if (result < 0) {
+  if (result < 0) {
     _gif.close();  // decode error: reopen on next call
     _gifIsOpen = false;
   }
@@ -269,9 +267,9 @@ static bool _isJpeg(const char* path) {
 
 // Unified icon draw: routes to GIF or JPEG decoder based on file extension.
 // x0: left edge of icon; 0 for static displays, pocsagScrollX for scrolling.
-static int drawIcon(const char* path, int textW, int* delayMs, int x0 = 0) {
+static int drawIcon(const char* path, int* delayMs, int x0 = 0) {
   if (_isJpeg(path)) return drawJpegIcon(path, delayMs, x0);
-  return drawGifIcon(path, textW, delayMs, x0);
+  return drawGifIcon(path, delayMs, x0);
 }
 
 // ============================================================
@@ -454,7 +452,7 @@ void loopDisplay() {
         bool first = (pocsagStaticLastDraw == 0);
         FastLED.clear();
         int gifDelay = 500;
-        int textX = drawIcon(iconPocsagFile, 0, &gifDelay);
+        int textX = drawIcon(iconPocsagFile, &gifDelay);
         if (textX < 0) {
           // Bitmap fallback: 5×5 bell icon at x=0
           for (int row = 0; row < 5; row++)
@@ -485,7 +483,7 @@ void loopDisplay() {
       pocsagScrollLast = millis();
       FastLED.clear();
       int gifDelay = POCSAG_SCROLL_SPEED_MS;
-      int textX = drawIcon(iconPocsagFile, 0, &gifDelay, pocsagScrollX);
+      int textX = drawIcon(iconPocsagFile, &gifDelay, pocsagScrollX);
       if (textX < 0) {
         // Bitmap fallback: bell at pocsagScrollX
         for (int row = 0; row < 5; row++)
@@ -546,7 +544,7 @@ void loopDisplay() {
       if (millis() >= nextPreviewFrame) {
         FastLED.clear();
         int gifDelay = 500;
-        drawIcon(iconPreviewFile, 0, &gifDelay, 0);
+        drawIcon(iconPreviewFile, &gifDelay, 0);
         FastLED.show();
         nextPreviewFrame = millis() + max(gifDelay, 33);
       }
@@ -642,7 +640,7 @@ void loopDisplay() {
 
       int len   = strlen(buf);
       int textW = len * 4 - 1;
-      int textX = drawIcon(iconTempFile, textW, &gifDelay);
+      int textX = drawIcon(iconTempFile, &gifDelay);
       if (textX < 0) {
         FastLED.clear();
         gifDelay = 1000;
@@ -668,7 +666,7 @@ void loopDisplay() {
 
       int len   = strlen(buf);
       int textW = len * 4 - 1;
-      int textX = drawIcon(iconHumFile, textW, &gifDelay);
+      int textX = drawIcon(iconHumFile, &gifDelay);
       if (textX < 0) {
         FastLED.clear();
         gifDelay = 1000;
@@ -714,7 +712,7 @@ void loopDisplay() {
     int textW = len * 4 - 1;
     int gifDelay = 2000;
 
-    int textX = drawIcon(iconBatFile, textW, &gifDelay);
+    int textX = drawIcon(iconBatFile, &gifDelay);
     if (textX < 0) {
       FastLED.clear();
       gifDelay = 2000;
