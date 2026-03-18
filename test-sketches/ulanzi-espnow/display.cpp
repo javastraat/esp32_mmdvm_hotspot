@@ -242,6 +242,13 @@ static int drawGifIcon(const char* path, int* delayMs, int x0 = 0) {
     _gifCurPath[0] = '\0';
     return ICON_DRAW_FAILED;          // force bitmap fallback immediately
   }
+  if (result == 0) {
+    // Last frame of a non-looping GIF — close so next call reopens from frame 0.
+    // Last frame was already drawn so we still return a valid text position.
+    _gif.close();
+    _gifIsOpen = false;
+    _gifCurPath[0] = '\0';
+  }
   return x0 + w + 1;                 // text starts right after GIF + 1px gap
 }
 
