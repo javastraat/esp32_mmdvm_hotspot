@@ -510,28 +510,35 @@ void loopDisplay() {
         screensaverIdleStart = millis();  // restart idle countdown after message
       }
     } else {
-      // Scroll: icon and text scroll together, POCSAG_SCROLL_PASSES passes
+      // Scroll: icon pinned at x=0, text scrolls across the full matrix width
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
-      FastLED.clear();
+
+      // Clear text area + gap pixel — icon pixels in leds[] are preserved
+      for (int x = POCSAG_ICON_RESERVED_PX - 1; x < MATRIX_WIDTH; x++)
+        for (int y = 0; y < MATRIX_HEIGHT; y++)
+          setLED(x, y, CRGB::Black);
+
+      // Draw text first (may bleed left into icon area at end of pass)
+      for (int i = 0; i < pocsagMsgLen; i++)
+        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
+
+      // Draw icon on top at fixed x=0 (overwrites any text bleed into icon area)
       int gifDelay = POCSAG_SCROLL_SPEED_MS;
-      int textX = drawIcon(iconPocsagFile, &gifDelay, pocsagScrollX);
+      int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
       if (textX == ICON_DRAW_FAILED) {
-        // Bitmap fallback: bell at pocsagScrollX
         for (int row = 0; row < 5; row++)
           for (int col = 0; col < 5; col++)
             if (ICON_MSG[row] & (1 << (4 - col)))
-              setLED(pocsagScrollX + col, yo + row, LED_COLOR_POCSAG);
-        textX = pocsagScrollX + 6;
+              setLED(col, yo + row, LED_COLOR_POCSAG);
       }
-      for (int i = 0; i < pocsagMsgLen; i++)
-        drawChar(textX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
+
       FastLED.show();
       pocsagScrollX--;
-      if (pocsagScrollX < -(POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4)) {
+      if (pocsagScrollX < -(pocsagMsgLen * 4)) {
         if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES) {
           pocsagMsgActive      = false;
-          screensaverIdleStart = millis();  // restart idle countdown after message
+          screensaverIdleStart = millis();
         } else {
           pocsagScrollX = MATRIX_WIDTH;
         }
