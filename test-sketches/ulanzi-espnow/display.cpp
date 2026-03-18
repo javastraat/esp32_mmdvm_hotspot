@@ -390,15 +390,20 @@ void drawChar(int x, int y, char c, CRGB color) {
 // ============================================================
 
 void loopBrightness() {
-  if (!autoBrightnessEnabled) return;
+  static bool prevAuto = false;
+  if (!autoBrightnessEnabled) { prevAuto = false; return; }
+
   static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate < LDR_UPDATE_MS) return;
+  bool justEnabled = !prevAuto;
+  prevAuto = true;
+
+  if (!justEnabled && millis() - lastUpdate < LDR_UPDATE_MS) return;
   lastUpdate = millis();
 
   int ldr = constrain(analogRead(LDR_PIN), LDR_ADC_DARK, LDR_ADC_BRIGHT);
   uint8_t target = (uint8_t)map(ldr, LDR_ADC_DARK, LDR_ADC_BRIGHT, LDR_MIN_BRIGHTNESS, 255);
-  // EMA smoothing: blend 1/4 toward target each sample
-  currentBrightness = (uint8_t)((currentBrightness * 3 + target + 2) / 4);
+  // Snap immediately on first auto-enable; EMA smoothing for subsequent updates
+  currentBrightness = justEnabled ? target : (uint8_t)((currentBrightness * 3 + target + 2) / 4);
   FastLED.setBrightness(currentBrightness);
 }
 
