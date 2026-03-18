@@ -148,12 +148,14 @@ static int32_t _gifRead(GIFFILE* pf, uint8_t* pBuf, int32_t iLen) {
 static int32_t _gifSeek(GIFFILE* pf, int32_t iPos) {
   if (iPos == 0 && pf->iPos > 0) {
     // Auto-rewind: clear the icon area so frame 0 draws on black (not stale last frame)
+#if ESPNOW_DEBUG
     Serial.printf("[GIF] loop rewind iPos=%d\n", pf->iPos);
+#endif
     int cw = _gif.getCanvasWidth();
     int ch = _gif.getCanvasHeight();
     for (int x = 0; x < cw; x++)
       for (int y = _gifY0; y < _gifY0 + ch; y++)
-        setLED(x, y, CRGB::Black);
+        setLED(_gifX0 + x, y, CRGB::Black);
   }
   ((File*)pf->fHandle)->seek(iPos);
   pf->iPos = iPos;
@@ -530,13 +532,17 @@ void loopDisplay() {
 
   // Icon preview — show selected icon on display for 3s (triggered by Show button)
   if (iconPreviewActive) {
+    static unsigned long nextPreviewFrame  = 0;
+    static bool          prevPreviewActive = false;
     if (millis() >= iconPreviewUntil) {
       iconPreviewActive = false;
+      prevPreviewActive = false;
       _gifCloseIfOpen();
       FastLED.clear();
       FastLED.show();
     } else {
-      static unsigned long nextPreviewFrame = 0;
+      if (!prevPreviewActive) nextPreviewFrame = 0;  // reset on each new preview
+      prevPreviewActive = true;
       if (millis() >= nextPreviewFrame) {
         FastLED.clear();
         int gifDelay = 500;
