@@ -145,11 +145,12 @@ static void setupWebServer() {
       autoBrightnessEnabled = (autoArg == "1" || autoArg == "true");
     if (levelArg.length() > 0) {
       int lvl = levelArg.toInt();
-      if (lvl >= 1 && lvl <= 255) currentBrightness = (uint8_t)lvl;
+      if (lvl >= 0 && lvl <= 255) currentBrightness = (uint8_t)lvl;
     }
     if (!autoBrightnessEnabled)
       FastLED.setBrightness(currentBrightness);
     saveSettings();
+    mqttNotifyState();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -174,6 +175,7 @@ static void setupWebServer() {
     v = webServer.arg("click_en");   if (v.length()) buzzerClickEnabled  = (v == "1" || v == "true");
     v = webServer.arg("click_vol");  if (v.length()) { int n = v.toInt(); if (n >= 0 && n <= 255) buzzerClickVolume  = (uint8_t)n; }
     saveSettings();
+    mqttNotifyState();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -185,6 +187,7 @@ static void setupWebServer() {
       if (n >= 1 && n <= 60) autoRotateIntervalSec = (uint8_t)n;
     }
     saveSettings();
+    mqttNotifyState();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -344,6 +347,7 @@ static void setupWebServer() {
       if (body.indexOf("true") >= 0)       debugLogEnabled = true;
       else if (body.indexOf("false") >= 0) debugLogEnabled = false;
       saveSettings();
+      mqttNotifyState();
       LOG("[DEBUG] Verbose logging %s\n", debugLogEnabled ? "ON" : "OFF");
     }
     webServer.send(200, "application/json", "{\"ok\":true}");
@@ -662,6 +666,7 @@ static void setupWebServer() {
     if (v.length()) { strncpy(screensaverFile, v.c_str(), 63); screensaverFile[63] = '\0'; }
     if (!screensaverEnabled) screensaverActive = false;
     saveSettings();
+    mqttNotifyState();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 

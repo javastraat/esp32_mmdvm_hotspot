@@ -32,12 +32,13 @@ static const char PAGE_SETTINGS[] PROGMEM =
       <span class="bright-lbl" id="tog-lbl">Auto</span>
     </div>
     <div class="bright-bot">
-      <input type="range" id="sld-bright" min="1" max="255" value="50" disabled
-             oninput="document.getElementById('bright-num').textContent=this.value;updatePresetButtons(this.value)"
+      <input type="range" id="sld-bright" min="0" max="255" value="50" disabled
+             oninput="document.getElementById('bright-num').textContent=fmtBright(this.value);updatePresetButtons(this.value)"
              onchange="onSliderChange()">
       <span class="bright-num" id="bright-num">50</span>
     </div>
-    <div id="bright-presets" style="display:none;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <div id="bright-presets" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button id="bp-0"   onclick="applyPreset(0)"   class="bp">Off</button>
       <button id="bp-10"  onclick="applyPreset(10)"  class="bp">Night</button>
       <button id="bp-50"  onclick="applyPreset(50)"  class="bp">Dim</button>
       <button id="bp-120" onclick="applyPreset(120)" class="bp">Medium</button>
@@ -397,7 +398,8 @@ static const char PAGE_SETTINGS[] PROGMEM =
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
   R"html(
 <script>
-var PRESETS=[10,50,120,255];
+var PRESETS=[0,10,50,120,255];
+function fmtBright(v){return parseInt(v)===0?'Off':v;}
 function updatePresetButtons(val){
   val=parseInt(val);
   PRESETS.forEach(function(v){
@@ -409,9 +411,16 @@ function updatePresetButtons(val){
   });
 }
 function applyPreset(val){
+  var tog=document.getElementById('tog-auto');
+  if(tog.checked){
+    tog.checked=false;
+    document.getElementById('sld-bright').disabled=false;
+    document.getElementById('tog-lbl').textContent='Manual';
+    stopAutoPoller();
+  }
   var sld=document.getElementById('sld-bright');
   sld.value=val;
-  document.getElementById('bright-num').textContent=val;
+  document.getElementById('bright-num').textContent=fmtBright(val);
   updatePresetButtons(val);
   postBright(false,val);
 }
@@ -428,7 +437,7 @@ function startAutoPoller(){
     fetch('/api/status').then(function(r){return r.json();}).then(function(d){
       if(!document.getElementById('tog-auto').checked){stopAutoPoller();return;}
       document.getElementById('sld-bright').value=d.brightness;
-      document.getElementById('bright-num').textContent=d.brightness;
+      document.getElementById('bright-num').textContent=fmtBright(d.brightness);
       updatePresetButtons(d.brightness);
     }).catch(function(){});
   },800);
@@ -440,13 +449,14 @@ function onAutoToggle(){
   var isAuto=document.getElementById('tog-auto').checked;
   document.getElementById('sld-bright').disabled=isAuto;
   document.getElementById('tog-lbl').textContent=isAuto?'Auto':'Manual';
-  document.getElementById('bright-presets').style.display=isAuto?'none':'flex';
   postBright(isAuto,document.getElementById('sld-bright').value);
   if(isAuto){startAutoPoller();}else{stopAutoPoller();}
 }
 function onSliderChange(){
-  updatePresetButtons(document.getElementById('sld-bright').value);
-  postBright(false,document.getElementById('sld-bright').value);
+  var v=document.getElementById('sld-bright').value;
+  document.getElementById('bright-num').textContent=fmtBright(v);
+  updatePresetButtons(v);
+  postBright(false,v);
 }
 function onBuzzerChange(testType){
   fetch('/api/buzzer',{method:'POST',
@@ -644,8 +654,7 @@ function testSs(){
     document.getElementById('sld-bright').disabled=d.auto_brightness;
     document.getElementById('tog-lbl').textContent=d.auto_brightness?'Auto':'Manual';
     document.getElementById('sld-bright').value=d.brightness;
-    document.getElementById('bright-num').textContent=d.brightness;
-    document.getElementById('bright-presets').style.display=d.auto_brightness?'none':'flex';
+    document.getElementById('bright-num').textContent=fmtBright(d.brightness);
     updatePresetButtons(d.brightness);
     if(d.auto_brightness)startAutoPoller();
     document.getElementById('tog-bz-boot').checked=d.buzzer_boot_en;

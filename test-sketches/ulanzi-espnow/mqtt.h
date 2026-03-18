@@ -18,6 +18,7 @@ extern char     mqttHaName[32];   // NVS: "mqtt_ha_name" Home Assistant device n
 // ── Runtime API ───────────────────────────────────────────────────────────────
 void        initMqttTask();        // start FreeRTOS task (call from setup after WiFi)
 void        mqttNotifyPocsag();    // immediate POCSAG publish (call from processPocsagPacket)
+void        mqttNotifyState();     // request immediate state publish (safe to call from any task)
 void        mqttRequestReconnect();// drop + reconnect (call after config change)
 bool        mqttIsConnected();
 const char* mqttGetStatus();       // human-readable status string for web UI

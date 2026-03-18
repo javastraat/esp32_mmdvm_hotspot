@@ -32,6 +32,8 @@ static bool          _connected       = false;
 static char          _statusMsg[64]   = "Disabled";
 static unsigned long _lastReconnect   = 0;
 static unsigned long _lastState       = 0;
+static volatile bool _statePending    = false;  // set by mqttNotifyState(), drained by task
+static volatile bool _pocsagPending   = false;  // set by mqttNotifyPocsag(), drained by task
 
 // ── Topic helpers ──────────────────────────────────────────────────────────────
 // state:   {nodeId}/{component}/{id}/state
@@ -47,6 +49,16 @@ static void _btnTopic(char* b, int n, const char* id)
   { snprintf(b, n, "%s/button/%s/command", mqttNodeId, id); }
 static void _availTopic(char* b, int n)
   { snprintf(b, n, "%s/availability",  mqttNodeId); }
+
+// Map brightness value to preset name
+static const char* _brightnessPreset(uint8_t br) {
+  if (br == 0)   return "Off";
+  if (br == 10)  return "Night";
+  if (br == 50)  return "Dim";
+  if (br == 120) return "Medium";
+  if (br == 255) return "Bright";
+  return "Custom";
+}
 
 // Build the shared "device" JSON fragment (no trailing comma)
 // Use mqttHaName if set, else fallback to bootName
@@ -203,8 +215,10 @@ static void _publishAllDiscovery() {
 #endif
 
   // ── Brightness ─────────────────────────────────────────────────────────────
-  _discSwitch("auto_brightness", "Auto Brightness");
+  _discSwitch("auto_brightness", "Brightness Auto");
   _discNumber("brightness",      "Brightness",  1, 255, 1);
+  _discSelect("brightness_preset", "Brightness Preset",
+    "[\"Off\",\"Night\",\"Dim\",\"Medium\",\"Bright\",\"Custom\"]");
 
   // ── Buzzer ─────────────────────────────────────────────────────────────────
   _discSwitch("buzzer_boot",   "Buzzer Boot Sound");
@@ -214,6 +228,9 @@ static void _publishAllDiscovery() {
   _discSwitch("buzzer_click",  "Buzzer Button Click");
   _discNumber("buzzer_click_vol",  "Buzzer Click Volume",  1, 255, 1);
 
+  // ── Debug log ──────────────────────────────────────────────────────────────
+  _discSwitch("debug_log", "Debug Log");
+
   // ── Display rotation ───────────────────────────────────────────────────────
   _discSwitch("auto_rotate",          "Auto Rotate");
   _discNumber("auto_rotate_interval", "Rotate Interval", 1, 60, 1);
@@ -222,9 +239,8 @@ static void _publishAllDiscovery() {
   _discSwitch("screensaver",         "Screensaver");
   _discNumber("screensaver_timeout", "Screensaver Timeout", 10, 3600, 10);
 
-  // ── Display mode ───────────────────────────────────────────────────────────
-  _discSelect("display_mode", "Display Mode",
-    "[\"Clock\",\"Temperature\",\"Humidity\",\"Battery\"]");
+  // ── Display mode (read-only: shows active screen) ──────────────────────────
+  _discSensor("display_mode", "Display Mode", "", "");
 
   // ── Actions ────────────────────────────────────────────────────────────────
   _discButton("reboot",    "Reboot",    "restart");
@@ -269,10 +285,14 @@ static void _publishState() {
   _pubStr("sensor", "dmr_count", tmp);
 #endif
 
+  // Debug log
+  _pubStr("switch", "debug_log", debugLogEnabled ? "ON" : "OFF");
+
   // Brightness
   _pubStr("switch", "auto_brightness", autoBrightnessEnabled ? "ON" : "OFF");
   snprintf(tmp, sizeof(tmp), "%d", currentBrightness);
   _pubStr("number", "brightness", tmp);
+  _pubStr("select", "brightness_preset", _brightnessPreset(currentBrightness));
 
   // Buzzer
   _pubStr("switch", "buzzer_boot",   buzzerBootEnabled   ? "ON" : "OFF");
@@ -290,7 +310,7 @@ static void _publishState() {
   _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
   snprintf(tmp, sizeof(tmp), "%d", screensaverTimeoutSec); _pubStr("number", "screensaver_timeout", tmp);
 
-  // Display mode
+  // Display mode (sensor — read-only, reflects active screen)
   const char* modeStr;
   switch (displayMode) {
     case MODE_TEMP:     modeStr = "Temperature"; break;
@@ -298,7 +318,7 @@ static void _publishState() {
     case MODE_BATTERY:  modeStr = "Battery";     break;
     default:            modeStr = "Clock";       break;
   }
-  _pubStr("select", "display_mode", modeStr);
+  _pubStr("sensor", "display_mode", modeStr);
 }
 
 // ── Incoming command callback ──────────────────────────────────────────────────
@@ -320,6 +340,7 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     if (!autoBrightnessEnabled) FastLED.setBrightness(currentBrightness);
     saveSettings();
     _pubStr("switch", "auto_brightness", autoBrightnessEnabled ? "ON" : "OFF");
+    _pubStr("select", "brightness_preset", _brightnessPreset(currentBrightness));
     LOG("[MQTT] auto_brightness → %s\n", val);
 
   } else if (sub == "number/brightness/set") {
@@ -330,7 +351,29 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
       saveSettings();
       char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
       _pubStr("number", "brightness", buf);
+      _pubStr("select", "brightness_preset", _brightnessPreset((uint8_t)v));
       LOG("[MQTT] brightness → %d\n", v);
+    }
+
+  } else if (sub == "select/brightness_preset/set") {
+    int newBr = -1;
+    if      (strcmp(val, "Off")    == 0) newBr = 0;
+    else if (strcmp(val, "Night")  == 0) newBr = 10;
+    else if (strcmp(val, "Dim")    == 0) newBr = 50;
+    else if (strcmp(val, "Medium") == 0) newBr = 120;
+    else if (strcmp(val, "Bright") == 0) newBr = 255;
+    if (newBr >= 0) {
+      autoBrightnessEnabled = false;
+      currentBrightness = (uint8_t)newBr;
+      FastLED.setBrightness((uint8_t)newBr);
+      saveSettings();
+      _pubStr("switch", "auto_brightness", "OFF");
+      if (newBr > 0) {
+        char buf[8]; snprintf(buf, sizeof(buf), "%d", newBr);
+        _pubStr("number", "brightness", buf);
+      }
+      _pubStr("select", "brightness_preset", val);
+      LOG("[MQTT] brightness_preset → %s (%d)\n", val, newBr);
     }
 
   // ── Debug log ───────────────────────────────────────────────────────────────
@@ -424,17 +467,6 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
       _pubStr("number", "screensaver_timeout", buf);
       LOG("[MQTT] screensaver_timeout → %d\n", v);
     }
-
-  // ── Display mode ────────────────────────────────────────────────────────────
-  } else if (sub == "select/display_mode/set") {
-    if      (strcmp(val, "Temperature") == 0) displayMode = MODE_TEMP;
-    else if (strcmp(val, "Humidity")    == 0) displayMode = MODE_HUMIDITY;
-    else if (strcmp(val, "Battery")     == 0) displayMode = MODE_BATTERY;
-    else                                       displayMode = MODE_CLOCK;
-    modeActiveUntil = 0;
-    resetScreensaverIdle();
-    _pubStr("select", "display_mode", val);
-    LOG("[MQTT] display_mode → %s\n", val);
 
   // ── Buttons ─────────────────────────────────────────────────────────────────
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {
@@ -543,6 +575,24 @@ static void mqttTaskFn(void*) {
     _connected = true;
     _mqtt.loop();
 
+    // Immediate POCSAG publish requested from core 1
+    if (_pocsagPending) {
+      _pocsagPending = false;
+#if RECV_POCSAG
+      _pubStr("sensor", "pocsag_msg", pocsagMsg);
+      char pbuf[16];
+      snprintf(pbuf, sizeof(pbuf), "%lu", (unsigned long)rxTotalPocsag);
+      _pubStr("sensor", "pocsag_count", pbuf);
+#endif
+    }
+
+    // Immediate state publish requested from web handlers
+    if (_statePending) {
+      _statePending = false;
+      _lastState = millis();  // reset periodic timer so we don't double-publish
+      _publishState();
+    }
+
     // Periodic state publish every 30 s
     unsigned long now = millis();
     if (now - _lastState >= 30000) {
@@ -561,13 +611,11 @@ void initMqttTask() {
 }
 
 void mqttNotifyPocsag() {
-  if (!mqttEnabled || !_mqtt.connected()) return;
-#if RECV_POCSAG
-  _pubStr("sensor", "pocsag_msg", pocsagMsg);
-  char buf[16];
-  snprintf(buf, sizeof(buf), "%lu", (unsigned long)rxTotalPocsag);
-  _pubStr("sensor", "pocsag_count", buf);
-#endif
+  if (mqttEnabled) _pocsagPending = true;
+}
+
+void mqttNotifyState() {
+  if (mqttEnabled) _statePending = true;
 }
 
 void mqttRequestReconnect() {
