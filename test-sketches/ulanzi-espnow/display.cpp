@@ -113,8 +113,8 @@ static const uint8_t ICON_BAT[5] = {
   0b111110,  // row 4 — bottom border
 };
 
-// 3×5 bitmaps for punctuation/symbols found in POCSAG weather messages
-static const char    SPECIAL_CHARS[]   = "-.:/%=";
+// 3×5 bitmaps for punctuation/symbols found in POCSAG messages
+static const char    SPECIAL_CHARS[]   = "-.:/%=+()!?#@";
 static const uint8_t FONT_SPECIAL[][5] = {
   {0b000,0b000,0b111,0b000,0b000}, // -
   {0b000,0b000,0b000,0b000,0b010}, // .
@@ -122,6 +122,13 @@ static const uint8_t FONT_SPECIAL[][5] = {
   {0b001,0b001,0b010,0b100,0b100}, // /
   {0b101,0b001,0b010,0b100,0b101}, // %
   {0b000,0b111,0b000,0b111,0b000}, // =
+  {0b000,0b010,0b111,0b010,0b000}, // +
+  {0b001,0b010,0b010,0b010,0b001}, // (
+  {0b100,0b010,0b010,0b010,0b100}, // )
+  {0b010,0b010,0b010,0b000,0b010}, // !
+  {0b111,0b001,0b010,0b000,0b010}, // ?
+  {0b010,0b101,0b111,0b101,0b101}, // # (hash/pound)
+  {0b010,0b101,0b111,0b100,0b011}, // @
 };
 
 // Sentinel returned by drawGifIcon / drawJpegIcon / drawIcon on failure.
@@ -185,7 +192,6 @@ static void _gifDraw(GIFDRAW* pDraw) {
 static bool _gifEnsureOpen(const char* path) {
   if (_gifIsOpen && strcmp(_gifCurPath, path) == 0) return true;
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; }
-  _gif.begin(LITTLE_ENDIAN_PIXELS);   // palette in native ESP32 byte order → correct RGB
   if (!_gif.open(path, _gifOpen, _gifClose, _gifRead, _gifSeek, _gifDraw)) {
     Serial.printf("[GIF] open FAILED: %s\n", path);
     return false;
@@ -196,6 +202,10 @@ static bool _gifEnsureOpen(const char* path) {
   _gifCurPath[sizeof(_gifCurPath) - 1] = '\0';
   _gifIsOpen = true;
   return true;
+}
+
+void setupDisplay() {
+  _gif.begin(LITTLE_ENDIAN_PIXELS);  // set pixel byte order once at boot
 }
 
 void _gifCloseIfOpen() {
@@ -227,6 +237,7 @@ static int drawGifIcon(const char* path, int* delayMs, int x0 = 0) {
     _gif.close();  // decode error: reopen on next call
     _gifIsOpen = false;
     _gifCurPath[0] = '\0';
+    return ICON_DRAW_FAILED;          // force bitmap fallback immediately
   }
   return x0 + w + 1;                 // text starts right after GIF + 1px gap
 }
@@ -253,15 +264,16 @@ static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16
 static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return ICON_DRAW_FAILED;
-  // Get actual dimensions from header before opening for draw
-  uint16_t w = 8, h = 8;
-  TJpgDec.getJpgSize(&w, &h, path);
-  h = min((uint16_t)MATRIX_HEIGHT, h);  // clamp to matrix height
   File jpgFile = LittleFS.open(path);
   if (!jpgFile) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return ICON_DRAW_FAILED;
   }
+  // Read actual dimensions from header, then rewind for the draw pass
+  uint16_t w = 8, h = 8;
+  TJpgDec.getFsJpgSize(&w, &h, jpgFile);
+  jpgFile.seek(0);
+  h = min((uint16_t)MATRIX_HEIGHT, h);  // clamp to matrix height
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1);
   bool ok = (TJpgDec.drawFsJpg(x0, (MATRIX_HEIGHT - h) / 2, jpgFile) == JDR_OK);

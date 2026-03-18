@@ -164,6 +164,7 @@ void setup() {
   FastLED.setBrightness(LED_BRIGHTNESS);
   FastLED.clear();
   FastLED.show();
+  setupDisplay();
   drawBootScreen();
 
   setupFilesystem();

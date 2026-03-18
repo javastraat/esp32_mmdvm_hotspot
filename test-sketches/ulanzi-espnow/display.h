@@ -1,6 +1,7 @@
 #pragma once
 #include <FastLED.h>
 
+void setupDisplay();
 void loopDisplay();
 void loopBrightness();
 void loopAutoRotate();
