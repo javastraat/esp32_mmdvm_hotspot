@@ -57,11 +57,16 @@ static int _devBlock(char* buf, int len) {
       "\"identifiers\":[\"%s_%s\"],"
       "\"name\":\"%s\","
       "\"model\":\"TC001 ESP-NOW\","
+      "\"hw_version\":\"TC001\","
+      "\"sw_version\":\"%s\","
       "\"manufacturer\":\"PD2EMC\","
+      "\"connections\":[[\"mac\",\"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s\"]],"
       "\"configuration_url\":\"http://%s/\""
     "}",
     mqttNodeId, _mac,
     haName,
+    ESP.getSdkVersion(),
+    _mac, _mac+2, _mac+4, _mac+6, _mac+8, _mac+10,
     WiFi.localIP().toString().c_str());
 }
 
