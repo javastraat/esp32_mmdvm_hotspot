@@ -57,7 +57,7 @@ static int _devBlock(char* buf, int len) {
       "\"identifiers\":[\"%s_%s\"],"
       "\"name\":\"%s\","
       "\"model\":\"TC001 ESP-NOW\","
-      "\"manufacturer\":\"Ulanzi\","
+      "\"manufacturer\":\"PD2EMC\","
       "\"configuration_url\":\"http://%s/\""
     "}",
     mqttNodeId, _mac,
