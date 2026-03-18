@@ -124,6 +124,7 @@ static void setupWebServer() {
       buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
       sht31Available ? "true" : "false", sht31Temp, sht31Hum,
       pocsagMsgActive ? "message" :
+        screensaverActive ? "screensaver" :
         displayMode == MODE_TEMP ? "temp" :
         displayMode == MODE_HUMIDITY ? "humidity" : "clock",
       autoRotateEnabled ? "true" : "false", autoRotateIntervalSec
@@ -486,6 +487,45 @@ static void setupWebServer() {
     }
     bool ok = LittleFS.rename(from, to);
     webServer.send(ok ? 200 : 500, "text/plain", ok ? "Renamed" : "Rename failed");
+  });
+
+  // ── Screensaver API ────────────────────────────────────────────────────────
+
+  webServer.on("/api/screensaver", HTTP_GET, []() {
+    char buf[192];
+    snprintf(buf, sizeof(buf),
+      "{\"enabled\":%s,\"timeout\":%d,\"file\":\"%s\",\"active\":%s}",
+      screensaverEnabled ? "true" : "false",
+      screensaverTimeoutSec,
+      screensaverFile,
+      screensaverActive ? "true" : "false");
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/screensaver", HTTP_POST, []() {
+    String v;
+    v = webServer.arg("enabled");
+    if (v.length()) screensaverEnabled = (v == "1" || v == "true");
+    v = webServer.arg("timeout");
+    if (v.length()) { int n = v.toInt(); if (n >= 1 && n <= 3600) screensaverTimeoutSec = (uint16_t)n; }
+    v = webServer.arg("file"); v.trim();
+    if (v.length()) { strncpy(screensaverFile, v.c_str(), 63); screensaverFile[63] = '\0'; }
+    if (!screensaverEnabled) screensaverActive = false;
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/screensaver/test", HTTP_POST, []() {
+    String action = webServer.arg("action");
+    if (action == "test" && strlen(screensaverFile) > 0) {
+      _gifCloseIfOpen();
+      screensaverActive = true;
+      Serial.println("[SS] Test triggered via web");
+    } else {
+      resetScreensaverIdle();
+      Serial.println("[SS] Test stopped via web");
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
   webServer.begin();

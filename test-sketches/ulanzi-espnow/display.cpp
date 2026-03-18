@@ -195,6 +195,12 @@ void _gifCloseIfOpen() {
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; }
 }
 
+void resetScreensaverIdle() {
+  if (screensaverActive) _gifCloseIfOpen();  // force re-open next activation → clean first frame
+  screensaverActive    = false;
+  screensaverIdleStart = millis();
+}
+
 // Advance one GIF frame. Keeps the file open for the next call (animation).
 // *delayMs is set to the frame delay for the caller's redraw scheduling.
 // x0: left edge of icon on the matrix (use 0 for static; pocsagScrollX for scrolling).
@@ -402,6 +408,7 @@ void loopBrightness() {
 
 void loopAutoRotate() {
   if (!autoRotateEnabled || !sht31Available) return;
+  if (screensaverActive) return;  // pause during screensaver
 
   static unsigned long lastRotate = 0;
 
@@ -461,8 +468,10 @@ void loopDisplay() {
         pocsagStaticLastDraw = millis();
         if (first) Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
       }
-      if (millis() >= pocsagStaticUntil)
-        pocsagMsgActive = false;
+      if (millis() >= pocsagStaticUntil) {
+        pocsagMsgActive      = false;
+        screensaverIdleStart = millis();  // restart idle countdown after message
+      }
     } else {
       // Scroll: icon and text scroll together, POCSAG_SCROLL_PASSES passes
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
@@ -483,10 +492,12 @@ void loopDisplay() {
       FastLED.show();
       pocsagScrollX--;
       if (pocsagScrollX < -(POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4)) {
-        if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES)
-          pocsagMsgActive = false;
-        else
+        if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES) {
+          pocsagMsgActive      = false;
+          screensaverIdleStart = millis();  // restart idle countdown after message
+        } else {
           pocsagScrollX = MATRIX_WIDTH;
+        }
       }
     }
     return;
@@ -510,6 +521,40 @@ void loopDisplay() {
         ipScrollX = MATRIX_WIDTH;
     }
     return;
+  }
+
+  // Screensaver — activate after idle timeout, or play if already active
+  if (screensaverEnabled && strlen(screensaverFile) > 0) {
+    if (screensaverActive) {
+      static unsigned long nextSsFrame  = 0;
+      static bool          ssFirstFrame = true;
+      if (millis() >= nextSsFrame) {
+        if (_gifEnsureOpen(screensaverFile)) {
+          _gifX0 = 0;
+          _gifY0 = 0;
+          if (ssFirstFrame) {
+            // Clear once on first frame; subsequent frames rely on GIF disposal
+            FastLED.clear();
+            ssFirstFrame = false;
+          }
+          int delay = 100;
+          int r = _gif.playFrame(false, &delay);
+          FastLED.show();
+          nextSsFrame = millis() + max(delay, 33);
+          if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; ssFirstFrame = true; }
+        } else {
+          screensaverActive = false;  // file missing/corrupt — abort
+          ssFirstFrame = true;
+        }
+      }
+      return;
+    }
+    if (millis() - screensaverIdleStart >= (unsigned long)screensaverTimeoutSec * 1000) {
+      screensaverActive = true;
+      _gifCloseIfOpen();
+      Serial.println("[SS] Screensaver activated");
+      return;
+    }
   }
 
   // Auto-return to clock after mode timeout (manual presses only; rotation manages itself)
@@ -542,7 +587,8 @@ void loopDisplay() {
   }
 
   // Close GIF when not in a mode that uses it
-  if (displayMode != MODE_TEMP && displayMode != MODE_HUMIDITY && displayMode != MODE_BATTERY)
+  if (!screensaverActive &&
+      displayMode != MODE_TEMP && displayMode != MODE_HUMIDITY && displayMode != MODE_BATTERY)
     _gifCloseIfOpen();
 
   // Temperature / humidity display

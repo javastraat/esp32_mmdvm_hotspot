@@ -47,7 +47,7 @@ CRGB leds[NUM_LEDS];
 DisplayMode   displayMode     = MODE_CLOCK;
 unsigned long modeActiveUntil = 0;
 
-// Icon filenames (GIF/JPEG from LittleFS; missing file = built-in bitmap fallback)
+// Icon filenames (GIF/JPEG from LittleFS)
 char iconTempFile[32]   = "/icons/70122.jpg";
 char iconHumFile[32]    = "/icons/71006.jpg";
 char iconBatFile[32]    = "/icons/390.jpg";
@@ -120,6 +120,13 @@ int           ipScrollX       = 0;
 int           ipScrollPass    = 0;
 unsigned long ipScrollLast    = 0;
 
+// Screensaver
+bool          screensaverEnabled    = false;
+uint16_t      screensaverTimeoutSec = 60;
+char          screensaverFile[64]   = "";
+bool          screensaverActive     = false;
+unsigned long screensaverIdleStart  = 0;
+
 // DMR receive state
 #if RECV_DMR
 uint32_t      rxTotalDmr   = 0;
@@ -177,6 +184,7 @@ void setup() {
   pocsagRxQueue = xQueueCreate(4, sizeof(EspNowPocsagPacket));
 #endif
 
+  screensaverIdleStart = millis();  // start idle countdown from boot
   initWebTask();  // starts webTask on Core 0 (ArduinoOTA.handle + webServer.handleClient)
   Serial.println("[RTOS] webTask started on core 0");
 }

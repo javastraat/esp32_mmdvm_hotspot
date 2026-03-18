@@ -4,6 +4,7 @@
 #include "buzzer.h"
 #include "sensor.h"
 #include "web_server.h"
+#include "display.h"
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <WiFi.h>
@@ -70,6 +71,7 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
     if (pkt.ric == excludedRics[i]) { excluded = true; break; }
 
   if (!excluded) {
+    if (screensaverActive) { _gifCloseIfOpen(); screensaverActive = false; }  // idle resets when message ends
     strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
     pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
     if (pkt.ric == CALLSIGN_RIC) {

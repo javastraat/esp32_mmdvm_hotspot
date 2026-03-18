@@ -2,6 +2,7 @@
 #include "buttons.h"
 #include "globals.h"
 #include "buzzer.h"
+#include "display.h"
 
 void loopButtons() {
   static bool          lastState[3]  = {HIGH, HIGH, HIGH};
@@ -18,6 +19,7 @@ void loopButtons() {
     }
     if (!fired[i] && state == LOW && millis() - lastChange[i] >= BTN_DEBOUNCE_MS) {
       fired[i] = true;
+      resetScreensaverIdle();  // any button press exits screensaver and restarts idle countdown
       switch (i) {
         case 0:  // Left — reserved
           Serial.println("[BTN] Left");

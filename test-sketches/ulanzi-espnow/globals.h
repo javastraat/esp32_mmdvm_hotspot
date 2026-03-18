@@ -138,6 +138,14 @@ extern int           ipScrollX;
 extern int           ipScrollPass;
 extern unsigned long ipScrollLast;
 
+// ── Screensaver ───────────────────────────────────────────────────────────────
+
+extern bool          screensaverEnabled;
+extern uint16_t      screensaverTimeoutSec;
+extern char          screensaverFile[64];
+extern bool          screensaverActive;
+extern unsigned long screensaverIdleStart;
+
 // ── DMR receive state ─────────────────────────────────────────────────────────
 
 #if RECV_DMR

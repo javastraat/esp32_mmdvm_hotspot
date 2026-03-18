@@ -112,6 +112,48 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
+  <!-- Screensaver -->
+  <div class="card">
+    <h3>Screensaver</h3>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="metric-label">Enable</span>
+        <label class="switch">
+          <input type="checkbox" id="tog-ss" onchange="onSsChange()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bright-bot">
+        <span class="metric-label" style="white-space:nowrap;flex-shrink:0">Timeout</span>
+        <input type="number" id="ss-timeout" min="5" max="3600" value="60"
+               style="width:64px;background:var(--bg-secondary);color:var(--text-color);
+                      border:1px solid var(--border-color);border-radius:4px;
+                      padding:3px 6px;font-size:.88em"
+               onchange="onSsChange()">
+        <span style="font-size:.82em;color:var(--text-muted)">sec</span>
+      </div>
+    </div>
+    <div class="metric" style="border-bottom:1px solid var(--border-color);padding:8px 0">
+      <span class="metric-label">GIF</span>
+      <select id="ss-file" onchange="onSsChange()"
+              style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
+                     color:var(--text-color);border:1px solid var(--border-color);
+                     border-radius:4px;font-size:.88em">
+        <option value="">(none)</option>
+      </select>
+    </div>
+    <div style="font-size:.75em;color:var(--text-muted);padding:6px 0 8px">
+      GIF must be exactly 32&#xd7;8 px. Place in /screensaver/ (visible in Files page).
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end">
+      <button id="btn-ss-test" onclick="testSs()"
+              style="background:#444;color:#fff;border:none;padding:6px 18px;
+                     border-radius:4px;cursor:pointer;font-weight:bold;font-size:.88em">
+        Test
+      </button>
+    </div>
+  </div>
+
   <!-- Icons -->
   <div class="card">
     <h3>Icons</h3>
@@ -214,6 +256,25 @@ function onRotateChange(){
         +'&interval='+document.getElementById('sld-rot').value
   }).catch(function(){});
 }
+function onSsChange(){
+  fetch('/api/screensaver',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'enabled='+(document.getElementById('tog-ss').checked?1:0)
+        +'&timeout='+document.getElementById('ss-timeout').value
+        +'&file='+encodeURIComponent(document.getElementById('ss-file').value)
+  }).catch(function(){});
+}
+function testSs(){
+  var btn=document.getElementById('btn-ss-test');
+  var isTesting=(btn.textContent.trim()==='Test');
+  fetch('/api/screensaver/test',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'action='+(isTesting?'test':'stop')
+  }).then(function(){
+    btn.textContent=isTesting?'Stop':'Test';
+    btn.style.background=isTesting?'#dc3545':'#444';
+  }).catch(function(){});
+}
 (function init(){
   fetch('/api/status').then(function(r){return r.json();}).then(function(d){
     document.getElementById('h1').textContent=d.hostname;
@@ -242,6 +303,20 @@ function onRotateChange(){
     document.getElementById('icon-hum').value=d.hum||'';
     document.getElementById('icon-bat').value=d.bat||'';
     document.getElementById('icon-poc').value=d.poc||'';
+  }).catch(function(){});
+  fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('tog-ss').checked=d.enabled;
+    document.getElementById('ss-timeout').value=d.timeout||60;
+    fetch('/api/fs/ls?path=/screensaver').then(function(r){return r.json();}).then(function(ls){
+      var sel=document.getElementById('ss-file');
+      (ls.entries||[]).filter(function(e){return !e.isDir&&/\.gif$/i.test(e.name);}).forEach(function(e){
+        var opt=document.createElement('option');
+        opt.value=e.path;opt.textContent=e.name;
+        if(e.path===d.file)opt.selected=true;
+        sel.appendChild(opt);
+      });
+      if(d.file&&!sel.value)sel.value='';
+    }).catch(function(){});
   }).catch(function(){});
 })();
 </script>
