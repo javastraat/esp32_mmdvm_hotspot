@@ -3,6 +3,9 @@
 #include "globals.h"
 #include <Preferences.h>
 
+static inline uint32_t packCRGB(CRGB c)       { return ((uint32_t)c.r<<16)|((uint32_t)c.g<<8)|c.b; }
+static inline CRGB     unpackCRGB(uint32_t v) { return CRGB((v>>16)&0xFF,(v>>8)&0xFF,v&0xFF); }
+
 void loadSettings() {
   Preferences p;
   p.begin("ulanzi", true);  // read-only
@@ -28,6 +31,24 @@ void loadSettings() {
   screensaverEnabled    = p.getBool   ("ss_en",      false);
   screensaverTimeoutSec = p.getUShort ("ss_timeout", 60);
   { String s = p.getString("ss_file", ""); s.trim(); strncpy(screensaverFile, s.c_str(), 63); screensaverFile[63] = '\0'; }
+  // Display colors
+  colorClock   = unpackCRGB(p.getUInt("col_clock",  packCRGB(CRGB(255,255,255))));
+  colorPocsag  = unpackCRGB(p.getUInt("col_poc",    packCRGB(CRGB(255,160,  0))));
+  tempThreshLo = p.getFloat ("t_thr_lo", 15.0f);
+  tempThreshHi = p.getFloat ("t_thr_hi", 28.0f);
+  colorTempLo  = unpackCRGB(p.getUInt("t_col_lo",  packCRGB(CRGB(  0,160,255))));
+  colorTempMid = unpackCRGB(p.getUInt("t_col_mid", packCRGB(CRGB(  0,200, 50))));
+  colorTempHi  = unpackCRGB(p.getUInt("t_col_hi",  packCRGB(CRGB(255, 80,  0))));
+  humThreshLo  = p.getFloat ("h_thr_lo", 40.0f);
+  humThreshHi  = p.getFloat ("h_thr_hi", 70.0f);
+  colorHumLo   = unpackCRGB(p.getUInt("h_col_lo",  packCRGB(CRGB(255,160,  0))));
+  colorHumMid  = unpackCRGB(p.getUInt("h_col_mid", packCRGB(CRGB(  0,200, 50))));
+  colorHumHi   = unpackCRGB(p.getUInt("h_col_hi",  packCRGB(CRGB(  0,160,255))));
+  batThreshLo  = p.getUChar("b_thr_lo", 30);
+  batThreshHi  = p.getUChar("b_thr_hi", 60);
+  colorBatLo   = unpackCRGB(p.getUInt("b_col_lo",  packCRGB(CRGB(220, 40,  0))));
+  colorBatMid  = unpackCRGB(p.getUInt("b_col_mid", packCRGB(CRGB(220,180,  0))));
+  colorBatHi   = unpackCRGB(p.getUInt("b_col_hi",  packCRGB(CRGB(  0,200, 50))));
   p.end();
 }
 
@@ -56,5 +77,23 @@ void saveSettings() {
   p.putBool   ("ss_en",      screensaverEnabled);
   p.putUShort ("ss_timeout", screensaverTimeoutSec);
   p.putString ("ss_file",    screensaverFile);
+  // Display colors
+  p.putUInt("col_clock",  packCRGB(colorClock));
+  p.putUInt("col_poc",    packCRGB(colorPocsag));
+  p.putFloat("t_thr_lo",  tempThreshLo);
+  p.putFloat("t_thr_hi",  tempThreshHi);
+  p.putUInt("t_col_lo",   packCRGB(colorTempLo));
+  p.putUInt("t_col_mid",  packCRGB(colorTempMid));
+  p.putUInt("t_col_hi",   packCRGB(colorTempHi));
+  p.putFloat("h_thr_lo",  humThreshLo);
+  p.putFloat("h_thr_hi",  humThreshHi);
+  p.putUInt("h_col_lo",   packCRGB(colorHumLo));
+  p.putUInt("h_col_mid",  packCRGB(colorHumMid));
+  p.putUInt("h_col_hi",   packCRGB(colorHumHi));
+  p.putUChar("b_thr_lo",  batThreshLo);
+  p.putUChar("b_thr_hi",  batThreshHi);
+  p.putUInt("b_col_lo",   packCRGB(colorBatLo));
+  p.putUInt("b_col_mid",  packCRGB(colorBatMid));
+  p.putUInt("b_col_hi",   packCRGB(colorBatHi));
   p.end();
 }

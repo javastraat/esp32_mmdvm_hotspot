@@ -251,6 +251,81 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
+  <!-- Text Colors -->
+  <div class="card">
+    <h3>Text Colors</h3>
+    <div class="metric">
+      <span class="metric-label" style="flex-shrink:0;width:72px">Clock</span>
+      <input type="color" id="col-clock" value="#FFFFFF" onchange="saveColors()">
+    </div>
+    <div class="metric" style="border-bottom:none">
+      <span class="metric-label" style="flex-shrink:0;width:72px">POCSAG</span>
+      <input type="color" id="col-poc" value="#FFA000" onchange="saveColors()">
+    </div>
+  </div>
+
+  <!-- Thresholds & Colors -->
+  <div class="card">
+    <h3>Thresholds &amp; Colors</h3>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">Temperature (&deg;C)</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Thresholds</span>
+        <input type="number" id="t-thr-lo" min="-40" max="60" step="0.5"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+        <span style="color:var(--text-muted)">&#8211;</span>
+        <input type="number" id="t-thr-hi" min="-40" max="60" step="0.5"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Low</span><input type="color" id="t-col-lo" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Mid</span><input type="color" id="t-col-mid" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">High</span><input type="color" id="t-col-hi" onchange="saveThresholds()"></div>
+      </div>
+    </div>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">Humidity (%)</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Thresholds</span>
+        <input type="number" id="h-thr-lo" min="0" max="100" step="1"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+        <span style="color:var(--text-muted)">&#8211;</span>
+        <input type="number" id="h-thr-hi" min="0" max="100" step="1"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Low</span><input type="color" id="h-col-lo" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Mid</span><input type="color" id="h-col-mid" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">High</span><input type="color" id="h-col-hi" onchange="saveThresholds()"></div>
+      </div>
+    </div>
+    <div style="padding:6px 0">
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">Battery (%)</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Thresholds</span>
+        <input type="number" id="b-thr-lo" min="0" max="100" step="1"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+        <span style="color:var(--text-muted)">&#8211;</span>
+        <input type="number" id="b-thr-hi" min="0" max="100" step="1"
+               style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
+               onchange="saveThresholds()">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Low</span><input type="color" id="b-col-lo" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">Mid</span><input type="color" id="b-col-mid" onchange="saveThresholds()"></div>
+        <div style="display:flex;align-items:center;gap:4px"><span style="font-size:.75em;color:var(--text-muted)">High</span><input type="color" id="b-col-hi" onchange="saveThresholds()"></div>
+      </div>
+    </div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -390,6 +465,33 @@ function onSsChange(){
         +'&file='+encodeURIComponent(document.getElementById('ss-file').value)
   }).catch(function(){});
 }
+function saveColors(){
+  fetch('/api/colors',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'clock='+encodeURIComponent(document.getElementById('col-clock').value)
+        +'&poc='+encodeURIComponent(document.getElementById('col-poc').value)
+  }).catch(function(){});
+}
+function saveThresholds(){
+  fetch('/api/colors',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'t_thr_lo='+document.getElementById('t-thr-lo').value
+        +'&t_thr_hi='+document.getElementById('t-thr-hi').value
+        +'&t_lo='+encodeURIComponent(document.getElementById('t-col-lo').value)
+        +'&t_mid='+encodeURIComponent(document.getElementById('t-col-mid').value)
+        +'&t_hi='+encodeURIComponent(document.getElementById('t-col-hi').value)
+        +'&h_thr_lo='+document.getElementById('h-thr-lo').value
+        +'&h_thr_hi='+document.getElementById('h-thr-hi').value
+        +'&h_lo='+encodeURIComponent(document.getElementById('h-col-lo').value)
+        +'&h_mid='+encodeURIComponent(document.getElementById('h-col-mid').value)
+        +'&h_hi='+encodeURIComponent(document.getElementById('h-col-hi').value)
+        +'&b_thr_lo='+document.getElementById('b-thr-lo').value
+        +'&b_thr_hi='+document.getElementById('b-thr-hi').value
+        +'&b_lo='+encodeURIComponent(document.getElementById('b-col-lo').value)
+        +'&b_mid='+encodeURIComponent(document.getElementById('b-col-mid').value)
+        +'&b_hi='+encodeURIComponent(document.getElementById('b-col-hi').value)
+  }).catch(function(){});
+}
 function testSs(){
   var btn=document.getElementById('btn-ss-test');
   var isTesting=(btn.textContent.trim()==='Test');
@@ -436,6 +538,25 @@ function testSs(){
       populateIconSelect('icon-bat', 'prev-bat', files,d.bat||'');
       populateIconSelect('icon-poc', 'prev-poc', files,d.poc||'');
     }).catch(function(){});
+  }).catch(function(){});
+  fetch('/api/colors').then(function(r){return r.json();}).then(function(d){
+    if(d.clock)document.getElementById('col-clock').value=d.clock;
+    if(d.poc)document.getElementById('col-poc').value=d.poc;
+    if(d.t_thr_lo!==undefined)document.getElementById('t-thr-lo').value=d.t_thr_lo;
+    if(d.t_thr_hi!==undefined)document.getElementById('t-thr-hi').value=d.t_thr_hi;
+    if(d.t_lo)document.getElementById('t-col-lo').value=d.t_lo;
+    if(d.t_mid)document.getElementById('t-col-mid').value=d.t_mid;
+    if(d.t_hi)document.getElementById('t-col-hi').value=d.t_hi;
+    if(d.h_thr_lo!==undefined)document.getElementById('h-thr-lo').value=d.h_thr_lo;
+    if(d.h_thr_hi!==undefined)document.getElementById('h-thr-hi').value=d.h_thr_hi;
+    if(d.h_lo)document.getElementById('h-col-lo').value=d.h_lo;
+    if(d.h_mid)document.getElementById('h-col-mid').value=d.h_mid;
+    if(d.h_hi)document.getElementById('h-col-hi').value=d.h_hi;
+    if(d.b_thr_lo!==undefined)document.getElementById('b-thr-lo').value=d.b_thr_lo;
+    if(d.b_thr_hi!==undefined)document.getElementById('b-thr-hi').value=d.b_thr_hi;
+    if(d.b_lo)document.getElementById('b-col-lo').value=d.b_lo;
+    if(d.b_mid)document.getElementById('b-col-mid').value=d.b_mid;
+    if(d.b_hi)document.getElementById('b-col-hi').value=d.b_hi;
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;

@@ -147,6 +147,28 @@ unsigned long callStart    = 0;
 uint32_t rxTotalPocsag = 0;
 #endif
 
+// Display colors
+CRGB    colorClock   = CRGB(255, 255, 255);
+CRGB    colorPocsag  = CRGB(255, 160,   0);
+// Temperature zones
+float   tempThreshLo = 15.0f;
+float   tempThreshHi = 28.0f;
+CRGB    colorTempLo  = CRGB(  0, 160, 255);
+CRGB    colorTempMid = CRGB(  0, 200,  50);
+CRGB    colorTempHi  = CRGB(255,  80,   0);
+// Humidity zones
+float   humThreshLo  = 40.0f;
+float   humThreshHi  = 70.0f;
+CRGB    colorHumLo   = CRGB(255, 160,   0);
+CRGB    colorHumMid  = CRGB(  0, 200,  50);
+CRGB    colorHumHi   = CRGB(  0, 160, 255);
+// Battery zones
+uint8_t batThreshLo  = 30;
+uint8_t batThreshHi  = 60;
+CRGB    colorBatLo   = CRGB(220,  40,   0);
+CRGB    colorBatMid  = CRGB(220, 180,   0);
+CRGB    colorBatHi   = CRGB(  0, 200,  50);
+
 // ── Arduino entry points ──────────────────────────────────────────────────────
 
 void setup() {

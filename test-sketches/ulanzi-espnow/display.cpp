@@ -465,6 +465,28 @@ void loopAutoRotate() {
 }
 
 // ============================================================
+// Dynamic color helpers — map sensor values to zone colors
+// ============================================================
+
+static CRGB colorForTemp(float t) {
+  if (t < tempThreshLo) return colorTempLo;
+  if (t < tempThreshHi) return colorTempMid;
+  return colorTempHi;
+}
+
+static CRGB colorForHum(float h) {
+  if (h < humThreshLo) return colorHumLo;
+  if (h < humThreshHi) return colorHumMid;
+  return colorHumHi;
+}
+
+static CRGB colorForBat(int pct) {
+  if (pct <= (int)batThreshLo) return colorBatLo;
+  if (pct <= (int)batThreshHi) return colorBatMid;
+  return colorBatHi;
+}
+
+// ============================================================
 // Main display loop
 // ============================================================
 
@@ -490,7 +512,7 @@ void loopDisplay() {
           for (int row = 0; row < 5; row++)
             for (int col = 0; col < 5; col++)
               if (ICON_MSG[row] & (1 << (4 - col)))
-                setLED(col, yo + row, LED_COLOR_POCSAG);
+                setLED(col, yo + row, colorPocsag);
           textX = 6;
           gifDelay = 500;
         }
@@ -500,7 +522,7 @@ void loopDisplay() {
         int availW = MATRIX_WIDTH - textX;
         int xo = textX + max(0, (availW - textW) / 2);
         for (int i = 0; i < pocsagMsgLen; i++)
-          drawChar(xo + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
+          drawChar(xo + i * 4, yo, pocsagMsg[i], colorPocsag);
         FastLED.show();
         pocsagStaticLastDraw = millis();
         if (first) Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
@@ -514,23 +536,24 @@ void loopDisplay() {
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
 
-      // Clear text area + gap pixel — icon pixels in leds[] are preserved
-      for (int x = POCSAG_ICON_RESERVED_PX - 1; x < MATRIX_WIDTH; x++)
-        for (int y = 0; y < MATRIX_HEIGHT; y++)
-          setLED(x, y, CRGB::Black);
+      // Clear full matrix — ensures icon area and unused rows have no stale pixels
+      FastLED.clear();
 
-      // Draw text first (may bleed left into icon area at end of pass)
-      for (int i = 0; i < pocsagMsgLen; i++)
-        drawChar(pocsagScrollX + i * 4, yo, pocsagMsg[i], LED_COLOR_POCSAG);
-
-      // Draw icon on top at fixed x=0 (overwrites any text bleed into icon area)
+      // Draw icon first at fixed x=0 (on clean black background)
       int gifDelay = POCSAG_SCROLL_SPEED_MS;
       int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
       if (textX == ICON_DRAW_FAILED) {
         for (int row = 0; row < 5; row++)
           for (int col = 0; col < 5; col++)
             if (ICON_MSG[row] & (1 << (4 - col)))
-              setLED(col, yo + row, LED_COLOR_POCSAG);
+              setLED(col, yo + row, colorPocsag);
+      }
+
+      // Draw text clipped to x >= POCSAG_ICON_RESERVED_PX — text scrolls behind icon
+      for (int i = 0; i < pocsagMsgLen; i++) {
+        int cx = pocsagScrollX + i * 4;
+        if (cx >= POCSAG_ICON_RESERVED_PX)
+          drawChar(cx, yo, pocsagMsg[i], colorPocsag);
       }
 
       FastLED.show();
@@ -675,7 +698,7 @@ void loopDisplay() {
         snprintf(buf, sizeof(buf), "%d.%02dC", t100 / 100, t100 % 100);
       else
         snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
-      color = CRGB(255, 120, 0);
+      color = colorForTemp(sht31Temp);
 
       int len   = strlen(buf);
       int textW = len * 4 - 1;
@@ -701,7 +724,7 @@ void loopDisplay() {
     } else {
       int h10 = constrain((int)roundf(sht31Hum * 10.0f), 0, 1000);
       snprintf(buf, sizeof(buf), "%d.%d%%", h10 / 10, h10 % 10);
-      color = CRGB(0, 180, 255);
+      color = colorForHum(sht31Hum);
 
       int len   = strlen(buf);
       int textW = len * 4 - 1;
@@ -742,7 +765,7 @@ void loopDisplay() {
 
     int batRaw = analogRead(BAT_PIN);
     int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
-    CRGB color = batPct > 60 ? CRGB(0, 200, 50) : batPct > 30 ? CRGB(220, 180, 0) : CRGB(220, 40, 0);
+    CRGB color = colorForBat(batPct);
     const int yo = (MATRIX_HEIGHT - 5) / 2;
 
     char buf[5];
@@ -788,6 +811,6 @@ void loopDisplay() {
   if (!getLocalTime(&t)) return;
 
   FastLED.clear();
-  drawTime(t.tm_hour, t.tm_min, t.tm_sec, LED_COLOR_TIME);
+  drawTime(t.tm_hour, t.tm_min, t.tm_sec, colorClock);
   FastLED.show();
 }

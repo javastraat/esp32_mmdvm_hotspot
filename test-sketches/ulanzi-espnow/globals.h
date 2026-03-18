@@ -168,3 +168,26 @@ extern unsigned long callStart;
 #if RECV_POCSAG
 extern uint32_t rxTotalPocsag;
 #endif
+
+// ── Display colors ────────────────────────────────────────────────────────────
+
+extern CRGB    colorClock;
+extern CRGB    colorPocsag;
+// Temperature zones (lo < threshLo → Lo color, threshLo–threshHi → Mid, > threshHi → Hi)
+extern float   tempThreshLo;
+extern float   tempThreshHi;
+extern CRGB    colorTempLo;
+extern CRGB    colorTempMid;
+extern CRGB    colorTempHi;
+// Humidity zones
+extern float   humThreshLo;
+extern float   humThreshHi;
+extern CRGB    colorHumLo;
+extern CRGB    colorHumMid;
+extern CRGB    colorHumHi;
+// Battery zones (percent)
+extern uint8_t batThreshLo;
+extern uint8_t batThreshHi;
+extern CRGB    colorBatLo;
+extern CRGB    colorBatMid;
+extern CRGB    colorBatHi;
