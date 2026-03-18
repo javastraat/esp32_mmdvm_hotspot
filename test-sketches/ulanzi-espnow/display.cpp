@@ -124,6 +124,11 @@ static const uint8_t FONT_SPECIAL[][5] = {
   {0b000,0b111,0b000,0b111,0b000}, // =
 };
 
+// Sentinel returned by drawGifIcon / drawJpegIcon / drawIcon on failure.
+// Must be more negative than any valid off-screen x position.
+// Worst case: pocsagScrollX reaches -(POCSAG_ICON_RESERVED_PX + POCSAG_MSG_MAX_LEN*4) ≈ -329.
+#define ICON_DRAW_FAILED  (-9999)
+
 // ============================================================
 // GIF icon rendering (AnimatedGIF + LittleFS) — file-private state
 // ============================================================
@@ -206,11 +211,11 @@ void resetScreensaverIdle() {
 // Advance one GIF frame. Keeps the file open for the next call (animation).
 // *delayMs is set to the frame delay for the caller's redraw scheduling.
 // x0: left edge of icon on the matrix (use 0 for static; pocsagScrollX for scrolling).
-// Returns x position for text (= x0 + gifWidth + 1), or -1 on failure (use bitmap fallback).
+// Returns x position for text (= x0 + gifWidth + 1), or ICON_DRAW_FAILED on failure.
 static int drawGifIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
-  if (!fsAvailable) return -1;
-  if (!_gifEnsureOpen(path)) return -1;
+  if (!fsAvailable) return ICON_DRAW_FAILED;
+  if (!_gifEnsureOpen(path)) return ICON_DRAW_FAILED;
   int w = _gif.getCanvasWidth();
   int h = _gif.getCanvasHeight();
   _gifX0 = x0;
@@ -244,14 +249,14 @@ static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16
 }
 
 // Decode a JPEG icon from LittleFS, draw it at x0.
-// Returns x for text (= x0 + jpegWidth + 1), or -1 on failure.
+// Returns x for text (= x0 + jpegWidth + 1), or ICON_DRAW_FAILED on failure.
 static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
-  if (!fsAvailable) return -1;
+  if (!fsAvailable) return ICON_DRAW_FAILED;
   File jpgFile = LittleFS.open(path);
   if (!jpgFile) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
-    return -1;
+    return ICON_DRAW_FAILED;
   }
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1);
@@ -455,7 +460,7 @@ void loopDisplay() {
         FastLED.clear();
         int gifDelay = 500;
         int textX = drawIcon(iconPocsagFile, &gifDelay);
-        if (textX < 0) {
+        if (textX == ICON_DRAW_FAILED) {
           // Bitmap fallback: 5×5 bell icon at x=0
           for (int row = 0; row < 5; row++)
             for (int col = 0; col < 5; col++)
@@ -486,7 +491,7 @@ void loopDisplay() {
       FastLED.clear();
       int gifDelay = POCSAG_SCROLL_SPEED_MS;
       int textX = drawIcon(iconPocsagFile, &gifDelay, pocsagScrollX);
-      if (textX < 0) {
+      if (textX == ICON_DRAW_FAILED) {
         // Bitmap fallback: bell at pocsagScrollX
         for (int row = 0; row < 5; row++)
           for (int col = 0; col < 5; col++)
@@ -628,7 +633,7 @@ void loopDisplay() {
     if (millis() < nextDraw) return;
 
     const int yo = (MATRIX_HEIGHT - 5) / 2;
-    char buf[8];
+    char buf[10];
     CRGB color;
     int gifDelay = 1000;
 
@@ -643,7 +648,7 @@ void loopDisplay() {
       int len   = strlen(buf);
       int textW = len * 4 - 1;
       int textX = drawIcon(iconTempFile, &gifDelay);
-      if (textX < 0) {
+      if (textX == ICON_DRAW_FAILED) {
         FastLED.clear();
         gifDelay = 1000;
         int totalW = 4 + textW;
@@ -669,7 +674,7 @@ void loopDisplay() {
       int len   = strlen(buf);
       int textW = len * 4 - 1;
       int textX = drawIcon(iconHumFile, &gifDelay);
-      if (textX < 0) {
+      if (textX == ICON_DRAW_FAILED) {
         FastLED.clear();
         gifDelay = 1000;
         int totalW = 6 + textW;
@@ -715,7 +720,7 @@ void loopDisplay() {
     int gifDelay = 2000;
 
     int textX = drawIcon(iconBatFile, &gifDelay);
-    if (textX < 0) {
+    if (textX == ICON_DRAW_FAILED) {
       FastLED.clear();
       gifDelay = 2000;
       const int yf = (MATRIX_HEIGHT - 5) / 2;
