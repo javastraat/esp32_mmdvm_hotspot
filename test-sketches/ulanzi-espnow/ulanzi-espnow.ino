@@ -151,14 +151,14 @@ uint32_t rxTotalPocsag = 0;
 CRGB    colorClock   = CRGB(255, 255, 255);
 CRGB    colorPocsag  = CRGB(255, 160,   0);
 // Temperature zones
-float   tempThreshLo = 15.0f;
-float   tempThreshHi = 28.0f;
+float   tempThreshLo = 16.0f;
+float   tempThreshHi = 20.0f;
 CRGB    colorTempLo  = CRGB(  0, 160, 255);
 CRGB    colorTempMid = CRGB(  0, 200,  50);
 CRGB    colorTempHi  = CRGB(255,  80,   0);
 // Humidity zones
-float   humThreshLo  = 40.0f;
-float   humThreshHi  = 70.0f;
+float   humThreshLo  = 30.0f;
+float   humThreshHi  = 50.0f;
 CRGB    colorHumLo   = CRGB(255, 160,   0);
 CRGB    colorHumMid  = CRGB(  0, 200,  50);
 CRGB    colorHumHi   = CRGB(  0, 160, 255);

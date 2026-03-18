@@ -536,17 +536,33 @@ void loopDisplay() {
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
 
-      // Clear full matrix — ensures icon area and unused rows have no stale pixels
-      FastLED.clear();
+      // One-time setup on first scroll frame: clear icon area + reset gif timing
+      static bool          _scrollFirst       = true;
+      static unsigned long _scrollNextGifMs   = 0;
+      if (_scrollFirst) {
+        for (int x = 0; x < POCSAG_ICON_RESERVED_PX - 1; x++)
+          for (int y = 0; y < MATRIX_HEIGHT; y++)
+            setLED(x, y, CRGB::Black);
+        _scrollNextGifMs = 0;  // force immediate first icon draw
+        _scrollFirst = false;
+      }
 
-      // Draw icon first at fixed x=0 (on clean black background)
-      int gifDelay = POCSAG_SCROLL_SPEED_MS;
-      int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
-      if (textX == ICON_DRAW_FAILED) {
-        for (int row = 0; row < 5; row++)
-          for (int col = 0; col < 5; col++)
-            if (ICON_MSG[row] & (1 << (4 - col)))
-              setLED(col, yo + row, colorPocsag);
+      // Clear only text area + gap pixel; icon area preserved between GIF frames
+      for (int x = POCSAG_ICON_RESERVED_PX - 1; x < MATRIX_WIDTH; x++)
+        for (int y = 0; y < MATRIX_HEIGHT; y++)
+          setLED(x, y, CRGB::Black);
+
+      // Advance icon frame only when the GIF's own delay has elapsed
+      if (millis() >= _scrollNextGifMs) {
+        int gifDelay = 100;
+        int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
+        _scrollNextGifMs = millis() + max(gifDelay, 33);
+        if (textX == ICON_DRAW_FAILED) {
+          for (int row = 0; row < 5; row++)
+            for (int col = 0; col < 5; col++)
+              if (ICON_MSG[row] & (1 << (4 - col)))
+                setLED(col, yo + row, colorPocsag);
+        }
       }
 
       // Draw text clipped to x >= POCSAG_ICON_RESERVED_PX — text scrolls behind icon
@@ -562,6 +578,7 @@ void loopDisplay() {
         if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES) {
           pocsagMsgActive      = false;
           screensaverIdleStart = millis();
+          _scrollFirst         = true;   // reset for next message
         } else {
           pocsagScrollX = MATRIX_WIDTH;
         }

@@ -34,13 +34,13 @@ void loadSettings() {
   // Display colors
   colorClock   = unpackCRGB(p.getUInt("col_clock",  packCRGB(CRGB(255,255,255))));
   colorPocsag  = unpackCRGB(p.getUInt("col_poc",    packCRGB(CRGB(255,160,  0))));
-  tempThreshLo = p.getFloat ("t_thr_lo", 15.0f);
-  tempThreshHi = p.getFloat ("t_thr_hi", 28.0f);
+  tempThreshLo = p.getFloat ("t_thr_lo", 16.0f);
+  tempThreshHi = p.getFloat ("t_thr_hi", 20.0f);
   colorTempLo  = unpackCRGB(p.getUInt("t_col_lo",  packCRGB(CRGB(  0,160,255))));
   colorTempMid = unpackCRGB(p.getUInt("t_col_mid", packCRGB(CRGB(  0,200, 50))));
   colorTempHi  = unpackCRGB(p.getUInt("t_col_hi",  packCRGB(CRGB(255, 80,  0))));
-  humThreshLo  = p.getFloat ("h_thr_lo", 40.0f);
-  humThreshHi  = p.getFloat ("h_thr_hi", 70.0f);
+  humThreshLo  = p.getFloat ("h_thr_lo", 30.0f);
+  humThreshHi  = p.getFloat ("h_thr_hi", 50.0f);
   colorHumLo   = unpackCRGB(p.getUInt("h_col_lo",  packCRGB(CRGB(255,160,  0))));
   colorHumMid  = unpackCRGB(p.getUInt("h_col_mid", packCRGB(CRGB(  0,200, 50))));
   colorHumHi   = unpackCRGB(p.getUInt("h_col_hi",  packCRGB(CRGB(  0,160,255))));
