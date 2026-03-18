@@ -172,6 +172,8 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
 
+    // Immediate MQTT push
+    mqttNotifyPocsag();
     // Hand off display state update to Core 1 via queue
     xQueueSendFromISR(pocsagRxQueue, &pkt, nullptr);
     return;

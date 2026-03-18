@@ -25,6 +25,15 @@ void loadSettings() {
   // Device name + mDNS hostname
   // Debug logging
   debugLogEnabled = p.getBool("debug_log", false);
+  // MQTT
+  mqttEnabled   = p.getBool  ("mqtt_en",     false);
+  mqttPort      = p.getUShort("mqtt_port",   1883);
+  mqttDiscovery = p.getBool  ("mqtt_disc",   true);
+  { String s = p.getString("mqtt_broker", ""); s.trim(); strncpy(mqttBroker, s.c_str(), 63); mqttBroker[63] = '\0'; }
+  { String s = p.getString("mqtt_user",   ""); s.trim(); strncpy(mqttUser,   s.c_str(), 31); mqttUser[31]   = '\0'; }
+  { String s = p.getString("mqtt_pass",   ""); s.trim(); strncpy(mqttPass,   s.c_str(), 63); mqttPass[63]   = '\0'; }
+  { String s = p.getString("mqtt_prefix", "homeassistant"); s.trim(); strncpy(mqttPrefix, s.c_str(), 31); mqttPrefix[31] = '\0'; }
+  { String s = p.getString("mqtt_node",   "ulanzi");        s.trim(); strncpy(mqttNodeId, s.c_str(), 31); mqttNodeId[31] = '\0'; }
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
   { String s = p.getString("mdns_name",    "ulanzi");     s.trim(); s.toLowerCase(); strncpy(mdnsName,    s.c_str(), 31); mdnsName[31]    = '\0'; }
   { String s = p.getString("ota_hostname", "ulanzi-ota"); s.trim(); s.toLowerCase(); strncpy(otaHostname, s.c_str(), 31); otaHostname[31] = '\0'; }
@@ -76,6 +85,15 @@ void saveSettings() {
   p.putUChar("rot_sec", autoRotateIntervalSec);
   // Debug logging
   p.putBool("debug_log", debugLogEnabled);
+  // MQTT
+  p.putBool  ("mqtt_en",     mqttEnabled);
+  p.putUShort("mqtt_port",   mqttPort);
+  p.putBool  ("mqtt_disc",   mqttDiscovery);
+  p.putString("mqtt_broker", mqttBroker);
+  p.putString("mqtt_user",   mqttUser);
+  p.putString("mqtt_pass",   mqttPass);
+  p.putString("mqtt_prefix", mqttPrefix);
+  p.putString("mqtt_node",   mqttNodeId);
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
   p.putString("mdns_name",    mdnsName);

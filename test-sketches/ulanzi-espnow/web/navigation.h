@@ -21,6 +21,7 @@
       "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
       "<a href=\"/files\" class=\"nav-more-item\">Files</a>" \
       "<a href=\"/system\" class=\"nav-more-item\">System</a>" \
+      "<a href=\"/mqtt\" class=\"nav-more-item\">MQTT</a>" \
       "<a href=\"/serial\" class=\"nav-more-item\">Serial</a>" \
     "</div>" \
   "</div>" \

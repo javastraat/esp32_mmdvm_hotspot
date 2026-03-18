@@ -6,6 +6,7 @@
 #include "config.h"
 #include <Arduino.h>
 #include "serial_log.h"
+#include "mqtt.h"
 #include <FastLED.h>
 #include <WiFi.h>
 #include <WebServer.h>

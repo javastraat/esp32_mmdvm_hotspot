@@ -220,8 +220,9 @@ void setup() {
 #endif
 
   screensaverIdleStart = millis();  // start idle countdown from boot
-  initWebTask();  // starts webTask on Core 0 (ArduinoOTA.handle + webServer.handleClient)
-  LOG("[RTOS] webTask started on core 0\n");
+  initWebTask();   // starts webTask  on Core 0 (ArduinoOTA.handle + webServer.handleClient)
+  initMqttTask();  // starts mqttTask on Core 0 (connects after WiFi settles)
+  LOG("[RTOS] webTask + mqttTask started on core 0\n");
 }
 
 void loop() {
