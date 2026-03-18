@@ -105,9 +105,12 @@ static const char PAGE_MQTT[] PROGMEM =
         <div id="node-preview" style="font-size:.75em;color:var(--text-muted);margin-top:3px;font-family:monospace"></div>
       </div>
 
+
     </div>
-
-
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-info" style="flex:1" onclick="saveMqtt()">Save &amp; Reboot</button>
+    </div>
+    <div id="mqtt-save-status" style="font-size:.78em;color:#aaa;margin-top:6px;min-height:1em"></div>
   </div> <!-- End Settings card -->
 
   <!-- Home Assistant Integration Card (Card 4) -->
@@ -136,14 +139,6 @@ static const char PAGE_MQTT[] PROGMEM =
       <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Must match HA's MQTT discovery prefix (default: homeassistant).</div>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-info" style="flex:1" onclick="saveMqtt()">Save &amp; Reconnect</button>
-      <button class="btn btn-secondary" onclick="sendDiscovery()" id="disc-btn">Re-send Discovery</button>
-    </div>
-    <div id="mqtt-save-status" style="font-size:.78em;color:#aaa;margin-top:6px;min-height:1em"></div>
-  </div>
-
-    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-info" style="flex:1" onclick="saveMqtt()">Save &amp; Reconnect</button>
       <button class="btn btn-secondary" onclick="sendDiscovery()" id="disc-btn">Re-send Discovery</button>
     </div>
     <div id="mqtt-save-status" style="font-size:.78em;color:#aaa;margin-top:6px;min-height:1em"></div>
