@@ -49,11 +49,46 @@ static const char PAGE_SYSTEM[] PROGMEM =
     <h3>Software</h3>
     <div class="metric"><span class="metric-label">Build</span><span class="metric-value" id="sw-build">-</span></div>
     <div class="metric"><span class="metric-label">SDK</span><span class="metric-value" id="sw-sdk">-</span></div>
+    <div class="metric"><span class="metric-label">Arduino Core</span><span class="metric-value" id="sw-arduino">-</span></div>
     <div class="metric"><span class="metric-label">Reset Reason</span><span class="metric-value" id="sw-reset">-</span></div>
     <div class="metric"><span class="metric-label">Sketch</span><span class="metric-value" id="sw-sketch">-</span></div>
     <div class="metric"><span class="metric-label">OTA Space</span><span class="metric-value" id="sw-ota">-</span></div>
     <div class="metric"><span class="metric-label">webTask Stack</span><span class="metric-value" id="sw-stack">-</span></div>
     <div class="metric"><span class="metric-label">Min Free Heap</span><span class="metric-value" id="sw-minheap">-</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Memory</h3>
+    <div class="metric"><span class="metric-label">Heap Size</span><span class="metric-value" id="mem-heap">-</span></div>
+    <div class="metric"><span class="metric-label">Free Heap</span><span class="metric-value" id="mem-free">-</span></div>
+    <div class="metric"><span class="metric-label">Max Alloc</span><span class="metric-value" id="mem-maxalloc">-</span></div>
+    <div class="metric"><span class="metric-label">Min Free</span><span class="metric-value" id="mem-minfree">-</span></div>
+    <div id="mem-psram-row" style="display:none">
+      <div class="metric"><span class="metric-label">PSRAM Size</span><span class="metric-value" id="mem-psram-size">-</span></div>
+      <div class="metric"><span class="metric-label">Free PSRAM</span><span class="metric-value" id="mem-psram-free">-</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Storage</h3>
+    <div class="metric"><span class="metric-label">Flash Speed</span><span class="metric-value" id="stor-speed">-</span></div>
+    <div class="metric"><span class="metric-label">Flash Mode</span><span class="metric-value" id="stor-mode">-</span></div>
+    <div class="metric"><span class="metric-label">Partition</span><span class="metric-value" id="stor-part">-</span></div>
+    <div class="metric"><span class="metric-label">Sketch MD5</span><span class="metric-value" id="stor-md5" style="font-size:0.78em;font-family:monospace">-</span></div>
+  </div>
+
+  <div class="card">
+    <h3>LittleFS</h3>
+    <div class="metric"><span class="metric-label">Status</span><span class="metric-value" id="lfs-status">-</span></div>
+    <div class="metric"><span class="metric-label">Total</span><span class="metric-value" id="lfs-total">-</span></div>
+    <div class="metric"><span class="metric-label">Used</span><span class="metric-value" id="lfs-used">-</span></div>
+    <div class="metric"><span class="metric-label">Free</span><span class="metric-value" id="lfs-free">-</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Task Stacks</h3>
+    <div class="metric"><span class="metric-label">webTask</span><span class="metric-value" id="task-web">-</span></div>
+    <div class="metric"><span class="metric-label">mqttTask</span><span class="metric-value" id="task-mqtt">-</span></div>
   </div>
 
 </div></div>
@@ -86,6 +121,9 @@ function poll(){
     document.getElementById('mac').textContent=d.mac||'-';
   }).catch(function(){});
 }
+function fmtKB(b){return Math.round(b/1024)+' KB';}
+function stackFmt(b){return b>=1024?(b/1024).toFixed(1)+' KB free':b+' B free';}
+function stackColor(b){return b<512?'#f44336':b<1024?'#ff9800':'';}
 function fetchSysInfo(){
   fetch('/api/sysinfo').then(function(r){return r.json();}).then(function(d){
     document.getElementById('hw-chip').textContent=d.chip_model||'-';
@@ -95,21 +133,63 @@ function fetchSysInfo(){
     document.getElementById('hw-flash').textContent=d.flash_mb+' MB';
     document.getElementById('sw-build').textContent=d.build||'-';
     document.getElementById('sw-sdk').textContent=d.sdk_version||'-';
+    document.getElementById('sw-arduino').textContent=d.arduino_version||'-';
     document.getElementById('sw-reset').textContent=d.reset_reason||'-';
     document.getElementById('sw-sketch').textContent=d.sketch_kb+' KB used';
     document.getElementById('sw-ota').textContent=d.free_sketch_kb+' KB free';
     var sf=d.webtask_stack_free;
-    var sc=sf<512?'#f44336':sf<1024?'#ff9800':'';
+    var sc=stackColor(sf);
     var se=document.getElementById('sw-stack');
-    se.textContent=(sf>=1024?(sf/1024).toFixed(1)+' KB':sf+' B')+' free';
+    se.textContent=stackFmt(sf);
     if(sc)se.style.color=sc;
     document.getElementById('sw-minheap').textContent=
-      d.min_free_heap?Math.round(d.min_free_heap/1024)+' KB':'-';
+      d.min_free_heap?fmtKB(d.min_free_heap):'-';
+    // Memory card
+    document.getElementById('mem-heap').textContent=fmtKB(d.heap_size);
+    var fp=d.heap_size>0?Math.round(d.free_heap*100/d.heap_size):0;
+    document.getElementById('mem-free').textContent=fmtKB(d.free_heap)+' ('+fp+'%)';
+    document.getElementById('mem-maxalloc').textContent=fmtKB(d.max_alloc_heap);
+    document.getElementById('mem-minfree').textContent=fmtKB(d.min_free_heap);
+    if(d.psram_size>0){
+      document.getElementById('mem-psram-row').style.display='';
+      document.getElementById('mem-psram-size').textContent=Math.round(d.psram_size/1048576)+' MB';
+      document.getElementById('mem-psram-free').textContent=fmtKB(d.free_psram);
+    }
+    // Storage card
+    document.getElementById('stor-speed').textContent=d.flash_speed_mhz+' MHz';
+    document.getElementById('stor-mode').textContent=d.flash_mode||'-';
+    document.getElementById('stor-part').textContent=d.running_partition||'-';
+    document.getElementById('stor-md5').textContent=d.sketch_md5||'-';
+  }).catch(function(){});
+}
+function fetchFs(){
+  fetch('/api/fs').then(function(r){return r.json();}).then(function(d){
+    var st=document.getElementById('lfs-status');
+    st.textContent='Available'; st.style.color='#28a745';
+    var pct=d.total>0?Math.round(d.used*100/d.total):0;
+    document.getElementById('lfs-total').textContent=fmtKB(d.total);
+    document.getElementById('lfs-used').textContent=fmtKB(d.used)+' ('+pct+'%)';
+    document.getElementById('lfs-free').textContent=fmtKB(d.available);
+  }).catch(function(){
+    var st=document.getElementById('lfs-status');
+    st.textContent='Unavailable'; st.style.color='#dc3545';
+  });
+}
+function fetchTasks(){
+  fetch('/api/tasks').then(function(r){return r.json();}).then(function(d){
+    [['webTask','task-web'],['mqttTask','task-mqtt']].forEach(function(p){
+      var b=d[p[0]]||0;
+      var el=document.getElementById(p[1]);
+      el.textContent=stackFmt(b);
+      var c=stackColor(b); if(c)el.style.color=c;
+    });
   }).catch(function(){});
 }
 poll();
 setInterval(poll,5000);
 fetchSysInfo();
+fetchFs();
+fetchTasks();
 </script>
 </body></html>
 )html";
