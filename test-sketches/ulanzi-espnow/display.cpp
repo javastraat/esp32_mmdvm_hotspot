@@ -114,7 +114,8 @@ static const uint8_t ICON_BAT[5] = {
 };
 
 // 3×5 bitmaps for punctuation/symbols found in POCSAG messages
-static const char    SPECIAL_CHARS[]   = "-.:/%=+()!?#@";
+// ~ is used as a degree symbol (°) in the temperature format string
+static const char    SPECIAL_CHARS[]   = "-.:/%=+()!?#@~";
 static const uint8_t FONT_SPECIAL[][5] = {
   {0b000,0b000,0b111,0b000,0b000}, // -
   {0b000,0b000,0b000,0b000,0b010}, // .
@@ -129,6 +130,7 @@ static const uint8_t FONT_SPECIAL[][5] = {
   {0b111,0b001,0b010,0b000,0b010}, // ?
   {0b010,0b101,0b111,0b101,0b101}, // # (hash/pound)
   {0b010,0b101,0b111,0b100,0b011}, // @
+  {0b010,0b101,0b010,0b000,0b000}, // ~ used as ° (degree: small circle at top)
 };
 
 // Sentinel returned by drawGifIcon / drawJpegIcon / drawIcon on failure.
@@ -714,9 +716,9 @@ void loopDisplay() {
     if (displayMode == MODE_TEMP) {
       int t100 = (int)roundf(sht31Temp * 100.0f);
       if (t100 >= 0)
-        snprintf(buf, sizeof(buf), "%d.%02dC", t100 / 100, t100 % 100);
+        snprintf(buf, sizeof(buf), "%d.%02d~", t100 / 100, t100 % 100);
       else
-        snprintf(buf, sizeof(buf), "-%d.%02dC", (-t100) / 100, (-t100) % 100);
+        snprintf(buf, sizeof(buf), "-%d.%02d~", (-t100) / 100, (-t100) % 100);
       color = colorForTemp(sht31Temp);
 
       int len   = strlen(buf);
