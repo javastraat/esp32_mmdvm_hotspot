@@ -8,6 +8,7 @@
 #include "globals.h"
 #include "sensor.h"
 #include "nvs_settings.h"
+#include "display.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
 
@@ -132,6 +133,26 @@ static void _discNumber(const char* id, const char* name, int mn, int mx, int st
   _pubDisc("number", id, buf);
 }
 
+static void _discSelect(const char* id, const char* name, const char* optionsJson) {
+  char st[96], cmd[96], av[80], uid[72], dev[320], buf[1024];
+  _stTopic(st, sizeof(st), "select", id);
+  _cmdTopic(cmd, sizeof(cmd), "select", id);
+  _availTopic(av, sizeof(av));
+  snprintf(uid, sizeof(uid), "%s_%s_%s", mqttNodeId, _mac, id);
+  _devBlock(dev, sizeof(dev));
+
+  snprintf(buf, sizeof(buf),
+    "{\"name\":\"%s\",\"unique_id\":\"%s\","
+    "\"state_topic\":\"%s\","
+    "\"command_topic\":\"%s\","
+    "\"availability_topic\":\"%s\","
+    "\"payload_available\":\"online\","
+    "\"payload_not_available\":\"offline\","
+    "\"options\":%s,%s}",
+    name, uid, st, cmd, av, optionsJson, dev);
+  _pubDisc("select", id, buf);
+}
+
 static void _discButton(const char* id, const char* name, const char* dc) {
   char cmd[96], av[80], uid[72], dev[320], buf[920];
   _btnTopic(cmd, sizeof(cmd), id);
@@ -154,21 +175,50 @@ static void _discButton(const char* id, const char* name, const char* dc) {
 
 static void _publishAllDiscovery() {
   if (!mqttDiscovery) return;
+
+  // ── Sensors ────────────────────────────────────────────────────────────────
   if (sht31Available) {
     _discSensor("temperature", "Temperature", "temperature", "\xc2\xb0\x43");  // °C UTF-8
     _discSensor("humidity",    "Humidity",    "humidity",    "%");
   }
-  _discSensor("battery_pct", "Battery",        "battery",        "%");
-  _discSensor("battery_mv",  "Battery Voltage","voltage",        "mV");
-  _discSensor("rssi",        "WiFi RSSI",       "signal_strength","dBm");
-  _discSensor("uptime",      "Uptime",          "duration",       "s");
+  _discSensor("battery_pct", "Battery",         "battery",        "%");
+  _discSensor("battery_mv",  "Battery Voltage", "voltage",        "mV");
+  _discSensor("rssi",        "WiFi RSSI",        "signal_strength","dBm");
+  _discSensor("uptime",      "Uptime",           "duration",       "s");
+  _discSensor("ldr_raw",     "LDR Raw",          "",               "");
 #if RECV_POCSAG
   _discSensor("pocsag_msg",   "POCSAG Message", "", "");
   _discSensor("pocsag_count", "POCSAG Count",   "", "");
 #endif
+#if RECV_DMR
+  _discSensor("dmr_count",    "DMR Count",      "", "");
+#endif
+
+  // ── Brightness ─────────────────────────────────────────────────────────────
   _discSwitch("auto_brightness", "Auto Brightness");
-  _discSwitch("debug_log",       "Debug Logging");
   _discNumber("brightness",      "Brightness",  1, 255, 1);
+
+  // ── Buzzer ─────────────────────────────────────────────────────────────────
+  _discSwitch("buzzer_boot",   "Buzzer Boot Sound");
+  _discNumber("buzzer_boot_vol",   "Buzzer Boot Volume",   1, 255, 1);
+  _discSwitch("buzzer_pocsag", "Buzzer POCSAG");
+  _discNumber("buzzer_pocsag_vol", "Buzzer POCSAG Volume", 1, 255, 1);
+  _discSwitch("buzzer_click",  "Buzzer Button Click");
+  _discNumber("buzzer_click_vol",  "Buzzer Click Volume",  1, 255, 1);
+
+  // ── Display rotation ───────────────────────────────────────────────────────
+  _discSwitch("auto_rotate",          "Auto Rotate");
+  _discNumber("auto_rotate_interval", "Rotate Interval", 1, 60, 1);
+
+  // ── Screensaver ────────────────────────────────────────────────────────────
+  _discSwitch("screensaver",         "Screensaver");
+  _discNumber("screensaver_timeout", "Screensaver Timeout", 10, 3600, 10);
+
+  // ── Display mode ───────────────────────────────────────────────────────────
+  _discSelect("display_mode", "Display Mode",
+    "[\"Clock\",\"Temperature\",\"Humidity\",\"Battery\"]");
+
+  // ── Actions ────────────────────────────────────────────────────────────────
   _discButton("reboot",    "Reboot",    "restart");
   _discButton("clear_rtc", "Clear RTC", "");
 }
@@ -182,6 +232,9 @@ static void _pubStr(const char* comp, const char* id, const char* val) {
 }
 
 static void _publishState() {
+  char tmp[16];
+
+  // Sensors
   if (sht31Available) {
     char tb[12], hb[12];
     dtostrf(sht31Temp, 0, 1, tb);
@@ -193,20 +246,51 @@ static void _publishState() {
   int batMv  = (int)map(constrain(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL),
                          BAT_RAW_EMPTY, BAT_RAW_FULL, BAT_EMPTY_MV, BAT_FULL_MV);
   int batPct = (int)constrain(map(batRaw, BAT_RAW_EMPTY, BAT_RAW_FULL, 0, 100), 0, 100);
-  char tmp[16];
   snprintf(tmp, sizeof(tmp), "%d", batPct);  _pubStr("sensor", "battery_pct", tmp);
   snprintf(tmp, sizeof(tmp), "%d", batMv);   _pubStr("sensor", "battery_mv",  tmp);
   snprintf(tmp, sizeof(tmp), "%d", WiFi.RSSI()); _pubStr("sensor", "rssi",    tmp);
   snprintf(tmp, sizeof(tmp), "%lu", millis() / 1000); _pubStr("sensor", "uptime", tmp);
+  snprintf(tmp, sizeof(tmp), "%d", analogRead(LDR_PIN)); _pubStr("sensor", "ldr_raw", tmp);
 #if RECV_POCSAG
   _pubStr("sensor", "pocsag_msg", pocsagMsgLen > 0 ? pocsagMsg : "");
   snprintf(tmp, sizeof(tmp), "%lu", (unsigned long)rxTotalPocsag);
   _pubStr("sensor", "pocsag_count", tmp);
 #endif
+#if RECV_DMR
+  snprintf(tmp, sizeof(tmp), "%lu", (unsigned long)wsCountDmr);
+  _pubStr("sensor", "dmr_count", tmp);
+#endif
+
+  // Brightness
   _pubStr("switch", "auto_brightness", autoBrightnessEnabled ? "ON" : "OFF");
-  _pubStr("switch", "debug_log",       debugLogEnabled       ? "ON" : "OFF");
   snprintf(tmp, sizeof(tmp), "%d", currentBrightness);
   _pubStr("number", "brightness", tmp);
+
+  // Buzzer
+  _pubStr("switch", "buzzer_boot",   buzzerBootEnabled   ? "ON" : "OFF");
+  _pubStr("switch", "buzzer_pocsag", buzzerPocsagEnabled ? "ON" : "OFF");
+  _pubStr("switch", "buzzer_click",  buzzerClickEnabled  ? "ON" : "OFF");
+  snprintf(tmp, sizeof(tmp), "%d", buzzerBootVolume);   _pubStr("number", "buzzer_boot_vol",   tmp);
+  snprintf(tmp, sizeof(tmp), "%d", buzzerPocsagVolume); _pubStr("number", "buzzer_pocsag_vol", tmp);
+  snprintf(tmp, sizeof(tmp), "%d", buzzerClickVolume);  _pubStr("number", "buzzer_click_vol",  tmp);
+
+  // Rotation
+  _pubStr("switch", "auto_rotate", autoRotateEnabled ? "ON" : "OFF");
+  snprintf(tmp, sizeof(tmp), "%d", autoRotateIntervalSec); _pubStr("number", "auto_rotate_interval", tmp);
+
+  // Screensaver
+  _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
+  snprintf(tmp, sizeof(tmp), "%d", screensaverTimeoutSec); _pubStr("number", "screensaver_timeout", tmp);
+
+  // Display mode
+  const char* modeStr;
+  switch (displayMode) {
+    case MODE_TEMP:     modeStr = "Temperature"; break;
+    case MODE_HUMIDITY: modeStr = "Humidity";    break;
+    case MODE_BATTERY:  modeStr = "Battery";     break;
+    default:            modeStr = "Clock";       break;
+  }
+  _pubStr("select", "display_mode", modeStr);
 }
 
 // ── Incoming command callback ──────────────────────────────────────────────────
@@ -222,18 +306,13 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
   if (!t.startsWith(pfx)) return;
   String sub = t.substring(pfx.length());  // e.g. "switch/auto_brightness/set"
 
+  // ── Brightness ──────────────────────────────────────────────────────────────
   if (sub == "switch/auto_brightness/set") {
     autoBrightnessEnabled = (strcmp(val, "ON") == 0);
     if (!autoBrightnessEnabled) FastLED.setBrightness(currentBrightness);
     saveSettings();
     _pubStr("switch", "auto_brightness", autoBrightnessEnabled ? "ON" : "OFF");
     LOG("[MQTT] auto_brightness → %s\n", val);
-
-  } else if (sub == "switch/debug_log/set") {
-    debugLogEnabled = (strcmp(val, "ON") == 0);
-    saveSettings();
-    _pubStr("switch", "debug_log", debugLogEnabled ? "ON" : "OFF");
-    LOG("[MQTT] debug_log → %s\n", val);
 
   } else if (sub == "number/brightness/set") {
     int v = atoi(val);
@@ -246,6 +325,110 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
       LOG("[MQTT] brightness → %d\n", v);
     }
 
+  // ── Debug log ───────────────────────────────────────────────────────────────
+  } else if (sub == "switch/debug_log/set") {
+    debugLogEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "debug_log", debugLogEnabled ? "ON" : "OFF");
+    LOG("[MQTT] debug_log → %s\n", val);
+
+  // ── Buzzer switches ─────────────────────────────────────────────────────────
+  } else if (sub == "switch/buzzer_boot/set") {
+    buzzerBootEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "buzzer_boot", buzzerBootEnabled ? "ON" : "OFF");
+    LOG("[MQTT] buzzer_boot → %s\n", val);
+
+  } else if (sub == "switch/buzzer_pocsag/set") {
+    buzzerPocsagEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "buzzer_pocsag", buzzerPocsagEnabled ? "ON" : "OFF");
+    LOG("[MQTT] buzzer_pocsag → %s\n", val);
+
+  } else if (sub == "switch/buzzer_click/set") {
+    buzzerClickEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "buzzer_click", buzzerClickEnabled ? "ON" : "OFF");
+    LOG("[MQTT] buzzer_click → %s\n", val);
+
+  // ── Buzzer volumes ──────────────────────────────────────────────────────────
+  } else if (sub == "number/buzzer_boot_vol/set") {
+    int v = atoi(val);
+    if (v >= 1 && v <= 255) {
+      buzzerBootVolume = (uint8_t)v;
+      saveSettings();
+      char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
+      _pubStr("number", "buzzer_boot_vol", buf);
+      LOG("[MQTT] buzzer_boot_vol → %d\n", v);
+    }
+
+  } else if (sub == "number/buzzer_pocsag_vol/set") {
+    int v = atoi(val);
+    if (v >= 1 && v <= 255) {
+      buzzerPocsagVolume = (uint8_t)v;
+      saveSettings();
+      char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
+      _pubStr("number", "buzzer_pocsag_vol", buf);
+      LOG("[MQTT] buzzer_pocsag_vol → %d\n", v);
+    }
+
+  } else if (sub == "number/buzzer_click_vol/set") {
+    int v = atoi(val);
+    if (v >= 1 && v <= 255) {
+      buzzerClickVolume = (uint8_t)v;
+      saveSettings();
+      char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
+      _pubStr("number", "buzzer_click_vol", buf);
+      LOG("[MQTT] buzzer_click_vol → %d\n", v);
+    }
+
+  // ── Auto-rotation ───────────────────────────────────────────────────────────
+  } else if (sub == "switch/auto_rotate/set") {
+    autoRotateEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "auto_rotate", autoRotateEnabled ? "ON" : "OFF");
+    LOG("[MQTT] auto_rotate → %s\n", val);
+
+  } else if (sub == "number/auto_rotate_interval/set") {
+    int v = atoi(val);
+    if (v >= 1 && v <= 60) {
+      autoRotateIntervalSec = (uint8_t)v;
+      saveSettings();
+      char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
+      _pubStr("number", "auto_rotate_interval", buf);
+      LOG("[MQTT] auto_rotate_interval → %d\n", v);
+    }
+
+  // ── Screensaver ─────────────────────────────────────────────────────────────
+  } else if (sub == "switch/screensaver/set") {
+    screensaverEnabled = (strcmp(val, "ON") == 0);
+    if (screensaverEnabled) resetScreensaverIdle();
+    saveSettings();
+    _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
+    LOG("[MQTT] screensaver → %s\n", val);
+
+  } else if (sub == "number/screensaver_timeout/set") {
+    int v = atoi(val);
+    if (v >= 10 && v <= 3600) {
+      screensaverTimeoutSec = (uint16_t)v;
+      saveSettings();
+      char buf[8]; snprintf(buf, sizeof(buf), "%d", v);
+      _pubStr("number", "screensaver_timeout", buf);
+      LOG("[MQTT] screensaver_timeout → %d\n", v);
+    }
+
+  // ── Display mode ────────────────────────────────────────────────────────────
+  } else if (sub == "select/display_mode/set") {
+    if      (strcmp(val, "Temperature") == 0) displayMode = MODE_TEMP;
+    else if (strcmp(val, "Humidity")    == 0) displayMode = MODE_HUMIDITY;
+    else if (strcmp(val, "Battery")     == 0) displayMode = MODE_BATTERY;
+    else                                       displayMode = MODE_CLOCK;
+    modeActiveUntil = 0;
+    resetScreensaverIdle();
+    _pubStr("select", "display_mode", val);
+    LOG("[MQTT] display_mode → %s\n", val);
+
+  // ── Buttons ─────────────────────────────────────────────────────────────────
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {
     LOG("[MQTT] Reboot via HA\n");
     delay(300);
@@ -271,7 +454,7 @@ static bool _doConnect() {
 
   _mqtt.setServer(mqttBroker, mqttPort);
   _mqtt.setCallback(_callback);
-  _mqtt.setBufferSize(1024);
+  _mqtt.setBufferSize(1280);
   _mqtt.setKeepAlive(60);
 
   char clientId[48];
@@ -298,9 +481,10 @@ static bool _doConnect() {
 
   // Subscribe to command topics (wildcard per component)
   char sub[96];
-  snprintf(sub, sizeof(sub), "%s/switch/+/set",      mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/number/+/set",      mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/button/+/command",  mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/switch/+/set",     mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/number/+/set",     mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/select/+/set",     mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/button/+/command", mqttNodeId); _mqtt.subscribe(sub);
 
   // Publish discovery + immediate state
   _publishAllDiscovery();
