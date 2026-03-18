@@ -117,6 +117,7 @@ bool          pocsagSynced   = false;  // true only after POCSAG RIC 224 has con
 volatile bool otaInProgress  = false;
 bool          fsAvailable    = false;
 bool          otaStarted     = false;
+bool          debugLogEnabled = false; // NVS: "debug_log" — enables DLOG() output
 int           otaLastBarW    = -1;
 
 // IP address scroll — armed once after WiFi connects
@@ -187,7 +188,7 @@ void setup() {
 
   Serial.begin(115200);
   delay(3000);
-  Serial.println("\n\n=== ULANZI ESP-NOW Monitor + Clock ===");
+  LOG("\n\n=== ULANZI ESP-NOW Monitor + Clock ===\n");
 
   FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(LED_BRIGHTNESS);
@@ -211,7 +212,7 @@ void setup() {
     ipScrollX    = MATRIX_WIDTH;
     ipScrollPass = 0;
     ipScrollActive = true;
-    Serial.printf("[DISP] IP scroll: %s\n", ipScrollMsg);
+    LOG("[DISP] IP scroll: %s\n", ipScrollMsg);
   }
 
 #if RECV_POCSAG
@@ -220,7 +221,7 @@ void setup() {
 
   screensaverIdleStart = millis();  // start idle countdown from boot
   initWebTask();  // starts webTask on Core 0 (ArduinoOTA.handle + webServer.handleClient)
-  Serial.println("[RTOS] webTask started on core 0");
+  LOG("[RTOS] webTask started on core 0\n");
 }
 
 void loop() {
@@ -236,7 +237,7 @@ void loop() {
   static unsigned long lastHb = 0;
   if (millis() - lastHb >= 5000) {
     lastHb = millis();
-    Serial.printf("[RX] alive %lus | DMR:%lu POCSAG:%lu\n",
+    LOG("[RX] alive %lus | DMR:%lu POCSAG:%lu\n",
       millis() / 1000,
 #if RECV_DMR
       rxTotalDmr,
@@ -257,7 +258,7 @@ void loop() {
   if (callFrames > 0 && millis() - lastPrint >= 5000) {
     lastPrint = millis();
     unsigned long dur = (millis() - callStart) / 1000;
-    Serial.printf("[RX-DMR] ... src=%-8lu  frames=%lu  dur=%lus\n", callSrc, callFrames, dur);
+    LOG("[RX-DMR] ... src=%-8lu  frames=%lu  dur=%lus\n", callSrc, callFrames, dur);
   }
 #endif
 

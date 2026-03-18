@@ -163,7 +163,7 @@ static int32_t _gifSeek(GIFFILE* pf, int32_t iPos) {
   if (iPos == 0 && pf->iPos > 0) {
     // Auto-rewind: clear the icon area so frame 0 draws on black (not stale last frame)
 #if ESPNOW_DEBUG
-    Serial.printf("[GIF] loop rewind iPos=%d\n", pf->iPos);
+    DLOG("[GIF] loop rewind iPos=%d\n", pf->iPos);
 #endif
     int cw = _gif.getCanvasWidth();
     int ch = _gif.getCanvasHeight();
@@ -196,10 +196,10 @@ static bool _gifEnsureOpen(const char* path) {
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; }
   _gif.begin(LITTLE_ENDIAN_PIXELS);
   if (!_gif.open(path, _gifOpen, _gifClose, _gifRead, _gifSeek, _gifDraw)) {
-    Serial.printf("[GIF] open FAILED: %s\n", path);
+    LOG("[GIF] open FAILED: %s\n", path);
     return false;
   }
-  Serial.printf("[GIF] opened %s  canvas=%dx%d\n",
+  DLOG("[GIF] opened %s  canvas=%dx%d\n",
     path, _gif.getCanvasWidth(), _gif.getCanvasHeight());
   strncpy(_gifCurPath, path, sizeof(_gifCurPath) - 1);
   _gifCurPath[sizeof(_gifCurPath) - 1] = '\0';
@@ -280,7 +280,7 @@ static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   h = min((uint16_t)MATRIX_HEIGHT, h);
   File jpgFile = LittleFS.open(path);
   if (!jpgFile) {
-    Serial.printf("[JPEG] open FAILED: %s\n", path);
+    LOG("[JPEG] open FAILED: %s\n", path);
     return ICON_DRAW_FAILED;
   }
   TJpgDec.setCallback(jpgMatrixOutput);
@@ -501,8 +501,32 @@ static CRGB colorForBat(int pct) {
 // Main display loop
 // ============================================================
 
+static const char* _screenName() {
+#if RECV_POCSAG
+  if (pocsagMsgActive)   return "POCSAG";
+#endif
+  if (screensaverActive) return "screensaver";
+  switch (displayMode) {
+    case MODE_CLOCK:    return "clock";
+    case MODE_TEMP:     return "temp";
+    case MODE_HUMIDITY: return "humidity";
+    case MODE_BATTERY:  return "battery";
+    default:            return "?";
+  }
+}
+
 void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
+
+  // Log screen transitions
+  {
+    static const char* prevScreen = "";
+    const char* cur = _screenName();
+    if (cur != prevScreen) {
+      LOG("[DISP] Screen: %s\n", cur);
+      prevScreen = cur;
+    }
+  }
 
   // POCSAG message display — takes priority over all modes
 #if RECV_POCSAG
@@ -536,7 +560,7 @@ void loopDisplay() {
           drawChar(xo + i * 4, yo, pocsagMsg[i], colorPocsag);
         FastLED.show();
         pocsagStaticLastDraw = millis();
-        if (first) Serial.printf("[DISP] POCSAG '%s'\n", pocsagMsg);
+        if (first) LOG("[DISP] POCSAG '%s'\n", pocsagMsg);
       }
       if (millis() >= pocsagStaticUntil) {
         pocsagMsgActive      = false;
@@ -668,7 +692,7 @@ void loopDisplay() {
       _gifCloseIfOpen();
       FastLED.clear();   // clear display once before first frame draws
       FastLED.show();
-      Serial.println("[SS] Screensaver activated");
+      LOG("[SS] Screensaver activated\n");
       return;
     }
   }

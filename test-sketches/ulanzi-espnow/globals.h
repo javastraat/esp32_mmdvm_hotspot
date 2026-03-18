@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include <Arduino.h>
+#include "serial_log.h"
 #include <FastLED.h>
 #include <WiFi.h>
 #include <WebServer.h>
@@ -133,6 +134,7 @@ extern bool          pocsagSynced;
 extern volatile bool otaInProgress;
 extern bool          fsAvailable;
 extern bool          otaStarted;
+extern bool          debugLogEnabled;  // NVS: "debug_log" — enables DLOG() output
 extern int           otaLastBarW;
 
 // ── IP address scroll ─────────────────────────────────────────────────────────

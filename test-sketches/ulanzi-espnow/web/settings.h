@@ -371,6 +371,16 @@ static const char PAGE_SETTINGS[] PROGMEM =
   <div class="card">
     <h3>System</h3>
     <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="metric" style="border-bottom:none">
+        <div>
+          <span class="metric-label">Verbose Logging</span>
+          <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">Enables [GIF], [SHT31] and other debug messages in the Serial page.</div>
+        </div>
+        <label class="switch" style="margin-left:12px;flex-shrink:0">
+          <input type="checkbox" id="debug-log-toggle" onchange="setDebugLog(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div>
         <button onclick="doClearRtc()" class="btn btn-warning" style="width:100%">Clear RTC &amp; Time Sync</button>
         <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.</div>
@@ -538,6 +548,10 @@ function doReboot(){
     setTimeout(function(){location.reload();},6000);
   });
 }
+function setDebugLog(val){
+  fetch('/api/debug',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({debug:val})}).catch(function(){});
+}
 function saveOtaHostname(){
   var v=document.getElementById('ota-hostname').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
   if(v.length===0||v.length>31){
@@ -682,6 +696,9 @@ function testSs(){
   }).catch(function(){});
   fetch('/api/bootname').then(function(r){return r.json();}).then(function(d){
     if(d.name)document.getElementById('boot-name').value=d.name;
+  }).catch(function(){});
+  fetch('/api/debug').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('debug-log-toggle').checked=d.debug;
   }).catch(function(){});
   fetch('/api/mdnsname').then(function(r){return r.json();}).then(function(d){
     if(d.name){

@@ -30,7 +30,7 @@ static const char* functionalNameRx(uint8_t f) {
 static void applyPocsagTime(const char* msg) {
   size_t len = strlen(msg);
   if (len < 26) {
-    Serial.printf("[TIME] RIC 224 message too short (%u chars), expected >=26\n", len);
+    LOG("[TIME] RIC 224 message too short (%u chars), expected >=26\n", len);
     return;
   }
   const char* d = msg + 14;  // skip the "YYYYMMDDHHMMSS" format label
@@ -53,7 +53,7 @@ static void applyPocsagTime(const char* msg) {
   if (rtcAvailable)
     ds1307Write(t);
 
-  Serial.printf("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d%s\n",
+  LOG("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d%s\n",
     TIME_POCSAG_RIC,
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
     t.tm_hour, t.tm_min, t.tm_sec,
@@ -109,7 +109,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
 
     if (pkt.len < 21 || memcmp(pkt.data, "DMRD", 4) != 0) {
-      Serial.printf("[RX-DMR] Bad DMRD payload (len=%d)\n", pkt.len);
+      LOG("[RX-DMR] Bad DMRD payload (len=%d)\n", pkt.len);
       return;
     }
 
@@ -126,7 +126,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     if (isNewCall) {
       if (callFrames > 0) {
         unsigned long dur = (millis() - callStart) / 1000;
-        Serial.printf("[RX-DMR] ── END   src=%-8lu  dst=TG%-6lu  slot=%d  frames=%lu  dur=%lus\n\n",
+        LOG("[RX-DMR] ── END   src=%-8lu  dst=TG%-6lu  slot=%d  frames=%lu  dur=%lus\n\n",
           callSrc, callDst, callSlot, callFrames, dur);
       }
       callSrc    = srcId;
@@ -134,7 +134,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
       callSlot   = slot;
       callFrames = 0;
       callStart  = millis();
-      Serial.printf("[RX-DMR] ══ NEW   src=%-8lu  dst=%s%-6lu  slot=%d  pkt#%lu\n",
+      LOG("[RX-DMR] ══ NEW   src=%-8lu  dst=%s%-6lu  slot=%d  pkt#%lu\n",
         srcId, isGroup ? "TG" : "", dstId, slot, rxTotalDmr);
     }
     callFrames++;
@@ -143,7 +143,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     char streamHex[9];
     snprintf(streamHex, sizeof(streamHex), "%02X%02X%02X%02X",
       pkt.data[16], pkt.data[17], pkt.data[18], pkt.data[19]);
-    Serial.printf("  [#%lu] seq=%3d  stream=%s  frame: %02X %02X %02X %02X %02X %02X %02X %02X\n",
+    LOG("  [#%lu] seq=%3d  stream=%s  frame: %02X %02X %02X %02X %02X %02X %02X %02X\n",
       callFrames, seq, streamHex,
       pkt.data[20], pkt.data[21], pkt.data[22], pkt.data[23],
       pkt.data[24], pkt.data[25], pkt.data[26], pkt.data[27]);
@@ -168,7 +168,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
     wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
     if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
-    Serial.printf("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
+    LOG("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",
       rxTotalPocsag, (unsigned long)pkt.ric,
       functionalNameRx(pkt.functional), pkt.message);
 
@@ -178,7 +178,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   }
 #endif  // RECV_POCSAG
 
-  Serial.printf("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
+  LOG("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
 }
 
 // ── WiFi + ESP-NOW setup ──────────────────────────────────────────────────────
@@ -187,54 +187,53 @@ static void setupReceiverNetwork() {
   WiFi.mode(WIFI_STA);
   if (strlen(WIFI_SSID) > 0) {
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.printf("[WiFi] Connecting to %s ", WIFI_SSID);
+    LOG("[WiFi] Connecting to %s ", WIFI_SSID);
     unsigned long t = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
-      delay(250); Serial.print(".");
+      delay(250); LOG(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
       WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
-      Serial.printf("\n[WiFi] Connected: %s  channel: %d\n",
+      LOG("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
       setupOTA();            // ArduinoOTA + WebServer (in web_server.cpp)
     } else {
-      Serial.println("\n[WiFi] Not connected");
+      LOG("\n[WiFi] Not connected\n");
       WiFi.disconnect();
     }
   }
 }
 
 void setupReceiver() {
-  Serial.print("[ROLE] RECEIVER — modes:");
+  LOG("[ROLE] RECEIVER — modes:"
 #if RECV_DMR
-  Serial.print(" DMR");
+  " DMR"
 #endif
 #if RECV_POCSAG
-  Serial.print(" POCSAG");
+  " POCSAG"
 #endif
-  Serial.println();
+  "\n");
 
 #if RECV_DMR && ESPNOW_DEBUG
-  Serial.println("[MODE] DMR debug: ON");
+  LOG("[MODE] DMR debug: ON\n");
 #elif RECV_DMR
-  Serial.println("[MODE] DMR debug: OFF (set ESPNOW_DEBUG true for full frames)");
+  LOG("[MODE] DMR debug: OFF (set ESPNOW_DEBUG true for full frames)\n");
 #endif
 
   setupReceiverNetwork();
 
   if (esp_now_init() != ESP_OK) {
-    Serial.println("[ESP-NOW] Init FAILED — halting.");
+    LOG("[ESP-NOW] Init FAILED — halting.\n");
     while (true) delay(1000);
   }
 
   uint8_t macBytes[6];
   esp_wifi_get_mac(WIFI_IF_STA, macBytes);
-  Serial.printf("[INFO] My MAC : ");
-  Serial.printf("%02X:%02X:%02X:%02X:%02X:%02X\n",
+  LOG("[INFO] My MAC : %02X:%02X:%02X:%02X:%02X:%02X\n",
     macBytes[0], macBytes[1], macBytes[2],
     macBytes[3], macBytes[4], macBytes[5]);
 
   esp_now_register_recv_cb(onReceive);
-  Serial.printf("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n",
+  LOG("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n",
     TIME_POCSAG_RIC);
 }

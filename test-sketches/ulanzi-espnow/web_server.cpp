@@ -15,6 +15,8 @@
 #include "web/settings.h"
 #include "web/system.h"
 #include "web/files.h"
+#include "web/serial.h"
+#include "serial_log.h"
 
 // Upload state — persists across the two upload callbacks
 static File   _uploadFile;
@@ -245,6 +247,41 @@ static void setupWebServer() {
     webServer.send_P(200, "text/html", PAGE_FILES);
   });
 
+  webServer.on("/serial", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_SERIAL);
+  });
+
+  webServer.on("/api/serial/log", HTTP_GET, []() {
+    uint32_t cursor = webServer.hasArg("cursor")
+      ? (uint32_t)webServer.arg("cursor").toInt() : 0;
+    uint32_t newCursor;
+    String data = serialLogQuery(cursor, &newCursor);
+    String resp = "{\"data\":\"" + data + "\",\"cursor\":" + String(newCursor) + "}";
+    webServer.send(200, "application/json", resp);
+  });
+
+  webServer.on("/api/serial/clear", HTTP_POST, []() {
+    serialLogClear();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/debug", HTTP_GET, []() {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "{\"debug\":%s}", debugLogEnabled ? "true" : "false");
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/debug", HTTP_POST, []() {
+    if (webServer.hasArg("plain")) {
+      String body = webServer.arg("plain");
+      if (body.indexOf("true") >= 0)       debugLogEnabled = true;
+      else if (body.indexOf("false") >= 0) debugLogEnabled = false;
+      saveSettings();
+      LOG("[DEBUG] Verbose logging %s\n", debugLogEnabled ? "ON" : "OFF");
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/fs", HTTP_GET, []() {
     if (!fsAvailable) {
       webServer.send(503, "application/json", "{\"error\":\"fs unavailable\"}");
@@ -323,14 +360,14 @@ static void setupWebServer() {
         _uploadOk     = false;
         LittleFS.remove(_uploadedName);
         _uploadFile = LittleFS.open(_uploadedName, "w");
-        Serial.printf("[FS] Upload start: %s\n", _uploadedName.c_str());
+        LOG("[FS] Upload start: %s\n", _uploadedName.c_str());
       } else if (up.status == UPLOAD_FILE_WRITE) {
         if (_uploadFile)
           _uploadOk = (_uploadFile.write(up.buf, up.currentSize) == up.currentSize);
       } else if (up.status == UPLOAD_FILE_END) {
         if (_uploadFile) {
           _uploadFile.close();
-          Serial.printf("[FS] Upload done: %s  %u bytes\n",
+          LOG("[FS] Upload done: %s  %u bytes\n",
             _uploadedName.c_str(), up.totalSize);
         }
       }
@@ -539,10 +576,10 @@ static void setupWebServer() {
       FastLED.clear();
       FastLED.show();
       screensaverActive = true;
-      Serial.println("[SS] Test triggered via web");
+      LOG("[SS] Test triggered via web\n");
     } else {
       resetScreensaverIdle();
-      Serial.println("[SS] Test stopped via web");
+      LOG("[SS] Test stopped via web\n");
     }
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
@@ -694,7 +731,7 @@ static void setupWebServer() {
   });
 
   webServer.begin();
-  Serial.printf("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
+  LOG("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
 }
 
 // ── OTA ───────────────────────────────────────────────────────────────────────
@@ -703,15 +740,15 @@ void setupOTA() {
   // Start mDNS — device reachable as <mdnsName>.local
   if (MDNS.begin(mdnsName)) {
     MDNS.addService("http", "tcp", 80);
-    Serial.printf("[mDNS] Started: http://%s.local/\n", mdnsName);
+    LOG("[mDNS] Started: http://%s.local/\n", mdnsName);
   } else {
-    Serial.println("[mDNS] Start FAILED");
+    LOG("[mDNS] Start FAILED\n");
   }
 
   ArduinoOTA.setHostname(otaHostname);
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
-    Serial.println("[OTA] Start");
+    LOG("[OTA] Start\n");
     otaInProgress = true;
     otaLastBarW   = -1;
     drawUpdate();
@@ -721,7 +758,7 @@ void setupOTA() {
     if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
   });
   ArduinoOTA.onEnd([]() {
-    Serial.println("\n[OTA] Done — rebooting");
+    LOG("\n[OTA] Done — rebooting\n");
     delay(500);
     FastLED.clear(); FastLED.show();
     delay(200);
@@ -730,7 +767,7 @@ void setupOTA() {
     otaInProgress = false;
   });
   ArduinoOTA.onError([](ota_error_t e) {
-    Serial.printf("[OTA] Error %u\n", e);
+    LOG("[OTA] Error %u\n", e);
     otaInProgress = false;
     drawError();
     delay(3000);
@@ -738,6 +775,6 @@ void setupOTA() {
   });
   ArduinoOTA.begin();
   otaStarted = true;
-  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", otaHostname);
+  LOG("[OTA] Ready — hostname: %s  port: 3232\n", otaHostname);
   setupWebServer();
 }

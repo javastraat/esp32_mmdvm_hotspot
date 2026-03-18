@@ -22,14 +22,14 @@ void loopButtons() {
       resetScreensaverIdle();  // any button press exits screensaver and restarts idle countdown
       switch (i) {
         case 0:  // Left — reserved
-          Serial.println("[BTN] Left");
+          LOG("[BTN] Left\n");
           buzzerClick();
           break;
         case 1:  // Middle — toggle auto-brightness
           autoBrightnessEnabled = !autoBrightnessEnabled;
           if (!autoBrightnessEnabled)
             FastLED.setBrightness(currentBrightness);
-          Serial.printf("[BTN] Middle — auto brightness: %s\n",
+          LOG("[BTN] Middle — auto brightness: %s\n",
             autoBrightnessEnabled ? "ON" : "OFF");
           buzzerClick();
           break;
@@ -37,11 +37,11 @@ void loopButtons() {
           if (sht31Available) {
             displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
             modeActiveUntil = (displayMode != MODE_CLOCK) ? millis() + MODE_TIMEOUT_MS : 0;
-            Serial.printf("[BTN] Right — mode: %s\n",
+            LOG("[BTN] Right — mode: %s\n",
               displayMode == MODE_TEMP ? "temp" :
               displayMode == MODE_HUMIDITY ? "humidity" : "clock");
           } else {
-            Serial.println("[BTN] Right — no SHT31 sensor");
+            LOG("[BTN] Right — no SHT31 sensor\n");
           }
           buzzerClick();
           break;

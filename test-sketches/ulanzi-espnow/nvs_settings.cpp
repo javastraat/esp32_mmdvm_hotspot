@@ -23,6 +23,8 @@ void loadSettings() {
   autoRotateEnabled     = p.getBool ("rot_en",  false);
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
   // Device name + mDNS hostname
+  // Debug logging
+  debugLogEnabled = p.getBool("debug_log", false);
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
   { String s = p.getString("mdns_name",    "ulanzi");     s.trim(); s.toLowerCase(); strncpy(mdnsName,    s.c_str(), 31); mdnsName[31]    = '\0'; }
   { String s = p.getString("ota_hostname", "ulanzi-ota"); s.trim(); s.toLowerCase(); strncpy(otaHostname, s.c_str(), 31); otaHostname[31] = '\0'; }
@@ -72,6 +74,8 @@ void saveSettings() {
   // Display rotation
   p.putBool ("rot_en",  autoRotateEnabled);
   p.putUChar("rot_sec", autoRotateIntervalSec);
+  // Debug logging
+  p.putBool("debug_log", debugLogEnabled);
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
   p.putString("mdns_name",    mdnsName);

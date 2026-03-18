@@ -61,20 +61,20 @@ void setupRTC() {
   Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
   Wire.beginTransmission(0x68);
   if (Wire.endTransmission() != 0) {
-    Serial.println("[RTC] Not found — waiting for POCSAG time beacon");
+    LOG("[RTC] Not found — waiting for POCSAG time beacon\n");
     return;
   }
   rtcAvailable = true;
   struct tm t = {};
   if (!ds1307Read(t)) {
-    Serial.println("[RTC] Found but not running (lost power?) — waiting for POCSAG sync");
+    LOG("[RTC] Found but not running (lost power?) — waiting for POCSAG sync\n");
     return;
   }
   time_t epoch = mktime(&t);
   struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
   settimeofday(&tv, nullptr);
   timeSynced = true;
-  Serial.printf("[RTC] Time restored: %04d-%02d-%02d %02d:%02d:%02d\n",
+  LOG("[RTC] Time restored: %04d-%02d-%02d %02d:%02d:%02d\n",
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
     t.tm_hour, t.tm_min, t.tm_sec);
 }
@@ -85,14 +85,14 @@ void setupRTC() {
 void setupSHT31() {
   Wire.beginTransmission(0x44);
   if (Wire.endTransmission() != 0) {
-    Serial.println("[SHT31] Not found");
+    LOG("[SHT31] Not found\n");
     return;
   }
   sht31Available = true;
   sht31Sensor.read();
   sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
   sht31Hum  = sht31Sensor.getTemperature();
-  Serial.printf("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
+  LOG("[SHT31] Found — %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
 }
 
 void loopSHT31() {
@@ -103,5 +103,5 @@ void loopSHT31() {
   sht31Sensor.read();
   sht31Temp = sht31Sensor.getHumidity();      // sensor returns T/RH swapped vs library labels
   sht31Hum  = sht31Sensor.getTemperature();
-  Serial.printf("[SHT31] %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
+  DLOG("[SHT31] %.1fC  %.1f%%\n", sht31Temp, sht31Hum);
 }
