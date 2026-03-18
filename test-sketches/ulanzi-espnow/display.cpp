@@ -221,6 +221,7 @@ static int drawGifIcon(const char* path, int* delayMs, int x0 = 0) {
   if (result < 0) {
     _gif.close();  // decode error: reopen on next call
     _gifIsOpen = false;
+    _gifCurPath[0] = '\0';
   }
   return x0 + w + 1;                 // text starts right after GIF + 1px gap
 }
@@ -450,6 +451,7 @@ void loopDisplay() {
       if (pocsagStaticLastDraw == 0 ||
           millis() - pocsagStaticLastDraw >= (unsigned long)_pocsagStaticGifDelay) {
         bool first = (pocsagStaticLastDraw == 0);
+        if (first) _pocsagStaticGifDelay = 100;  // reset for each new message
         FastLED.clear();
         int gifDelay = 500;
         int textX = drawIcon(iconPocsagFile, &gifDelay);
@@ -563,7 +565,7 @@ void loopDisplay() {
         int r = _gif.playFrame(false, &delay);
         FastLED.show();
         nextSsFrame = millis() + max(delay, 33);
-        if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; }
+        if (r < 0) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; screensaverActive = false; }
       } else {
         screensaverActive = false;  // file missing/corrupt — abort
       }
