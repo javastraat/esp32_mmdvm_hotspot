@@ -279,11 +279,13 @@ static const char PAGE_SETTINGS[] PROGMEM =
                style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
                onchange="saveThresholds()">
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
-        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="t-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="t-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="t-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+      <div style="margin-top:4px">
+        <div style="font-size:.75em;color:var(--text-muted);margin-bottom:3px">Colors</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="t-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="t-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="t-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+        </div>
       </div>
     </div>
     <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
@@ -298,11 +300,13 @@ static const char PAGE_SETTINGS[] PROGMEM =
                style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
                onchange="saveThresholds()">
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
-        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="h-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="h-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="h-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+      <div style="margin-top:4px">
+        <div style="font-size:.75em;color:var(--text-muted);margin-bottom:3px">Colors</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="h-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="h-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="h-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+        </div>
       </div>
     </div>
     <div style="padding:6px 0">
@@ -317,11 +321,13 @@ static const char PAGE_SETTINGS[] PROGMEM =
                style="width:52px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:3px 6px;font-size:.88em"
                onchange="saveThresholds()">
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
-        <span class="metric-label" style="flex-shrink:0;width:72px">Colors</span>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="b-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="b-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
-        <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="b-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+      <div style="margin-top:4px">
+        <div style="font-size:.75em;color:var(--text-muted);margin-bottom:3px">Colors</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Low<input type="color" id="b-col-lo" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">Mid<input type="color" id="b-col-mid" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:.75em;color:var(--text-muted)">High<input type="color" id="b-col-hi" onchange="saveThresholds()" style="width:30px;height:22px;padding:1px;border:none;cursor:pointer;border-radius:2px"></label>
+        </div>
       </div>
     </div>
   </div>

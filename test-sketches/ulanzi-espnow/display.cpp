@@ -725,17 +725,14 @@ void loopDisplay() {
       if (textX == ICON_DRAW_FAILED) {
         FastLED.clear();
         gifDelay = 1000;
-        int totalW = 4 + textW;
-        int xo = (MATRIX_WIDTH - totalW + 1) / 2;
-        for (int row = 0; row < 5; row++)
-          for (int col = 0; col < 3; col++)
-            if (ICON_THERMO[row] & (1 << (2 - col)))
-              setLED(xo + col, yo + row, color);
-        textX = xo + 4;
+        // No icon: center text across full matrix
+        textX = (MATRIX_WIDTH - textW + 1) / 2;
       } else {
+        // Icon present: clear text area, center text in remaining space
         for (int x = textX - 1; x < MATRIX_WIDTH; x++)
           for (int y = 0; y < MATRIX_HEIGHT; y++)
             setLED(x, y, CRGB::Black);
+        textX = textX + (MATRIX_WIDTH - textX - textW) / 2;
       }
       for (int i = 0; i < len; i++)
         drawChar(textX + i * 4, yo, buf[i], color);
@@ -751,17 +748,14 @@ void loopDisplay() {
       if (textX == ICON_DRAW_FAILED) {
         FastLED.clear();
         gifDelay = 1000;
-        int totalW = 6 + textW;
-        int xo = (MATRIX_WIDTH - totalW + 1) / 2;
-        for (int row = 0; row < 8; row++)
-          for (int col = 0; col < 5; col++)
-            if (ICON_DROP[row] & (1 << (4 - col)))
-              setLED(xo + col, row, color);
-        textX = xo + 6;
+        // No icon: center text across full matrix
+        textX = (MATRIX_WIDTH - textW + 1) / 2;
       } else {
+        // Icon present: clear text area, center text in remaining space
         for (int x = textX - 1; x < MATRIX_WIDTH; x++)
           for (int y = 0; y < MATRIX_HEIGHT; y++)
             setLED(x, y, CRGB::Black);
+        textX = textX + (MATRIX_WIDTH - textX - textW) / 2;
       }
       for (int i = 0; i < len; i++)
         drawChar(textX + i * 4, yo, buf[i], color);
@@ -797,22 +791,14 @@ void loopDisplay() {
     if (textX == ICON_DRAW_FAILED) {
       FastLED.clear();
       gifDelay = 2000;
-      const int yf = (MATRIX_HEIGHT - 5) / 2;
-      int totalW = 7 + textW;
-      int xo = (MATRIX_WIDTH - totalW + 1) / 2;
-      for (int row = 0; row < 5; row++)
-        for (int col = 0; col < 6; col++)
-          if (ICON_BAT[row] & (1 << (5 - col)))
-            setLED(xo + col, yf + row, color);
-      int fillCols = (batPct * 3 + 50) / 100;
-      for (int row = 1; row <= 3; row++)
-        for (int col = 1; col <= fillCols; col++)
-          setLED(xo + col, yf + row, color);
-      textX = xo + 7;
+      // No icon: center text across full matrix
+      textX = (MATRIX_WIDTH - textW + 1) / 2;
     } else {
+      // Icon present: clear text area, center text in remaining space
       for (int x = textX - 1; x < MATRIX_WIDTH; x++)
         for (int y = 0; y < MATRIX_HEIGHT; y++)
           setLED(x, y, CRGB::Black);
+      textX = textX + (MATRIX_WIDTH - textX - textW) / 2;
     }
     for (int i = 0; i < len; i++)
       drawChar(textX + i * 4, yo, buf[i], color);
