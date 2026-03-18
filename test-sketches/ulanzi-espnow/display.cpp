@@ -599,10 +599,12 @@ void loopDisplay() {
     FastLED.show();
     ipScrollX--;
     if (ipScrollX < -(ipScrollLen * 4)) {
-      if (++ipScrollPass >= 2)
+      if (++ipScrollPass >= 2) {
         ipScrollActive = false;
-      else
+        displayMode    = MODE_CLOCK;  // always return to clock after IP scroll
+      } else {
         ipScrollX = MATRIX_WIDTH;
+      }
     }
     return;
   }
