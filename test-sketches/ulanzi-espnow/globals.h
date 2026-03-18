@@ -58,8 +58,9 @@ extern unsigned long modeActiveUntil;
 
 // ── Device name (boot screen) and mDNS hostname ──────────────────────────────
 
-extern char bootName[9];   // max 8 chars, always uppercase
-extern char mdnsName[32];  // mDNS hostname (e.g. "ulanzi" → ulanzi.local)
+extern char bootName[9];    // max 8 chars, always uppercase
+extern char mdnsName[32];   // mDNS hostname (e.g. "ulanzi" → ulanzi.local)
+extern char otaHostname[32]; // ArduinoOTA hostname (shown in Arduino IDE port list)
 
 // ── Icon filenames ────────────────────────────────────────────────────────────
 

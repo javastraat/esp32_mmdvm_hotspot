@@ -641,6 +641,38 @@ static void setupWebServer() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/reboot", HTTP_POST, []() {
+    webServer.send(200, "application/json", "{\"ok\":true}");
+    delay(300);
+    ESP.restart();
+  });
+
+  webServer.on("/api/otahostname", HTTP_GET, []() {
+    char buf[48];
+    snprintf(buf, sizeof(buf), "{\"name\":\"%s\"}", otaHostname);
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/otahostname", HTTP_POST, []() {
+    String v = webServer.arg("name");
+    v.trim();
+    v.toLowerCase();
+    bool valid = (v.length() >= 1 && v.length() <= 31);
+    for (int i = 0; valid && i < (int)v.length(); i++) {
+      char c = v[i];
+      if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) valid = false;
+    }
+    if (!valid) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"1-31 chars, a-z 0-9 -\"}");
+      return;
+    }
+    strncpy(otaHostname, v.c_str(), 31);
+    otaHostname[31] = '\0';
+    saveSettings();
+    ArduinoOTA.setHostname(otaHostname);
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/bootname", HTTP_GET, []() {
     char buf[32];
     snprintf(buf, sizeof(buf), "{\"name\":\"%s\"}", bootName);
@@ -676,7 +708,7 @@ void setupOTA() {
     Serial.println("[mDNS] Start FAILED");
   }
 
-  ArduinoOTA.setHostname(mdnsName);  // OTA hostname matches mDNS name
+  ArduinoOTA.setHostname(otaHostname);
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
     Serial.println("[OTA] Start");
@@ -706,6 +738,6 @@ void setupOTA() {
   });
   ArduinoOTA.begin();
   otaStarted = true;
-  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", mdnsName);
+  Serial.printf("[OTA] Ready — hostname: %s  port: 3232\n", otaHostname);
   setupWebServer();
 }

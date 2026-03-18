@@ -50,7 +50,9 @@ unsigned long modeActiveUntil = 0;
 // Device name — shown on boot screen (max 8 chars, uppercase)
 char bootName[9]  = "ULANZI";
 // mDNS hostname — device reachable as <name>.local (max 31 chars, lowercase)
-char mdnsName[32] = "ulanzi";
+char mdnsName[32]    = "ulanzi";
+// ArduinoOTA hostname — shown in Arduino IDE port list (max 31 chars, lowercase)
+char otaHostname[32] = "ulanzi-ota";
 
 // Icon filenames (GIF/JPEG from LittleFS)
 char iconTempFile[32]   = "/icons/70122.jpg";

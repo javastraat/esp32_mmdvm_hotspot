@@ -24,7 +24,8 @@ void loadSettings() {
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
   // Device name + mDNS hostname
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
-  { String s = p.getString("mdns_name", "ulanzi"); s.trim(); s.toLowerCase(); strncpy(mdnsName, s.c_str(), 31); mdnsName[31] = '\0'; }
+  { String s = p.getString("mdns_name",    "ulanzi");     s.trim(); s.toLowerCase(); strncpy(mdnsName,    s.c_str(), 31); mdnsName[31]    = '\0'; }
+  { String s = p.getString("ota_hostname", "ulanzi-ota"); s.trim(); s.toLowerCase(); strncpy(otaHostname, s.c_str(), 31); otaHostname[31] = '\0'; }
   // Icon filenames — trim whitespace to fix any accidentally saved leading/trailing spaces
   { String s = p.getString("icon_temp", "/icons/70122.jpg");  s.trim(); strncpy(iconTempFile,   s.c_str(), 31); iconTempFile[31]   = '\0'; }
   { String s = p.getString("icon_hum",  "/icons/71006.jpg");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
@@ -73,7 +74,8 @@ void saveSettings() {
   p.putUChar("rot_sec", autoRotateIntervalSec);
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
-  p.putString("mdns_name", mdnsName);
+  p.putString("mdns_name",    mdnsName);
+  p.putString("ota_hostname", otaHostname);
   // Icon filenames
   p.putString("icon_temp", iconTempFile);
   p.putString("icon_hum",  iconHumFile);
