@@ -62,7 +62,7 @@ All display state is written only from Core 1, eliminating data races without mu
 | `buttons.h/.cpp` | Debounced button handler |
 | `nvs_settings.h/.cpp` | NVS Preferences load/save |
 | `filesystem.h/.cpp` | LittleFS initialisation |
-| `web_server.h/.cpp` | ArduinoOTA + WebServer routes |
+| `web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer routes |
 | `web/styles.h` | Shared CSS + light/dark theme |
 | `web/navigation.h` | Shared nav bar + LIVE modal |
 | `web/main.h` | Home/dashboard page |
@@ -106,7 +106,9 @@ configurable from the web Settings page and persisted to NVS.
 
 - Each mode draws a configurable icon from LittleFS at x=0, followed by the value centered
   in the remaining space.
-- If no icon file is set, the value is centered across the full 32 pixels.
+- If no icon file is set or the file is missing, the value is centered across the full 32 pixels.
+- **Temperature** is displayed as `21.45°` — a custom degree symbol glyph (small circle) is
+  rendered from the font table; the `C` suffix is omitted to save space.
 - Colors are dynamic: three zones (Low / Mid / High) with independently configurable
   threshold values and colors, set from the Settings page.
 
@@ -132,6 +134,50 @@ Cycles clock → temperature → humidity → battery → clock on a configurabl
 Sensor modes are skipped if SHT31 is not detected.
 Pauses during POCSAG messages and restores the previous mode when done.
 
+### Boot screen
+
+Displays the device name letter by letter in rainbow colours at startup.
+The name (default `ULANZI`, max 8 characters) is configurable from the Settings page
+**Device Name** card and persisted to NVS — no recompile needed.
+`loadSettings()` runs before `drawBootScreen()` so the saved name is always shown.
+
+---
+
+## Network
+
+### WiFi
+
+The device connects to the configured `WIFI_SSID` at boot. This must be the same network
+as the MMDVM hotspot so they share the same 2.4 GHz channel for ESP-NOW.
+
+### mDNS
+
+Once WiFi is connected the device advertises itself via mDNS:
+
+```
+http://<mdns-hostname>.local/
+```
+
+Default hostname is `ulanzi` → `http://ulanzi.local/`. The hostname is configurable
+from the **Device Name** card in Settings (persisted to NVS, takes effect immediately).
+The HTTP service is registered so network scanners can discover the device automatically.
+
+### ArduinoOTA
+
+OTA updates are available over WiFi. The OTA hostname (shown in the Arduino IDE
+**Port** menu) is separately configurable from the **Device Name** card in Settings.
+Default: `ulanzi-ota`. Change takes effect immediately without a reboot.
+
+```
+Host:     ulanzi-ota  (or device IP)
+Port:     3232
+Password: set OTA_PASSWORD in config.h (leave empty to disable)
+```
+
+During OTA: the matrix shows `UPDATE` + a cyan progress bar on row 7.
+On success: `DONE` (green). On error: `ERR` (red) then returns to normal.
+OTA runs in `webTask` on Core 0 — the display loop continues uninterrupted.
+
 ---
 
 ## POCSAG RIC reference
@@ -149,7 +195,7 @@ Excluded RICs, time beacon RIC, and callsign RIC are all set in `config.h`.
 
 ## Web Interface
 
-Connect to `http://<device-ip>/` in any browser (port 80).
+Connect to `http://<device-ip>/` or `http://<mdns-hostname>.local/` in any browser (port 80).
 Light and dark themes are available (preference stored in `localStorage`).
 
 ### Pages
@@ -182,6 +228,7 @@ Accessible from the LIVE button in the navigation bar.
 | **Icons** | File picker for Temp / Humidity / Battery / POCSAG icons · Preview image · Show on matrix |
 | **Text Colors** | Color picker for Clock text and POCSAG message text |
 | **Thresholds & Colors** | Temperature: 2 thresholds + 3 zone colors · Humidity: same · Battery: same |
+| **Device Name** | Boot screen name (max 8 chars) · mDNS hostname · ArduinoOTA hostname · Reboot button |
 
 All settings are saved to NVS immediately on change — survive reboot.
 
@@ -268,6 +315,17 @@ POST `/api/colors` accepts any subset of:
 | POST | `/api/screensaver` | `enabled=0/1` · `timeout=5-3600` · `file=/screensaver/x.gif` | Save screensaver settings |
 | POST | `/api/screensaver/test` | `action=test/stop` | Start or stop screensaver immediately |
 
+### Device identity
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| GET | `/api/bootname` | — | Current boot screen name |
+| POST | `/api/bootname` | `name=MYNAME` | Set boot screen name (1–8 chars, auto-uppercased) |
+| GET | `/api/mdnsname` | — | Current mDNS hostname |
+| POST | `/api/mdnsname` | `name=mydevice` | Set mDNS hostname (1–31 chars, a-z 0-9 -) · takes effect immediately |
+| GET | `/api/otahostname` | — | Current ArduinoOTA hostname |
+| POST | `/api/otahostname` | `name=mydevice-ota` | Set OTA hostname (1–31 chars, a-z 0-9 -) · takes effect immediately |
+
 ### Filesystem
 
 | Method | Endpoint | Body / Query params | Description |
@@ -290,20 +348,6 @@ POST `/api/colors` accepts any subset of:
 
 ---
 
-## OTA Update
-
-```
-Host:     ulanzi-clock.local  (or device IP)
-Port:     3232
-Password: ulanzi  (set OTA_PASSWORD in config.h, leave empty to disable)
-```
-
-During OTA: the matrix shows `UPDATE` + a cyan progress bar on row 7.
-On success: `DONE` (green). On error: `ERR` (red) then returns to normal.
-OTA runs in `webTask` on Core 0 — the display loop continues uninterrupted.
-
----
-
 ## Icons (LittleFS)
 
 Icons are stored on the ESP32's LittleFS filesystem. Upload them via the **Files** page
@@ -316,6 +360,10 @@ or with `arduino-cli` / `esptool`.
 
 **Supported formats:** GIF (animated or static) and JPEG.
 Icons should be 8×8 pixels for best results. The display centers them vertically.
+
+**GIF looping:** both GIFs with the Netscape infinite-loop extension and plain
+single-play GIFs loop continuously — when `playFrame` returns 0 (last frame) the
+file handle is closed and reopened on the next tick, restarting from frame 0.
 
 **LaMetric icons:** the Files page has a built-in downloader. Enter a LaMetric icon ID,
 preview the image, and save it directly to `/icons/` — no PC needed.
@@ -346,8 +394,7 @@ Paste it into the hotspot's sender config as `RECEIVER_MAC`.
 #define WIFI_SSID      "YourSSID"
 #define WIFI_PASSWORD  "YourPassword"
 
-// OTA
-#define OTA_HOSTNAME  "ulanzi-clock"
+// OTA password (leave empty to disable password protection)
 #define OTA_PASSWORD  "ulanzi"
 
 // Time beacon RIC (must match hotspot)
@@ -359,6 +406,9 @@ Paste it into the hotspot's sender config as `RECEIVER_MAC`.
 // RICs that are never shown on the LED matrix
 #define POCSAG_DISPLAY_EXCLUDED_RICS  { 224, 208, 200, 216, 4520, 4521 }
 ```
+
+> **Note:** the boot screen name, mDNS hostname, and OTA hostname are all set at runtime
+> from the **Device Name** card in Settings — no recompile needed.
 
 ### 3. Required Arduino libraries
 
@@ -443,6 +493,9 @@ flashing new firmware that adds a new key.
 | `h_col_lo/mid/hi` | uint32 (RGB) | orange / green / blue | Humidity zone colors |
 | `b_thr_lo` / `b_thr_hi` | uint8 | 30 / 60 | Battery thresholds (%) |
 | `b_col_lo/mid/hi` | uint32 (RGB) | red / yellow / green | Battery zone colors |
+| `boot_name` | string | `ULANZI` | Boot screen device name (max 8 chars, uppercase) |
+| `mdns_name` | string | `ulanzi` | mDNS hostname → `<name>.local` |
+| `ota_hostname` | string | `ulanzi-ota` | ArduinoOTA hostname (shown in Arduino IDE port list) |
 
 ---
 
@@ -452,9 +505,18 @@ flashing new firmware that adds a new key.
   peripheral used by WS2812B, causing color glitches on every `FastLED.show()`.
 - **`webTask` stack ≥ 8 KB** — `/api/status` allocates `char json[2500]` + `char logBuf[1100]`
   on the stack (~3.7 KB locals). Do not reduce below 6 KB.
-- **AnimatedGIF**: `_gif.begin()` must be called before every `_gif.open()` — `_gif.close()`
-  resets internal pixel byte order state. The library never returns 0 for looping GIFs
-  (auto-rewinds internally), so the close-on-result==0 pattern does not apply.
+- **`loadSettings()` before `drawBootScreen()`** — NVS (Preferences) is independent of
+  LittleFS and can be read before the filesystem is mounted. Moving the call earlier ensures
+  the saved boot name, brightness, and all other settings are applied before anything is
+  displayed.
+- **AnimatedGIF looping** — `playFrame` returns 1 while frames remain, 0 on the last frame
+  of a non-looping GIF, and negative on a decode error. GIFs with the Netscape infinite-loop
+  extension auto-rewind internally (never return 0). To make all GIFs loop regardless of
+  their metadata, the code closes the file handle on `result == 0` so the next call to
+  `_gifEnsureOpen` reopens from frame 0. `result < 0` returns `ICON_DRAW_FAILED` to trigger
+  the bitmap fallback.
+- **AnimatedGIF `_gif.begin()`** must be called before every `_gif.open()` — `_gif.close()`
+  resets internal pixel byte order state.
 - **TJpg_Decoder**: use the `getFsJpgSize(&w, &h, path, LittleFS)` overload — the
   `getFsJpgSize(File)` overload takes `fs::File` by value, whose destructor closes the
   shared file handle before `drawFsJpg` can use it.
@@ -462,3 +524,7 @@ flashing new firmware that adds a new key.
   mutex is needed.
 - **POCSAG display state** is written only from Core 1 via `processPocsagPacket()` called
   in `loop()`. The ESP-NOW callback on Core 0 uses `xQueueSendFromISR` to avoid data races.
+- **mDNS + OTA hostname** are both runtime-configurable and take effect immediately via
+  `MDNS.end()` / `MDNS.begin()` and `ArduinoOTA.setHostname()`. No reboot required.
+  The `OTA_HOSTNAME` define in `config.h` is no longer used; the runtime value from NVS
+  (`ota_hostname`, default `ulanzi-ota`) is used instead.

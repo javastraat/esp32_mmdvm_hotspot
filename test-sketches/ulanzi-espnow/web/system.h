@@ -56,18 +56,6 @@ static const char PAGE_SYSTEM[] PROGMEM =
     <div class="metric"><span class="metric-label">Min Free Heap</span><span class="metric-value" id="sw-minheap">-</span></div>
   </div>
 
-  <div class="card">
-    <h3>System</h3>
-    <div class="metric">
-      <span class="metric-label">Clear RTC / time sync</span>
-      <button onclick="doClearRtc()" style="background:#e67e22;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold">Clear RTC</button>
-    </div>
-    <div class="metric">
-      <span class="metric-label">Reboot device</span>
-      <button onclick="doReboot()" style="background:#dc3545;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:.85em;font-weight:bold">Reboot</button>
-    </div>
-  </div>
-
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -118,16 +106,6 @@ function fetchSysInfo(){
     document.getElementById('sw-minheap').textContent=
       d.min_free_heap?Math.round(d.min_free_heap/1024)+' KB':'-';
   }).catch(function(){});
-}
-function doClearRtc(){
-  if(!confirm('Clear RTC and reboot?\nScanner animation will run on boot until a time beacon is received.'))return;
-  fetch('/api/rtc/clear',{method:'POST'}).catch(function(){});
-  setTimeout(function(){location.reload();},5000);
-}
-function doReboot(){
-  if(!confirm('Reboot Ulanzi?'))return;
-  fetch('/api/reboot',{method:'POST'}).catch(function(){});
-  setTimeout(function(){location.reload();},5000);
 }
 poll();
 setInterval(poll,5000);

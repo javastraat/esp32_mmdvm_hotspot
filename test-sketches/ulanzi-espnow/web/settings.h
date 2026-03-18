@@ -368,10 +368,22 @@ static const char PAGE_SETTINGS[] PROGMEM =
       </div>
       <div id="otahostname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-color)">
-      <button onclick="doReboot()"
-              style="width:100%;background:#e53935;color:#fff;border:none;padding:7px 0;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold">Reboot Device</button>
-      <div id="reboot-status" style="font-size:.78em;color:#aaa;margin-top:4px;min-height:1em;text-align:center"></div>
+  </div>
+
+  <!-- System Actions -->
+  <div class="card">
+    <h3>System</h3>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <button onclick="doClearRtc()"
+                style="width:100%;background:#e67e22;color:#fff;border:none;padding:7px 0;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold">Clear RTC &amp; Time Sync</button>
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.</div>
+      </div>
+      <div>
+        <button onclick="doReboot()"
+                style="width:100%;background:#e53935;color:#fff;border:none;padding:7px 0;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:bold">Reboot Device</button>
+        <div id="reboot-status" style="font-size:.78em;color:#aaa;margin-top:3px;min-height:1em"></div>
+      </div>
     </div>
   </div>
 
@@ -514,11 +526,19 @@ function onSsChange(){
         +'&file='+encodeURIComponent(document.getElementById('ss-file').value)
   }).catch(function(){});
 }
+function doClearRtc(){
+  if(!confirm('Clear RTC and reboot?\nScanner animation will run until the next time beacon.'))return;
+  fetch('/api/rtc/clear',{method:'POST'}).catch(function(){});
+  var s=document.getElementById('reboot-status');
+  s.textContent='Clearing RTC and rebooting…';
+  setTimeout(function(){location.reload();},6000);
+}
 function doReboot(){
+  if(!confirm('Reboot device?'))return;
   var s=document.getElementById('reboot-status');
   s.textContent='Rebooting…';
   fetch('/api/reboot',{method:'POST'}).catch(function(){});
-  setTimeout(function(){s.textContent='Done — reconnecting…';},1000);
+  setTimeout(function(){s.textContent='Reconnecting…';},1500);
   setTimeout(function(){location.reload();},6000);
 }
 function saveOtaHostname(){
