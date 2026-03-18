@@ -38,21 +38,7 @@ static const char PAGE_MQTT[] PROGMEM =
     </div>
   </div>
 
-  <!-- Entities published -->
-  <div class="card">
-    <h3>Published Entities</h3>
-    <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Auto-discovered by Home Assistant when connected.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:.82em">
-      <span style="color:var(--text-muted)">Sensor</span><span>Temperature · Humidity</span>
-      <span style="color:var(--text-muted)">Sensor</span><span>Battery % · Battery mV</span>
-      <span style="color:var(--text-muted)">Sensor</span><span>WiFi RSSI · Uptime</span>
-      <span style="color:var(--text-muted)">Sensor</span><span>POCSAG Message · Count</span>
-      <span style="color:var(--text-muted)">Switch</span><span>Auto Brightness</span>
-      <span style="color:var(--text-muted)">Switch</span><span>Debug Logging</span>
-      <span style="color:var(--text-muted)">Number</span><span>Brightness (1–255)</span>
-      <span style="color:var(--text-muted)">Button</span><span>Reboot · Clear RTC</span>
-    </div>
-  </div>
+
 
   <!-- Settings -->
   <div class="card">
@@ -122,32 +108,39 @@ static const char PAGE_MQTT[] PROGMEM =
     </div>
 
 
-    <!-- Home Assistant Integration Card -->
-    <div class="card" style="margin-top:18px">
-      <h3>Home Assistant Integration</h3>
-      <div class="metric" style="border-bottom:none">
-        <div>
-          <span class="metric-label">HA Auto-Discovery</span>
-          <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">Publishes config payloads so HA discovers entities automatically.</div>
-        </div>
-        <label class="switch" style="margin-left:12px;flex-shrink:0">
-          <input type="checkbox" id="mqtt-disc" checked>
-          <span class="slider"></span>
-        </label>
+  </div> <!-- End Settings card -->
+
+  <!-- Home Assistant Integration Card (Card 4) -->
+  <div class="card" style="margin-top:0">
+    <h3>Home Assistant Integration</h3>
+    <div class="metric" style="border-bottom:none">
+      <div>
+        <span class="metric-label">HA Auto-Discovery</span>
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">Publishes config payloads so HA discovers entities automatically.</div>
       </div>
-      <div style="margin-top:10px">
-        <label class="metric-label" for="mqtt-ha-name-in">Device Name</label>
-        <input type="text" id="mqtt-ha-name-in" placeholder="(defaults to boot name)"
-          style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
-        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Name shown in Home Assistant. Leave empty to use boot logo name.</div>
-      </div>
-      <div style="margin-top:10px">
-        <label class="metric-label" for="mqtt-prefix-in">Discovery Prefix</label>
-        <input type="text" id="mqtt-prefix-in" value="homeassistant"
-          style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
-        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Must match HA's MQTT discovery prefix (default: homeassistant).</div>
-      </div>
+      <label class="switch" style="margin-left:12px;flex-shrink:0">
+        <input type="checkbox" id="mqtt-disc" checked>
+        <span class="slider"></span>
+      </label>
     </div>
+    <div style="margin-top:10px">
+      <label class="metric-label" for="mqtt-ha-name-in">Device Name</label>
+      <input type="text" id="mqtt-ha-name-in" placeholder="(defaults to boot name)"
+        style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
+      <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Name shown in Home Assistant. Leave empty to use boot logo name.</div>
+    </div>
+    <div style="margin-top:10px">
+      <label class="metric-label" for="mqtt-prefix-in">Discovery Prefix</label>
+      <input type="text" id="mqtt-prefix-in" value="homeassistant"
+        style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
+      <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Must match HA's MQTT discovery prefix (default: homeassistant).</div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-info" style="flex:1" onclick="saveMqtt()">Save &amp; Reconnect</button>
+      <button class="btn btn-secondary" onclick="sendDiscovery()" id="disc-btn">Re-send Discovery</button>
+    </div>
+    <div id="mqtt-save-status" style="font-size:.78em;color:#aaa;margin-top:6px;min-height:1em"></div>
+  </div>
 
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-info" style="flex:1" onclick="saveMqtt()">Save &amp; Reconnect</button>
