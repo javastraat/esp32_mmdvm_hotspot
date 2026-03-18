@@ -122,9 +122,9 @@
   "function showConfirm(msg,onYes,onNo){showModal(function(box,close){" \
   "var h=document.createElement('h4');h.textContent=msg;box.appendChild(h);" \
   "var d=document.createElement('div');d.className='modal-buttons';" \
-  "var ok=document.createElement('button');ok.textContent='OK';ok.className='btn btn-danger';" \
+  "var ok=document.createElement('button');ok.textContent='Yes';ok.className='btn btn-danger';" \
   "ok.onclick=function(){close();if(onYes)onYes();};" \
-  "var no=document.createElement('button');no.textContent='Cancel';no.className='btn btn-secondary';" \
+  "var no=document.createElement('button');no.textContent='No';no.className='btn btn-secondary';" \
   "no.onclick=function(){close();if(onNo)onNo();};" \
   "d.appendChild(ok);d.appendChild(no);box.appendChild(d);" \
   "setTimeout(function(){no.focus();},50);});}" \

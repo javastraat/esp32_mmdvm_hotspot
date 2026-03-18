@@ -2,6 +2,7 @@
 // and the main display loop.
 #include "display.h"
 #include "globals.h"
+#include "mqtt.h"
 #include <AnimatedGIF.h>
 #include <TJpg_Decoder.h>
 #include <LittleFS.h>
@@ -525,6 +526,7 @@ void loopDisplay() {
     if (cur != prevScreen) {
       LOG("[DISP] Screen: %s\n", cur);
       prevScreen = cur;
+      mqttNotifyState();
     }
   }
 

@@ -481,8 +481,7 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     if (rtcAvailable) ds1307Stop();
     timeSynced   = false;
     pocsagSynced = false;
-    delay(300);
-    ESP.restart();
+    displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
   }
 }
 

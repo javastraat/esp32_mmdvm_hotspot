@@ -236,9 +236,8 @@ static void setupWebServer() {
     if (rtcAvailable) ds1307Stop();  // stop oscillator so setupRTC() skips time restore on next boot
     timeSynced   = false;
     pocsagSynced = false;
+    displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
     webServer.send(200, "application/json", "{\"ok\":true}");
-    delay(100);
-    ESP.restart();
   });
 
   webServer.on("/api/reboot", HTTP_POST, []() {

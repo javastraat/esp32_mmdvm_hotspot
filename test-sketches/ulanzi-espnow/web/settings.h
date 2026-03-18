@@ -384,7 +384,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
       </div>
       <div>
         <button onclick="doClearRtc()" class="btn btn-warning" style="width:100%">Clear RTC &amp; Time Sync</button>
-        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.</div>
+        <div id="rtc-status" style="font-size:.78em;margin-top:3px;min-height:1em;color:var(--text-muted)">Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.</div>
       </div>
       <div>
         <button onclick="doReboot()" class="btn btn-danger" style="width:100%">Reboot Device</button>
@@ -542,11 +542,19 @@ function onSsChange(){
   }).catch(function(){});
 }
 function doClearRtc(){
-  showConfirm('Clear RTC and reboot? Scanner animation will run until the next time beacon.',function(){
-    fetch('/api/rtc/clear',{method:'POST'}).catch(function(){});
-    var s=document.getElementById('reboot-status');
-    s.textContent='Clearing RTC and rebooting…';
-    setTimeout(function(){location.reload();},6000);
+  showConfirm('Clear RTC and time sync? Scanner animation will run until the next time beacon.',function(){
+    var s=document.getElementById('rtc-status');
+    fetch('/api/rtc/clear',{method:'POST'}).then(function(){
+      s.style.color='#4caf50';
+      s.textContent='RTC cleared \u2714 Scanner running until next time beacon.';
+      setTimeout(function(){
+        s.style.color='var(--text-muted)';
+        s.textContent='Clears the DS1307 and resets sync flags. Scanner animation runs until the next time beacon.';
+      },5000);
+    }).catch(function(){
+      s.style.color='#f44336';
+      s.textContent='Error clearing RTC.';
+    });
   });
 }
 function doReboot(){
