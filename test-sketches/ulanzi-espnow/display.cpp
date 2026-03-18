@@ -429,11 +429,16 @@ void loopAutoRotate() {
   static unsigned long lastRotate = 0;
 
 #if RECV_POCSAG
-  static bool prevPocsag = false;
-  if (pocsagMsgActive) { prevPocsag = true; return; }  // pause during message
-  if (prevPocsag) {                                     // message just ended
+  static bool        prevPocsag   = false;
+  static DisplayMode savedMode    = MODE_CLOCK;
+  if (pocsagMsgActive) {                               // pause during message
+    if (!prevPocsag) savedMode = displayMode;          // snapshot mode on first pause frame
+    prevPocsag = true;
+    return;
+  }
+  if (prevPocsag) {                                    // message just ended
     prevPocsag  = false;
-    displayMode = MODE_CLOCK;
+    displayMode = savedMode;                           // restore pre-message mode
     lastRotate  = millis();   // restart rotation timer from now
     return;
   }
