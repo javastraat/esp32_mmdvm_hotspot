@@ -32,9 +32,13 @@ static const char PAGE_MQTT[] PROGMEM =
       <span class="metric-label">Node ID</span>
       <span id="mqtt-node-disp" class="metric-value" style="font-family:monospace">-</span>
     </div>
-    <div class="metric" style="border-bottom:none">
+    <div class="metric">
       <span class="metric-label">Topics base</span>
       <span id="mqtt-topics-disp" class="metric-value" style="font-family:monospace;font-size:.8em">-</span>
+    </div>
+    <div class="metric" style="border-bottom:none">
+      <span class="metric-label">HA Device Name</span>
+      <span id="mqtt-haname-disp" class="metric-value" style="font-family:monospace">-</span>
     </div>
   </div>
 
@@ -96,13 +100,14 @@ static const char PAGE_MQTT[] PROGMEM =
       </div>
 
       <div>
-        <label class="metric-label" for="mqtt-node-in">Node ID <span style="font-weight:normal">(topic prefix)</span></label>
+        <label class="metric-label" for="mqtt-node-in">Node ID <span style="font-weight:normal">(MQTT topic prefix)</span></label>
         <input type="text" id="mqtt-node-in" placeholder="ulanzi"
           oninput="updatePreview()"
           style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);
                  color:var(--text-color);border:1px solid var(--border-color);
                  border-radius:4px;font-size:.9em;box-sizing:border-box">
         <div id="node-preview" style="font-size:.75em;color:var(--text-muted);margin-top:3px;font-family:monospace"></div>
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">Used in all MQTT topics and unique entity IDs. Short, lowercase, no spaces.</div>
       </div>
 
 
@@ -127,10 +132,12 @@ static const char PAGE_MQTT[] PROGMEM =
       </label>
     </div>
     <div style="margin-top:10px">
-      <label class="metric-label" for="mqtt-ha-name-in">Device Name</label>
-      <input type="text" id="mqtt-ha-name-in" placeholder="(defaults to boot name)"
+      <label class="metric-label" for="mqtt-ha-name-in">HA Device Name</label>
+      <input type="text" id="mqtt-ha-name-in" placeholder="(defaults to Node ID)"
+        oninput="updatePreview()"
         style="width:100%;margin-top:4px;padding:6px 9px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.9em;box-sizing:border-box">
-      <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Name shown in Home Assistant. Leave empty to use boot logo name.</div>
+      <div id="ha-name-preview" style="font-size:.75em;color:var(--text-muted);margin-top:3px;font-family:monospace"></div>
+      <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">Shown in Home Assistant device registry and used as entity ID prefix. Leave empty to use Node ID.</div>
     </div>
     <div style="margin-top:10px">
       <label class="metric-label" for="mqtt-prefix-in">Discovery Prefix</label>
@@ -154,8 +161,11 @@ function togglePassVis(){
   i.type=i.type==='password'?'text':'password';
 }
 function updatePreview(){
-  var node=document.getElementById('mqtt-node-in').value.trim()||'ulanzi';
+  var node=(document.getElementById('mqtt-node-in').value.trim()||'ulanzi');
+  var haName=(document.getElementById('mqtt-ha-name-in').value.trim()||node);
+  var haSlug=haName.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
   document.getElementById('node-preview').textContent=node+'/sensor/temperature/state  etc.';
+  document.getElementById('ha-name-preview').textContent='sensor.'+haSlug+'_temperature  etc.';
 }
 
 function saveMqtt(){
@@ -235,6 +245,7 @@ function pollStatus(){
     var node=d.node_id||'ulanzi';
     document.getElementById('mqtt-node-disp').textContent=node;
     document.getElementById('mqtt-topics-disp').textContent=node+'/sensor/…';
+    document.getElementById('mqtt-haname-disp').textContent=d.ha_name||node;
   })
   .catch(function(){});
 }

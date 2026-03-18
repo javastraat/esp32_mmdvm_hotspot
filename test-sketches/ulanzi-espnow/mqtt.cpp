@@ -61,9 +61,11 @@ static const char* _brightnessPreset(uint8_t br) {
 }
 
 // Build the shared "device" JSON fragment (no trailing comma)
-// Use mqttHaName if set, else fallback to bootName
+// mqttNodeId  → topics + unique IDs (e.g. ulanzi/sensor/temperature/state)
+// mqttHaName  → HA device name + entity_id prefix (e.g. sensor.ulanzi_temperature)
+//               falls back to mqttNodeId if left empty
 static int _devBlock(char* buf, int len) {
-  const char* haName = (mqttHaName[0] != '\0') ? mqttHaName : bootName;
+  const char* devName = (mqttHaName[0] != '\0') ? mqttHaName : mqttNodeId;
   return snprintf(buf, len,
     "\"device\":{"
       "\"identifiers\":[\"%s_%s\"],"
@@ -76,7 +78,7 @@ static int _devBlock(char* buf, int len) {
       "\"configuration_url\":\"http://%s/\""
     "}",
     mqttNodeId, _mac,
-    haName,
+    devName,
     ESP.getSdkVersion(),
     _mac, _mac+2, _mac+4, _mac+6, _mac+8, _mac+10,
     WiFi.localIP().toString().c_str());
