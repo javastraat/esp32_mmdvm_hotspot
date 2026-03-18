@@ -158,32 +158,72 @@ static const char PAGE_SETTINGS[] PROGMEM =
   <div class="card">
     <h3>Icons</h3>
     <div class="metric">
-      <span class="metric-label">Temp</span>
-      <input type="text" id="icon-temp" maxlength="31"
-             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
-                    color:var(--text-color);border:1px solid var(--border-color);
-                    border-radius:4px;font-family:monospace;font-size:.88em">
+      <span class="metric-label" style="flex-shrink:0;width:68px">Temp</span>
+      <select id="icon-temp" onchange="onIconChange('icon-temp','prev-temp')"
+              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
+                     color:var(--text-color);border:1px solid var(--border-color);
+                     border-radius:4px;font-size:.88em">
+        <option value="">(none)</option>
+      </select>
+      <img id="prev-temp" src="" alt=""
+           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
+                  border-radius:2px;display:none">
+      <button onclick="showIcon('icon-temp')"
+              style="background:#444;color:#fff;border:none;padding:4px 10px;
+                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
+        Show
+      </button>
     </div>
     <div class="metric">
-      <span class="metric-label">Humidity</span>
-      <input type="text" id="icon-hum" maxlength="31"
-             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
-                    color:var(--text-color);border:1px solid var(--border-color);
-                    border-radius:4px;font-family:monospace;font-size:.88em">
+      <span class="metric-label" style="flex-shrink:0;width:68px">Humidity</span>
+      <select id="icon-hum" onchange="onIconChange('icon-hum','prev-hum')"
+              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
+                     color:var(--text-color);border:1px solid var(--border-color);
+                     border-radius:4px;font-size:.88em">
+        <option value="">(none)</option>
+      </select>
+      <img id="prev-hum" src="" alt=""
+           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
+                  border-radius:2px;display:none">
+      <button onclick="showIcon('icon-hum')"
+              style="background:#444;color:#fff;border:none;padding:4px 10px;
+                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
+        Show
+      </button>
     </div>
     <div class="metric">
-      <span class="metric-label">Battery</span>
-      <input type="text" id="icon-bat" maxlength="31"
-             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
-                    color:var(--text-color);border:1px solid var(--border-color);
-                    border-radius:4px;font-family:monospace;font-size:.88em">
+      <span class="metric-label" style="flex-shrink:0;width:68px">Battery</span>
+      <select id="icon-bat" onchange="onIconChange('icon-bat','prev-bat')"
+              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
+                     color:var(--text-color);border:1px solid var(--border-color);
+                     border-radius:4px;font-size:.88em">
+        <option value="">(none)</option>
+      </select>
+      <img id="prev-bat" src="" alt=""
+           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
+                  border-radius:2px;display:none">
+      <button onclick="showIcon('icon-bat')"
+              style="background:#444;color:#fff;border:none;padding:4px 10px;
+                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
+        Show
+      </button>
     </div>
     <div class="metric" style="border-bottom:none">
-      <span class="metric-label">POCSAG</span>
-      <input type="text" id="icon-poc" maxlength="31"
-             style="flex:1;margin-left:8px;padding:4px 6px;background:var(--bg-secondary);
-                    color:var(--text-color);border:1px solid var(--border-color);
-                    border-radius:4px;font-family:monospace;font-size:.88em">
+      <span class="metric-label" style="flex-shrink:0;width:68px">POCSAG</span>
+      <select id="icon-poc" onchange="onIconChange('icon-poc','prev-poc')"
+              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
+                     color:var(--text-color);border:1px solid var(--border-color);
+                     border-radius:4px;font-size:.88em">
+        <option value="">(none)</option>
+      </select>
+      <img id="prev-poc" src="" alt=""
+           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
+                  border-radius:2px;display:none">
+      <button onclick="showIcon('icon-poc')"
+              style="background:#444;color:#fff;border:none;padding:4px 10px;
+                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
+        Show
+      </button>
     </div>
     <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
       <span id="icon-status" style="font-size:.82em;color:var(--text-muted)"></span>
@@ -236,6 +276,40 @@ function testBuzzer(type){
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body:'type='+type+'&vol='+vol
   }).catch(function(){});
+}
+function updateIconPreview(selId,imgId){
+  var path=document.getElementById(selId).value;
+  var img=document.getElementById(imgId);
+  if(path){img.src='/api/fs/download?path='+encodeURIComponent(path);img.style.display='inline-block';}
+  else{img.src='';img.style.display='none';}
+}
+function onIconChange(selId,imgId){updateIconPreview(selId,imgId);}
+function showIcon(selId){
+  var path=document.getElementById(selId).value;
+  if(!path)return;
+  fetch('/api/icons/preview',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'path='+encodeURIComponent(path)
+  }).catch(function(){});
+}
+function populateIconSelect(selId,imgId,files,current){
+  var sel=document.getElementById(selId);
+  sel.innerHTML='<option value="">(none)</option>';
+  var found=false;
+  files.forEach(function(f){
+    var opt=document.createElement('option');
+    opt.value=f.path;opt.textContent=f.name;
+    if(f.path===current){opt.selected=true;found=true;}
+    sel.appendChild(opt);
+  });
+  if(current&&!found){
+    var opt=document.createElement('option');
+    opt.value=current;
+    var sl=current.lastIndexOf('/');
+    opt.textContent=(sl>=0?current.substring(sl+1):current)+' (saved)';
+    opt.selected=true;sel.appendChild(opt);
+  }
+  updateIconPreview(selId,imgId);
 }
 function saveIcons(){
   var body='temp_icon='+encodeURIComponent(document.getElementById('icon-temp').value)
@@ -299,10 +373,13 @@ function testSs(){
     document.getElementById('rot-num').textContent=ri+'s';
   }).catch(function(){});
   fetch('/api/icons').then(function(r){return r.json();}).then(function(d){
-    document.getElementById('icon-temp').value=d.temp||'';
-    document.getElementById('icon-hum').value=d.hum||'';
-    document.getElementById('icon-bat').value=d.bat||'';
-    document.getElementById('icon-poc').value=d.poc||'';
+    fetch('/api/fs/ls?path=/icons').then(function(r){return r.json();}).then(function(ls){
+      var files=(ls.entries||[]).filter(function(e){return !e.isDir&&/\.(gif|jpg|jpeg)$/i.test(e.name);});
+      populateIconSelect('icon-temp','prev-temp',files,d.temp||'');
+      populateIconSelect('icon-hum', 'prev-hum', files,d.hum||'');
+      populateIconSelect('icon-bat', 'prev-bat', files,d.bat||'');
+      populateIconSelect('icon-poc', 'prev-poc', files,d.poc||'');
+    }).catch(function(){});
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;

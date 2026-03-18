@@ -189,6 +189,22 @@ static void setupWebServer() {
     webServer.send(200, "application/json", buf);
   });
 
+  webServer.on("/api/icons/preview", HTTP_POST, []() {
+    String path = webServer.arg("path");
+    path.trim();
+    if (path.length() == 0 || path.length() > 31 || !fsAvailable) {
+      webServer.send(400, "application/json", "{\"ok\":false}");
+      return;
+    }
+    strncpy(iconPreviewFile, path.c_str(), 31);
+    iconPreviewFile[31] = '\0';
+    _gifCloseIfOpen();
+    resetScreensaverIdle();
+    iconPreviewActive = true;
+    iconPreviewUntil  = millis() + 5000;
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/icons", HTTP_POST, []() {
     String v;
     v = webServer.arg("temp_icon"); v.trim(); if (v.length()) { strncpy(iconTempFile,   v.c_str(), 31); iconTempFile[31]   = '\0'; }
@@ -519,6 +535,8 @@ static void setupWebServer() {
     String action = webServer.arg("action");
     if (action == "test" && strlen(screensaverFile) > 0) {
       _gifCloseIfOpen();
+      FastLED.clear();
+      FastLED.show();
       screensaverActive = true;
       Serial.println("[SS] Test triggered via web");
     } else {

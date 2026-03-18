@@ -408,7 +408,7 @@ void loopBrightness() {
 
 void loopAutoRotate() {
   if (!autoRotateEnabled || !sht31Available) return;
-  if (screensaverActive) return;  // pause during screensaver
+  if (screensaverActive || iconPreviewActive) return;
 
   static unsigned long lastRotate = 0;
 
@@ -523,28 +523,41 @@ void loopDisplay() {
     return;
   }
 
+  // Icon preview — show selected icon on display for 3s (triggered by Show button)
+  if (iconPreviewActive) {
+    if (millis() >= iconPreviewUntil) {
+      iconPreviewActive = false;
+      _gifCloseIfOpen();
+      FastLED.clear();
+      FastLED.show();
+    } else {
+      static unsigned long nextPreviewFrame = 0;
+      if (millis() >= nextPreviewFrame) {
+        FastLED.clear();
+        int gifDelay = 500;
+        drawIcon(iconPreviewFile, 0, &gifDelay, 0);
+        FastLED.show();
+        nextPreviewFrame = millis() + max(gifDelay, 33);
+      }
+    }
+    return;
+  }
+
   // Screensaver — activate after idle timeout, or play if already active
   if (screensaverEnabled && strlen(screensaverFile) > 0) {
     if (screensaverActive) {
-      static unsigned long nextSsFrame  = 0;
-      static bool          ssFirstFrame = true;
+      static unsigned long nextSsFrame = 0;
       if (millis() >= nextSsFrame) {
         if (_gifEnsureOpen(screensaverFile)) {
           _gifX0 = 0;
           _gifY0 = 0;
-          if (ssFirstFrame) {
-            // Clear once on first frame; subsequent frames rely on GIF disposal
-            FastLED.clear();
-            ssFirstFrame = false;
-          }
           int delay = 100;
           int r = _gif.playFrame(false, &delay);
           FastLED.show();
           nextSsFrame = millis() + max(delay, 33);
-          if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; ssFirstFrame = true; }
+          if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; }
         } else {
           screensaverActive = false;  // file missing/corrupt — abort
-          ssFirstFrame = true;
         }
       }
       return;
@@ -552,6 +565,8 @@ void loopDisplay() {
     if (millis() - screensaverIdleStart >= (unsigned long)screensaverTimeoutSec * 1000) {
       screensaverActive = true;
       _gifCloseIfOpen();
+      FastLED.clear();   // clear display once before first frame draws
+      FastLED.show();
       Serial.println("[SS] Screensaver activated");
       return;
     }

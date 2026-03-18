@@ -138,6 +138,12 @@ extern int           ipScrollX;
 extern int           ipScrollPass;
 extern unsigned long ipScrollLast;
 
+// ── Icon preview (Show button in settings) ────────────────────────────────────
+
+extern bool          iconPreviewActive;
+extern char          iconPreviewFile[32];
+extern unsigned long iconPreviewUntil;
+
 // ── Screensaver ───────────────────────────────────────────────────────────────
 
 extern bool          screensaverEnabled;

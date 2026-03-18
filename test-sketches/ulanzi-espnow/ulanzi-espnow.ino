@@ -120,6 +120,11 @@ int           ipScrollX       = 0;
 int           ipScrollPass    = 0;
 unsigned long ipScrollLast    = 0;
 
+// Icon preview (Show button in settings)
+bool          iconPreviewActive = false;
+char          iconPreviewFile[32] = "";
+unsigned long iconPreviewUntil    = 0;
+
 // Screensaver
 bool          screensaverEnabled    = false;
 uint16_t      screensaverTimeoutSec = 60;
