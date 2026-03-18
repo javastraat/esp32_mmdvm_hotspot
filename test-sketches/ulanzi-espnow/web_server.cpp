@@ -533,7 +533,7 @@ static void setupWebServer() {
 
   webServer.on("/api/screensaver/test", HTTP_POST, []() {
     String action = webServer.arg("action");
-    if (action == "test" && strlen(screensaverFile) > 0) {
+    if (action == "test" && strlen(screensaverFile) > 0 && fsAvailable) {
       _gifCloseIfOpen();
       FastLED.clear();
       FastLED.show();

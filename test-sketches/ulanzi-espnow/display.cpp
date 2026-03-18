@@ -543,25 +543,25 @@ void loopDisplay() {
     return;
   }
 
-  // Screensaver — activate after idle timeout, or play if already active
-  if (screensaverEnabled && strlen(screensaverFile) > 0) {
-    if (screensaverActive) {
-      static unsigned long nextSsFrame = 0;
-      if (millis() >= nextSsFrame) {
-        if (_gifEnsureOpen(screensaverFile)) {
-          _gifX0 = 0;
-          _gifY0 = 0;
-          int delay = 100;
-          int r = _gif.playFrame(false, &delay);
-          FastLED.show();
-          nextSsFrame = millis() + max(delay, 33);
-          if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; }
-        } else {
-          screensaverActive = false;  // file missing/corrupt — abort
-        }
+  // Screensaver — render if active (test or auto), auto-activate only when enabled
+  if (screensaverActive) {
+    static unsigned long nextSsFrame = 0;
+    if (millis() >= nextSsFrame) {
+      if (_gifEnsureOpen(screensaverFile)) {
+        _gifX0 = 0;
+        _gifY0 = 0;
+        int delay = 100;
+        int r = _gif.playFrame(false, &delay);
+        FastLED.show();
+        nextSsFrame = millis() + max(delay, 33);
+        if (r < 0) { _gif.close(); _gifIsOpen = false; screensaverActive = false; }
+      } else {
+        screensaverActive = false;  // file missing/corrupt — abort
       }
-      return;
     }
+    return;
+  }
+  if (screensaverEnabled && strlen(screensaverFile) > 0) {
     if (millis() - screensaverIdleStart >= (unsigned long)screensaverTimeoutSec * 1000) {
       screensaverActive = true;
       _gifCloseIfOpen();
