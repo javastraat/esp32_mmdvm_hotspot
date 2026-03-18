@@ -145,6 +145,9 @@ static const char PAGE_SETTINGS[] PROGMEM =
     <div style="font-size:.75em;color:var(--text-muted);padding:6px 0 8px">
       GIF must be exactly 32&#xd7;8 px. Place in /screensaver/ (visible in Files page).
     </div>
+    <div id="ss-no-files" style="display:none;font-size:.82em;padding:4px 0 8px">
+      No GIFs found in /screensaver/ &mdash; <a href="/files" style="color:#00bcd4">go to Files</a> to upload.
+    </div>
     <div style="display:flex;align-items:center;justify-content:flex-end">
       <button id="btn-ss-test" onclick="testSs()"
               style="background:#444;color:#fff;border:none;padding:6px 18px;
@@ -224,6 +227,9 @@ static const char PAGE_SETTINGS[] PROGMEM =
                      border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
         Show
       </button>
+    </div>
+    <div id="icon-no-files" style="display:none;font-size:.82em;padding:4px 0 8px">
+      No icons found in /icons/ &mdash; <a href="/files" style="color:#00bcd4">go to Files</a> to upload.
     </div>
     <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
       <span id="icon-status" style="font-size:.82em;color:var(--text-muted)"></span>
@@ -375,6 +381,7 @@ function testSs(){
   fetch('/api/icons').then(function(r){return r.json();}).then(function(d){
     fetch('/api/fs/ls?path=/icons').then(function(r){return r.json();}).then(function(ls){
       var files=(ls.entries||[]).filter(function(e){return !e.isDir&&/\.(gif|jpg|jpeg)$/i.test(e.name);});
+      if(files.length===0){document.getElementById('icon-no-files').style.display='block';}
       populateIconSelect('icon-temp','prev-temp',files,d.temp||'');
       populateIconSelect('icon-hum', 'prev-hum', files,d.hum||'');
       populateIconSelect('icon-bat', 'prev-bat', files,d.bat||'');
@@ -385,8 +392,10 @@ function testSs(){
     document.getElementById('tog-ss').checked=d.enabled;
     document.getElementById('ss-timeout').value=d.timeout||60;
     fetch('/api/fs/ls?path=/screensaver').then(function(r){return r.json();}).then(function(ls){
+      var files=(ls.entries||[]).filter(function(e){return !e.isDir&&/\.gif$/i.test(e.name);});
+      if(files.length===0){document.getElementById('ss-no-files').style.display='block';}
       var sel=document.getElementById('ss-file');
-      (ls.entries||[]).filter(function(e){return !e.isDir&&/\.gif$/i.test(e.name);}).forEach(function(e){
+      files.forEach(function(e){
         var opt=document.createElement('option');
         opt.value=e.path;opt.textContent=e.name;
         if(e.path===d.file)opt.selected=true;
