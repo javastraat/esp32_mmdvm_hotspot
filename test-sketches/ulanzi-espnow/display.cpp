@@ -249,10 +249,14 @@ static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16
 }
 
 // Decode a JPEG icon from LittleFS, draw it at x0.
-// Returns x for text (= x0 + jpegWidth + 1), or ICON_DRAW_FAILED on failure.
+// Returns x for text (= x0 + actualWidth + 1), or ICON_DRAW_FAILED on failure.
 static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return ICON_DRAW_FAILED;
+  // Get actual dimensions from header before opening for draw
+  uint16_t w = 8, h = 8;
+  TJpgDec.getJpgSize(&w, &h, path);
+  h = min((uint16_t)MATRIX_HEIGHT, h);  // clamp to matrix height
   File jpgFile = LittleFS.open(path);
   if (!jpgFile) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
@@ -260,9 +264,10 @@ static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   }
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1);
-  TJpgDec.drawFsJpg(x0, (MATRIX_HEIGHT - 8) / 2, jpgFile);
+  bool ok = (TJpgDec.drawFsJpg(x0, (MATRIX_HEIGHT - h) / 2, jpgFile) == JDR_OK);
   jpgFile.close();
-  return x0 + 9; // icon width (8) + 1px gap
+  if (!ok) return ICON_DRAW_FAILED;
+  return x0 + (int)w + 1;
 }
 
 static bool _isJpeg(const char* path) {
