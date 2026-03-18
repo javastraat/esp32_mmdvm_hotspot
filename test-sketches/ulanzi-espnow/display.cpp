@@ -192,6 +192,7 @@ static void _gifDraw(GIFDRAW* pDraw) {
 static bool _gifEnsureOpen(const char* path) {
   if (_gifIsOpen && strcmp(_gifCurPath, path) == 0) return true;
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; }
+  _gif.begin(LITTLE_ENDIAN_PIXELS);
   if (!_gif.open(path, _gifOpen, _gifClose, _gifRead, _gifSeek, _gifDraw)) {
     Serial.printf("[GIF] open FAILED: %s\n", path);
     return false;
@@ -264,16 +265,15 @@ static bool jpgMatrixOutput(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16
 static int drawJpegIcon(const char* path, int* delayMs, int x0 = 0) {
   *delayMs = 1000;
   if (!fsAvailable) return ICON_DRAW_FAILED;
+  // Get actual dimensions via path+FS (opens/closes internally, safe)
+  uint16_t w = 8, h = 8;
+  TJpgDec.getFsJpgSize(&w, &h, path, LittleFS);
+  h = min((uint16_t)MATRIX_HEIGHT, h);
   File jpgFile = LittleFS.open(path);
   if (!jpgFile) {
     Serial.printf("[JPEG] open FAILED: %s\n", path);
     return ICON_DRAW_FAILED;
   }
-  // Read actual dimensions from header, then rewind for the draw pass
-  uint16_t w = 8, h = 8;
-  TJpgDec.getFsJpgSize(&w, &h, jpgFile);
-  jpgFile.seek(0);
-  h = min((uint16_t)MATRIX_HEIGHT, h);  // clamp to matrix height
   TJpgDec.setCallback(jpgMatrixOutput);
   TJpgDec.setJpgScale(1);
   bool ok = (TJpgDec.drawFsJpg(x0, (MATRIX_HEIGHT - h) / 2, jpgFile) == JDR_OK);
