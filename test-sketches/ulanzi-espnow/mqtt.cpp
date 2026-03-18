@@ -483,6 +483,10 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     pocsagSynced = false;
     displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
   }
+
+  // Guarantee state reaches HA even if the inline _pubStr above was dropped
+  // by PubSubClient while its buffer was still processing the incoming message.
+  mqttNotifyState();
 }
 
 // ── Connect ────────────────────────────────────────────────────────────────────
