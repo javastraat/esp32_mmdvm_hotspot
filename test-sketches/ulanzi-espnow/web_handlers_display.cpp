@@ -7,6 +7,7 @@
 #include "nvs_settings.h"
 #include "mqtt.h"
 #include "sensor.h"
+#include "buttons.h"
 
 void registerDisplayHandlers() {
 
@@ -308,4 +309,9 @@ void registerDisplayHandlers() {
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
+
+  // ── Virtual buttons (same action as physical buttons) ──────────────────────
+  webServer.on("/api/btn/left",   HTTP_POST, []() { triggerButton(0); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/middle", HTTP_POST, []() { triggerButton(1); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/right",  HTTP_POST, []() { triggerButton(2); webServer.send(200, "application/json", "{\"ok\":true}"); });
 }

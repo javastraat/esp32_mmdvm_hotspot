@@ -21,6 +21,11 @@ static const char PAGE_MAIN[] PROGMEM =
     <h3>Display Preview</h3>
     <canvas id="led-canvas" width="320" height="80"
       style="width:100%;background:#111;border-radius:4px;image-rendering:pixelated;display:block"></canvas>
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:10px">
+      <button onclick="pressBtn('left')"   class="btn btn-secondary" style="flex:1;max-width:100px;font-size:1.2em">&lt;</button>
+      <button onclick="pressBtn('middle')" class="btn btn-secondary" style="flex:1;max-width:100px;font-size:1.2em">&#9711;</button>
+      <button onclick="pressBtn('right')"  class="btn btn-secondary" style="flex:1;max-width:100px;font-size:1.2em">&gt;</button>
+    </div>
   </div>
 
   <div class="card">
@@ -55,6 +60,9 @@ static const char PAGE_MAIN[] PROGMEM =
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
   R"html(
 <script>
+function pressBtn(name){
+  fetch('/api/btn/'+name,{method:'POST'}).catch(function(){});
+}
 function fmtUp(s){
   var d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),
       m=Math.floor((s%3600)/60),sc=s%60;

@@ -9,6 +9,7 @@
 #include "sensor.h"
 #include "nvs_settings.h"
 #include "display.h"
+#include "buttons.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <LittleFS.h>
@@ -290,7 +291,12 @@ static void _publishAllDiscovery() {
   // ── Display mode (read-only: shows active screen) ──────────────────────────
   _discSensor("display_mode", "Display Mode", "", "");
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Physical button actions ────────────────────────────────────────────────
+  _discButton("btn_left",   "Button Left",   "");
+  _discButton("btn_middle", "Button Middle", "");
+  _discButton("btn_right",  "Button Right",  "");
+
+  // ── System actions ─────────────────────────────────────────────────────────
   _discButton("reboot",    "Reboot",    "restart");
   _discButton("clear_rtc", "Clear RTC", "");
 }
@@ -546,6 +552,18 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     saveSettings();
     _pubStr("switch", "indicators", indicatorsEnabled ? "ON" : "OFF");
     LOG("[MQTT] indicators → %s\n", val);
+
+  } else if (sub == "button/btn_left/command"   && strcmp(val, "PRESS") == 0) {
+    triggerButton(0);
+    LOG("[MQTT] btn_left\n");
+
+  } else if (sub == "button/btn_middle/command" && strcmp(val, "PRESS") == 0) {
+    triggerButton(1);
+    LOG("[MQTT] btn_middle\n");
+
+  } else if (sub == "button/btn_right/command"  && strcmp(val, "PRESS") == 0) {
+    triggerButton(2);
+    LOG("[MQTT] btn_right\n");
 
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {
     LOG("[MQTT] Reboot via HA\n");
