@@ -91,6 +91,12 @@ static const char PAGE_SYSTEM[] PROGMEM =
     <div class="metric"><span class="metric-label">mqttTask</span><span class="metric-value" id="task-mqtt">-</span></div>
   </div>
 
+  <div class="card">
+    <h3>NVS Namespace Listing</h3>
+    <p style="font-size:0.85em;color:var(--text-muted);margin:0 0 10px">Click a namespace to view its stored keys.</p>
+    <div id="nvs-ns-list"><span style="color:var(--text-muted);font-size:0.85em">Loading&hellip;</span></div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -190,6 +196,54 @@ setInterval(poll,5000);
 fetchSysInfo();
 fetchFs();
 fetchTasks();
+fetchNvsNamespaces();
+function fetchNvsNamespaces(){
+  var el=document.getElementById('nvs-ns-list');
+  fetch('/api/nvs/namespaces').then(function(r){return r.json();}).then(function(list){
+    if(!list.length){el.innerHTML='<span style="color:var(--text-muted);font-size:0.85em">No namespaces found.</span>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    list.forEach(function(ns){
+      html+='<button onclick="showNvsKeys(\''+ns+'\')" style="text-align:left;padding:6px 12px;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-family:monospace;font-size:0.88em">'+ns+'</button>';
+    });
+    html+='</div>';
+    el.innerHTML=html;
+  }).catch(function(){el.innerHTML='<span style="color:#dc3545;font-size:0.85em">Failed to load namespaces.</span>';});
+}
+function showNvsKeys(ns){
+  var container=document.querySelector('.container');
+  container.innerHTML='<div class="grid"><div class="card" style="grid-column:1/-1">'
+    +'<button onclick="location.reload()" style="margin-bottom:14px;padding:6px 16px;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:0.88em">&larr; Back</button>'
+    +'<h3 style="margin-top:0">NVS &mdash; <span style="font-family:monospace">'+ns+'</span></h3>'
+    +'<div id="nvs-keys-body"><span style="color:var(--text-muted);font-size:0.85em">Loading&hellip;</span></div>'
+    +'</div></div>';
+  window.scrollTo(0,0);
+  fetch('/api/nvs/keys?ns='+encodeURIComponent(ns)).then(function(r){return r.json();}).then(function(keys){
+    var el=document.getElementById('nvs-keys-body');
+    if(!keys.length){el.innerHTML='<span style="color:var(--text-muted);font-size:0.85em">No keys found in this namespace.</span>';return;}
+    var html='<table style="width:100%;border-collapse:collapse;font-size:0.85em">'
+      +'<thead><tr style="border-bottom:2px solid var(--border-color)">'
+      +'<th style="text-align:left;padding:6px 10px;color:var(--text-muted)">Key</th>'
+      +'<th style="text-align:left;padding:6px 10px;color:var(--text-muted)">Type</th>'
+      +'<th style="text-align:left;padding:6px 10px;color:var(--text-muted)">Value</th>'
+      +'</tr></thead><tbody>';
+    keys.forEach(function(kv){
+      var val=kv.v==='***'?'<span style="letter-spacing:3px;color:var(--text-muted)">&bull;&bull;&bull;</span>':escHtml(kv.v);
+      html+='<tr style="border-bottom:1px solid var(--border-color)">'
+        +'<td style="padding:5px 10px;font-family:monospace">'+escHtml(kv.k)+'</td>'
+        +'<td style="padding:5px 10px;color:var(--text-muted)">'+escHtml(kv.t)+'</td>'
+        +'<td style="padding:5px 10px;font-family:monospace;word-break:break-all">'+val+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }).catch(function(){
+    var el=document.getElementById('nvs-keys-body');
+    if(el) el.innerHTML='<span style="color:#dc3545;font-size:0.85em">Error loading keys.</span>';
+  });
+}
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 </body></html>
 )html";

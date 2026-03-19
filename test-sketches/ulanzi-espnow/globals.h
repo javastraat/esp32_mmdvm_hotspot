@@ -135,6 +135,7 @@ extern bool          pocsagSynced;
 extern volatile bool otaInProgress;
 extern bool          fsAvailable;
 extern bool          otaStarted;
+extern bool          mdnsStarted;
 extern bool          debugLogEnabled;  // NVS: "debug_log" — enables DLOG() output
 extern int           otaLastBarW;
 

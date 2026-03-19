@@ -6,6 +6,12 @@
 #include "mqtt.h"
 #include <ArduinoOTA.h>
 #include <esp_ota_ops.h>
+extern "C" {
+#include <nvs_flash.h>
+#include <nvs.h>
+}
+#include <vector>
+#include <algorithm>
 
 void registerSystemHandlers() {
 
@@ -66,6 +72,7 @@ void registerSystemHandlers() {
       "\"sketch_kb\":%u,\"free_sketch_kb\":%u,\"sketch_md5\":\"%s\","
       "\"running_partition\":\"%s\","
       "\"reset_reason\":\"%s\",\"sdk_version\":\"%s\",\"arduino_version\":\"%s\","
+      "\"mdns_started\":%s,\"mdns_name\":\"%s\","
       "\"build\":\"%s %s\",\"webtask_stack_free\":%lu}",
       ESP.getChipModel(),
       (int)ESP.getChipRevision(),
@@ -82,6 +89,7 @@ void registerSystemHandlers() {
       partLabel,
       rrStr,
       ESP.getSdkVersion(), arduinoVer,
+      mdnsStarted ? "true" : "false", mdnsName,
       __DATE__, __TIME__,
       (unsigned long)stackFreeB
     );
@@ -170,5 +178,111 @@ void registerSystemHandlers() {
     bootName[8] = '\0';
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  // ── NVS namespace listing ─────────────────────────────────────────────────
+
+  webServer.on("/api/nvs/namespaces", HTTP_GET, []() {
+    nvs_iterator_t it = nullptr;
+    esp_err_t err = nvs_entry_find("nvs", NULL, NVS_TYPE_ANY, &it);
+    std::vector<String> ns_list;
+    while (err == ESP_OK) {
+      nvs_entry_info_t info;
+      nvs_entry_info(it, &info);
+      String ns(info.namespace_name);
+      if (std::find(ns_list.begin(), ns_list.end(), ns) == ns_list.end())
+        ns_list.push_back(ns);
+      err = nvs_entry_next(&it);
+    }
+    if (it) nvs_release_iterator(it);
+    std::sort(ns_list.begin(), ns_list.end());
+
+    String json = "[";
+    for (size_t i = 0; i < ns_list.size(); i++) {
+      if (i) json += ",";
+      json += "\"" + ns_list[i] + "\"";
+    }
+    json += "]";
+    webServer.send(200, "application/json", json);
+  });
+
+  webServer.on("/api/nvs/keys", HTTP_GET, []() {
+    String ns = webServer.arg("ns");
+    if (ns.length() == 0) {
+      webServer.send(400, "application/json", "{\"error\":\"ns param required\"}");
+      return;
+    }
+    nvs_iterator_t it = nullptr;
+    esp_err_t err = nvs_entry_find("nvs", ns.c_str(), NVS_TYPE_ANY, &it);
+
+    // Collect entries
+    struct KV { String key; String type; String value; };
+    std::vector<KV> entries;
+
+    // Open namespace handle to read values
+    nvs_handle_t h = 0;
+    bool opened = (nvs_open(ns.c_str(), NVS_READONLY, &h) == ESP_OK);
+
+    const char* sensitiveKeys[] = {"pass", "password", "token", "secret", "key"};
+    auto isSensitive = [&](const char* k) {
+      String lk(k); lk.toLowerCase();
+      for (auto& s : sensitiveKeys)
+        if (lk.indexOf(s) >= 0) return true;
+      return false;
+    };
+
+    while (err == ESP_OK) {
+      nvs_entry_info_t info;
+      nvs_entry_info(it, &info);
+
+      KV kv;
+      kv.key = info.key;
+
+      bool sensitive = isSensitive(info.key);
+
+      switch (info.type) {
+        case NVS_TYPE_U8:  { kv.type = "u8";  if (opened) { uint8_t v=0;  nvs_get_u8(h,info.key,&v);  kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_I8:  { kv.type = "i8";  if (opened) { int8_t v=0;   nvs_get_i8(h,info.key,&v);  kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_U16: { kv.type = "u16"; if (opened) { uint16_t v=0; nvs_get_u16(h,info.key,&v); kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_I16: { kv.type = "i16"; if (opened) { int16_t v=0;  nvs_get_i16(h,info.key,&v); kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_U32: { kv.type = "u32"; if (opened) { uint32_t v=0; nvs_get_u32(h,info.key,&v); kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_I32: { kv.type = "i32"; if (opened) { int32_t v=0;  nvs_get_i32(h,info.key,&v); kv.value=sensitive?"***":String(v); } break; }
+        case NVS_TYPE_U64: { kv.type = "u64"; if (opened) { uint64_t v=0; nvs_get_u64(h,info.key,&v); kv.value=sensitive?"***":String((uint32_t)v); } break; }
+        case NVS_TYPE_STR: {
+          kv.type = "str";
+          if (opened) {
+            size_t len = 0;
+            if (nvs_get_str(h, info.key, NULL, &len) == ESP_OK && len <= 256) {
+              char* buf = (char*)malloc(len);
+              if (buf) {
+                nvs_get_str(h, info.key, buf, &len);
+                kv.value = sensitive ? "***" : String(buf);
+                free(buf);
+              }
+            }
+          }
+          break;
+        }
+        case NVS_TYPE_BLOB: { kv.type = "blob"; kv.value = "(binary)"; break; }
+        default:            { kv.type = "?";    kv.value = "?"; break; }
+      }
+      entries.push_back(kv);
+      err = nvs_entry_next(&it);
+    }
+    if (it) nvs_release_iterator(it);
+    if (opened) nvs_close(h);
+
+    std::sort(entries.begin(), entries.end(), [](const KV& a, const KV& b){ return a.key < b.key; });
+
+    String json = "[";
+    for (size_t i = 0; i < entries.size(); i++) {
+      if (i) json += ",";
+      // Escape value for JSON
+      String val = entries[i].value;
+      val.replace("\\","\\\\"); val.replace("\"","\\\"");
+      json += "{\"k\":\"" + entries[i].key + "\",\"t\":\"" + entries[i].type + "\",\"v\":\"" + val + "\"}";
+    }
+    json += "]";
+    webServer.send(200, "application/json", json);
   });
 }

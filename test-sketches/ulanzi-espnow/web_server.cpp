@@ -87,11 +87,21 @@ static void setupWebServer() {
 // ── OTA + mDNS setup ─────────────────────────────────────────────────────────
 
 void setupOTA() {
-  if (MDNS.begin(mdnsName)) {
+  // Give the WiFi stack a moment to fully settle before starting mDNS.
+  // Some ESP32 Arduino builds fail MDNS.begin() if called too quickly after
+  // WL_CONNECTED, especially when WiFi.setSleep(false) was just applied.
+  delay(500);
+
+  // Re-affirm hostname at the netif level (some builds need it post-connect
+  // in addition to the pre-begin() call in receiver.cpp).
+  WiFi.setHostname(mdnsName);
+
+  mdnsStarted = MDNS.begin(mdnsName);
+  if (mdnsStarted) {
     MDNS.addService("http", "tcp", 80);
     LOG("[mDNS] Started: http://%s.local/\n", mdnsName);
   } else {
-    LOG("[mDNS] Start FAILED\n");
+    LOG("[mDNS] Start FAILED — device reachable by IP only\n");
   }
 
   ArduinoOTA.setHostname(otaHostname);
