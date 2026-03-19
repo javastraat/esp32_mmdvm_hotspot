@@ -155,10 +155,12 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
     <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
       <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Brightness</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="ss-bp-a"   onclick="setSsBright(-2)"  class="bp">Auto</button>
-        <button id="ss-bp-0"   onclick="setSsBright(0)"   class="bp">Off</button>
-        <button id="ss-bp-10"  onclick="setSsBright(10)"  class="bp">Night</button>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <button id="ss-bp-a"  onclick="setSsBright(-2)" class="bp">Auto</button>
+        <button id="ss-bp-0"  onclick="setSsBright(0)"  class="bp">Off</button>
+        <button id="ss-bp-10" onclick="setSsBright(10)" class="bp">Night</button>
+      </div>
+      <div style="display:flex;gap:6px">
         <button id="ss-bp-50"  onclick="setSsBright(50)"  class="bp">Dim</button>
         <button id="ss-bp-120" onclick="setSsBright(120)" class="bp">Medium</button>
         <button id="ss-bp-255" onclick="setSsBright(255)" class="bp">Bright</button>
