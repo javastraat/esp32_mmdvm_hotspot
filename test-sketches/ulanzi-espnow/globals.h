@@ -153,6 +153,15 @@ extern bool          iconPreviewActive;
 extern char          iconPreviewFile[32];
 extern unsigned long iconPreviewUntil;
 
+// ── ESP-NOW / POCSAG RIC settings ────────────────────────────────────────────
+
+#define EXCLUDED_RICS_MAX 16
+
+extern uint32_t timePocRic;
+extern uint32_t callsignRic;
+extern uint32_t excludedRics[EXCLUDED_RICS_MAX];
+extern uint8_t  excludedRicsCount;
+
 // ── Screensaver ───────────────────────────────────────────────────────────────
 
 extern bool          screensaverEnabled;

@@ -37,6 +37,21 @@ void loadSettings() {
   { String s = p.getString("mqtt_ha_name", ""); s.trim(); strncpy(mqttHaName, s.c_str(), 31); mqttHaName[31] = '\0'; }
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
   { String s = p.getString("mdns_name", MDNS_HOSTNAME); s.trim(); s.toLowerCase(); strncpy(mdnsName, s.c_str(), 31); mdnsName[31] = '\0'; }
+  // POCSAG RIC settings
+  timePocRic  = p.getUInt("time_ric",  TIME_POCSAG_RIC);
+  callsignRic = p.getUInt("call_ric",  CALLSIGN_RIC);
+  {
+    String s = p.getString("excl_rics", EXCLUDED_RICS_DEFAULT);
+    excludedRicsCount = 0;
+    int start = 0;
+    for (int i = 0; i <= (int)s.length() && excludedRicsCount < EXCLUDED_RICS_MAX; i++) {
+      if (i == (int)s.length() || s[i] == ',') {
+        String tok = s.substring(start, i); tok.trim();
+        if (tok.length() > 0) excludedRics[excludedRicsCount++] = (uint32_t)tok.toInt();
+        start = i + 1;
+      }
+    }
+  }
   // Icon filenames — trim whitespace to fix any accidentally saved leading/trailing spaces
   { String s = p.getString("icon_temp", "/icons/70122.jpg");  s.trim(); strncpy(iconTempFile,   s.c_str(), 31); iconTempFile[31]   = '\0'; }
   { String s = p.getString("icon_hum",  "/icons/71006.jpg");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
@@ -98,6 +113,14 @@ void saveSettings() {
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
   p.putString("mdns_name", mdnsName);
+  // POCSAG RIC settings
+  p.putUInt("time_ric",  timePocRic);
+  p.putUInt("call_ric",  callsignRic);
+  {
+    String s = "";
+    for (int i = 0; i < excludedRicsCount; i++) { if (i) s += ","; s += String(excludedRics[i]); }
+    p.putString("excl_rics", s);
+  }
   // Icon filenames
   p.putString("icon_temp", iconTempFile);
   p.putString("icon_hum",  iconHumFile);

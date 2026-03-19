@@ -8,11 +8,13 @@
 #include "web/main.h"
 #include "web/settings.h"
 #include "web/system.h"
+#include "web/espnow.h"
 #include "web/pwa_icon.h"
 #include "web_handlers_display.h"
 #include "web_handlers_files.h"
 #include "web_handlers_mqtt.h"
 #include "web_handlers_system.h"
+#include "web_handlers_espnow.h"
 
 // ── Web + OTA task (Core 0) ───────────────────────────────────────────────────
 
@@ -49,6 +51,10 @@ static void setupWebServer() {
     webServer.send_P(200, "text/html", PAGE_SYSTEM);
   });
 
+  webServer.on("/espnow", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_ESPNOW);
+  });
+
   // ── Favicon / PWA assets ───────────────────────────────────────────────────
 
   webServer.on("/favicon.ico", []() {
@@ -79,6 +85,7 @@ static void setupWebServer() {
   registerFileHandlers();
   registerMqttHandlers();
   registerSystemHandlers();
+  registerEspNowHandlers();
 
   webServer.begin();
   LOG("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());

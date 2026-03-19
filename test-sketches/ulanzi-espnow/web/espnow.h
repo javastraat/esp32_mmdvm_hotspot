@@ -1,0 +1,115 @@
+#pragma once
+#include "styles.h"
+#include "navigation.h"
+
+// ── ESP-NOW page (/espnow): POCSAG RIC settings ───────────────────────────
+static const char PAGE_ESPNOW[] PROGMEM =
+  "<!DOCTYPE html><html lang=\"en\">"
+  "<head>"
+  "<meta charset=\"utf-8\">"
+  "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+  "<title>Ulanzi ESP-NOW</title>"
+  "<style>" COMMON_CSS "</style>"
+  THEME_INIT_SCRIPT
+  "</head><body>"
+  NAV_BAR
+  NAV_LIVE_MODAL
+  R"html(
+<div class="container"><div class="grid">
+
+  <!-- Card 1: POCSAG RIC Settings -->
+  <div class="card">
+    <h3>POCSAG RIC Settings</h3>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:5px">
+        Time beacon RIC
+        <span style="font-size:.9em;color:var(--text-muted)">— carries the clock sync message</span>
+      </div>
+      <input type="number" id="time-ric" min="0" max="2097151" value="224"
+             style="width:100%;background:var(--bg-secondary);color:var(--text-color);
+                    border:1px solid var(--border-color);border-radius:4px;
+                    padding:5px 8px;font-size:1em;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:5px">
+        Callsign RIC
+        <span style="font-size:.9em;color:var(--text-muted)">— trailing digits are stripped before display</span>
+      </div>
+      <input type="number" id="call-ric" min="0" max="2097151" value="8"
+             style="width:100%;background:var(--bg-secondary);color:var(--text-color);
+                    border:1px solid var(--border-color);border-radius:4px;
+                    padding:5px 8px;font-size:1em;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:5px">
+        Excluded RICs
+        <span style="font-size:.9em;color:var(--text-muted)">— never shown on display, comma-separated</span>
+      </div>
+      <input type="text" id="excl-rics" maxlength="191"
+             placeholder="e.g. 224,208,200"
+             style="width:100%;background:var(--bg-secondary);color:var(--text-color);
+                    border:1px solid var(--border-color);border-radius:4px;
+                    padding:5px 8px;font-size:.92em;font-family:monospace;box-sizing:border-box">
+      <div style="font-size:.75em;color:var(--text-muted);margin-top:4px">Max 16 RICs. Digits and commas only.</div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span id="ric-status" style="font-size:.82em;color:#4caf50;min-height:1em"></span>
+      <button onclick="saveRics()" class="btn btn-info">Save</button>
+    </div>
+  </div>
+
+  <!-- Card 2: placeholder -->
+  <div class="card">
+    <h3>Card 2</h3>
+    <div style="color:var(--text-muted);font-size:.88em;padding:12px 0">
+      Coming soon&hellip;
+    </div>
+  </div>
+
+  <!-- Card 3: placeholder -->
+  <div class="card">
+    <h3>Card 3</h3>
+    <div style="color:var(--text-muted);font-size:.88em;padding:12px 0">
+      Coming soon&hellip;
+    </div>
+  </div>
+
+</div></div>
+)html"
+  "<script>" COMMON_JS NAV_LIVE_JS "</script>"
+  R"html(
+<script>
+(function init(){
+  fetch('/api/espnow').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('h1').textContent='ESP-NOW';
+    document.getElementById('time-ric').value=d.time_ric||224;
+    document.getElementById('call-ric').value=d.call_ric||8;
+    document.getElementById('excl-rics').value=(d.excl_rics||[]).join(',');
+  }).catch(function(){});
+  fetch('/api/status').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('h1').textContent=d.hostname;
+    document.getElementById('sub').textContent=d.ip;
+  }).catch(function(){});
+})();
+function saveRics(){
+  var excl=document.getElementById('excl-rics').value
+    .replace(/[^0-9,]/g,'').replace(/,+/g,',').replace(/^,|,$/g,'');
+  var body='time_ric='+encodeURIComponent(document.getElementById('time-ric').value)
+          +'&call_ric='+encodeURIComponent(document.getElementById('call-ric').value)
+          +'&excl_rics='+encodeURIComponent(excl);
+  fetch('/api/espnow',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('ric-status');
+    s.textContent=d.ok?'Saved \u2714':'Error';
+    s.style.color=d.ok?'#4caf50':'#dc3545';
+    setTimeout(function(){s.textContent='';},2500);
+  }).catch(function(){});
+}
+</script>
+</body></html>
+)html";

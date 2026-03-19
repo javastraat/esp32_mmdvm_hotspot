@@ -53,8 +53,8 @@ static void applyPocsagTime(const char* msg) {
   if (rtcAvailable)
     ds1307Write(t);
 
-  LOG("[TIME] Set from POCSAG RIC %d: %04d-%02d-%02d %02d:%02d:%02d%s\n",
-    TIME_POCSAG_RIC,
+  LOG("[TIME] Set from POCSAG RIC %lu: %04d-%02d-%02d %02d:%02d:%02d%s\n",
+    (unsigned long)timePocRic,
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
     t.tm_hour, t.tm_min, t.tm_sec,
     rtcAvailable ? " [RTC updated]" : "");
@@ -62,19 +62,18 @@ static void applyPocsagTime(const char* msg) {
 
 // Runs on Core 1 (loop()) after being dequeued from pocsagRxQueue.
 void processPocsagPacket(const EspNowPocsagPacket& pkt) {
-  if (pkt.ric == TIME_POCSAG_RIC)
+  if (pkt.ric == timePocRic)
     applyPocsagTime(pkt.message);
 
-  static const uint32_t excludedRics[] = POCSAG_DISPLAY_EXCLUDED_RICS;
   bool excluded = false;
-  for (size_t i = 0; i < sizeof(excludedRics) / sizeof(excludedRics[0]); i++)
+  for (int i = 0; i < excludedRicsCount; i++)
     if (pkt.ric == excludedRics[i]) { excluded = true; break; }
 
   if (!excluded) {
     if (screensaverActive) { _gifCloseIfOpen(); screensaverActive = false; }  // idle resets when message ends
     strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
     pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
-    if (pkt.ric == CALLSIGN_RIC) {
+    if (pkt.ric == callsignRic) {
       int len = strlen(pocsagMsg);
       while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
         pocsagMsg[--len] = '\0';
@@ -237,6 +236,6 @@ void setupReceiver() {
     macBytes[3], macBytes[4], macBytes[5]);
 
   esp_now_register_recv_cb(onReceive);
-  LOG("[RECEIVER] Listening — clock will sync on first RIC %d beacon\n",
-    TIME_POCSAG_RIC);
+  LOG("[RECEIVER] Listening — clock will sync on first RIC %lu beacon\n",
+    (unsigned long)timePocRic);
 }

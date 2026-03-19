@@ -132,6 +132,12 @@ bool          iconPreviewActive = false;
 char          iconPreviewFile[32] = "";
 unsigned long iconPreviewUntil    = 0;
 
+// ESP-NOW / POCSAG RIC settings (runtime, overridable via web)
+uint32_t timePocRic       = TIME_POCSAG_RIC;
+uint32_t callsignRic      = CALLSIGN_RIC;
+uint32_t excludedRics[EXCLUDED_RICS_MAX] = {};
+uint8_t  excludedRicsCount = 0;
+
 // Screensaver
 bool          screensaverEnabled    = false;
 uint16_t      screensaverTimeoutSec = 60;
