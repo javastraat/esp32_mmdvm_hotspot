@@ -90,20 +90,15 @@ void setupOTA() {
   // Give the WiFi stack a moment to fully settle before starting mDNS.
   // Some ESP32 Arduino builds fail MDNS.begin() if called too quickly after
   // WL_CONNECTED, especially when WiFi.setSleep(false) was just applied.
-  delay(500);
+  delay(1000);
 
   // Re-affirm hostname at the netif level (some builds need it post-connect
   // in addition to the pre-begin() call in receiver.cpp).
   WiFi.setHostname(mdnsName);
 
-  mdnsStarted = MDNS.begin(mdnsName);
-  if (mdnsStarted) {
-    MDNS.addService("http", "tcp", 80);
-    LOG("[mDNS] Started: http://%s.local/\n", mdnsName);
-  } else {
-    LOG("[mDNS] Start FAILED — device reachable by IP only\n");
-  }
-
+  // Start OTA first — ArduinoOTA.begin() may call MDNS.begin() internally
+  // with the OTA hostname, which would override ours. Start OTA first, then
+  // call MDNS.begin() after so our mdnsName always wins.
   ArduinoOTA.setHostname(otaHostname);
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
@@ -135,5 +130,21 @@ void setupOTA() {
   ArduinoOTA.begin();
   otaStarted = true;
   LOG("[OTA] Ready — hostname: %s  port: 3232\n", otaHostname);
+
+  // Start mDNS AFTER ArduinoOTA.begin() so our hostname wins over the OTA one.
+  // Retry up to 3 times — MDNS.begin() occasionally fails on first attempt.
+  for (int attempt = 1; attempt <= 3 && !mdnsStarted; attempt++) {
+    mdnsStarted = MDNS.begin(mdnsName);
+    if (!mdnsStarted) {
+      LOG("[mDNS] Attempt %d failed, retrying...\n", attempt);
+      delay(500);
+    }
+  }
+  if (mdnsStarted) {
+    MDNS.addService("http", "tcp", 80);
+    LOG("[mDNS] Started: http://%s.local/\n", mdnsName);
+  } else {
+    LOG("[mDNS] Start FAILED after 3 attempts — device reachable by IP only\n");
+  }
   setupWebServer();
 }

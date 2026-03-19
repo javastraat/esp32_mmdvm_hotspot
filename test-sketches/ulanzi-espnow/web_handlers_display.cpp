@@ -54,7 +54,7 @@ void registerDisplayHandlers() {
       "\"sht31_available\":%s,\"sht31_temp\":%.1f,\"sht31_hum\":%.1f,"
       "\"display_mode\":\"%s\","
       "\"rotate_enabled\":%s,\"rotate_interval\":%d}",
-      OTA_HOSTNAME,
+      mdnsName,
       "RECEIVER",
       WiFi.localIP().toString().c_str(),
       WiFi.channel(),

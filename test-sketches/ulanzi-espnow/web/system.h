@@ -20,6 +20,7 @@ static const char PAGE_SYSTEM[] PROGMEM =
   <div class="card">
     <h3>Device</h3>
     <div class="metric"><span class="metric-label">Hostname</span><span class="metric-value" id="hostname">-</span></div>
+    <div class="metric"><span class="metric-label">mDNS</span><span class="metric-value" id="mdns-status">-</span></div>
     <div class="metric"><span class="metric-label">IP Address</span><span class="metric-value" id="ip" style="color:#28a745">-</span></div>
     <div class="metric"><span class="metric-label">Uptime</span><span class="metric-value" id="uptime">-</span></div>
     <div class="metric"><span class="metric-label">Free Heap</span><span class="metric-value" id="heap">-</span></div>
@@ -132,6 +133,14 @@ function stackFmt(b){return b>=1024?(b/1024).toFixed(1)+' KB free':b+' B free';}
 function stackColor(b){return b<512?'#f44336':b<1024?'#ff9800':'';}
 function fetchSysInfo(){
   fetch('/api/sysinfo').then(function(r){return r.json();}).then(function(d){
+    var ms=document.getElementById('mdns-status');
+    if(d.mdns_started){
+      ms.textContent=d.mdns_name+'.local';
+      ms.style.color='#28a745';
+    } else {
+      ms.textContent='FAILED — IP only';
+      ms.style.color='#dc3545';
+    }
     document.getElementById('hw-chip').textContent=d.chip_model||'-';
     document.getElementById('hw-rev').textContent='rev '+d.chip_rev;
     document.getElementById('hw-cpu').textContent=d.cpu_cores+' cores @ '+d.cpu_mhz+' MHz';
