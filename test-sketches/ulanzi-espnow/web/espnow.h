@@ -113,12 +113,14 @@ static const char PAGE_ESPNOW[] PROGMEM =
     <div id="mode-status" style="font-size:.82em;color:#4caf50;min-height:1.2em;padding-top:6px"></div>
   </div>
 
-  <!-- Card 3: placeholder -->
+  <!-- Card 3: Received Messages -->
   <div class="card">
-    <h3>Card 3</h3>
-    <div style="color:var(--text-muted);font-size:.88em;padding:12px 0">
-      Coming soon&hellip;
+    <h3>Received Messages</h3>
+    <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
+      <span class="metric-label">POCSAG received</span>
+      <span class="metric-value" id="poc-count">-</span>
     </div>
+    <div id="msg-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
   </div>
 
 </div></div>
@@ -127,10 +129,33 @@ static const char PAGE_ESPNOW[] PROGMEM =
   R"html(
 <script>
 (function init(){
-  fetch('/api/status').then(function(r){return r.json();}).then(function(d){
-    document.getElementById('h1').textContent=d.hostname;
-    document.getElementById('sub').textContent=d.ip;
-  }).catch(function(){});
+  pollStatus();
+  setInterval(pollStatus, 3000);
+  function pollStatus(){
+    fetch('/api/status').then(function(r){return r.json();}).then(function(d){
+      document.getElementById('h1').textContent=d.hostname;
+      document.getElementById('sub').textContent=d.ip;
+      document.getElementById('poc-count').textContent=d.pocsag_count||0;
+      var log=d.pocsag_log||[];
+      var el=document.getElementById('msg-log');
+      if(!log.length){
+        el.innerHTML='<span style="color:var(--text-muted);font-size:.85em">No messages yet.</span>';
+      } else {
+        var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
+        for(var i=0;i<log.length;i++){
+          html+='<tr style="border-bottom:1px solid var(--border-color)">'
+            +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">RIC '+log[i].ric+'</td>'
+            +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(log[i].msg)+'</td>'
+            +'</tr>';
+        }
+        html+='</table>';
+        el.innerHTML=html;
+      }
+    }).catch(function(){});
+  }
+  function escHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
   fetch('/api/espnow').then(function(r){return r.json();}).then(function(d){
     document.getElementById('time-ric').value=d.time_ric||224;
     document.getElementById('call-ric').value=d.call_ric||8;
