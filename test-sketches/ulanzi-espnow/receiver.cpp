@@ -62,11 +62,10 @@ static void applyPocsagTime(const char* msg) {
 
 // Runs on Core 1 (loop()) after being dequeued from pocsagRxQueue.
 void processPocsagPacket(const EspNowPocsagPacket& pkt) {
-  // Always sync time even when POCSAG display is disabled
+  if (!recvPocsagEnabled) return;
+
   if (pkt.ric == timePocRic)
     applyPocsagTime(pkt.message);
-
-  if (!recvPocsagEnabled) return;
 
   bool excluded = false;
   for (int i = 0; i < excludedRicsCount; i++)
@@ -97,6 +96,21 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 }
 
 #endif  // RECV_POCSAG
+
+// ── ESP-NOW v2 processor ──────────────────────────────────────────────────────
+
+#if RECV_ESPNOW2
+
+// TODO: define EspNowV2Packet struct (must match sender side)
+// TODO: implement time sync from v2 time beacon
+// TODO: implement display/message handling for v2 packet types
+
+static void processEspNowV2Packet(const uint8_t* data, int len) {
+  // placeholder — v2 protocol not yet implemented
+  LOG("[RX-V2] Received %d bytes (not yet handled)\n", len);
+}
+
+#endif  // RECV_ESPNOW2
 
 // ── Receive callback (Core 0 WiFi stack) ──────────────────────────────────────
 
@@ -182,6 +196,12 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
   }
 #endif  // RECV_POCSAG
 
+#if RECV_ESPNOW2
+  // TODO: add ESPNOW_TYPE_V2 once packet type byte is defined
+  processEspNowV2Packet(inData, inLen);
+  return;
+#endif
+
   LOG("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
 }
 
@@ -216,6 +236,9 @@ void setupReceiver() {
 #endif
 #if RECV_POCSAG
   " POCSAG"
+#endif
+#if RECV_ESPNOW2
+  " ESPNOW2"
 #endif
   "\n");
 
