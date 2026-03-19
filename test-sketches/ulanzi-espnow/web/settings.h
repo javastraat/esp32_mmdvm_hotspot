@@ -347,7 +347,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
       <div id="bootname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
     <div style="margin-bottom:12px">
-      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">mDNS hostname (<span id="mdns-preview">ulanzi</span>.local)</div>
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Hostname — web &amp; OTA (<span id="mdns-preview">ulanzi</span>.local)</div>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="text" id="mdns-name" maxlength="31"
                style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
@@ -355,16 +355,6 @@ static const char PAGE_SETTINGS[] PROGMEM =
         <button onclick="saveMdnsName()" class="btn btn-info">Save</button>
       </div>
       <div id="mdnsname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
-    </div>
-    <div>
-      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">ArduinoOTA hostname (shown in IDE port list)</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="text" id="ota-hostname" maxlength="31"
-               style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
-               oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
-        <button onclick="saveOtaHostname()" class="btn btn-info">Save</button>
-      </div>
-      <div id="otahostname-status" style="font-size:.78em;color:#4caf50;margin-top:4px;min-height:1em"></div>
     </div>
   </div>
 
@@ -389,6 +379,10 @@ static const char PAGE_SETTINGS[] PROGMEM =
       <div>
         <button onclick="doReboot()" class="btn btn-danger" style="width:100%">Reboot Device</button>
         <div id="reboot-status" style="font-size:.78em;color:#aaa;margin-top:3px;min-height:1em"></div>
+      </div>
+      <div>
+        <button onclick="doFactoryReset()" class="btn btn-danger" style="width:100%;background:#7b0000">Factory Reset</button>
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:3px">Clears all saved settings and reboots.</div>
       </div>
     </div>
   </div>
@@ -566,24 +560,18 @@ function doReboot(){
     setTimeout(function(){location.reload();},6000);
   });
 }
+function doFactoryReset(){
+  showConfirm('Factory reset?\n\nThis will erase ALL saved settings and reboot.',function(){
+    showConfirm('Are you sure? This cannot be undone.',function(){
+      fetch('/api/factory-reset',{method:'POST'}).catch(function(){});
+      document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;font-size:1.2em">Factory reset — rebooting…</div>';
+      setTimeout(function(){location.href='/';},8000);
+    });
+  });
+}
 function setDebugLog(val){
   fetch('/api/debug',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({debug:val})}).catch(function(){});
-}
-function saveOtaHostname(){
-  var v=document.getElementById('ota-hostname').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
-  if(v.length===0||v.length>31){
-    document.getElementById('otahostname-status').textContent='1–31 chars (a-z, 0-9, -)';
-    document.getElementById('otahostname-status').style.color='#f44';
-    return;
-  }
-  fetch('/api/otahostname',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name='+encodeURIComponent(v)})
-  .then(function(r){return r.json();}).then(function(d){
-    var s=document.getElementById('otahostname-status');
-    s.textContent=d.ok?'Saved — takes effect after reboot':'Error: '+(d.error||'?');
-    s.style.color=d.ok?'#4caf50':'#f44';
-    setTimeout(function(){s.textContent='';},3000);
-  }).catch(function(){});
 }
 function saveMdnsName(){
   var v=document.getElementById('mdns-name').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
@@ -712,9 +700,6 @@ function testSs(){
     if(d.b_lo)document.getElementById('b-col-lo').value=d.b_lo;
     if(d.b_mid)document.getElementById('b-col-mid').value=d.b_mid;
     if(d.b_hi)document.getElementById('b-col-hi').value=d.b_hi;
-  }).catch(function(){});
-  fetch('/api/otahostname').then(function(r){return r.json();}).then(function(d){
-    if(d.name)document.getElementById('ota-hostname').value=d.name;
   }).catch(function(){});
   fetch('/api/bootname').then(function(r){return r.json();}).then(function(d){
     if(d.name)document.getElementById('boot-name').value=d.name;

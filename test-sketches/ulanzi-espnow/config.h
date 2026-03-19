@@ -17,9 +17,11 @@
 
 
 // ============================================================
-// OTA update
+// Hostname & OTA
 // ============================================================
-#define OTA_HOSTNAME  "ulanzi-clock"
+// Default mDNS + ArduinoOTA hostname. Overridable at runtime via the
+// Settings page — the saved value is stored in NVS key "mdns_name".
+#define MDNS_HOSTNAME "ulanzi-espnow"
 #define OTA_PASSWORD  "ulanzi"           // leave empty "" to disable password
 
 

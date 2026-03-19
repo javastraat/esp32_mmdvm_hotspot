@@ -99,7 +99,7 @@ void setupOTA() {
   // Start OTA first — ArduinoOTA.begin() may call MDNS.begin() internally
   // with the OTA hostname, which would override ours. Start OTA first, then
   // call MDNS.begin() after so our mdnsName always wins.
-  ArduinoOTA.setHostname(otaHostname);
+  ArduinoOTA.setHostname(mdnsName);
   if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.onStart([]() {
     LOG("[OTA] Start\n");
@@ -129,7 +129,7 @@ void setupOTA() {
   });
   ArduinoOTA.begin();
   otaStarted = true;
-  LOG("[OTA] Ready — hostname: %s  port: 3232\n", otaHostname);
+  LOG("[OTA] Ready — hostname: %s  port: 3232\n", mdnsName);
 
   // Start mDNS AFTER ArduinoOTA.begin() so our hostname wins over the OTA one.
   // Retry up to 3 times — MDNS.begin() occasionally fails on first attempt.
@@ -143,6 +143,9 @@ void setupOTA() {
   if (mdnsStarted) {
     MDNS.addService("http", "tcp", 80);
     LOG("[mDNS] Started: http://%s.local/\n", mdnsName);
+    // Note: only one .local hostname is possible with this ESP-IDF version.
+    // The Arduino IDE discovers OTA via _arduino._tcp service browsing and will
+    // show "ulanzi-ota" in its port list — ping ulanzi-ota.local won't work.
   } else {
     LOG("[mDNS] Start FAILED after 3 attempts — device reachable by IP only\n");
   }
