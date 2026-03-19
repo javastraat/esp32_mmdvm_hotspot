@@ -165,6 +165,9 @@ void setupDisplay() {
 
 void drawIndicators() {
   if (!indicatorsEnabled) return;
+#if RECV_POCSAG
+  if (pocsagMsgActive) return;  // full screen for message display dont display indicators
+#endif
 
   // Ind1 — WiFi: green = connected, red blink = disconnected
   static bool          ind1Blink = false;
