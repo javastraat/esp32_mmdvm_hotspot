@@ -217,6 +217,18 @@ static void _applySsBrightness() {
   }
 }
 
+// Called when screensaverBrightness changes while the screensaver is already running.
+void screensaverApplyBrightness() {
+  if (!screensaverActive || !_ssBrightApplied) return;
+  if (screensaverBrightness == -2) {
+    autoBrightnessEnabled = true;
+  } else {
+    autoBrightnessEnabled = false;
+    currentBrightness     = (uint8_t)screensaverBrightness;
+    FastLED.setBrightness(currentBrightness);
+  }
+}
+
 static void _restoreSsBrightness() {
   if (!_ssBrightApplied) return;
   _ssBrightApplied      = false;
@@ -510,7 +522,7 @@ static CRGB colorForBat(int pct) {
 // Main display loop
 // ============================================================
 
-static const char* _screenName() {
+const char* getScreenName() {
 #if RECV_POCSAG
   if (pocsagMsgActive)   return "POCSAG";
 #endif
@@ -530,7 +542,7 @@ void loopDisplay() {
   // Log screen transitions
   {
     static const char* prevScreen = "";
-    const char* cur = _screenName();
+    const char* cur = getScreenName();
     if (cur != prevScreen) {
       LOG("[DISP] Screen: %s\n", cur);
       prevScreen = cur;

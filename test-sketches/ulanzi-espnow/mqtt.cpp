@@ -11,6 +11,7 @@
 #include "display.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <LittleFS.h>
 
 // ── Config globals ─────────────────────────────────────────────────────────────
 bool     mqttEnabled   = false;
@@ -58,6 +59,44 @@ static const char* _brightnessPreset(uint8_t br) {
   if (br == 120) return "Medium";
   if (br == 255) return "Bright";
   return "Custom";
+}
+
+// Map screensaver brightness int16_t to preset name
+static const char* _ssBrightnessPreset(int16_t br) {
+  if (br == -2)  return "Auto";
+  if (br == 0)   return "Off";
+  if (br == 10)  return "Night";
+  if (br == 50)  return "Dim";
+  if (br == 120) return "Medium";
+  if (br == 255) return "Bright";
+  return "Dim";
+}
+
+// Build HA select options JSON for screensaver files (scans LittleFS /screensaver/)
+static void _buildSsFileOptions(char* buf, int len) {
+  int n = 0;
+  n += snprintf(buf + n, len - n, "[\"None\"");
+  File dir = LittleFS.open("/screensaver");
+  if (dir && dir.isDirectory()) {
+    File f = dir.openNextFile();
+    while (f && n < len - 4) {
+      if (!f.isDirectory()) {
+        const char* nm = f.name();
+        int nmlen = strlen(nm);
+        if (nmlen > 4 && strcasecmp(nm + nmlen - 4, ".gif") == 0) {
+          // build full path
+          char path[72];
+          snprintf(path, sizeof(path), "/screensaver/%s", nm);
+          // escape path for JSON (/ is safe, no special chars expected)
+          n += snprintf(buf + n, len - n, ",\"%s\"", path);
+        }
+      }
+      f.close();
+      f = dir.openNextFile();
+    }
+    dir.close();
+  }
+  if (n < len - 2) { buf[n++] = ']'; buf[n] = '\0'; }
 }
 
 // Build the shared "device" JSON fragment (no trailing comma)
@@ -238,8 +277,12 @@ static void _publishAllDiscovery() {
   _discNumber("auto_rotate_interval", "Rotate Interval", 1, 60, 1);
 
   // ── Screensaver ────────────────────────────────────────────────────────────
-  _discSwitch("screensaver",         "Screensaver");
-  _discNumber("screensaver_timeout", "Screensaver Timeout", 10, 3600, 10);
+  _discSwitch("screensaver",            "Screensaver");
+  _discNumber("screensaver_timeout",    "Screensaver Timeout", 10, 3600, 10);
+  _discSelect("screensaver_brightness", "Screensaver Brightness",
+    "[\"Auto\",\"Off\",\"Night\",\"Dim\",\"Medium\",\"Bright\"]");
+  { char opts[512]; _buildSsFileOptions(opts, sizeof(opts));
+    _discSelect("screensaver_file", "Screensaver File", opts); }
 
   // ── Indicators ─────────────────────────────────────────────────────────────
   _discSwitch("indicators", "Indicators");
@@ -314,19 +357,14 @@ static void _publishState() {
   // Screensaver
   _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
   snprintf(tmp, sizeof(tmp), "%d", screensaverTimeoutSec); _pubStr("number", "screensaver_timeout", tmp);
+  _pubStr("select", "screensaver_brightness", _ssBrightnessPreset(screensaverBrightness));
+  _pubStr("select", "screensaver_file", screensaverFile[0] ? screensaverFile : "None");
 
   // Indicators
   _pubStr("switch", "indicators", indicatorsEnabled ? "ON" : "OFF");
 
   // Display mode (sensor — read-only, reflects active screen)
-  const char* modeStr;
-  switch (displayMode) {
-    case MODE_TEMP:     modeStr = "Temperature"; break;
-    case MODE_HUMIDITY: modeStr = "Humidity";    break;
-    case MODE_BATTERY:  modeStr = "Battery";     break;
-    default:            modeStr = "Clock";       break;
-  }
-  _pubStr("sensor", "display_mode", modeStr);
+  _pubStr("sensor", "display_mode", getScreenName());
 }
 
 // ── Incoming command callback ──────────────────────────────────────────────────
@@ -475,6 +513,31 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
       _pubStr("number", "screensaver_timeout", buf);
       LOG("[MQTT] screensaver_timeout → %d\n", v);
     }
+
+  } else if (sub == "select/screensaver_brightness/set") {
+    int16_t newBr = screensaverBrightness;
+    if      (strcmp(val, "Auto")   == 0) newBr = -2;
+    else if (strcmp(val, "Off")    == 0) newBr = 0;
+    else if (strcmp(val, "Night")  == 0) newBr = 10;
+    else if (strcmp(val, "Dim")    == 0) newBr = 50;
+    else if (strcmp(val, "Medium") == 0) newBr = 120;
+    else if (strcmp(val, "Bright") == 0) newBr = 255;
+    screensaverBrightness = newBr;
+    screensaverApplyBrightness();  // take effect immediately if screensaver is playing
+    saveSettings();
+    _pubStr("select", "screensaver_brightness", val);
+    LOG("[MQTT] screensaver_brightness → %s\n", val);
+
+  } else if (sub == "select/screensaver_file/set") {
+    if (strcmp(val, "None") == 0) {
+      screensaverFile[0] = '\0';
+    } else {
+      strncpy(screensaverFile, val, 63); screensaverFile[63] = '\0';
+    }
+    _gifCloseIfOpen();  // reload on next screensaver frame
+    saveSettings();
+    _pubStr("select", "screensaver_file", screensaverFile[0] ? screensaverFile : "None");
+    LOG("[MQTT] screensaver_file → %s\n", val);
 
   // ── Buttons ─────────────────────────────────────────────────────────────────
   // ── Indicators ──────────────────────────────────────────────────────────────
