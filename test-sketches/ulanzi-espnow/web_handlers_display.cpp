@@ -79,10 +79,7 @@ void registerDisplayHandlers() {
       buzzerPocsagEnabled ? "true" : "false", buzzerPocsagVolume,
       buzzerClickEnabled  ? "true" : "false", buzzerClickVolume,
       sht31Available ? "true" : "false", sht31Temp, sht31Hum,
-      pocsagMsgActive ? "message" :
-        screensaverActive ? "screensaver" :
-        displayMode == MODE_TEMP ? "temp" :
-        displayMode == MODE_HUMIDITY ? "humidity" : "clock",
+      getScreenName(),
       autoRotateEnabled ? "true" : "false", autoRotateIntervalSec
     );
     webServer.send(200, "application/json", json);

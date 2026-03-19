@@ -128,7 +128,7 @@ function pollDisplay(){
   setTimeout(pollDisplay,500);
 }
 poll();
-setInterval(poll,2000);
+setInterval(poll,500);
 pollDisplay();
 </script>
 </body></html>
