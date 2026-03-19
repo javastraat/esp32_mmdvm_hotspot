@@ -57,10 +57,10 @@ void loadSettings() {
     }
   }
   // Icon filenames — trim whitespace to fix any accidentally saved leading/trailing spaces
-  { String s = p.getString("icon_temp", "/icons/70122.jpg");  s.trim(); strncpy(iconTempFile,   s.c_str(), 31); iconTempFile[31]   = '\0'; }
-  { String s = p.getString("icon_hum",  "/icons/71006.jpg");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
-  { String s = p.getString("icon_bat",  "/icons/390.jpg");    s.trim(); strncpy(iconBatFile,    s.c_str(), 31); iconBatFile[31]    = '\0'; }
-  { String s = p.getString("icon_poc",  "/icons/18675.jpg");  s.trim(); strncpy(iconPocsagFile, s.c_str(), 31); iconPocsagFile[31] = '\0'; }
+  { String s = p.getString("icon_temp", "");  s.trim(); strncpy(iconTempFile,   s.c_str(), 31); iconTempFile[31]   = '\0'; }
+  { String s = p.getString("icon_hum",  "");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
+  { String s = p.getString("icon_bat",  "");  s.trim(); strncpy(iconBatFile,    s.c_str(), 31); iconBatFile[31]    = '\0'; }
+  { String s = p.getString("icon_poc",  "");  s.trim(); strncpy(iconPocsagFile, s.c_str(), 31); iconPocsagFile[31] = '\0'; }
   // Screensaver
   screensaverEnabled    = p.getBool   ("ss_en",      false);
   screensaverTimeoutSec = p.getUShort ("ss_timeout", 60);

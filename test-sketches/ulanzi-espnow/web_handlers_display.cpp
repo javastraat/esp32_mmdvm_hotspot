@@ -166,10 +166,10 @@ void registerDisplayHandlers() {
 
   webServer.on("/api/icons", HTTP_POST, []() {
     String v;
-    v = webServer.arg("temp_icon"); v.trim(); if (v.length()) { strncpy(iconTempFile,   v.c_str(), 31); iconTempFile[31]   = '\0'; }
-    v = webServer.arg("hum_icon");  v.trim(); if (v.length()) { strncpy(iconHumFile,    v.c_str(), 31); iconHumFile[31]    = '\0'; }
-    v = webServer.arg("bat_icon");  v.trim(); if (v.length()) { strncpy(iconBatFile,    v.c_str(), 31); iconBatFile[31]    = '\0'; }
-    v = webServer.arg("poc_icon");  v.trim(); if (v.length()) { strncpy(iconPocsagFile, v.c_str(), 31); iconPocsagFile[31] = '\0'; }
+    if (webServer.hasArg("temp_icon")) { v = webServer.arg("temp_icon"); v.trim(); strncpy(iconTempFile,   v.c_str(), 31); iconTempFile[31]   = '\0'; }
+    if (webServer.hasArg("hum_icon"))  { v = webServer.arg("hum_icon");  v.trim(); strncpy(iconHumFile,    v.c_str(), 31); iconHumFile[31]    = '\0'; }
+    if (webServer.hasArg("bat_icon"))  { v = webServer.arg("bat_icon");  v.trim(); strncpy(iconBatFile,    v.c_str(), 31); iconBatFile[31]    = '\0'; }
+    if (webServer.hasArg("poc_icon"))  { v = webServer.arg("poc_icon");  v.trim(); strncpy(iconPocsagFile, v.c_str(), 31); iconPocsagFile[31] = '\0'; }
     _gifCloseIfOpen();  // force reload with new path on next frame
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");

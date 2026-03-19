@@ -52,11 +52,11 @@ char bootName[9]  = "ULANZI";
 // mDNS + ArduinoOTA hostname — device reachable as <name>.local (max 31 chars, lowercase)
 char mdnsName[32] = MDNS_HOSTNAME;
 
-// Icon filenames (GIF/JPEG from LittleFS)
-char iconTempFile[32]   = "/icons/70122.jpg";
-char iconHumFile[32]    = "/icons/71006.jpg";
-char iconBatFile[32]    = "/icons/390.jpg";
-char iconPocsagFile[32] = "/icons/18675.jpg";
+// Icon filenames (GIF/JPEG from LittleFS) — empty = no icon, show text only
+char iconTempFile[32]   = "";
+char iconHumFile[32]    = "";
+char iconBatFile[32]    = "";
+char iconPocsagFile[32] = "";
 
 // POCSAG display state
 #if RECV_POCSAG
