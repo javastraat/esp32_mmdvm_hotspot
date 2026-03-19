@@ -2,13 +2,13 @@
 #include "styles.h"
 #include "navigation.h"
 
-// ── System page (/system): device, WiFi, hardware, software, reboot ───────
-static const char PAGE_SYSTEM[] PROGMEM =
+// ── Info page (/info): device, WiFi, hardware, software info ─────────────
+static const char PAGE_INFO[] PROGMEM =
   "<!DOCTYPE html><html lang=\"en\">"
   "<head>"
   "<meta charset=\"utf-8\">"
   "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-  "<title>Ulanzi System</title>"
+  "<title>Ulanzi Info</title>"
   "<style>" COMMON_CSS "</style>"
   THEME_INIT_SCRIPT
   "</head><body>"

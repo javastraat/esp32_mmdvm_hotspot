@@ -12,17 +12,18 @@
 
 #define NAV_BAR \
   "<div class=\"navbar\">" \
-  "<span class=\"nav-brand\" id=\"h1\">Ulanzi</span>" \
+  "<span id=\"h1\" style=\"display:none\"></span>" \
   "<span id=\"sub\" style=\"display:none\"></span>" \
   "<a href=\"/\" class=\"nav-tab\" id=\"nt-home\">Home</a>" \
   "<div class=\"nav-more\" id=\"nav-more\">" \
     "<button class=\"nav-tab\" id=\"nt-more\" onclick=\"toggleMore(event)\">More &#9662;</button>" \
     "<div class=\"nav-more-menu\" id=\"nav-more-menu\">" \
+      "<a href=\"/display\" class=\"nav-more-item\">Display</a>" \
       "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
+      "<a href=\"/mqtt\" class=\"nav-more-item\">MQTT</a>" \
       "<a href=\"/espnow\" class=\"nav-more-item\">ESP-NOW</a>" \
       "<a href=\"/files\" class=\"nav-more-item\">Files</a>" \
-      "<a href=\"/system\" class=\"nav-more-item\">System</a>" \
-      "<a href=\"/mqtt\" class=\"nav-more-item\">MQTT</a>" \
+      "<a href=\"/info\" class=\"nav-more-item\">Info</a>" \
       "<a href=\"/serial\" class=\"nav-more-item\">Serial</a>" \
     "</div>" \
   "</div>" \

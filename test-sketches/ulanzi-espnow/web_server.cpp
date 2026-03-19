@@ -6,8 +6,9 @@
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include "web/main.h"
+#include "web/display.h"
 #include "web/settings.h"
-#include "web/system.h"
+#include "web/info.h"
 #include "web/espnow.h"
 #include "web/pwa_icon.h"
 #include "web_handlers_display.h"
@@ -43,12 +44,16 @@ static void setupWebServer() {
     webServer.send_P(200, "text/html", PAGE_LIVE);
   });
 
+  webServer.on("/display", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_DISPLAY);
+  });
+
   webServer.on("/settings", HTTP_GET, []() {
     webServer.send_P(200, "text/html", PAGE_SETTINGS);
   });
 
-  webServer.on("/system", HTTP_GET, []() {
-    webServer.send_P(200, "text/html", PAGE_SYSTEM);
+  webServer.on("/info", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_INFO);
   });
 
   webServer.on("/espnow", HTTP_GET, []() {
