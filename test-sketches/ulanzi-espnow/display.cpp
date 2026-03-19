@@ -194,8 +194,36 @@ void _gifCloseIfOpen() {
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; }
 }
 
+// ── Screensaver brightness save/restore ──────────────────────────────────────
+
+static uint8_t _ssSavedBrightness = 0;
+static bool    _ssSavedAuto       = false;
+static bool    _ssBrightApplied   = false;
+
+static void _applySsBrightness() {
+  if (_ssBrightApplied) return;
+  _ssSavedBrightness = currentBrightness;
+  _ssSavedAuto       = autoBrightnessEnabled;
+  _ssBrightApplied   = true;
+  if (screensaverBrightness == -2) {                 // Auto — follow LDR
+    autoBrightnessEnabled = true;
+  } else {                                           // Fixed preset (always own value)
+    autoBrightnessEnabled = false;
+    currentBrightness     = (uint8_t)screensaverBrightness;
+    FastLED.setBrightness(currentBrightness);
+  }
+}
+
+static void _restoreSsBrightness() {
+  if (!_ssBrightApplied) return;
+  _ssBrightApplied      = false;
+  autoBrightnessEnabled = _ssSavedAuto;
+  currentBrightness     = _ssSavedBrightness;
+  if (!autoBrightnessEnabled) FastLED.setBrightness(currentBrightness);
+}
+
 void resetScreensaverIdle() {
-  if (screensaverActive) _gifCloseIfOpen();  // force re-open next activation → clean first frame
+  if (screensaverActive) { _gifCloseIfOpen(); _restoreSsBrightness(); }
   screensaverActive    = false;
   screensaverIdleStart = millis();
 }
@@ -651,12 +679,12 @@ void loopDisplay() {
         _gifY0 = 0;
         int delay = 100;
         int r = _gif.playFrame(false, &delay);
-        drawIndicators();
         FastLED.show();
         nextSsFrame = millis() + max(delay, 33);
-        if (r < 0) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; screensaverActive = false; }
+        if (r < 0) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; screensaverActive = false; _restoreSsBrightness(); }
       } else {
         screensaverActive = false;  // file missing/corrupt — abort
+        _restoreSsBrightness();
       }
     }
     return;
@@ -665,9 +693,10 @@ void loopDisplay() {
     if (millis() - screensaverIdleStart >= (unsigned long)screensaverTimeoutSec * 1000) {
       screensaverActive = true;
       _gifCloseIfOpen();
+      _applySsBrightness();
       FastLED.clear();   // clear display once before first frame draws
       FastLED.show();
-      LOG("[SS] Screensaver activated\n");
+      LOG("[SS] Screensaver activated (bright=%d)\n", screensaverBrightness);
       return;
     }
   }

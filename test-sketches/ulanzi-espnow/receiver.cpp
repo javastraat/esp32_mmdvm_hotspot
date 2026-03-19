@@ -72,7 +72,7 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
     if (pkt.ric == excludedRics[i]) { excluded = true; break; }
 
   if (!excluded) {
-    if (screensaverActive) { _gifCloseIfOpen(); screensaverActive = false; }  // idle resets when message ends
+    if (screensaverActive) resetScreensaverIdle();  // restores brightness + clears GIF state
     strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
     pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
     if (pkt.ric == callsignRic) {

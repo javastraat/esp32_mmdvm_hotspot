@@ -207,11 +207,12 @@ void registerDisplayHandlers() {
   webServer.on("/api/screensaver", HTTP_GET, []() {
     char buf[192];
     snprintf(buf, sizeof(buf),
-      "{\"enabled\":%s,\"timeout\":%d,\"file\":\"%s\",\"active\":%s}",
+      "{\"enabled\":%s,\"timeout\":%d,\"file\":\"%s\",\"active\":%s,\"brightness\":%d}",
       screensaverEnabled ? "true" : "false",
       screensaverTimeoutSec,
       screensaverFile,
-      screensaverActive ? "true" : "false");
+      screensaverActive ? "true" : "false",
+      (int)screensaverBrightness);
     webServer.send(200, "application/json", buf);
   });
 
@@ -223,6 +224,8 @@ void registerDisplayHandlers() {
     if (v.length()) { int n = v.toInt(); if (n >= 1 && n <= 3600) screensaverTimeoutSec = (uint16_t)n; }
     v = webServer.arg("file"); v.trim();
     if (v.length()) { strncpy(screensaverFile, v.c_str(), 63); screensaverFile[63] = '\0'; }
+    v = webServer.arg("brightness");
+    if (v.length()) screensaverBrightness = (int16_t)constrain(v.toInt(), -2, 255);
     if (!screensaverEnabled) screensaverActive = false;
     saveSettings();
     mqttNotifyState();

@@ -173,6 +173,8 @@ extern uint16_t      screensaverTimeoutSec;
 extern char          screensaverFile[64];
 extern bool          screensaverActive;
 extern unsigned long screensaverIdleStart;
+// -2=Auto (LDR), 0/10/50/120/255=fixed preset (always applied independently of main brightness)
+extern int16_t       screensaverBrightness;
 
 // ── DMR receive state ─────────────────────────────────────────────────────────
 

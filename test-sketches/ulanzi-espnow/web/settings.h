@@ -153,6 +153,17 @@ static const char PAGE_SETTINGS[] PROGMEM =
         <option value="">(none)</option>
       </select>
     </div>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Brightness</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="ss-bp-a"   onclick="setSsBright(-2)"  class="bp">Auto</button>
+        <button id="ss-bp-0"   onclick="setSsBright(0)"   class="bp">Off</button>
+        <button id="ss-bp-10"  onclick="setSsBright(10)"  class="bp">Night</button>
+        <button id="ss-bp-50"  onclick="setSsBright(50)"  class="bp">Dim</button>
+        <button id="ss-bp-120" onclick="setSsBright(120)" class="bp">Medium</button>
+        <button id="ss-bp-255" onclick="setSsBright(255)" class="bp">Bright</button>
+      </div>
+    </div>
     <div style="font-size:.75em;color:var(--text-muted);padding:6px 0 8px">
       GIF must be exactly 32&#xd7;8 px. Place in /screensaver/ (visible in Files page).
     </div>
@@ -557,6 +568,25 @@ function onSsChange(){
         +'&file='+encodeURIComponent(document.getElementById('ss-file').value)
   }).catch(function(){});
 }
+var _ssBright=-1;
+var SS_BP_IDS={'-2':'ss-bp-a','0':'ss-bp-0','10':'ss-bp-10','50':'ss-bp-50','120':'ss-bp-120','255':'ss-bp-255'};
+function updateSsBrightButtons(val){
+  _ssBright=val;
+  Object.keys(SS_BP_IDS).forEach(function(k){
+    var b=document.getElementById(SS_BP_IDS[k]);
+    if(!b)return;
+    var active=(parseInt(k)===val);
+    b.style.background=active?'#00bcd4':'#444';
+    b.style.color=active?'#000':'#fff';
+  });
+}
+function setSsBright(val){
+  updateSsBrightButtons(val);
+  fetch('/api/screensaver',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'brightness='+val
+  }).catch(function(){});
+}
 function doClearRtc(){
   showConfirm('Clear RTC and time sync? Scanner animation will run until the next time beacon.',function(){
     var s=document.getElementById('rtc-status');
@@ -747,6 +777,7 @@ function testSs(){
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;
     document.getElementById('ss-timeout').value=d.timeout||60;
+    updateSsBrightButtons(d.brightness!=null?d.brightness:-1);
     fetch('/api/fs/ls?path=/screensaver').then(function(r){return r.json();}).then(function(ls){
       var files=(ls.entries||[]).filter(function(e){return !e.isDir&&/\.gif$/i.test(e.name);});
       if(files.length===0){document.getElementById('ss-no-files').style.display='block';}

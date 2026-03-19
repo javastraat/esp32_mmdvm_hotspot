@@ -151,6 +151,7 @@ uint16_t      screensaverTimeoutSec = 60;
 char          screensaverFile[64]   = "";
 bool          screensaverActive     = false;
 unsigned long screensaverIdleStart  = 0;
+int16_t       screensaverBrightness = 50;  // -2=Auto (LDR), 0/10/50/120/255=fixed (default Dim)
 
 // DMR receive state
 #if RECV_DMR

@@ -64,6 +64,7 @@ void loadSettings() {
   // Screensaver
   screensaverEnabled    = p.getBool   ("ss_en",      false);
   screensaverTimeoutSec = p.getUShort ("ss_timeout", 60);
+  screensaverBrightness = (int16_t)p.getInt("ss_bright", 50);
   { String s = p.getString("ss_file", ""); s.trim(); strncpy(screensaverFile, s.c_str(), 63); screensaverFile[63] = '\0'; }
   // Display colors
   colorClock   = unpackCRGB(p.getUInt("col_clock",  packCRGB(CRGB(255,255,255))));
@@ -137,6 +138,7 @@ void saveSettings() {
   // Screensaver
   p.putBool   ("ss_en",      screensaverEnabled);
   p.putUShort ("ss_timeout", screensaverTimeoutSec);
+  p.putInt    ("ss_bright",  screensaverBrightness);
   p.putString ("ss_file",    screensaverFile);
   // Display colors
   p.putUInt("col_clock",  packCRGB(colorClock));
