@@ -62,28 +62,28 @@ void loadSettings() {
   { String s = p.getString("icon_bat",  "");  s.trim(); strncpy(iconBatFile,    s.c_str(), 31); iconBatFile[31]    = '\0'; }
   { String s = p.getString("icon_poc",  "");  s.trim(); strncpy(iconPocsagFile, s.c_str(), 31); iconPocsagFile[31] = '\0'; }
   // Screensaver
-  screensaverEnabled    = p.getBool   ("ss_en",      false);
-  screensaverTimeoutSec = p.getUShort ("ss_timeout", 60);
-  screensaverBrightness = (int16_t)p.getInt("ss_bright", 50);
-  { String s = p.getString("ss_file", ""); s.trim(); strncpy(screensaverFile, s.c_str(), 63); screensaverFile[63] = '\0'; }
+  screensaverEnabled    = p.getBool   ("scr_en",      false);
+  screensaverTimeoutSec = p.getUShort ("scr_timeout", 60);
+  screensaverBrightness = (int16_t)p.getInt("scr_bright", 50);
+  { String s = p.getString("scr_file", ""); s.trim(); strncpy(screensaverFile, s.c_str(), 63); screensaverFile[63] = '\0'; }
   // Display colors
-  colorClock   = unpackCRGB(p.getUInt("col_clock",  packCRGB(CRGB(255,255,255))));
-  colorPocsag  = unpackCRGB(p.getUInt("col_poc",    packCRGB(CRGB(255,160,  0))));
-  tempThreshLo = p.getFloat ("t_thr_lo", 16.0f);
-  tempThreshHi = p.getFloat ("t_thr_hi", 20.0f);
-  colorTempLo  = unpackCRGB(p.getUInt("t_col_lo",  packCRGB(CRGB(  0,160,255))));
-  colorTempMid = unpackCRGB(p.getUInt("t_col_mid", packCRGB(CRGB(  0,200, 50))));
-  colorTempHi  = unpackCRGB(p.getUInt("t_col_hi",  packCRGB(CRGB(255, 80,  0))));
-  humThreshLo  = p.getFloat ("h_thr_lo", 30.0f);
-  humThreshHi  = p.getFloat ("h_thr_hi", 50.0f);
-  colorHumLo   = unpackCRGB(p.getUInt("h_col_lo",  packCRGB(CRGB(255,160,  0))));
-  colorHumMid  = unpackCRGB(p.getUInt("h_col_mid", packCRGB(CRGB(  0,200, 50))));
-  colorHumHi   = unpackCRGB(p.getUInt("h_col_hi",  packCRGB(CRGB(  0,160,255))));
-  batThreshLo  = p.getUChar("b_thr_lo", 30);
-  batThreshHi  = p.getUChar("b_thr_hi", 60);
-  colorBatLo   = unpackCRGB(p.getUInt("b_col_lo",  packCRGB(CRGB(220, 40,  0))));
-  colorBatMid  = unpackCRGB(p.getUInt("b_col_mid", packCRGB(CRGB(220,180,  0))));
-  colorBatHi   = unpackCRGB(p.getUInt("b_col_hi",  packCRGB(CRGB(  0,200, 50))));
+  colorClock   = unpackCRGB(p.getUInt("clk_col",     packCRGB(CRGB(255,255,255))));
+  colorPocsag  = unpackCRGB(p.getUInt("poc_col",     packCRGB(CRGB(255,160,  0))));
+  tempThreshLo = p.getFloat ("tmp_thr_lo", 16.0f);
+  tempThreshHi = p.getFloat ("tmp_thr_hi", 20.0f);
+  colorTempLo  = unpackCRGB(p.getUInt("tmp_col_lo",  packCRGB(CRGB(  0,160,255))));
+  colorTempMid = unpackCRGB(p.getUInt("tmp_col_mid", packCRGB(CRGB(  0,200, 50))));
+  colorTempHi  = unpackCRGB(p.getUInt("tmp_col_hi",  packCRGB(CRGB(255, 80,  0))));
+  humThreshLo  = p.getFloat ("hum_thr_lo", 30.0f);
+  humThreshHi  = p.getFloat ("hum_thr_hi", 50.0f);
+  colorHumLo   = unpackCRGB(p.getUInt("hum_col_lo",  packCRGB(CRGB(255,160,  0))));
+  colorHumMid  = unpackCRGB(p.getUInt("hum_col_mid", packCRGB(CRGB(  0,200, 50))));
+  colorHumHi   = unpackCRGB(p.getUInt("hum_col_hi",  packCRGB(CRGB(  0,160,255))));
+  batThreshLo  = p.getUChar("bat_thr_lo", 30);
+  batThreshHi  = p.getUChar("bat_thr_hi", 60);
+  colorBatLo   = unpackCRGB(p.getUInt("bat_col_lo",  packCRGB(CRGB(220, 40,  0))));
+  colorBatMid  = unpackCRGB(p.getUInt("bat_col_mid", packCRGB(CRGB(220,180,  0))));
+  colorBatHi   = unpackCRGB(p.getUInt("bat_col_hi",  packCRGB(CRGB(  0,200, 50))));
   p.end();
 }
 
@@ -136,27 +136,27 @@ void saveSettings() {
   p.putString("icon_bat",  iconBatFile);
   p.putString("icon_poc",  iconPocsagFile);
   // Screensaver
-  p.putBool   ("ss_en",      screensaverEnabled);
-  p.putUShort ("ss_timeout", screensaverTimeoutSec);
-  p.putInt    ("ss_bright",  screensaverBrightness);
-  p.putString ("ss_file",    screensaverFile);
+  p.putBool   ("scr_en",      screensaverEnabled);
+  p.putUShort ("scr_timeout", screensaverTimeoutSec);
+  p.putInt    ("scr_bright",  screensaverBrightness);
+  p.putString ("scr_file",    screensaverFile);
   // Display colors
-  p.putUInt("col_clock",  packCRGB(colorClock));
-  p.putUInt("col_poc",    packCRGB(colorPocsag));
-  p.putFloat("t_thr_lo",  tempThreshLo);
-  p.putFloat("t_thr_hi",  tempThreshHi);
-  p.putUInt("t_col_lo",   packCRGB(colorTempLo));
-  p.putUInt("t_col_mid",  packCRGB(colorTempMid));
-  p.putUInt("t_col_hi",   packCRGB(colorTempHi));
-  p.putFloat("h_thr_lo",  humThreshLo);
-  p.putFloat("h_thr_hi",  humThreshHi);
-  p.putUInt("h_col_lo",   packCRGB(colorHumLo));
-  p.putUInt("h_col_mid",  packCRGB(colorHumMid));
-  p.putUInt("h_col_hi",   packCRGB(colorHumHi));
-  p.putUChar("b_thr_lo",  batThreshLo);
-  p.putUChar("b_thr_hi",  batThreshHi);
-  p.putUInt("b_col_lo",   packCRGB(colorBatLo));
-  p.putUInt("b_col_mid",  packCRGB(colorBatMid));
-  p.putUInt("b_col_hi",   packCRGB(colorBatHi));
+  p.putUInt("clk_col",     packCRGB(colorClock));
+  p.putUInt("poc_col",     packCRGB(colorPocsag));
+  p.putFloat("tmp_thr_lo", tempThreshLo);
+  p.putFloat("tmp_thr_hi", tempThreshHi);
+  p.putUInt("tmp_col_lo",  packCRGB(colorTempLo));
+  p.putUInt("tmp_col_mid", packCRGB(colorTempMid));
+  p.putUInt("tmp_col_hi",  packCRGB(colorTempHi));
+  p.putFloat("hum_thr_lo", humThreshLo);
+  p.putFloat("hum_thr_hi", humThreshHi);
+  p.putUInt("hum_col_lo",  packCRGB(colorHumLo));
+  p.putUInt("hum_col_mid", packCRGB(colorHumMid));
+  p.putUInt("hum_col_hi",  packCRGB(colorHumHi));
+  p.putUChar("bat_thr_lo", batThreshLo);
+  p.putUChar("bat_thr_hi", batThreshHi);
+  p.putUInt("bat_col_lo",  packCRGB(colorBatLo));
+  p.putUInt("bat_col_mid", packCRGB(colorBatMid));
+  p.putUInt("bat_col_hi",  packCRGB(colorBatHi));
   p.end();
 }

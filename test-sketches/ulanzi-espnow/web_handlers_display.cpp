@@ -267,11 +267,11 @@ void registerDisplayHandlers() {
     snprintf(cbHi,  8, "#%02X%02X%02X", colorBatHi.r,   colorBatHi.g,   colorBatHi.b);
     snprintf(buf, sizeof(buf),
       "{\"clock\":\"%s\",\"poc\":\"%s\","
-      "\"t_thr_lo\":%.1f,\"t_thr_hi\":%.1f,"
+      "\"tmp_thr_lo\":%.1f,\"tmp_thr_hi\":%.1f,"
       "\"t_lo\":\"%s\",\"t_mid\":\"%s\",\"t_hi\":\"%s\","
-      "\"h_thr_lo\":%.1f,\"h_thr_hi\":%.1f,"
+      "\"hum_thr_lo\":%.1f,\"hum_thr_hi\":%.1f,"
       "\"h_lo\":\"%s\",\"h_mid\":\"%s\",\"h_hi\":\"%s\","
-      "\"b_thr_lo\":%d,\"b_thr_hi\":%d,"
+      "\"bat_thr_lo\":%d,\"bat_thr_hi\":%d,"
       "\"b_lo\":\"%s\",\"b_mid\":\"%s\",\"b_hi\":\"%s\"}",
       cClk, cPoc,
       tempThreshLo, tempThreshHi, ctLo, ctMid, ctHi,
@@ -291,18 +291,18 @@ void registerDisplayHandlers() {
     String v;
     v = webServer.arg("clock");    if (v.length()) colorClock   = hexToRgb(v, colorClock);
     v = webServer.arg("poc");      if (v.length()) colorPocsag  = hexToRgb(v, colorPocsag);
-    v = webServer.arg("t_thr_lo"); if (v.length()) tempThreshLo = v.toFloat();
-    v = webServer.arg("t_thr_hi"); if (v.length()) tempThreshHi = v.toFloat();
-    v = webServer.arg("t_lo");     if (v.length()) colorTempLo  = hexToRgb(v, colorTempLo);
-    v = webServer.arg("t_mid");    if (v.length()) colorTempMid = hexToRgb(v, colorTempMid);
-    v = webServer.arg("t_hi");     if (v.length()) colorTempHi  = hexToRgb(v, colorTempHi);
-    v = webServer.arg("h_thr_lo"); if (v.length()) humThreshLo  = v.toFloat();
-    v = webServer.arg("h_thr_hi"); if (v.length()) humThreshHi  = v.toFloat();
-    v = webServer.arg("h_lo");     if (v.length()) colorHumLo   = hexToRgb(v, colorHumLo);
-    v = webServer.arg("h_mid");    if (v.length()) colorHumMid  = hexToRgb(v, colorHumMid);
-    v = webServer.arg("h_hi");     if (v.length()) colorHumHi   = hexToRgb(v, colorHumHi);
-    v = webServer.arg("b_thr_lo"); if (v.length()) { int n = v.toInt(); if (n>=0&&n<=100) batThreshLo=(uint8_t)n; }
-    v = webServer.arg("b_thr_hi"); if (v.length()) { int n = v.toInt(); if (n>=0&&n<=100) batThreshHi=(uint8_t)n; }
+    v = webServer.arg("tmp_thr_lo"); if (v.length()) tempThreshLo = v.toFloat();
+    v = webServer.arg("tmp_thr_hi"); if (v.length()) tempThreshHi = v.toFloat();
+    v = webServer.arg("t_lo");       if (v.length()) colorTempLo  = hexToRgb(v, colorTempLo);
+    v = webServer.arg("t_mid");      if (v.length()) colorTempMid = hexToRgb(v, colorTempMid);
+    v = webServer.arg("t_hi");       if (v.length()) colorTempHi  = hexToRgb(v, colorTempHi);
+    v = webServer.arg("hum_thr_lo"); if (v.length()) humThreshLo  = v.toFloat();
+    v = webServer.arg("hum_thr_hi"); if (v.length()) humThreshHi  = v.toFloat();
+    v = webServer.arg("h_lo");       if (v.length()) colorHumLo   = hexToRgb(v, colorHumLo);
+    v = webServer.arg("h_mid");      if (v.length()) colorHumMid  = hexToRgb(v, colorHumMid);
+    v = webServer.arg("h_hi");       if (v.length()) colorHumHi   = hexToRgb(v, colorHumHi);
+    v = webServer.arg("bat_thr_lo"); if (v.length()) { int n = v.toInt(); if (n>=0&&n<=100) batThreshLo=(uint8_t)n; }
+    v = webServer.arg("bat_thr_hi"); if (v.length()) { int n = v.toInt(); if (n>=0&&n<=100) batThreshHi=(uint8_t)n; }
     v = webServer.arg("b_lo");     if (v.length()) colorBatLo   = hexToRgb(v, colorBatLo);
     v = webServer.arg("b_mid");    if (v.length()) colorBatMid  = hexToRgb(v, colorBatMid);
     v = webServer.arg("b_hi");     if (v.length()) colorBatHi   = hexToRgb(v, colorBatHi);

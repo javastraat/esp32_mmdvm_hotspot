@@ -675,18 +675,18 @@ function saveColors(){
 function saveThresholds(){
   fetch('/api/colors',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'t_thr_lo='+document.getElementById('t-thr-lo').value
-        +'&t_thr_hi='+document.getElementById('t-thr-hi').value
+    body:'tmp_thr_lo='+document.getElementById('t-thr-lo').value
+        +'&tmp_thr_hi='+document.getElementById('t-thr-hi').value
         +'&t_lo='+encodeURIComponent(document.getElementById('t-col-lo').value)
         +'&t_mid='+encodeURIComponent(document.getElementById('t-col-mid').value)
         +'&t_hi='+encodeURIComponent(document.getElementById('t-col-hi').value)
-        +'&h_thr_lo='+document.getElementById('h-thr-lo').value
-        +'&h_thr_hi='+document.getElementById('h-thr-hi').value
+        +'&hum_thr_lo='+document.getElementById('h-thr-lo').value
+        +'&hum_thr_hi='+document.getElementById('h-thr-hi').value
         +'&h_lo='+encodeURIComponent(document.getElementById('h-col-lo').value)
         +'&h_mid='+encodeURIComponent(document.getElementById('h-col-mid').value)
         +'&h_hi='+encodeURIComponent(document.getElementById('h-col-hi').value)
-        +'&b_thr_lo='+document.getElementById('b-thr-lo').value
-        +'&b_thr_hi='+document.getElementById('b-thr-hi').value
+        +'&bat_thr_lo='+document.getElementById('b-thr-lo').value
+        +'&bat_thr_hi='+document.getElementById('b-thr-hi').value
         +'&b_lo='+encodeURIComponent(document.getElementById('b-col-lo').value)
         +'&b_mid='+encodeURIComponent(document.getElementById('b-col-mid').value)
         +'&b_hi='+encodeURIComponent(document.getElementById('b-col-hi').value)
@@ -741,18 +741,18 @@ function testSs(){
   fetch('/api/colors').then(function(r){return r.json();}).then(function(d){
     if(d.clock)document.getElementById('col-clock').value=d.clock;
     if(d.poc)document.getElementById('col-poc').value=d.poc;
-    if(d.t_thr_lo!==undefined)document.getElementById('t-thr-lo').value=d.t_thr_lo;
-    if(d.t_thr_hi!==undefined)document.getElementById('t-thr-hi').value=d.t_thr_hi;
+    if(d.tmp_thr_lo!==undefined)document.getElementById('t-thr-lo').value=d.tmp_thr_lo;
+    if(d.tmp_thr_hi!==undefined)document.getElementById('t-thr-hi').value=d.tmp_thr_hi;
     if(d.t_lo)document.getElementById('t-col-lo').value=d.t_lo;
     if(d.t_mid)document.getElementById('t-col-mid').value=d.t_mid;
     if(d.t_hi)document.getElementById('t-col-hi').value=d.t_hi;
-    if(d.h_thr_lo!==undefined)document.getElementById('h-thr-lo').value=d.h_thr_lo;
-    if(d.h_thr_hi!==undefined)document.getElementById('h-thr-hi').value=d.h_thr_hi;
+    if(d.hum_thr_lo!==undefined)document.getElementById('h-thr-lo').value=d.hum_thr_lo;
+    if(d.hum_thr_hi!==undefined)document.getElementById('h-thr-hi').value=d.hum_thr_hi;
     if(d.h_lo)document.getElementById('h-col-lo').value=d.h_lo;
     if(d.h_mid)document.getElementById('h-col-mid').value=d.h_mid;
     if(d.h_hi)document.getElementById('h-col-hi').value=d.h_hi;
-    if(d.b_thr_lo!==undefined)document.getElementById('b-thr-lo').value=d.b_thr_lo;
-    if(d.b_thr_hi!==undefined)document.getElementById('b-thr-hi').value=d.b_thr_hi;
+    if(d.bat_thr_lo!==undefined)document.getElementById('b-thr-lo').value=d.bat_thr_lo;
+    if(d.bat_thr_hi!==undefined)document.getElementById('b-thr-hi').value=d.bat_thr_hi;
     if(d.b_lo)document.getElementById('b-col-lo').value=d.b_lo;
     if(d.b_mid)document.getElementById('b-col-mid').value=d.b_mid;
     if(d.b_hi)document.getElementById('b-col-hi').value=d.b_hi;
