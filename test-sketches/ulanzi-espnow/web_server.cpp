@@ -18,6 +18,7 @@
 #include "web/files.h"
 #include "web/serial.h"
 #include "web/mqtt.h"
+#include "web/pwa_icon.h"
 #include "serial_log.h"
 #include "mqtt.h"
 
@@ -59,6 +60,32 @@ static void setupWebServer() {
   webServer.on("/system", HTTP_GET, []() {
     webServer.send_P(200, "text/html", PAGE_SYSTEM);
   });
+
+  // ── Favicon / PWA assets ──────────────────────────────────────────────────
+
+  webServer.on("/favicon.ico", []() {
+    webServer.sendHeader("Cache-Control", "max-age=86400");
+    webServer.send_P(200, "image/svg+xml", PWA_ICON_SVG);
+  });
+
+  webServer.on("/apple-touch-icon.png", []() {
+    webServer.sendHeader("Cache-Control", "max-age=86400");
+    webServer.send_P(200, "image/png",
+      reinterpret_cast<const char*>(APPLE_TOUCH_ICON_PNG),
+      APPLE_TOUCH_ICON_PNG_LEN);
+  });
+
+  webServer.on("/pwa-icon.svg", []() {
+    webServer.sendHeader("Cache-Control", "max-age=86400");
+    webServer.send_P(200, "image/svg+xml", PWA_ICON_SVG);
+  });
+
+  webServer.on("/manifest.json", []() {
+    webServer.sendHeader("Cache-Control", "no-store");
+    webServer.send_P(200, "application/manifest+json", PWA_MANIFEST);
+  });
+
+  // ── Status / API ───────────────────────────────────────────────────────────
 
   webServer.on("/api/status", HTTP_GET, []() {
     char json[2500];
@@ -771,11 +798,9 @@ static void setupWebServer() {
     strncpy(mdnsName, v.c_str(), 31);
     mdnsName[31] = '\0';
     saveSettings();
-    MDNS.end();
-    MDNS.begin(mdnsName);
-    MDNS.addService("http", "tcp", 80);
-    ArduinoOTA.setHostname(mdnsName);
-    webServer.send(200, "application/json", "{\"ok\":true}");
+    // MDNS.end()/begin() is unreliable on ESP32 — reboot is required for the
+    // new name to take effect. WiFi.setHostname() also needs a reconnect.
+    webServer.send(200, "application/json", "{\"ok\":true,\"reboot\":true}");
   });
 
   webServer.on("/api/reboot", HTTP_POST, []() {

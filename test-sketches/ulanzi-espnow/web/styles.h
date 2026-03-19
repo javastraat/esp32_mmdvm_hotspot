@@ -98,8 +98,16 @@
   ".modal-buttons{display:flex;gap:8px;margin-top:16px}" \
   ".modal-buttons .btn{flex:1}"
 
-// Inline theme init — placed in <head> to prevent flash of unstyled content
+// Inline theme init — placed in <head> to prevent flash of unstyled content.
+// Also injects PWA/favicon meta tags so every page gets them automatically.
 #define THEME_INIT_SCRIPT \
+  "<meta name='theme-color' content='#1a1a1a'>" \
+  "<meta name='apple-mobile-web-app-capable' content='yes'>" \
+  "<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent'>" \
+  "<meta name='apple-mobile-web-app-title' content='Ulanzi'>" \
+  "<link rel='icon' type='image/svg+xml' href='/favicon.ico'>" \
+  "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>" \
+  "<link rel='manifest' href='/manifest.json'>" \
   "<script>(function(){" \
   "var t=localStorage.getItem('theme')||'dark';" \
   "document.documentElement.setAttribute('data-theme',t);" \

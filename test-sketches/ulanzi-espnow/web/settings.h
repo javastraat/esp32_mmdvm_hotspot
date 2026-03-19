@@ -595,10 +595,15 @@ function saveMdnsName(){
   fetch('/api/mdnsname',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name='+encodeURIComponent(v)})
   .then(function(r){return r.json();}).then(function(d){
     var s=document.getElementById('mdnsname-status');
-    s.textContent=d.ok?'Saved — reachable at '+v+'.local':'Error: '+(d.error||'?');
-    s.style.color=d.ok?'#4caf50':'#f44';
-    if(d.ok)document.getElementById('mdns-preview').textContent=v;
-    setTimeout(function(){s.textContent='';},3000);
+    if(d.ok){
+      document.getElementById('mdns-preview').textContent=v;
+      showConfirm('Saved. Reboot now for '+v+'.local to take effect?',
+        function(){fetch('/api/reboot',{method:'POST'}).catch(function(){});},
+        function(){s.textContent='Saved — reboot required';s.style.color='#ffc107';setTimeout(function(){s.textContent='';},4000);}
+      );
+    } else {
+      s.textContent='Error: '+(d.error||'?');s.style.color='#f44';
+    }
   }).catch(function(){});
 }
 function saveBootName(){

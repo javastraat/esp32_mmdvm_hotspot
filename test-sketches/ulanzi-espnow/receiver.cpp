@@ -188,6 +188,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 static void setupReceiverNetwork() {
   WiFi.mode(WIFI_STA);
   if (strlen(WIFI_SSID) > 0) {
+    WiFi.setHostname(mdnsName);  // must be set before begin() for DHCP + mDNS
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     LOG("[WiFi] Connecting to %s ", WIFI_SSID);
     unsigned long t = millis();
