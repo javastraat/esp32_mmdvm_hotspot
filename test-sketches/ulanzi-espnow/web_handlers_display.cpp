@@ -226,7 +226,7 @@ void registerDisplayHandlers() {
     if (v.length()) { strncpy(screensaverFile, v.c_str(), 63); screensaverFile[63] = '\0'; }
     v = webServer.arg("brightness");
     if (v.length()) screensaverBrightness = (int16_t)constrain(v.toInt(), -2, 255);
-    if (!screensaverEnabled) screensaverActive = false;
+    if (!screensaverEnabled) resetScreensaverIdle();  // restores main brightness if ss was active
     saveSettings();
     mqttNotifyState();
     webServer.send(200, "application/json", "{\"ok\":true}");

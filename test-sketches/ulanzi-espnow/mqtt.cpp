@@ -461,7 +461,7 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
   // ── Screensaver ─────────────────────────────────────────────────────────────
   } else if (sub == "switch/screensaver/set") {
     screensaverEnabled = (strcmp(val, "ON") == 0);
-    if (screensaverEnabled) resetScreensaverIdle();
+    resetScreensaverIdle();  // restores main brightness if ss was active; resets idle timer
     saveSettings();
     _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
     LOG("[MQTT] screensaver → %s\n", val);
