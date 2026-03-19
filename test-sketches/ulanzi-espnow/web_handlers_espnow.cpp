@@ -5,6 +5,23 @@
 
 void registerEspNowHandlers() {
 
+  webServer.on("/api/espnow/modes", HTTP_GET, []() {
+    char buf[128];
+    snprintf(buf, sizeof(buf),
+      "{\"pocsag\":%s,\"dmr\":%s,\"espnow2\":%s}",
+      recvPocsagEnabled ? "true" : "false",
+      "false",   // RECV_DMR compile-time disabled
+      "false");  // RECV_ESPNOW2 not yet implemented
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/espnow/modes", HTTP_POST, []() {
+    if (webServer.hasArg("pocsag"))
+      recvPocsagEnabled = (webServer.arg("pocsag") == "1");
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/espnow", HTTP_GET, []() {
     // Build excluded RICs JSON array
     String excl = "[";

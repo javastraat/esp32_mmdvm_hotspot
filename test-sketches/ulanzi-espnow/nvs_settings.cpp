@@ -37,6 +37,8 @@ void loadSettings() {
   { String s = p.getString("mqtt_ha_name", ""); s.trim(); strncpy(mqttHaName, s.c_str(), 31); mqttHaName[31] = '\0'; }
   { String s = p.getString("boot_name", "ULANZI"); s.trim(); s.toUpperCase(); strncpy(bootName, s.c_str(), 8); bootName[8] = '\0'; }
   { String s = p.getString("mdns_name", MDNS_HOSTNAME); s.trim(); s.toLowerCase(); strncpy(mdnsName, s.c_str(), 31); mdnsName[31] = '\0'; }
+  // Protocol mode
+  recvPocsagEnabled = p.getBool("recv_pocsag", true);
   // POCSAG RIC settings
   timePocRic  = p.getUInt("time_ric",  TIME_POCSAG_RIC);
   callsignRic = p.getUInt("call_ric",  CALLSIGN_RIC);
@@ -113,6 +115,8 @@ void saveSettings() {
   // Device name + mDNS hostname
   p.putString("boot_name", bootName);
   p.putString("mdns_name", mdnsName);
+  // Protocol mode
+  p.putBool("recv_pocsag", recvPocsagEnabled);
   // POCSAG RIC settings
   p.putUInt("time_ric",  timePocRic);
   p.putUInt("call_ric",  callsignRic);

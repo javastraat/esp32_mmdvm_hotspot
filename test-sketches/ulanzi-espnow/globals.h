@@ -153,6 +153,10 @@ extern bool          iconPreviewActive;
 extern char          iconPreviewFile[32];
 extern unsigned long iconPreviewUntil;
 
+// ── ESP-NOW protocol mode (runtime enable) ───────────────────────────────────
+
+extern bool recvPocsagEnabled;  // POCSAG processing on/off at runtime
+
 // ── ESP-NOW / POCSAG RIC settings ────────────────────────────────────────────
 
 #define EXCLUDED_RICS_MAX 16

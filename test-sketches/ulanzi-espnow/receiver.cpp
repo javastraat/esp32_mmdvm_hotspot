@@ -62,8 +62,11 @@ static void applyPocsagTime(const char* msg) {
 
 // Runs on Core 1 (loop()) after being dequeued from pocsagRxQueue.
 void processPocsagPacket(const EspNowPocsagPacket& pkt) {
+  // Always sync time even when POCSAG display is disabled
   if (pkt.ric == timePocRic)
     applyPocsagTime(pkt.message);
+
+  if (!recvPocsagEnabled) return;
 
   bool excluded = false;
   for (int i = 0; i < excludedRicsCount; i++)

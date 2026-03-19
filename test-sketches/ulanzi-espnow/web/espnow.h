@@ -62,12 +62,55 @@ static const char PAGE_ESPNOW[] PROGMEM =
     </div>
   </div>
 
-  <!-- Card 2: placeholder -->
+  <!-- Card 2: Protocol Modes -->
   <div class="card">
-    <h3>Card 2</h3>
-    <div style="color:var(--text-muted);font-size:.88em;padding:12px 0">
-      Coming soon&hellip;
+    <h3>Protocol Modes</h3>
+
+    <!-- POCSAG — active -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div>
+        <div style="font-weight:600;font-size:.92em">POCSAG</div>
+        <div style="font-size:.78em;color:var(--text-muted)">POCSAG pages via ESP-NOW</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tog-pocsag" onchange="saveMode()">
+        <span class="slider"></span>
+      </label>
     </div>
+
+    <!-- DMR — disabled (compile-time off) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:8px 0;border-bottom:1px solid var(--border-color);opacity:.4">
+      <div>
+        <div style="font-weight:600;font-size:.92em">DMR</div>
+        <div style="font-size:.78em;color:var(--text-muted)">Raw DMRD Homebrew via ESP-NOW</div>
+      </div>
+      <label class="switch" style="pointer-events:none">
+        <input type="checkbox" disabled>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- ESP-NOW v2 — disabled (coming soon) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:8px 0;opacity:.4">
+      <div>
+        <div style="font-weight:600;font-size:.92em">
+          ESP-NOW v2
+          <span style="font-size:.72em;background:#555;color:#ccc;
+                       border-radius:3px;padding:1px 5px;margin-left:5px;
+                       vertical-align:middle">soon</span>
+        </div>
+        <div style="font-size:.78em;color:var(--text-muted)">Extended v2 protocol — coming soon</div>
+      </div>
+      <label class="switch" style="pointer-events:none">
+        <input type="checkbox" disabled>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div id="mode-status" style="font-size:.82em;color:#4caf50;min-height:1.2em;padding-top:6px"></div>
   </div>
 
   <!-- Card 3: placeholder -->
@@ -84,17 +127,30 @@ static const char PAGE_ESPNOW[] PROGMEM =
   R"html(
 <script>
 (function init(){
-  fetch('/api/espnow').then(function(r){return r.json();}).then(function(d){
-    document.getElementById('h1').textContent='ESP-NOW';
-    document.getElementById('time-ric').value=d.time_ric||224;
-    document.getElementById('call-ric').value=d.call_ric||8;
-    document.getElementById('excl-rics').value=(d.excl_rics||[]).join(',');
-  }).catch(function(){});
   fetch('/api/status').then(function(r){return r.json();}).then(function(d){
     document.getElementById('h1').textContent=d.hostname;
     document.getElementById('sub').textContent=d.ip;
   }).catch(function(){});
+  fetch('/api/espnow').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('time-ric').value=d.time_ric||224;
+    document.getElementById('call-ric').value=d.call_ric||8;
+    document.getElementById('excl-rics').value=(d.excl_rics||[]).join(',');
+  }).catch(function(){});
+  fetch('/api/espnow/modes').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('tog-pocsag').checked=d.pocsag;
+  }).catch(function(){});
 })();
+function saveMode(){
+  var body='pocsag='+(document.getElementById('tog-pocsag').checked?1:0);
+  fetch('/api/espnow/modes',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('mode-status');
+    s.textContent=d.ok?'Saved \u2714':'Error';
+    s.style.color=d.ok?'#4caf50':'#dc3545';
+    setTimeout(function(){s.textContent='';},2000);
+  }).catch(function(){});
+}
 function saveRics(){
   var excl=document.getElementById('excl-rics').value
     .replace(/[^0-9,]/g,'').replace(/,+/g,',').replace(/^,|,$/g,'');

@@ -3,8 +3,9 @@
 // ============================================================
 // Protocol modes — enable one or both (at least one required)
 // ============================================================
-#define RECV_DMR    false   // receive raw DMRD Homebrew packets via ESP-NOW
-#define RECV_POCSAG true    // receive POCSAG pages via ESP-NOW
+#define RECV_DMR      false  // receive raw DMRD Homebrew packets via ESP-NOW
+#define RECV_POCSAG   true   // receive POCSAG pages via ESP-NOW
+#define RECV_ESPNOW2  false  // ESP-NOW v2 protocol — coming soon
 
 
 // ============================================================

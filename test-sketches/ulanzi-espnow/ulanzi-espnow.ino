@@ -132,6 +132,9 @@ bool          iconPreviewActive = false;
 char          iconPreviewFile[32] = "";
 unsigned long iconPreviewUntil    = 0;
 
+// ESP-NOW protocol mode
+bool recvPocsagEnabled = true;
+
 // ESP-NOW / POCSAG RIC settings (runtime, overridable via web)
 uint32_t timePocRic       = TIME_POCSAG_RIC;
 uint32_t callsignRic      = CALLSIGN_RIC;
