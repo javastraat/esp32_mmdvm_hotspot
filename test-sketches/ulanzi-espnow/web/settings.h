@@ -184,73 +184,69 @@ static const char PAGE_SETTINGS[] PROGMEM =
   <!-- Icons -->
   <div class="card">
     <h3>Icons</h3>
-    <div class="metric">
-      <span class="metric-label" style="flex-shrink:0;width:68px">Temp</span>
-      <select id="icon-temp" onchange="onIconChange('icon-temp','prev-temp')"
-              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
-                     color:var(--text-color);border:1px solid var(--border-color);
-                     border-radius:4px;font-size:.88em">
-        <option value="">(none)</option>
-      </select>
-      <img id="prev-temp" src="" alt=""
-           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
-                  border-radius:2px;display:none">
-      <button onclick="showIcon('icon-temp')"
-              style="background:#444;color:#fff;border:none;padding:4px 10px;
-                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
-        Show
-      </button>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Temp</span>
+        <img id="prev-temp" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-temp" onchange="onIconChange('icon-temp','prev-temp')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-temp')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
     </div>
-    <div class="metric">
-      <span class="metric-label" style="flex-shrink:0;width:68px">Humidity</span>
-      <select id="icon-hum" onchange="onIconChange('icon-hum','prev-hum')"
-              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
-                     color:var(--text-color);border:1px solid var(--border-color);
-                     border-radius:4px;font-size:.88em">
-        <option value="">(none)</option>
-      </select>
-      <img id="prev-hum" src="" alt=""
-           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
-                  border-radius:2px;display:none">
-      <button onclick="showIcon('icon-hum')"
-              style="background:#444;color:#fff;border:none;padding:4px 10px;
-                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
-        Show
-      </button>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Humidity</span>
+        <img id="prev-hum" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-hum" onchange="onIconChange('icon-hum','prev-hum')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-hum')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
     </div>
-    <div class="metric">
-      <span class="metric-label" style="flex-shrink:0;width:68px">Battery</span>
-      <select id="icon-bat" onchange="onIconChange('icon-bat','prev-bat')"
-              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
-                     color:var(--text-color);border:1px solid var(--border-color);
-                     border-radius:4px;font-size:.88em">
-        <option value="">(none)</option>
-      </select>
-      <img id="prev-bat" src="" alt=""
-           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
-                  border-radius:2px;display:none">
-      <button onclick="showIcon('icon-bat')"
-              style="background:#444;color:#fff;border:none;padding:4px 10px;
-                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
-        Show
-      </button>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Battery</span>
+        <img id="prev-bat" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-bat" onchange="onIconChange('icon-bat','prev-bat')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-bat')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
     </div>
-    <div class="metric" style="border-bottom:none">
-      <span class="metric-label" style="flex-shrink:0;width:68px">POCSAG</span>
-      <select id="icon-poc" onchange="onIconChange('icon-poc','prev-poc')"
-              style="flex:1;padding:4px 6px;background:var(--bg-secondary);
-                     color:var(--text-color);border:1px solid var(--border-color);
-                     border-radius:4px;font-size:.88em">
-        <option value="">(none)</option>
-      </select>
-      <img id="prev-poc" src="" alt=""
-           style="height:28px;width:auto;image-rendering:pixelated;margin-left:6px;
-                  border-radius:2px;display:none">
-      <button onclick="showIcon('icon-poc')"
-              style="background:#444;color:#fff;border:none;padding:4px 10px;
-                     border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0;margin-left:6px">
-        Show
-      </button>
+    <div style="padding:8px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">POCSAG</span>
+        <img id="prev-poc" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-poc" onchange="onIconChange('icon-poc','prev-poc')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-poc')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
     </div>
     <div id="icon-no-files" style="display:none;font-size:.82em;padding:4px 0 8px">
       No icons found in /icons/ &mdash; <a href="/files" style="color:#00bcd4">go to Files</a> to upload.
@@ -353,7 +349,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
       <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Boot screen name (max 8 chars)</div>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="text" id="boot-name" maxlength="8"
-               style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em;text-transform:uppercase;letter-spacing:.1em"
+               style="flex:1;min-width:0;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em;text-transform:uppercase;letter-spacing:.1em"
                oninput="this.value=this.value.toUpperCase()">
         <button onclick="saveBootName()" class="btn btn-info">Save</button>
       </div>
@@ -363,7 +359,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
       <div style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">Hostname — web &amp; OTA (<span id="mdns-preview">ulanzi</span>.local)</div>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="text" id="mdns-name" maxlength="31"
-               style="flex:1;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
+               style="flex:1;min-width:0;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;font-size:1em"
                oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');document.getElementById('mdns-preview').textContent=this.value||'ulanzi'">
         <button onclick="saveMdnsName()" class="btn btn-info">Save</button>
       </div>
