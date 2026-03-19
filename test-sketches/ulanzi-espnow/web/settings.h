@@ -99,19 +99,19 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
-  <!-- Display Rotation -->
+  <!-- Rotate Screens -->
   <div class="card">
-    <h3>Display Rotation</h3>
+    <h3>Rotate Screens</h3>
     <div style="padding:6px 0;border-bottom:1px solid var(--border-color)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span class="metric-label">Auto-cycle screens</span>
+        <span class="metric-label">Rotate Screens</span>
         <label class="switch">
           <input type="checkbox" id="tog-rot" onchange="onRotateChange()">
           <span class="slider"></span>
         </label>
       </div>
       <div class="bright-bot">
-        <span class="metric-label" style="white-space:nowrap;flex-shrink:0">Speed</span>
+        <span class="metric-label" style="white-space:nowrap;flex-shrink:0">Rotate Interval</span>
         <input type="range" id="sld-rot" min="1" max="60" value="5"
                oninput="document.getElementById('rot-num').textContent=this.value+'s'"
                onchange="onRotateChange()">

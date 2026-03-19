@@ -274,7 +274,7 @@ static void _publishAllDiscovery() {
   _discSwitch("debug_log", "Debug Log");
 
   // ── Display rotation ───────────────────────────────────────────────────────
-  _discSwitch("auto_rotate",          "Auto Rotate");
+  _discSwitch("auto_rotate",          "Rotate Screens");
   _discNumber("auto_rotate_interval", "Rotate Interval", 1, 60, 1);
 
   // ── Screensaver ────────────────────────────────────────────────────────────
