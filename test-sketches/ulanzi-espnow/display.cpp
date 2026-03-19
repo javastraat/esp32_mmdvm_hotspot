@@ -24,31 +24,6 @@ static const uint8_t FONT_DIGITS[10][5] = {
   {0b111, 0b101, 0b111, 0b001, 0b111}  // 9
 };
 
-// 3×5 bitmaps for the letters in "UPDATE"
-static const uint8_t FONT_UPDATE[6][5] = {
-  {0b101, 0b101, 0b101, 0b101, 0b111}, // U
-  {0b111, 0b101, 0b111, 0b100, 0b100}, // P
-  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
-  {0b111, 0b101, 0b111, 0b101, 0b101}, // A
-  {0b111, 0b010, 0b010, 0b010, 0b010}, // T
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-};
-
-// Additional 3×5 bitmaps for "DONE" and "ERR"
-static const uint8_t FONT_DONE[4][5] = {
-  {0b110, 0b101, 0b101, 0b101, 0b110}, // D
-  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
-  {0b101, 0b111, 0b101, 0b101, 0b101}, // N
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-};
-
-static const uint8_t FONT_ERROR[5][5] = {
-  {0b111, 0b100, 0b111, 0b100, 0b111}, // E
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-  {0b111, 0b101, 0b101, 0b101, 0b111}, // O
-  {0b111, 0b101, 0b111, 0b110, 0b101}, // R
-};
 
 // 3×5 font for A–Z
 static const uint8_t FONT_ALPHA[26][5] = {
@@ -80,39 +55,6 @@ static const uint8_t FONT_ALPHA[26][5] = {
   {0b111,0b001,0b010,0b100,0b111}, // Z
 };
 
-// 3×5 thermometer icon (temperature)
-static const uint8_t ICON_THERMO[5] = {0b010, 0b010, 0b011, 0b111, 0b111};
-
-// 5×5 bell icon — POCSAG message fallback
-static const uint8_t ICON_MSG[5] = {
-  0b00100,  // stem
-  0b01110,  // bell top
-  0b01110,  // bell body
-  0b11111,  // bell base
-  0b00100,  // clapper
-};
-
-// 5×8 water drop icon, full matrix height (humidity)
-// bit 4 = leftmost column, bit 0 = rightmost column
-static const uint8_t ICON_DROP[8] = {
-  0b00100,  // row 0 — tip
-  0b00100,  // row 1 — tip
-  0b01110,  // row 2 — shoulder
-  0b11111,  // row 3 — body
-  0b11111,  // row 4 — body
-  0b11111,  // row 5 — body
-  0b11111,  // row 6 — body
-  0b01110,  // row 7 — rounded base
-};
-
-// 6×5 battery outline icon (battery level); interior cols 1–3, rows 1–3 filled by level
-static const uint8_t ICON_BAT[5] = {
-  0b111110,  // row 0 — top border
-  0b100011,  // row 1 — left border + right terminal bump
-  0b100011,  // row 2
-  0b100011,  // row 3
-  0b111110,  // row 4 — bottom border
-};
 
 // 3×5 bitmaps for punctuation/symbols found in POCSAG messages
 // ~ is used as a degree symbol (°) in the temperature format string
@@ -210,6 +152,42 @@ static bool _gifEnsureOpen(const char* path) {
 
 void setupDisplay() {
   _gif.begin(LITTLE_ENDIAN_PIXELS);  // set pixel byte order once at boot
+}
+
+// ============================================================
+// Indicators — 3 status dots on the right edge (AWTRIX3 style)
+// Pixel layout (serpentine 32×8 matrix):
+//   Ind1 top:    (31,0) (30,0) (31,1)   — WiFi
+//   Ind2 middle: (31,3) (31,4)           — POCSAG 10 s flash
+//   Ind3 bottom: (31,6) (31,7) (30,7)   — MQTT
+// Called just before every FastLED.show() inside loopDisplay().
+// ============================================================
+
+void drawIndicators() {
+  if (!indicatorsEnabled) return;
+
+  // Ind1 — WiFi: green = connected, red blink = disconnected
+  static bool          ind1Blink = false;
+  static unsigned long ind1Last  = 0;
+  if (millis() - ind1Last >= 500) { ind1Blink = !ind1Blink; ind1Last = millis(); }
+  bool wifiOk = (WiFi.status() == WL_CONNECTED);
+  CRGB c1 = wifiOk ? CRGB(0, 180, 0) : (ind1Blink ? CRGB(200, 0, 0) : CRGB::Black);
+  setLED(31, 0, c1); setLED(30, 0, c1); setLED(31, 1, c1);
+
+  // Ind2 — POCSAG: 10 s orange blink after message finishes on display
+  static bool          ind2Blink = false;
+  static unsigned long ind2Last  = 0;
+  if (millis() - ind2Last >= 500) { ind2Blink = !ind2Blink; ind2Last = millis(); }
+  CRGB c2 = (millis() < pocsagIndicatorUntil)
+              ? (ind2Blink ? CRGB(255, 100, 0) : CRGB::Black)
+              : CRGB::Black;
+  setLED(31, 3, c2); setLED(31, 4, c2);
+
+  // Ind3 — MQTT: cyan = connected, red = disconnected (hidden when disabled)
+  CRGB c3 = CRGB::Black;
+  if (mqttEnabled)
+    c3 = mqttIsConnected() ? CRGB(0, 200, 200) : CRGB(200, 0, 0);
+  setLED(31, 6, c3); setLED(31, 7, c3); setLED(30, 7, c3);
 }
 
 void _gifCloseIfOpen() {
@@ -336,29 +314,28 @@ static void drawTime(int h, int m, int s, CRGB color) {
   drawDigit(xo + 24, yo, s % 10, color);
 }
 
-// Internal: render glyphs only — no clear/show
-static void _drawGlyphs(const uint8_t glyphs[][5], int count, CRGB color, int xo, int yo) {
-  for (int i = 0; i < count; i++)
-    for (int row = 0; row < 5; row++)
-      for (int col = 0; col < 3; col++)
-        if (glyphs[i][row] & (1 << (2 - col)))
-          setLED(xo + i * 4 + col, yo + row, color);
-}
-
-static void drawStatusWord(const uint8_t glyphs[][5], int count, CRGB color) {
+static void drawStatusWord(const char* word, CRGB color) {
+  int len   = strlen(word);
+  int width = len * 4 - 1;
+  int xo    = (MATRIX_WIDTH  - width + 1) / 2;
+  int yo    = (MATRIX_HEIGHT - 5)         / 2;
   FastLED.clear();
-  int width = count * 4 - 1;
-  _drawGlyphs(glyphs, count, color, (MATRIX_WIDTH - width + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
+  for (int i = 0; i < len; i++)
+    drawChar(xo + i * 4, yo, word[i], color);
   FastLED.show();
 }
 
 // drawUpdate: called once on OTA start — sets text + full dim track on row 7
 void drawUpdate() {
+  const char* word = "UPDATE";
+  int len   = 6;
+  int xo    = (MATRIX_WIDTH  - (len * 4 - 1) + 1) / 2;
+  int yo    = (MATRIX_HEIGHT - 5)                  / 2;
   FastLED.clear();
-  _drawGlyphs(FONT_UPDATE, 6, LED_COLOR_TIME,
-              (MATRIX_WIDTH - 23 + 1) / 2, (MATRIX_HEIGHT - 5) / 2);
+  for (int i = 0; i < len; i++)
+    drawChar(xo + i * 4, yo, word[i], LED_COLOR_TIME);
   for (int x = 0; x < MATRIX_WIDTH; x++)
-    setLED(x, 7, CRGB(0, 25, 25));  // dim track, row 7 only
+    setLED(x, 7, CRGB(0, 25, 25));  // dim progress track, row 7
   FastLED.show();
 }
 
@@ -369,8 +346,8 @@ void drawProgress(int barW) {
   FastLED.show();
 }
 
-void drawDone()   { drawStatusWord(FONT_DONE,  4, CRGB::Green); }
-void drawError()  { drawStatusWord(FONT_ERROR, 5, CRGB::Red);   }
+void drawDone()   { drawStatusWord("DONE",  CRGB::Green); }
+void drawError()  { drawStatusWord("ERROR", CRGB::Red);   }
 
 // Boot screen — device name in rainbow colours, letters appear one by one.
 void drawBootScreen() {
@@ -545,13 +522,8 @@ void loopDisplay() {
         int gifDelay = 500;
         int textX = drawIcon(iconPocsagFile, &gifDelay);
         if (textX == ICON_DRAW_FAILED) {
-          // Bitmap fallback: 5×5 bell icon at x=0
-          for (int row = 0; row < 5; row++)
-            for (int col = 0; col < 5; col++)
-              if (ICON_MSG[row] & (1 << (4 - col)))
-                setLED(col, yo + row, colorPocsag);
-          textX = 6;
           gifDelay = 500;
+          textX = 0;
         }
         _pocsagStaticGifDelay = max(gifDelay, 50);
         // Center text in the space to the right of the icon
@@ -560,61 +532,59 @@ void loopDisplay() {
         int xo = textX + max(0, (availW - textW) / 2);
         for (int i = 0; i < pocsagMsgLen; i++)
           drawChar(xo + i * 4, yo, pocsagMsg[i], colorPocsag);
+        drawIndicators();
         FastLED.show();
         pocsagStaticLastDraw = millis();
         if (first) LOG("[DISP] POCSAG '%s'\n", pocsagMsg);
       }
       if (millis() >= pocsagStaticUntil) {
-        pocsagMsgActive      = false;
-        screensaverIdleStart = millis();  // restart idle countdown after message
+        pocsagMsgActive       = false;
+        screensaverIdleStart  = millis();  // restart idle countdown after message
+        pocsagIndicatorUntil  = millis() + 10000;  // blink Ind2 for 10 s after display ends
       }
     } else {
-      // Scroll: icon pinned at x=0, text scrolls across the full matrix width
+      // Scroll: icon pinned at x=0 (if present), text scrolls across matrix
       if (millis() - pocsagScrollLast < POCSAG_SCROLL_SPEED_MS) return;
       pocsagScrollLast = millis();
 
-      // One-time setup on first scroll frame: clear icon area + reset gif timing
-      static bool          _scrollFirst       = true;
-      static unsigned long _scrollNextGifMs   = 0;
+      static bool          _scrollFirst     = true;
+      static unsigned long _scrollNextGifMs = 0;
+      static bool          _scrollHasIcon   = false;
       if (_scrollFirst) {
-        for (int x = 0; x < POCSAG_ICON_RESERVED_PX - 1; x++)
-          for (int y = 0; y < MATRIX_HEIGHT; y++)
-            setLED(x, y, CRGB::Black);
-        _scrollNextGifMs = 0;  // force immediate first icon draw
+        _scrollNextGifMs = 0;  // force icon probe on first frame
         _scrollFirst = false;
       }
 
-      // Clear only text area + gap pixel; icon area preserved between GIF frames
-      for (int x = POCSAG_ICON_RESERVED_PX - 1; x < MATRIX_WIDTH; x++)
-        for (int y = 0; y < MATRIX_HEIGHT; y++)
-          setLED(x, y, CRGB::Black);
-
-      // Advance icon frame only when the GIF's own delay has elapsed
+      // Advance icon frame only when GIF delay has elapsed; track whether icon is present
       if (millis() >= _scrollNextGifMs) {
         int gifDelay = 100;
         int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
+        _scrollHasIcon = (textX != ICON_DRAW_FAILED);
         _scrollNextGifMs = millis() + max(gifDelay, 33);
-        if (textX == ICON_DRAW_FAILED) {
-          for (int row = 0; row < 5; row++)
-            for (int col = 0; col < 5; col++)
-              if (ICON_MSG[row] & (1 << (4 - col)))
-                setLED(col, yo + row, colorPocsag);
-        }
       }
 
-      // Draw text clipped to x >= POCSAG_ICON_RESERVED_PX — text scrolls behind icon
+      // Clear text area; preserve icon area only when icon is present
+      int clearFrom = _scrollHasIcon ? POCSAG_ICON_RESERVED_PX - 1 : 0;
+      for (int x = clearFrom; x < MATRIX_WIDTH; x++)
+        for (int y = 0; y < MATRIX_HEIGHT; y++)
+          setLED(x, y, CRGB::Black);
+
+      // Draw scrolling text; clip behind icon if present, full width if not
+      int clipFrom = _scrollHasIcon ? POCSAG_ICON_RESERVED_PX : 0;
       for (int i = 0; i < pocsagMsgLen; i++) {
         int cx = pocsagScrollX + i * 4;
-        if (cx >= POCSAG_ICON_RESERVED_PX)
+        if (cx >= clipFrom)
           drawChar(cx, yo, pocsagMsg[i], colorPocsag);
       }
 
+      drawIndicators();
       FastLED.show();
       pocsagScrollX--;
       if (pocsagScrollX < -(pocsagMsgLen * 4)) {
         if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES) {
           pocsagMsgActive      = false;
           screensaverIdleStart = millis();
+          pocsagIndicatorUntil = millis() + 10000;  // blink Ind2 for 10 s after scroll ends
           _scrollFirst         = true;   // reset for next message
         } else {
           pocsagScrollX = MATRIX_WIDTH;
@@ -633,6 +603,7 @@ void loopDisplay() {
     FastLED.clear();
     for (int i = 0; i < ipScrollLen; i++)
       drawChar(ipScrollX + i * 4, yo, ipScrollMsg[i], CRGB(0, 220, 120));
+    drawIndicators();
     FastLED.show();
     ipScrollX--;
     if (ipScrollX < -(ipScrollLen * 4)) {
@@ -663,6 +634,7 @@ void loopDisplay() {
         FastLED.clear();
         int gifDelay = 500;
         drawIcon(iconPreviewFile, &gifDelay, 0);
+        drawIndicators();
         FastLED.show();
         nextPreviewFrame = millis() + max(gifDelay, 33);
       }
@@ -679,6 +651,7 @@ void loopDisplay() {
         _gifY0 = 0;
         int delay = 100;
         int r = _gif.playFrame(false, &delay);
+        drawIndicators();
         FastLED.show();
         nextSsFrame = millis() + max(delay, 33);
         if (r < 0) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; screensaverActive = false; }
@@ -721,6 +694,7 @@ void loopDisplay() {
         for (int y = 0; y < MATRIX_HEIGHT; y++) setLED(x, y, col);
       }
     }
+    drawIndicators();
     FastLED.show();
 
     scanPos += scanDir;
@@ -798,6 +772,7 @@ void loopDisplay() {
         drawChar(textX + i * 4, yo, buf[i], color);
     }
 
+    drawIndicators();
     FastLED.show();
     nextDraw = millis() + gifDelay;
     return;
@@ -839,6 +814,7 @@ void loopDisplay() {
     }
     for (int i = 0; i < len; i++)
       drawChar(textX + i * 4, yo, buf[i], color);
+    drawIndicators();
     FastLED.show();
     nextBatDraw = millis() + gifDelay;
     return;
@@ -854,5 +830,6 @@ void loopDisplay() {
 
   FastLED.clear();
   drawTime(t.tm_hour, t.tm_min, t.tm_sec, colorClock);
+  drawIndicators();
   FastLED.show();
 }

@@ -175,6 +175,20 @@ void registerDisplayHandlers() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/indicators", HTTP_GET, []() {
+    char buf[48];
+    snprintf(buf, sizeof(buf), "{\"enabled\":%s}", indicatorsEnabled ? "true" : "false");
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/indicators", HTTP_POST, []() {
+    String v = webServer.arg("enabled");
+    if (v.length()) indicatorsEnabled = (v == "1" || v == "true");
+    saveSettings();
+    mqttNotifyState();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/leds", HTTP_GET, []() {
     char hex[NUM_LEDS * 6 + 1];
     for (int i = 0; i < NUM_LEDS; i++)

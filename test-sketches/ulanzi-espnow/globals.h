@@ -191,6 +191,11 @@ extern unsigned long callStart;
 extern uint32_t rxTotalPocsag;
 #endif
 
+// ── Indicators (AWTRIX3-style right-edge status dots) ────────────────────────
+
+extern bool          indicatorsEnabled;
+extern unsigned long pocsagIndicatorUntil;  // millis() until POCSAG indicator clears
+
 // ── Display colors ────────────────────────────────────────────────────────────
 
 extern CRGB    colorClock;

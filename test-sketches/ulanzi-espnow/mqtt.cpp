@@ -241,6 +241,9 @@ static void _publishAllDiscovery() {
   _discSwitch("screensaver",         "Screensaver");
   _discNumber("screensaver_timeout", "Screensaver Timeout", 10, 3600, 10);
 
+  // ── Indicators ─────────────────────────────────────────────────────────────
+  _discSwitch("indicators", "Indicators");
+
   // ── Display mode (read-only: shows active screen) ──────────────────────────
   _discSensor("display_mode", "Display Mode", "", "");
 
@@ -311,6 +314,9 @@ static void _publishState() {
   // Screensaver
   _pubStr("switch", "screensaver", screensaverEnabled ? "ON" : "OFF");
   snprintf(tmp, sizeof(tmp), "%d", screensaverTimeoutSec); _pubStr("number", "screensaver_timeout", tmp);
+
+  // Indicators
+  _pubStr("switch", "indicators", indicatorsEnabled ? "ON" : "OFF");
 
   // Display mode (sensor — read-only, reflects active screen)
   const char* modeStr;
@@ -471,6 +477,13 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     }
 
   // ── Buttons ─────────────────────────────────────────────────────────────────
+  // ── Indicators ──────────────────────────────────────────────────────────────
+  } else if (sub == "switch/indicators/set") {
+    indicatorsEnabled = (strcmp(val, "ON") == 0);
+    saveSettings();
+    _pubStr("switch", "indicators", indicatorsEnabled ? "ON" : "OFF");
+    LOG("[MQTT] indicators → %s\n", val);
+
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {
     LOG("[MQTT] Reboot via HA\n");
     delay(300);

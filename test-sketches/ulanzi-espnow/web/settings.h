@@ -358,6 +358,28 @@ static const char PAGE_SETTINGS[] PROGMEM =
     </div>
   </div>
 
+  <!-- Indicators -->
+  <div class="card">
+    <h3>Indicators</h3>
+    <div class="metric" style="margin-bottom:10px">
+      <div>
+        <span class="metric-label">Show status dots</span>
+        <div style="font-size:.75em;color:var(--text-muted);margin-top:2px">
+          3 pixels on the right edge: WiFi · POCSAG · MQTT
+        </div>
+      </div>
+      <label class="switch" style="margin-left:12px;flex-shrink:0">
+        <input type="checkbox" id="tog-ind" onchange="setIndicators(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="font-size:.78em;color:var(--text-muted);line-height:1.6">
+      <div><span style="color:#00b400">&#9679;</span> WiFi connected &nbsp;/&nbsp; <span style="color:#c80000">&#9679; blink</span> disconnected</div>
+      <div><span style="color:#ff6400">&#9679;</span> POCSAG received — 10 s flash</div>
+      <div><span style="color:#00c8c8">&#9679;</span> MQTT connected &nbsp;/&nbsp; <span style="color:#c80000">&#9679;</span> disconnected</div>
+    </div>
+  </div>
+
   <!-- System Actions -->
   <div class="card">
     <h3>System</h3>
@@ -569,6 +591,12 @@ function doFactoryReset(){
     });
   });
 }
+function setIndicators(val){
+  fetch('/api/indicators',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'enabled='+(val?1:0)
+  }).catch(function(){});
+}
 function setDebugLog(val){
   fetch('/api/debug',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({debug:val})}).catch(function(){});
@@ -712,6 +740,9 @@ function testSs(){
       document.getElementById('mdns-name').value=d.name;
       document.getElementById('mdns-preview').textContent=d.name;
     }
+  }).catch(function(){});
+  fetch('/api/indicators').then(function(r){return r.json();}).then(function(d){
+    document.getElementById('tog-ind').checked=d.enabled;
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;

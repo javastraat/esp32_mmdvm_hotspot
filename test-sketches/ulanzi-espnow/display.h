@@ -14,3 +14,4 @@ void drawChar(int x, int y, char c, CRGB color);
 void setLED(int x, int y, CRGB color);
 void _gifCloseIfOpen();
 void resetScreensaverIdle();
+void drawIndicators();
