@@ -119,7 +119,7 @@ static const char PAGE_SETTINGS[] PROGMEM =
       </div>
     </div>
     <div class="metric" style="border-bottom:none;padding-top:8px">
-      <span class="metric-label" style="font-size:.8em;color:var(--text-muted)">clock &#8594; temp &#8594; humidity &#8594; clock</span>
+      <span class="metric-label" style="font-size:.8em;color:var(--text-muted)">clock &#8594; temp &#8594; humidity &#8594; battery &#8594; clock</span>
     </div>
   </div>
 

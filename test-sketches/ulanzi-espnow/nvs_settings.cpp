@@ -13,12 +13,12 @@ void loadSettings() {
   autoBrightnessEnabled = p.getBool ("auto_br",    true);
   currentBrightness     = p.getUChar("brightness", LED_BRIGHTNESS);
   // Buzzer
-  buzzerBootEnabled     = p.getBool ("boot_en",   true);
-  buzzerBootVolume      = p.getUChar("boot_vol",  BUZZER_VOL_BOOT);
-  buzzerPocsagEnabled   = p.getBool ("poc_en",    true);
-  buzzerPocsagVolume    = p.getUChar("poc_vol",   BUZZER_VOL_POCSAG);
-  buzzerClickEnabled    = p.getBool ("clk_en",    true);
-  buzzerClickVolume     = p.getUChar("clk_vol",   BUZZER_VOL_CLICK);
+  buzzerBootEnabled     = p.getBool ("buz_boot_en",  true);
+  buzzerBootVolume      = p.getUChar("buz_boot_vol", BUZZER_VOL_BOOT);
+  buzzerPocsagEnabled   = p.getBool ("buz_poc_en",   true);
+  buzzerPocsagVolume    = p.getUChar("buz_poc_vol",  BUZZER_VOL_POCSAG);
+  buzzerClickEnabled    = p.getBool ("buz_clk_en",   true);
+  buzzerClickVolume     = p.getUChar("buz_clk_vol",  BUZZER_VOL_CLICK);
   // Display rotation
   autoRotateEnabled     = p.getBool ("rot_en",  false);
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
@@ -42,10 +42,10 @@ void loadSettings() {
   // Protocol mode
   recvPocsagEnabled = p.getBool("recv_pocsag", true);
   // POCSAG RIC settings
-  timePocRic  = p.getUInt("time_ric",  TIME_POCSAG_RIC);
-  callsignRic = p.getUInt("call_ric",  CALLSIGN_RIC);
+  timePocRic  = p.getUInt("ric_time",  TIME_POCSAG_RIC);
+  callsignRic = p.getUInt("ric_call",  CALLSIGN_RIC);
   {
-    String s = p.getString("excl_rics", EXCLUDED_RICS_DEFAULT);
+    String s = p.getString("ric_excl", EXCLUDED_RICS_DEFAULT);
     excludedRicsCount = 0;
     int start = 0;
     for (int i = 0; i <= (int)s.length() && excludedRicsCount < EXCLUDED_RICS_MAX; i++) {
@@ -94,12 +94,12 @@ void saveSettings() {
   p.putBool ("auto_br",    autoBrightnessEnabled);
   p.putUChar("brightness", currentBrightness);
   // Buzzer
-  p.putBool ("boot_en",  buzzerBootEnabled);
-  p.putUChar("boot_vol", buzzerBootVolume);
-  p.putBool ("poc_en",   buzzerPocsagEnabled);
-  p.putUChar("poc_vol",  buzzerPocsagVolume);
-  p.putBool ("clk_en",   buzzerClickEnabled);
-  p.putUChar("clk_vol",  buzzerClickVolume);
+  p.putBool ("buz_boot_en",  buzzerBootEnabled);
+  p.putUChar("buz_boot_vol", buzzerBootVolume);
+  p.putBool ("buz_poc_en",   buzzerPocsagEnabled);
+  p.putUChar("buz_poc_vol",  buzzerPocsagVolume);
+  p.putBool ("buz_clk_en",   buzzerClickEnabled);
+  p.putUChar("buz_clk_vol",  buzzerClickVolume);
   // Display rotation
   p.putBool ("rot_en",  autoRotateEnabled);
   p.putUChar("rot_sec", autoRotateIntervalSec);
@@ -123,12 +123,12 @@ void saveSettings() {
   // Protocol mode
   p.putBool("recv_pocsag", recvPocsagEnabled);
   // POCSAG RIC settings
-  p.putUInt("time_ric",  timePocRic);
-  p.putUInt("call_ric",  callsignRic);
+  p.putUInt("ric_time",  timePocRic);
+  p.putUInt("ric_call",  callsignRic);
   {
     String s = "";
     for (int i = 0; i < excludedRicsCount; i++) { if (i) s += ","; s += String(excludedRics[i]); }
-    p.putString("excl_rics", s);
+    p.putString("ric_excl", s);
   }
   // Icon filenames
   p.putString("icon_temp", iconTempFile);
