@@ -55,20 +55,26 @@ All display state is written only from Core 1, eliminating data races without mu
 | `ulanzi-espnow.ino` | Global variable definitions · `setup()` · `loop()` |
 | `config.h` | All compile-time constants and pin assignments |
 | `globals.h` | Shared `extern` declarations and packet structs |
-| `display.h/.cpp` | Font tables · drawing helpers · brightness · auto-rotate · display loop |
+| `display.h/.cpp` | Font tables · drawing helpers · brightness · indicators · auto-rotate · screensaver · display loop |
 | `receiver.h/.cpp` | ESP-NOW callback · POCSAG processing · WiFi setup |
 | `sensor.h/.cpp` | DS1307 RTC (direct I2C) · SHT31 temperature/humidity |
 | `buzzer.h/.cpp` | Non-blocking LEDC tone engine |
 | `buttons.h/.cpp` | Debounced button handler |
 | `nvs_settings.h/.cpp` | NVS Preferences load/save |
 | `filesystem.h/.cpp` | LittleFS initialisation |
+| `mqtt.h/.cpp` | MQTT client · Home Assistant auto-discovery · state publish |
 | `web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer routes |
-| `web/styles.h` | Shared CSS + light/dark theme |
-| `web/navigation.h` | Shared nav bar + LIVE modal |
-| `web/main.h` | Home/dashboard page |
-| `web/settings.h` | Settings page |
-| `web/system.h` | System information page |
+| `web/styles.h` | Shared CSS + light/dark theme + modal helpers |
+| `web/navigation.h` | Shared nav bar + LIVE overlay modal |
+| `web/main.h` | Home/dashboard page + `/live` fullscreen page |
+| `web/display.h` | Display settings page |
+| `web/settings.h` | Device settings page (buzzer, device name, system actions) |
+| `web/espnow.h` | ESP-NOW & POCSAG RIC configuration page |
+| `web/info.h` | System information page |
 | `web/files.h` | File manager page |
+| `web/mqtt.h` | MQTT configuration page |
+| `web/serial.h` | Serial monitor page |
+| `web/pwa_icon.h` | PWA manifest + app icons (served as `/manifest.json`, `/favicon.ico`) |
 
 ---
 
@@ -200,49 +206,105 @@ Light and dark themes are available (preference stored in `localStorage`).
 
 ### Pages
 
+Navigation bar is present on every page. The **More** dropdown links to Display, Settings,
+MQTT, ESP-NOW, Files, Info, and Serial. The **LIVE** button opens a fullscreen LED overlay
+on any page. Light and dark themes are available (stored in `localStorage`).
+
 #### `/` — Dashboard
+
+![Dashboard](screenshots/main.png)
 
 | Section | Contents |
 |---|---|
-| Live preview | 32×8 canvas mirror of the LED matrix · refreshes every 500 ms |
-| Device | Hostname · IP · uptime · free heap |
-| WiFi | SSID · channel · RSSI with signal-strength indicator · MAC |
-| Battery & Sensors | Battery voltage + % · LDR raw · SHT31 temp + humidity (if fitted) |
-| Clock | Current time · sync source (RTC / POCSAG / none) · display mode |
-| ESP-NOW | DMR and POCSAG packet counters |
-| POCSAG log | Last 10 messages (newest first) · RIC + text |
+| Display preview | 32×8 canvas mirror of the LED matrix · refreshes every 500 ms · Left / Middle / Right button controls |
+| Clock | Current time · sync source (waiting / RTC / POCSAG-synced) |
+| Battery & Sensors | Battery voltage + % · raw ADC · LDR light level · SHT31 temp + humidity (if fitted) |
+| ESP-NOW | DMR packet count · POCSAG packet count |
+| Last POCSAG | Recent messages table — RIC + text (newest first) |
 
 #### `/live` — Fullscreen Live Display
 
-32×8 matrix rendered at 20×20 px per LED, refreshes every 250 ms.
-Accessible from the LIVE button in the navigation bar.
+![Live Display](screenshots/live.png)
 
-#### `/settings` — Settings
+32×8 matrix rendered at 20×20 px per LED, refreshes every 250 ms.
+Accessible from the **LIVE** button in the navigation bar or as a standalone URL.
+
+#### `/display` — Display Settings
+
+![Display Settings](screenshots/display.png)
 
 | Card | Controls |
 |---|---|
-| **Brightness** | Auto (LDR) / manual toggle · slider 1–255 · presets: Night / Dim / Medium / Bright |
-| **Buzzer** | Enable + volume (0–255) for Boot Sound, POCSAG Receive, Button Click · Test buttons |
-| **Display Rotation** | Enable auto-cycle · interval slider 1–60 s |
-| **Screensaver** | Enable · timeout (seconds) · GIF file selector · Test button |
-| **Icons** | File picker for Temp / Humidity / Battery / POCSAG icons · Preview image · Show on matrix |
-| **Text Colors** | Color picker for Clock text and POCSAG message text |
-| **Thresholds & Colors** | Temperature: 2 thresholds + 3 zone colors · Humidity: same · Battery: same |
-| **Device Name** | Boot screen name (max 8 chars) · mDNS hostname · ArduinoOTA hostname · Reboot button |
+| **Brightness** | Auto (LDR) / manual toggle · slider 1–255 · presets: Off / Night / Dim / Medium / Bright |
+| **Indicators** | Toggle status dots on the right edge (WiFi · POCSAG · MQTT) with color legend |
+| **Rotate Screens** | Enable auto-cycle · interval slider 1–60 s · sequence: clock → temp → humidity → battery |
+| **Screensaver** | Enable · timeout (5–3600 s) · GIF file selector from `/screensaver/` · brightness preset · Test / Stop button |
+| **Icons** | File picker for Temp / Humidity / Battery / POCSAG icons · inline preview · Show on matrix button |
+| **Text Colors** | Color pickers for Clock text and POCSAG message text |
+| **Thresholds & Colors** | Temperature: 2 thresholds (°C) + 3 zone colors · Humidity: same (%) · Battery: same (%) |
 
-All settings are saved to NVS immediately on change — survive reboot.
+All display settings are saved to NVS immediately on change.
 
-#### `/system` — System Information
+#### `/settings` — Device Settings
 
-Chip model · revision · cores · CPU MHz · CPU temperature · heap · flash · sketch size ·
-OTA free space · reset reason · SDK version · build date/time · webTask stack watermark.
-Actions: **Clear RTC** (with confirmation) · **Reboot**.
+![Device Settings](screenshots/settings.png)
+
+| Card | Controls |
+|---|---|
+| **Buzzer** | Enable + volume slider (1–255) + Test button for Boot Sound, POCSAG Receive, and Button Click independently |
+| **Device Name** | Boot screen name (1–8 chars, uppercase) · mDNS hostname (→ `<name>.local`) |
+| **System** | Verbose logging toggle · Clear RTC & Time Sync · Reboot · Factory Reset |
+
+#### `/espnow` — ESP-NOW Configuration
+
+![ESP-NOW](screenshots/esp-now.png)
+
+| Card | Controls |
+|---|---|
+| **POCSAG RIC Settings** | Time beacon RIC (default 224) · Callsign RIC (default 8) · Excluded RICs (comma-separated, up to 16) |
+| **Protocol Modes** | POCSAG toggle · DMR (future) · ESP-NOW v2 (future) |
+| **Received Messages** | POCSAG packet count · recent message log with RIC and text |
+
+#### `/info` — System Information
+
+![System Information](screenshots/info.png)
+
+| Card | Contents |
+|---|---|
+| **Device** | Hostname · IP · uptime (d HH:MM:SS) · free heap |
+| **WiFi** | SSID · channel · RSSI with signal badge · MAC address |
+| **Hardware** | Chip model/revision · CPU cores/MHz · CPU temperature · flash size · LED / LDR / battery specs |
+| **Software** | Build date/time · SDK version · Arduino core version · reset reason · sketch size · OTA space |
+| **Memory** | Heap total/free/% · max allocation · min free · PSRAM (if present) |
+| **Storage** | Flash speed/mode · partition · sketch MD5 · LittleFS total/used/available |
+| **Task Stacks** | webTask and mqttTask free stack with color warnings |
+| **NVS** | All namespaces listed as buttons · click to inspect keys, types, and values in a modal |
 
 #### `/files` — File Manager
 
-Storage usage bar · LaMetric icon downloader (ID → HTTPS proxy → PNG → JPEG → save) ·
-Full file browser: navigate directories · upload files · create folders · rename · delete · download.
-Click a `.gif` or `.jpg` filename to preview inline.
+![File Manager](screenshots/files.png)
+
+LittleFS usage bar (color changes at 60 % and 85 %) ·
+LaMetric icon downloader (enter icon ID → HTTPS proxy → preview → save to `/icons/`) ·
+Full file browser: navigate directories, upload files, create folders, rename, delete, download.
+Click any `.gif` or `.jpg` to preview inline.
+
+#### `/mqtt` — MQTT / Home Assistant
+
+![MQTT](screenshots/mqtt.png)
+
+| Card | Controls |
+|---|---|
+| **Connection** | Status badge (Connected / Disconnected / Disabled) · broker · node ID · topics preview · HA device name |
+| **Settings** | Enable toggle · broker host · port · username · password · node ID · Save button |
+| **Home Assistant** | Auto-discovery toggle · HA device name · discovery prefix · Re-send Discovery button |
+
+#### `/serial` — Serial Monitor
+
+![Serial Monitor](screenshots/serial.png)
+
+Live `LOG()` output streamed from the device ring buffer (polls every second).
+Pause / Resume · Clear buffer · auto-scroll to bottom.
 
 ---
 
@@ -338,13 +400,30 @@ POST `/api/colors` accepts any subset of:
 | POST | `/api/fs/rename` | `from=/old` · `to=/new` | Rename / move file or directory |
 | POST | `/api/files/upload?dir=/icons` | multipart form data | Upload file to specified directory |
 
+### Indicators
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| POST | `/api/indicators` | `enabled=0/1` | Toggle status dots on the right edge of the matrix |
+
+### ESP-NOW / POCSAG RICs
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| GET | `/api/espnow` | — | Current RIC settings (time_ric, call_ric, excl_rics array) |
+| POST | `/api/espnow` | `time_ric` · `call_ric` · `excl_rics` (comma-separated) | Save RIC settings |
+
 ### System
 
 | Method | Endpoint | Body params | Description |
 |---|---|---|---|
-| GET | `/api/sysinfo` | — | Chip model, CPU MHz, temp, heap, flash, build info, reset reason, webTask stack |
-| POST | `/api/rtc/clear` | — | Stop DS1307 oscillator, clear time-sync flags, reboot |
+| GET | `/api/sysinfo` | — | Chip model, CPU MHz, temp, heap, flash, build info, reset reason, webTask and mqttTask stack |
+| GET | `/api/tasks` | — | webTask and mqttTask free stack watermarks |
+| GET | `/api/nvs/namespaces` | — | List all NVS namespaces |
+| GET | `/api/nvs/keys?ns=NAME` | — | List keys, types, and values in a namespace |
+| POST | `/api/rtc/clear` | — | Stop DS1307 oscillator · reset time-sync flags · show scanner immediately (no reboot) |
 | POST | `/api/reboot` | — | Reboot immediately |
+| POST | `/api/factory-reset` | — | Clear all NVS settings and reboot |
 
 ---
 
