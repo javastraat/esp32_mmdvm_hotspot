@@ -311,21 +311,21 @@ Pause / Resume · Clear buffer · auto-scroll to bottom.
 ## REST API
 
 All endpoints respond with JSON unless noted. POST bodies use
-`application/x-www-form-urlencoded`.
+`application/x-www-form-urlencoded` unless stated otherwise.
 Settings POSTs write to NVS immediately.
 
 ### Status & display
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/status` | Full JSON — clock, time-sync flags, battery, LDR, SHT31, POCSAG log, brightness, buzzer, rotation, display mode, WiFi, free heap |
+| GET | `/api/status` | Full JSON — hostname, role, IP, channel, uptime, time-sync flags, time, DMR/POCSAG counts, POCSAG log, brightness, LDR, battery, MAC, SSID, RSSI, free heap, buzzer settings, SHT31, display mode, rotate settings |
 | GET | `/api/leds` | 256-pixel RRGGBB hex string (`RRGGBBRRGGBB…`) for live canvas rendering |
 
 ### Brightness
 
 | Method | Endpoint | Body params | Description |
 |---|---|---|---|
-| POST | `/api/brightness` | `auto=0/1` · `level=1-255` | Set auto or manual brightness |
+| POST | `/api/brightness` | `auto=0/1` · `level=0-255` | Set auto or manual brightness |
 
 ### Buzzer
 
@@ -342,12 +342,12 @@ Settings POSTs write to NVS immediately.
 
 ### Icons
 
-| Method | Endpoint | Body params | Description |
+| Method | Endpoint | Params | Description |
 |---|---|---|---|
 | GET | `/api/icons` | — | Current icon paths for temp / hum / bat / POCSAG |
 | POST | `/api/icons` | `temp_icon` · `hum_icon` · `bat_icon` · `poc_icon` | Save icon file paths |
 | POST | `/api/icons/preview` | `path=/icons/file.gif` | Show icon on matrix for 5 s |
-| GET | `/api/icons/proxy?id=NNNNN` | — | Proxy LaMetric icon PNG over HTTPS (for browser canvas conversion) |
+| GET | `/api/icons/proxy?id=NNNNN` | `id` (query) | Proxy LaMetric icon over HTTPS (browser canvas converts PNG→JPEG) |
 
 ### Display colors
 
@@ -362,20 +362,35 @@ POST `/api/colors` accepts any subset of:
 |---|---|---|
 | `clock` | `#RRGGBB` | Clock text color |
 | `poc` | `#RRGGBB` | POCSAG message text color |
-| `t_thr_lo` · `t_thr_hi` | float (°C) | Temperature zone thresholds |
+| `tmp_thr_lo` · `tmp_thr_hi` | float (°C) | Temperature zone thresholds |
 | `t_lo` · `t_mid` · `t_hi` | `#RRGGBB` | Temperature zone colors (below lo / between / above hi) |
-| `h_thr_lo` · `h_thr_hi` | float (%) | Humidity zone thresholds |
+| `hum_thr_lo` · `hum_thr_hi` | float (%) | Humidity zone thresholds |
 | `h_lo` · `h_mid` · `h_hi` | `#RRGGBB` | Humidity zone colors |
-| `b_thr_lo` · `b_thr_hi` | integer 0-100 (%) | Battery zone thresholds |
+| `bat_thr_lo` · `bat_thr_hi` | integer 0-100 (%) | Battery zone thresholds |
 | `b_lo` · `b_mid` · `b_hi` | `#RRGGBB` | Battery zone colors |
 
 ### Screensaver
 
 | Method | Endpoint | Body params | Description |
 |---|---|---|---|
-| GET | `/api/screensaver` | — | Current screensaver settings and active state |
-| POST | `/api/screensaver` | `enabled=0/1` · `timeout=5-3600` · `file=/screensaver/x.gif` | Save screensaver settings |
+| GET | `/api/screensaver` | — | Current screensaver settings (`enabled`, `timeout`, `file`, `active`, `brightness`) |
+| POST | `/api/screensaver` | `enabled=0/1` · `timeout=1-3600` · `file=/screensaver/x.gif` · `brightness=-2 to 255` | Save screensaver settings (`brightness`: -2=off, -1=dim, 0-255=fixed) |
 | POST | `/api/screensaver/test` | `action=test/stop` | Start or stop screensaver immediately |
+
+### Indicators
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| GET | `/api/indicators` | — | Current indicator state (`enabled`) |
+| POST | `/api/indicators` | `enabled=0/1` | Toggle status dots on the right edge of the matrix |
+
+### Virtual buttons
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/btn/left` | Trigger left button action (plays click sound) |
+| POST | `/api/btn/middle` | Trigger middle button action (toggle auto-brightness) |
+| POST | `/api/btn/right` | Trigger right button action (cycle display mode) |
 
 ### Device identity
 
@@ -383,47 +398,65 @@ POST `/api/colors` accepts any subset of:
 |---|---|---|---|
 | GET | `/api/bootname` | — | Current boot screen name |
 | POST | `/api/bootname` | `name=MYNAME` | Set boot screen name (1–8 chars, auto-uppercased) |
-| GET | `/api/mdnsname` | — | Current mDNS hostname |
-| POST | `/api/mdnsname` | `name=mydevice` | Set mDNS hostname (1–31 chars, a-z 0-9 -) · takes effect immediately |
-| GET | `/api/otahostname` | — | Current ArduinoOTA hostname |
-| POST | `/api/otahostname` | `name=mydevice-ota` | Set OTA hostname (1–31 chars, a-z 0-9 -) · takes effect immediately |
+| GET | `/api/mdnsname` | — | Current mDNS/OTA hostname |
+| POST | `/api/mdnsname` | `name=mydevice` | Set mDNS/OTA hostname (1–31 chars, a-z 0-9 -) · reboot to apply |
+
+### ESP-NOW / POCSAG RICs
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| GET | `/api/espnow/modes` | — | Enabled protocol flags (`pocsag`, `dmr`, `espnow2`) |
+| POST | `/api/espnow/modes` | `pocsag=0/1` | Toggle POCSAG receive mode |
+| GET | `/api/espnow` | — | RIC settings (`time_ric`, `call_ric`, `excl_rics` array) |
+| POST | `/api/espnow` | `time_ric` · `call_ric` · `excl_rics` (comma-separated) | Save RIC settings |
+
+### MQTT
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| GET | `/api/mqtt` | — | All MQTT settings + connection status |
+| POST | `/api/mqtt` | `enabled=0/1` · `broker=host` · `port=1883` · `user=` · `pass=` · `node=node-id` · `prefix=homeassistant` · `ha_name=` · `discovery=0/1` | Save MQTT settings and reconnect |
+| POST | `/api/mqtt/discovery` | — | Re-send Home Assistant auto-discovery payloads |
 
 ### Filesystem
 
 | Method | Endpoint | Body / Query params | Description |
 |---|---|---|---|
 | GET | `/api/fs` | — | LittleFS total / used / available bytes |
-| GET | `/api/fs/ls?path=/dir` | `path` | List directory entries (name, path, isDir, size) |
-| GET | `/api/fs/download?path=/file` | `path` | Download file as attachment |
+| GET | `/api/fs/ls?path=/dir` | `path` (query) | List one directory (name, path, isDir, size) |
+| GET | `/api/fs/download?path=/file` | `path` (query) | Download file as attachment |
 | POST | `/api/fs/delete` | `path=/file` | Delete file or empty directory |
 | POST | `/api/fs/mkdir` | `path=/newdir` | Create directory |
 | POST | `/api/fs/rename` | `from=/old` · `to=/new` | Rename / move file or directory |
+| GET | `/api/files` | — | Recursive flat listing of all files (`name`, `size`) |
 | POST | `/api/files/upload?dir=/icons` | multipart form data | Upload file to specified directory |
+| POST | `/api/files/delete` | `name=/file` | Delete file (legacy — prefer `/api/fs/delete`) |
 
-### Indicators
+### Serial log
 
-| Method | Endpoint | Body params | Description |
+| Method | Endpoint | Params | Description |
 |---|---|---|---|
-| POST | `/api/indicators` | `enabled=0/1` | Toggle status dots on the right edge of the matrix |
+| GET | `/api/serial/log?cursor=N` | `cursor` (query, default 0) | Fetch new log lines since cursor; returns `{data, cursor}` |
+| POST | `/api/serial/clear` | — | Clear the in-memory serial log buffer |
 
-### ESP-NOW / POCSAG RICs
+### Debug logging
 
-| Method | Endpoint | Body params | Description |
+| Method | Endpoint | Body | Description |
 |---|---|---|---|
-| GET | `/api/espnow` | — | Current RIC settings (time_ric, call_ric, excl_rics array) |
-| POST | `/api/espnow` | `time_ric` · `call_ric` · `excl_rics` (comma-separated) | Save RIC settings |
+| GET | `/api/debug` | — | Returns `{"debug": true/false}` |
+| POST | `/api/debug` | raw body: `true` or `false` (JSON, `Content-Type: application/json`) | Enable or disable verbose logging (`[GIF]`, `[SHT31]`, etc.) |
 
 ### System
 
-| Method | Endpoint | Body params | Description |
-|---|---|---|---|
-| GET | `/api/sysinfo` | — | Chip model, CPU MHz, temp, heap, flash, build info, reset reason, webTask and mqttTask stack |
-| GET | `/api/tasks` | — | webTask and mqttTask free stack watermarks |
-| GET | `/api/nvs/namespaces` | — | List all NVS namespaces |
-| GET | `/api/nvs/keys?ns=NAME` | — | List keys, types, and values in a namespace |
-| POST | `/api/rtc/clear` | — | Stop DS1307 oscillator · reset time-sync flags · show scanner immediately (no reboot) |
-| POST | `/api/reboot` | — | Reboot immediately |
-| POST | `/api/factory-reset` | — | Clear all NVS settings and reboot |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/sysinfo` | Chip model, revision, cores, CPU MHz, temp, heap, PSRAM, flash, sketch, MD5, partition, reset reason, SDK, Arduino version, mDNS status, build timestamp, webTask stack |
+| GET | `/api/tasks` | webTask and mqttTask free stack watermarks (bytes) |
+| GET | `/api/nvs/namespaces` | List all NVS namespaces |
+| GET | `/api/nvs/keys?ns=NAME` | List keys, types, and values in a namespace (sensitive values masked) |
+| POST | `/api/rtc/clear` | Stop DS1307 oscillator · reset time-sync flags · show scanner immediately (no reboot) |
+| POST | `/api/reboot` | Reboot immediately |
+| POST | `/api/factory-reset` | Clear all NVS settings and reboot |
 
 ---
 
@@ -486,8 +519,9 @@ Paste it into the hotspot's sender config as `RECEIVER_MAC`.
 #define POCSAG_DISPLAY_EXCLUDED_RICS  { 224, 208, 200, 216, 4520, 4521 }
 ```
 
-> **Note:** the boot screen name, mDNS hostname, and OTA hostname are all set at runtime
-> from the **Device Name** card in Settings — no recompile needed.
+> **Note:** the boot screen name and mDNS/OTA hostname are set at runtime from the
+> **Device Name** card in Settings — no recompile needed. A reboot is required for the
+> new hostname to take effect.
 
 ### 3. Required Arduino libraries
 
