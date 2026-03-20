@@ -7,6 +7,37 @@ Fully configurable from a mobile-friendly web interface — no recompile needed.
 
 ---
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Hardware — Ulanzi TC001](#hardware--ulanzi-tc001)
+- [Firmware Architecture](#firmware-architecture)
+  - [Source files](#source-files)
+- [Display Modes](#display-modes)
+  - [POCSAG message display](#pocsag-message-display)
+  - [Temperature / Humidity / Battery](#temperature--humidity--battery)
+  - [Clock](#clock)
+  - [Screensaver](#screensaver)
+  - [Auto-rotate](#auto-rotate)
+  - [Boot screen](#boot-screen)
+- [Network](#network)
+  - [WiFi](#wifi)
+  - [mDNS](#mdns)
+  - [ArduinoOTA](#arduinoota)
+- [POCSAG RIC reference](#pocsag-ric-reference)
+- [Web Interface](#web-interface)
+  - [Pages](#pages)
+- [REST API](#rest-api)
+- [Home Assistant](#home-assistant)
+- [Icons (LittleFS)](#icons-littlefs)
+- [Setup](#setup)
+- [Calibration](#calibration)
+- [Buttons](#buttons)
+- [NVS Settings reference](#nvs-settings-reference)
+- [Implementation notes](#implementation-notes)
+
+---
+
 ## How it works
 
 The MMDVM hotspot sends raw packets wirelessly over **ESP-NOW** — a connectionless
@@ -42,6 +73,7 @@ Two FreeRTOS tasks on separate cores keep the display smooth even during web req
 | Core | Task | Responsibility |
 |---|---|---|
 | **0** | `webTask` (8 KB stack) | `WebServer.handleClient()` + `ArduinoOTA.handle()` |
+| **0** | `mqttTask` (4 KB stack) | MQTT connect / reconnect · state publish · HA discovery |
 | **0** | ESP-NOW `onReceive()` | Interrupt-driven — enqueues POCSAG packets via `xQueueSendFromISR` |
 | **1** | Arduino `loop()` | Display, buttons, sensors, POCSAG queue drain |
 
@@ -62,8 +94,14 @@ All display state is written only from Core 1, eliminating data races without mu
 | `buttons.h/.cpp` | Debounced button handler |
 | `nvs_settings.h/.cpp` | NVS Preferences load/save |
 | `filesystem.h/.cpp` | LittleFS initialisation |
+| `serial_log.h/.cpp` | In-memory ring-buffer for `LOG()` output (served via `/api/serial/log`) |
 | `mqtt.h/.cpp` | MQTT client · Home Assistant auto-discovery · state publish |
-| `web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer routes |
+| `web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer page routes + asset routes |
+| `web_handlers_display.h/.cpp` | API handlers: status, brightness, buzzer, icons, colors, screensaver, indicators, buttons |
+| `web_handlers_espnow.h/.cpp` | API handlers: ESP-NOW modes, RIC settings |
+| `web_handlers_files.h/.cpp` | API handlers: filesystem browser, serial log, file upload/download, LaMetric proxy |
+| `web_handlers_mqtt.h/.cpp` | API handlers: MQTT settings and discovery |
+| `web_handlers_system.h/.cpp` | API handlers: sysinfo, tasks, device name, NVS, reboot, factory reset, debug |
 | `web/styles.h` | Shared CSS + light/dark theme + modal helpers |
 | `web/navigation.h` | Shared nav bar + LIVE overlay modal |
 | `web/main.h` | Home/dashboard page + `/live` fullscreen page |
@@ -171,11 +209,11 @@ The HTTP service is registered so network scanners can discover the device autom
 ### ArduinoOTA
 
 OTA updates are available over WiFi. The OTA hostname (shown in the Arduino IDE
-**Port** menu) is separately configurable from the **Device Name** card in Settings.
-Default: `ulanzi-ota`. Change takes effect immediately without a reboot.
+**Port** menu) is the **same as the mDNS hostname** — both use `mdnsName` from NVS.
+Change it from the **Device Name** card in Settings and reboot to apply.
 
 ```
-Host:     ulanzi-ota  (or device IP)
+Host:     ulanzi  (or device IP — matches mDNS hostname)
 Port:     3232
 Password: set OTA_PASSWORD in config.h (leave empty to disable)
 ```
@@ -460,6 +498,73 @@ POST `/api/colors` accepts any subset of:
 
 ---
 
+## Home Assistant
+
+When MQTT is enabled with auto-discovery, the device registers itself as a device in Home
+Assistant and creates the following entities automatically.
+
+### Sensors (read-only)
+
+| Entity ID | Name | Unit | Notes |
+|---|---|---|---|
+| `sensor.<ha_name>_temperature` | Temperature | °C | SHT31 only — not created if sensor absent |
+| `sensor.<ha_name>_humidity` | Humidity | % | SHT31 only |
+| `sensor.<ha_name>_battery_pct` | Battery | % | Calculated from raw ADC |
+| `sensor.<ha_name>_battery_mv` | Battery Voltage | mV | |
+| `sensor.<ha_name>_rssi` | WiFi RSSI | dBm | |
+| `sensor.<ha_name>_uptime` | Uptime | s | |
+| `sensor.<ha_name>_ldr_raw` | LDR Raw | — | Raw ADC (0–4095) |
+| `sensor.<ha_name>_pocsag_msg` | POCSAG Message | — | Last received message text |
+| `sensor.<ha_name>_pocsag_count` | POCSAG Count | — | Total packets received |
+| `sensor.<ha_name>_dmr_count` | DMR Count | — | Total packets received (RECV_DMR only) |
+| `sensor.<ha_name>_display_mode` | Display Mode | — | Active screen name (`clock`, `temp`, etc.) |
+
+### Switches (read + command)
+
+| Entity ID | Name | Controls |
+|---|---|---|
+| `switch.<ha_name>_auto_brightness` | Brightness Auto | Auto-brightness on/off |
+| `switch.<ha_name>_buzzer_boot` | Buzzer Boot Sound | Enable/disable |
+| `switch.<ha_name>_buzzer_pocsag` | Buzzer POCSAG | Enable/disable |
+| `switch.<ha_name>_buzzer_click` | Buzzer Button Click | Enable/disable |
+| `switch.<ha_name>_auto_rotate` | Rotate Screens | Enable/disable |
+| `switch.<ha_name>_screensaver` | Screensaver | Enable/disable |
+| `switch.<ha_name>_indicators` | Indicators | Enable/disable status dots |
+| `switch.<ha_name>_debug_log` | Debug Log | Enable/disable verbose logging |
+
+### Selects (read + command)
+
+| Entity ID | Name | Options |
+|---|---|---|
+| `select.<ha_name>_brightness_preset` | Brightness Preset | Off · Night · Dim · Medium · Bright · Custom |
+| `select.<ha_name>_screensaver_brightness` | Screensaver Brightness | Auto · Off · Night · Dim · Medium · Bright |
+| `select.<ha_name>_screensaver_file` | Screensaver File | Files from `/screensaver/` on LittleFS + None |
+
+### Numbers (read + command)
+
+| Entity ID | Name | Range |
+|---|---|---|
+| `number.<ha_name>_brightness` | Brightness | 1–255 |
+| `number.<ha_name>_buzzer_boot_vol` | Buzzer Boot Volume | 1–255 |
+| `number.<ha_name>_buzzer_pocsag_vol` | Buzzer POCSAG Volume | 1–255 |
+| `number.<ha_name>_buzzer_click_vol` | Buzzer Click Volume | 1–255 |
+| `number.<ha_name>_auto_rotate_interval` | Rotate Interval | 1–60 s |
+| `number.<ha_name>_screensaver_timeout` | Screensaver Timeout | 10–3600 s |
+
+### Buttons (trigger only)
+
+| Entity ID | Name | Action |
+|---|---|---|
+| `button.<ha_name>_btn_left` | Button Left | Plays click sound |
+| `button.<ha_name>_btn_middle` | Button Middle | Toggle auto-brightness |
+| `button.<ha_name>_btn_right` | Button Right | Cycle display mode |
+| `button.<ha_name>_reboot` | Reboot | Reboot device immediately |
+| `button.<ha_name>_clear_rtc` | Clear RTC | Stop DS1307 · reset time-sync · show scanner |
+
+> `<ha_name>` defaults to `ulanzi` (configurable from the MQTT page **HA Device Name** field).
+
+---
+
 ## Icons (LittleFS)
 
 Icons are stored on the ESP32's LittleFS filesystem. Upload them via the **Files** page
@@ -591,24 +696,39 @@ flashing new firmware that adds a new key.
 
 | Key | Type | Default | Setting |
 |---|---|---|---|
-| `auto_br` | bool | true | Auto-brightness enabled |
-| `brightness` | uint8 | 50 | Manual brightness level |
-| `boot_en` / `boot_vol` | bool / uint8 | true / 80 | Boot chime enable / volume |
-| `poc_en` / `poc_vol` | bool / uint8 | true / 80 | POCSAG beep enable / volume |
-| `clk_en` / `clk_vol` | bool / uint8 | true / 60 | Button click enable / volume |
-| `rot_en` / `rot_sec` | bool / uint8 | false / 5 | Auto-rotate enable / interval |
-| `icon_temp/hum/bat/poc` | string | built-in paths | Icon file paths |
-| `ss_en` / `ss_timeout` / `ss_file` | bool / uint16 / string | false / 60 / "" | Screensaver |
-| `col_clock` / `col_poc` | uint32 (RGB) | white / amber | Clock and POCSAG text colors |
-| `t_thr_lo` / `t_thr_hi` | float | 16.0 / 20.0 | Temperature thresholds (°C) |
-| `t_col_lo/mid/hi` | uint32 (RGB) | blue / green / orange | Temperature zone colors |
-| `h_thr_lo` / `h_thr_hi` | float | 30.0 / 50.0 | Humidity thresholds (%) |
-| `h_col_lo/mid/hi` | uint32 (RGB) | orange / green / blue | Humidity zone colors |
-| `b_thr_lo` / `b_thr_hi` | uint8 | 30 / 60 | Battery thresholds (%) |
-| `b_col_lo/mid/hi` | uint32 (RGB) | red / yellow / green | Battery zone colors |
-| `boot_name` | string | `ULANZI` | Boot screen device name (max 8 chars, uppercase) |
-| `mdns_name` | string | `ulanzi` | mDNS hostname → `<name>.local` |
-| `ota_hostname` | string | `ulanzi-ota` | ArduinoOTA hostname (shown in Arduino IDE port list) |
+| `auto_br` | u8 | 1 | Auto-brightness enabled |
+| `brightness` | u8 | 50 | Manual brightness level (0–255) |
+| `buz_boot_en` / `buz_boot_vol` | u8 / u8 | 1 / 80 | Boot chime enable / volume |
+| `buz_poc_en` / `buz_poc_vol` | u8 / u8 | 1 / 80 | POCSAG beep enable / volume |
+| `buz_clk_en` / `buz_clk_vol` | u8 / u8 | 1 / 60 | Button click enable / volume |
+| `rot_en` / `rot_sec` | u8 / u8 | 0 / 5 | Auto-rotate enable / interval (s) |
+| `icon_temp` / `icon_hum` / `icon_bat` / `icon_poc` | string | `""` | Icon file paths (LittleFS) |
+| `scr_en` / `scr_timeout` / `scr_file` | u8 / u16 / string | 0 / 60 / `""` | Screensaver enable / timeout / GIF file |
+| `scr_bright` | i32 | 50 | Screensaver brightness (-2=Auto, -1=Off, 0/10/50/120/255=presets) |
+| `clk_col` | u32 (RGB) | 16777215 (white) | Clock text color |
+| `poc_col` | u32 (RGB) | 255 (blue) | POCSAG message text color |
+| `tmp_thr_lo` / `tmp_thr_hi` | blob (float) | 16.0 / 20.0 | Temperature thresholds (°C) |
+| `tmp_col_lo` / `tmp_col_mid` / `tmp_col_hi` | u32 (RGB) | blue / green / orange | Temperature zone colors |
+| `hum_thr_lo` / `hum_thr_hi` | blob (float) | 30.0 / 50.0 | Humidity thresholds (%) |
+| `hum_col_lo` / `hum_col_mid` / `hum_col_hi` | u32 (RGB) | orange / green / blue | Humidity zone colors |
+| `bat_thr_lo` / `bat_thr_hi` | u8 / u8 | 30 / 60 | Battery thresholds (%) |
+| `bat_col_lo` / `bat_col_mid` / `bat_col_hi` | u32 (RGB) | red / yellow / green | Battery zone colors |
+| `debug_log` | u8 | 0 | Verbose logging (`[GIF]`, `[SHT31]`, etc.) |
+| `ind_en` | u8 | 1 | Status dot indicators enabled |
+| `recv_pocsag` | u8 | 1 | POCSAG receive mode enabled |
+| `ric_time` | u32 | 224 | Time-beacon RIC |
+| `ric_call` | u32 | 8 | Callsign RIC |
+| `ric_excl` | string | `"224,208,200,216,4520,4521"` | Excluded RICs (comma-separated) |
+| `mqtt_en` | u8 | 0 | MQTT enabled |
+| `mqtt_broker` | string | `""` | MQTT broker hostname or IP |
+| `mqtt_port` | u16 | 1883 | MQTT broker port |
+| `mqtt_user` / `mqtt_pass` | string / string | `""` / `""` | MQTT credentials |
+| `mqtt_node` | string | `"ulanzi"` | MQTT node ID (topic prefix) |
+| `mqtt_prefix` | string | `"homeassistant"` | HA discovery prefix |
+| `mqtt_ha_name` | string | `""` | Home Assistant device name |
+| `mqtt_disc` | u8 | 0 | HA auto-discovery enabled |
+| `boot_name` | string | `"ULANZI"` | Boot screen device name (max 8 chars, uppercase) |
+| `mdns_name` | string | `"ulanzi"` | mDNS + OTA hostname → `<name>.local` |
 
 ---
 
@@ -637,7 +757,7 @@ flashing new firmware that adds a new key.
   mutex is needed.
 - **POCSAG display state** is written only from Core 1 via `processPocsagPacket()` called
   in `loop()`. The ESP-NOW callback on Core 0 uses `xQueueSendFromISR` to avoid data races.
-- **mDNS + OTA hostname** are both runtime-configurable and take effect immediately via
-  `MDNS.end()` / `MDNS.begin()` and `ArduinoOTA.setHostname()`. No reboot required.
-  The `OTA_HOSTNAME` define in `config.h` is no longer used; the runtime value from NVS
-  (`ota_hostname`, default `ulanzi-ota`) is used instead.
+- **mDNS + OTA hostname** share a single `mdnsName` value from NVS. Both use it at boot:
+  `WiFi.setHostname(mdnsName)`, `ArduinoOTA.setHostname(mdnsName)`, `MDNS.begin(mdnsName)`.
+  A **reboot is required** after changing the hostname — `MDNS.end()`/`begin()` at runtime
+  is unreliable on ESP32 Arduino. The `/api/mdnsname` response includes `"reboot":true`.
