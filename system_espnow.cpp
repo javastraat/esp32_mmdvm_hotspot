@@ -104,8 +104,8 @@ void initEspNowDiscovery() {
 #define MESH_POCSAG_MSG_MAX POCSAG_MSG_MAX_LEN
 
 #define ESPNOW_MESH_CHANNEL  0      // 0 = follow current WiFi channel
-#define HEARTBEAT_INTERVAL   60000  // ms: node → coordinator heartbeat
-#define ANNOUNCE_INTERVAL    120000 // ms: coordinator broadcast announce
+#define HEARTBEAT_INTERVAL   120000  // ms: node → coordinator heartbeat
+#define ANNOUNCE_INTERVAL    60000 // ms: coordinator broadcast announce
 
 #define ESPNOW_MAX_PEERS     6
 
@@ -155,6 +155,15 @@ static void onMeshReceive(MeshPacket* packet, uint8_t* senderMac) {
              _coordinatorMac[0], _coordinatorMac[1], _coordinatorMac[2],
              _coordinatorMac[3], _coordinatorMac[4], _coordinatorMac[5]);
     addLogMessage(String("[MESH] Coordinator found: ") + mac);
+
+    // Match sensor-node behavior: send immediate heartbeat + announce on discovery.
+    uint8_t heartbeat = 0x01;
+    mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_HEARTBEAT, &heartbeat, 1, 4);
+    String nodeName = userCallsign;
+    if (userDmrSsid > 0) nodeName += "-" + String(userDmrSsid);
+    mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+              (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
+
     return;
   }
 
@@ -249,8 +258,9 @@ static void espnowMeshTask(void* param) {
     mesh.send(broadcast, MESH_TYPE_PING, 0x00, nullptr, 0, 4);
   }
 
-  unsigned long lastHeartbeat = 0;
-  unsigned long lastAnnounce  = 0;
+  unsigned long lastHeartbeat    = 0;
+  unsigned long lastAnnounce     = 0;
+  unsigned long lastNodeAnnounce = 0;
 
   for (;;) {
     mesh.update();
@@ -265,11 +275,19 @@ static void espnowMeshTask(void* param) {
       }
     } else if (dmrServerEspNow || pocsagServerEspNow) {
       // Node: coordinator discovery retried automatically by mesh.update() every 10 s
-      // Node: heartbeat + re-announce once coordinator is known
-      if (_coordinatorFound && now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
-        lastHeartbeat = now;
-        mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
-                  (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
+      // Node: send heartbeat and announce on independent intervals once coordinator is known
+      if (_coordinatorFound) {
+        if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+          lastHeartbeat = now;
+          uint8_t heartbeat = 0x01;
+          mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_HEARTBEAT, &heartbeat, 1, 4);
+        }
+
+        if (now - lastNodeAnnounce >= ANNOUNCE_INTERVAL) {
+          lastNodeAnnounce = now;
+          mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+                    (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
+        }
       }
     }
 
