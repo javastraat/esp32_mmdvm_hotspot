@@ -1,53 +1,64 @@
 /*
- * system_espnow.cpp - ESP-NOW DMR frame relay
+ * system_espnow.cpp - ESP-NOW DMR/POCSAG relay via UniversalMesh
  *
- * Sender: forwards raw BrandMeister DMRD Homebrew packets over ESP-NOW.
- * Receiver: receives those packets via callback, enqueues them to
- *           espnowDmrNetQueue for the DMR task to drain each loop iteration.
+ * Uses the UniversalMesh library (lib/UniversalMesh) for coordinator
+ * discovery, deduplication, auto-relay, and heartbeat.
  *
- * The remote node (same firmware) processes the packets exactly as if they
- * arrived from BrandMeister — full callsign lookup, OLED, web UI, modem TX.
+ * Roles (runtime):
+ *   Coordinator  (espnowSenderEnabled = true)
+ *     Broadcasts DMR/POCSAG to all mesh nodes.
+ *     Library auto-responds to PING with PONG(role=0x01).
+ *     Tracks node announcements for the status endpoint.
+ *     Sends periodic announce broadcast so nodes can refresh last-seen.
  *
- * Sender hook in mmdvm_dmr.cpp:
- *   handleDMRNetwork() → after validating DMRD packet → espnowSendDmrNetPacket()
+ *   Node  (dmrServerEspNow || pocsagServerEspNow)
+ *     Broadcasts PING, waits for PONG(role=0x01) to find coordinator.
+ *     Enqueues received DMR/POCSAG to espnowDmrNetQueue / espnowPocsagQueue.
+ *     Sends heartbeat + announce to coordinator every 60 s.
  *
- * Receiver injection in mmdvm_dmr.cpp:
- *   handleDMRNetwork() → drains espnowDmrNetQueue → processDMRDPacket()
+ * Payload layout (all <= 64 bytes — MeshPacket payload limit):
+ *   MESH_APP_DMR       (0x10): byte[0]=len, byte[1..len]=raw DMRD data (max 60)
+ *   MESH_APP_POCSAG    (0x11): byte[0..3]=ric(LE), byte[4]=functional,
+ *                               byte[5..63]=message null-terminated (max 58 chars)
+ *   MESH_APP_HEARTBEAT (0x05): byte[0]=0x01
+ *   MESH_APP_ANNOUNCE  (0x06): node name string
+ *
+ * POCSAG messages longer than 58 chars are truncated — hard limit of the
+ * 64-byte MeshPacket payload field.
  */
 
 #include "system/system_espnow.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <esp_wifi.h>
+#include "lib/UniversalMesh/UniversalMesh.h"
 #include "system/system_logger.h"
 #include "system/system_eth.h"
 #include "system/system_wifi.h"
-
-// ── Discovery responder ─────────────────────────────────────────────────────
-// Listens on UDP port 3491 for {"type":"ESPNOW_DISCOVER"} broadcast pings
-// (sent by the ESP-NOW transmitter sketch) and replies with this device's
-// MAC address + callsign so the transmitter can auto-populate its peer list.
 
 extern String   userCallsign;
 extern uint8_t  userDmrSsid;
 extern bool     dmrServerEspNow;
 extern bool     pocsagServerEspNow;
 
+// ── UDP Discovery responder ─────────────────────────────────────────────────
+// Listens on UDP port 3491 for "ESPNOW_DISCOVER" broadcast pings (sent by
+// external transmitter sketches) and replies with MAC + callsign so those
+// devices can find this hotspot automatically.
+
 #define ESPNOW_DISCOVERY_PORT 3491
 
 static void espnowDiscoveryTask(void* param) {
-  // Wait until any network interface is up
   while (WiFi.status() != WL_CONNECTED && !ethConnected && !softAPActive) {
     vTaskDelay(500 / portTICK_PERIOD_MS);
   }
-
   WiFiUDP udp;
   if (!udp.begin(ESPNOW_DISCOVERY_PORT)) {
     addLogMessage("[ESP-NOW] Discovery: failed to bind UDP port " + String(ESPNOW_DISCOVERY_PORT));
     vTaskDelete(nullptr);
     return;
   }
-  addLogMessage("[ESP-NOW] Discovery responder listening on UDP port " + String(ESPNOW_DISCOVERY_PORT));
-
+  addLogMessage("[ESP-NOW] Discovery responder on UDP port " + String(ESPNOW_DISCOVERY_PORT));
   for (;;) {
     int len = udp.parsePacket();
     if (len > 0) {
@@ -77,143 +88,143 @@ void initEspNowDiscovery() {
   xTaskCreatePinnedToCore(espnowDiscoveryTask, "espnow_disc", 3072, nullptr, 1, nullptr, 0);
 }
 
+// ============================================================================
 #if ESPNOW_SENDER
+// ============================================================================
 
-#include <esp_now.h>
-#include <esp_wifi.h>
-#include "system/system_logger.h"
+// AppId assignments (per UniversalMesh protocol reference):
+//   0x01  Text      POCSAG: human-readable  "P:<ric>,<func>,<message>"
+//   0x02  Raw Hex   DMR:    raw DMRD bytes  (payloadLen = byte count)
+//   0x05  Heartbeat node → coordinator alive ping
+//   0x06  Announce  node broadcasts its name
+#define MESH_APP_TEXT       0x01
+#define MESH_APP_RAW        0x02
+#define MESH_APP_HEARTBEAT  0x05
+#define MESH_APP_ANNOUNCE   0x06
 
-#define ESPNOW_MAX_PEERS 6
-static uint8_t _peerMacs[ESPNOW_MAX_PEERS][6] = {};
-static int     _peerCount = 0;
-static bool    _ready     = false;
+// POCSAG text format "P:<ric>,<func>,<msg>" in 64 bytes:
+//   "P:" + 10(ric) + "," + 1(func) + "," + msg + null  →  max 48 chars of message
+#define MESH_POCSAG_MSG_MAX 48
 
-// ── Per-peer send status ───────────────────────────────────────────────────
-struct PeerStatus {
-  uint32_t lastSentMs;   // millis() when last frame was sent to this peer
-  bool     lastOk;       // was the last send ACK'd?
-  bool     everSent;     // has anything been sent to this peer yet?
-};
-static PeerStatus _peerStatus[ESPNOW_MAX_PEERS] = {};
+#define ESPNOW_MESH_CHANNEL  0      // 0 = follow current WiFi channel
+#define HEARTBEAT_INTERVAL   60000  // ms: node → coordinator heartbeat
+#define ANNOUNCE_INTERVAL    120000 // ms: coordinator broadcast announce
 
-// Ring buffer to map async send callbacks back to their peer index.
-// pushSendIdx() is called just before esp_now_send(); onSendResult()
-// calls popSendIdx() to get the matching peer slot.
-#define SEND_QUEUE_SIZE 16
-static volatile uint8_t _sendIdxQueue[SEND_QUEUE_SIZE] = {};
-static volatile uint8_t _sendQHead = 0;
-static volatile uint8_t _sendQTail = 0;
+#define ESPNOW_MAX_PEERS     6
 
-static void pushSendIdx(int idx) {
-  _sendIdxQueue[_sendQHead % SEND_QUEUE_SIZE] = (uint8_t)idx;
-  _sendQHead = (_sendQHead + 1) % SEND_QUEUE_SIZE;
-}
-static int popSendIdx() {
-  if (_sendQHead == _sendQTail) return -1;
-  int idx = _sendIdxQueue[_sendQTail % SEND_QUEUE_SIZE];
-  _sendQTail = (_sendQTail + 1) % SEND_QUEUE_SIZE;
-  return idx;
-}
+static UniversalMesh mesh;
+static bool          _meshReady = false;
+
+// Node mode: coordinator tracking
+static uint8_t  _coordinatorMac[6]   = {};
+static bool     _coordinatorFound    = false;
+static uint32_t _coordinatorLastSeen = 0;
+
+// Coordinator mode: track announcing nodes
+struct NodeEntry { uint8_t mac[6]; uint32_t lastSeen; };
+static NodeEntry _nodes[ESPNOW_MAX_PEERS] = {};
+static int       _nodeCount = 0;
 
 QueueHandle_t espnowDmrNetQueue  = nullptr;
 QueueHandle_t espnowPocsagQueue  = nullptr;
 
-// -------------------------------------------------------
-// Parse "AA:BB:CC:DD:EE:FF" into 6-byte array.
-// Returns true on success.
-// -------------------------------------------------------
-static bool parseMacString(const String& macStr, uint8_t* out) {
-  if (macStr.length() < 17) return false;
-  for (int i = 0; i < 6; i++) {
-    out[i] = (uint8_t)strtoul(macStr.substring(i * 3, i * 3 + 2).c_str(), nullptr, 16);
-  }
-  return true;
-}
+extern bool espnowPocsagEnabled;
 
-// -------------------------------------------------------
-// Parse comma-separated MAC list "AA:BB:CC:DD:EE:FF,11:22:33:44:55:66"
-// Returns number of successfully parsed MACs.
-// -------------------------------------------------------
-static int parseMacList(const String& macList, uint8_t out[][6], int maxPeers) {
-  int count = 0;
-  int start = 0;
-  while (count < maxPeers) {
-    int comma = macList.indexOf(',', start);
-    String token = (comma < 0) ? macList.substring(start) : macList.substring(start, comma);
-    token.trim();
-    if (token.length() == 17 && parseMacString(token, out[count])) {
-      count++;
+static void updateNodeEntry(const uint8_t* mac) {
+  for (int i = 0; i < _nodeCount; i++) {
+    if (memcmp(_nodes[i].mac, mac, 6) == 0) {
+      _nodes[i].lastSeen = millis();
+      return;
     }
-    if (comma < 0) break;
-    start = comma + 1;
   }
-  return count;
-}
-
-// -------------------------------------------------------
-// Send callback (sender only) — fires after frame handed to radio driver
-// -------------------------------------------------------
-static void onSendResult(const wifi_tx_info_t* info, esp_now_send_status_t status) {
-  bool ok = (status == ESP_NOW_SEND_SUCCESS);
-  int idx = popSendIdx();
-  if (idx >= 0 && idx < _peerCount) {
-    _peerStatus[idx].lastSentMs = millis();
-    _peerStatus[idx].lastOk     = ok;
-    _peerStatus[idx].everSent   = true;
-  }
-  if (espnowDebug && !ok) {
-    addLogMessage("[ESP-NOW] No ACK from peer");
+  if (_nodeCount < ESPNOW_MAX_PEERS) {
+    memcpy(_nodes[_nodeCount].mac, mac, 6);
+    _nodes[_nodeCount].lastSeen = millis();
+    _nodeCount++;
   }
 }
 
-// -------------------------------------------------------
-// Receive callback — runs in WiFi task context on BOTH sender and receiver.
-// Enqueues incoming DMRD packets for the DMR task to drain.
-// -------------------------------------------------------
-static void onReceive(const esp_now_recv_info_t* info,
-                      const uint8_t* inData, int dataLen) {
-  if (dataLen < 2) return;
+// ── Mesh receive callback ──────────────────────────────────────────────────
+static void onMeshReceive(MeshPacket* packet, uint8_t* senderMac) {
+  // Node mode: coordinator found via PONG with role=0x01
+  if (packet->type == MESH_TYPE_PONG &&
+      packet->payloadLen > 0 && packet->payload[0] == 0x01 &&
+      !_coordinatorFound) {
+    memcpy(_coordinatorMac, packet->srcMac, 6);
+    _coordinatorFound    = true;
+    _coordinatorLastSeen = millis();
+    char mac[18];
+    snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+             _coordinatorMac[0], _coordinatorMac[1], _coordinatorMac[2],
+             _coordinatorMac[3], _coordinatorMac[4], _coordinatorMac[5]);
+    addLogMessage(String("[MESH] Coordinator found: ") + mac);
+    return;
+  }
 
-  if (inData[0] == ESPNOW_TYPE_DMR_NET) {
-    if (espnowDmrNetQueue == nullptr) return;
+  // Node mode: update coordinator last-seen on any packet from coordinator
+  if (_coordinatorFound && memcmp(packet->srcMac, _coordinatorMac, 6) == 0) {
+    _coordinatorLastSeen = millis();
+  }
+
+  if (packet->type != MESH_TYPE_DATA) return;
+
+  // 0x02 Raw Hex → DMR: payload is raw DMRD bytes
+  if (packet->appId == MESH_APP_RAW) {
+    if (!dmrServerEspNow || espnowDmrNetQueue == nullptr) return;
+    if (packet->payloadLen < 1) return;
     EspNowDmrNetPacket pkt = {};
-    memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
+    pkt.type = ESPNOW_TYPE_DMR_NET;
+    pkt.len  = packet->payloadLen;
+    if (pkt.len > 60) pkt.len = 60;
+    memcpy(pkt.data, packet->payload, pkt.len);
     xQueueSend(espnowDmrNetQueue, &pkt, 0);
   }
-  else if (inData[0] == ESPNOW_TYPE_POCSAG) {
-    if (espnowPocsagQueue == nullptr) return;
+
+  // 0x01 Text → POCSAG: "P:<ric>,<func>,<message>"
+  else if (packet->appId == MESH_APP_TEXT) {
+    if (!pocsagServerEspNow || espnowPocsagQueue == nullptr) return;
+    if (packet->payloadLen < 4) return;
+    char buf[65] = {};
+    int len = packet->payloadLen > 64 ? 64 : packet->payloadLen;
+    memcpy(buf, packet->payload, len);
+    if (buf[0] != 'P' || buf[1] != ':') return;
     EspNowPocsagPacket pkt = {};
-    memcpy(&pkt, inData, (dataLen < (int)sizeof(pkt)) ? dataLen : sizeof(pkt));
+    pkt.type = ESPNOW_TYPE_POCSAG;
+    unsigned long ric = 0;
+    unsigned int  func = 0;
+    int parsed = sscanf(buf + 2, "%lu,%u,", &ric, &func);
+    if (parsed < 2) return;
+    pkt.ric        = (uint32_t)ric;
+    pkt.functional = (uint8_t)func;
+    // Find message start: skip "P:<ric>,<func>,"
+    const char* msgPtr = strchr(buf + 2, ',');
+    if (msgPtr) msgPtr = strchr(msgPtr + 1, ',');
+    if (msgPtr) {
+      msgPtr++;
+      strncpy(pkt.message, msgPtr, POCSAG_MSG_MAX_LEN);
+      pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
+    }
     xQueueSend(espnowPocsagQueue, &pkt, 0);
+  }
+
+  else if (packet->appId == MESH_APP_HEARTBEAT) {
+    if (espnowSenderEnabled) updateNodeEntry(packet->srcMac);
+  }
+  else if (packet->appId == MESH_APP_ANNOUNCE) {
+    if (espnowSenderEnabled) {
+      updateNodeEntry(packet->srcMac);
+      if (espnowDebug && packet->payloadLen > 0) {
+        char name[65] = {};
+        int len = packet->payloadLen > 64 ? 64 : packet->payloadLen;
+        memcpy(name, packet->payload, len);
+        addLogMessage(String("[MESH] Node: ") + name);
+      }
+    }
   }
 }
 
-// -------------------------------------------------------
-// initEspNow() — call from setup() when sender OR receiver is enabled
-// -------------------------------------------------------
-void initEspNow() {
-  // Create the receive queue (used by both sender and receiver side)
-  espnowDmrNetQueue = xQueueCreate(8, sizeof(EspNowDmrNetPacket));
-  if (!espnowDmrNetQueue) {
-    addLogMessage("[ESP-NOW] Failed to create DMR receive queue");
-    return;
-  }
-  espnowPocsagQueue = xQueueCreate(8, sizeof(EspNowPocsagPacket));
-  if (!espnowPocsagQueue) {
-    addLogMessage("[ESP-NOW] Failed to create POCSAG receive queue");
-    return;
-  }
-
-  // Parse comma-separated receiver MACs (sender side needs this)
-  if (espnowSenderEnabled) {
-    _peerCount = parseMacList(espnowReceiverMac, _peerMacs, ESPNOW_MAX_PEERS);
-    if (_peerCount == 0) {
-      addLogMessage("[ESP-NOW] No valid receiver MACs — check espnowReceiverMac setting");
-    }
-  }
-
-  // WiFi task starts asynchronously — wait until the driver is up before
-  // calling esp_now_init(), otherwise it crashes (LoadProhibited).
+// ── Background mesh task ───────────────────────────────────────────────────
+static void espnowMeshTask(void* param) {
   uint8_t tmpMac[6];
   int waitMs = 0;
   while (esp_wifi_get_mac(WIFI_IF_STA, tmpMac) != ESP_OK && waitMs < 10000) {
@@ -221,118 +232,149 @@ void initEspNow() {
     waitMs += 100;
   }
   if (waitMs >= 10000) {
-    addLogMessage("[ESP-NOW] WiFi driver not ready after 10s — skipping init");
+    addLogMessage("[MESH] WiFi driver not ready — aborting");
+    vTaskDelete(nullptr);
     return;
   }
 
-  if (esp_now_init() != ESP_OK) {
-    addLogMessage("[ESP-NOW] Init failed");
+  bool isSender = espnowSenderEnabled;
+  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender)) {
+    addLogMessage("[MESH] Init failed");
+    vTaskDelete(nullptr);
     return;
   }
+  mesh.onReceive(onMeshReceive);
+  _meshReady = true;
 
-  // Register receive callback — needed on both sender and receiver
-  esp_now_register_recv_cb(onReceive);
+  String nodeName = userCallsign;
+  if (userDmrSsid > 0) nodeName += "-" + String(userDmrSsid);
 
-  // Register send callback and add all peers — sender only
-  if (espnowSenderEnabled) {
-    esp_now_register_send_cb(onSendResult);
+  uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-    int added = 0;
-    for (int i = 0; i < _peerCount; i++) {
-      esp_now_peer_info_t peer = {};
-      memcpy(peer.peer_addr, _peerMacs[i], 6);
-      peer.channel = 0;
-      peer.encrypt = false;
-      if (esp_now_add_peer(&peer) == ESP_OK) {
-        added++;
-      } else {
-        addLogMessage(String("[ESP-NOW] Failed to add peer ") + (i + 1));
+  if (isSender) {
+    addLogMessage("[MESH] Ready — coordinator (" + nodeName + ")");
+    mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+              (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
+  } else {
+    addLogMessage("[MESH] Ready — node (" + nodeName + "), searching for coordinator...");
+    mesh.send(broadcast, MESH_TYPE_PING, 0x00, nullptr, 0, 4);
+  }
+
+  unsigned long lastHeartbeat = 0;
+  unsigned long lastRetry     = 0;
+  unsigned long lastAnnounce  = 0;
+
+  for (;;) {
+    mesh.update();
+    unsigned long now = millis();
+
+    if (isSender) {
+      // Coordinator: periodic announce so nodes can refresh their last-seen
+      if (now - lastAnnounce >= ANNOUNCE_INTERVAL) {
+        lastAnnounce = now;
+        mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+                  (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
+      }
+    } else if (dmrServerEspNow || pocsagServerEspNow) {
+      // Node: retry coordinator discovery every 10 s until found
+      if (!_coordinatorFound && now - lastRetry >= 10000) {
+        lastRetry = now;
+        mesh.send(broadcast, MESH_TYPE_PING, 0x00, nullptr, 0, 4);
+        addLogMessage("[MESH] Searching for coordinator...");
+      }
+      // Node: heartbeat + re-announce once coordinator is known
+      if (_coordinatorFound && now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+        lastHeartbeat = now;
+        uint8_t hb = 0x01;
+        mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_HEARTBEAT, &hb, 1, 4);
+        mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+                  (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
       }
     }
 
-    addLogMessage(String("[ESP-NOW] Sender ready — ") + added + "/" + _peerCount + " peer(s): " + espnowReceiverMac);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
-
-
-
-  _ready = true;
 }
 
-// -------------------------------------------------------
-// espnowSendDmrNetPacket() — called from handleDMRNetwork() (sender side)
-// Forwards the raw DMRD Homebrew packet to the peer over ESP-NOW.
-// -------------------------------------------------------
+// ── Public API ─────────────────────────────────────────────────────────────
+
+void initEspNow() {
+  espnowDmrNetQueue = xQueueCreate(8, sizeof(EspNowDmrNetPacket));
+  if (!espnowDmrNetQueue) {
+    addLogMessage("[MESH] Failed to create DMR queue");
+    return;
+  }
+  espnowPocsagQueue = xQueueCreate(8, sizeof(EspNowPocsagPacket));
+  if (!espnowPocsagQueue) {
+    addLogMessage("[MESH] Failed to create POCSAG queue");
+    return;
+  }
+  xTaskCreatePinnedToCore(espnowMeshTask, "espnow_mesh", 4096, nullptr, 1, nullptr, 0);
+}
+
 void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
-  if (!_ready || !espnowSenderEnabled) return;
+  if (!_meshReady || !espnowSenderEnabled) return;
   if (len > 60) len = 60;
-
-  EspNowDmrNetPacket pkt = {};
-  pkt.type = ESPNOW_TYPE_DMR_NET;
-  pkt.len  = len;
-  memcpy(pkt.data, dmrdPacket, len);
-
-  for (int i = 0; i < _peerCount; i++) {
-    pushSendIdx(i);
-    esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
-  }
+  // appId 0x02 Raw Hex: raw DMRD bytes
+  uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_RAW, dmrdPacket, len, 4);
 }
-
-// -------------------------------------------------------
-// espnowSendPocsagPacket() — called from DAPNET task (sender side)
-// Forwards a received DAPNET/POCSAG page to the peer over ESP-NOW.
-// -------------------------------------------------------
-extern bool espnowPocsagEnabled;
 
 void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& message) {
-  if (!_ready || !espnowSenderEnabled || !espnowPocsagEnabled) return;
-
-  EspNowPocsagPacket pkt = {};
-  pkt.type       = ESPNOW_TYPE_POCSAG;
-  pkt.ric        = ric;
-  pkt.functional = functional;
-  strncpy(pkt.message, message.c_str(), POCSAG_MSG_MAX_LEN);
-  pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
-
-  for (int i = 0; i < _peerCount; i++) {
-    pushSendIdx(i);
-    esp_now_send(_peerMacs[i], (uint8_t*)&pkt, sizeof(pkt));
-  }
+  if (!_meshReady || !espnowSenderEnabled || !espnowPocsagEnabled) return;
+  // appId 0x01 Text: "P:<ric>,<func>,<message>"
+  char buf[64] = {};
+  String msg = message;
+  if (msg.length() > MESH_POCSAG_MSG_MAX) msg = msg.substring(0, MESH_POCSAG_MSG_MAX);
+  snprintf(buf, sizeof(buf), "P:%lu,%u,%s", (unsigned long)ric, (unsigned int)functional, msg.c_str());
+  uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_TEXT, (const uint8_t*)buf, (uint8_t)strlen(buf), 4);
 }
 
 #endif  // ESPNOW_SENDER
 
-// -------------------------------------------------------
-// espnowGetPeerStatusJson() — returns JSON array with per-peer ACK status.
-// Always compiled so the web handler can call it unconditionally.
-// -------------------------------------------------------
+// ── Mesh status JSON ─────────────────────────────────────────────────────────
+// Always compiled. [{mac, status}, ...] × ESPNOW_MAX_PEERS
+// Coordinator mode: shows announced nodes with last-seen.
+// Node mode: shows coordinator connection status.
 String espnowGetPeerStatusJson() {
-#if ESPNOW_SENDER
+  #if ESPNOW_SENDER
   String json = "[";
-  for (int i = 0; i < ESPNOW_MAX_PEERS; i++) {
-    if (i > 0) json += ",";
-    if (i < _peerCount) {
+  if (espnowSenderEnabled) {
+    // Add coordinator (this device) MAC as first entry
+    String myMac = WiFi.macAddress();
+    json += "{\"mac\":\"" + myMac + "\",\"status\":\"coordinator\"}";
+    for (int i = 0; i < ESPNOW_MAX_PEERS - 1; i++) {
+      json += ",";
+      if (i < _nodeCount) {
+        char mac[18];
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 _nodes[i].mac[0], _nodes[i].mac[1], _nodes[i].mac[2],
+                 _nodes[i].mac[3], _nodes[i].mac[4], _nodes[i].mac[5]);
+        bool recent = (millis() - _nodes[i].lastSeen) < 120000;
+        json += "{\"mac\":\"" + String(mac) + "\",\"status\":\"" + (recent ? "ok" : "idle") + "\"}";
+      } else {
+        json += "{\"mac\":\"\",\"status\":\"none\"}";
+      }
+    }
+  } else {
+    if (_coordinatorFound) {
       char mac[18];
       snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
-               _peerMacs[i][0], _peerMacs[i][1], _peerMacs[i][2],
-               _peerMacs[i][3], _peerMacs[i][4], _peerMacs[i][5]);
-      const char* status;
-      if (!_peerStatus[i].everSent) {
-        status = "idle";
-      } else if ((millis() - _peerStatus[i].lastSentMs) > 121000) {
-        status = "idle";
-      } else if (_peerStatus[i].lastOk) {
-        status = "ok";
-      } else {
-        status = "fail";
-      }
-      json += "{\"mac\":\"" + String(mac) + "\",\"status\":\"" + status + "\"}";
+               _coordinatorMac[0], _coordinatorMac[1], _coordinatorMac[2],
+               _coordinatorMac[3], _coordinatorMac[4], _coordinatorMac[5]);
+      bool recent = (millis() - _coordinatorLastSeen) < 120000;
+      json += "{\"mac\":\"" + String(mac) + "\",\"status\":\"" + (recent ? "ok" : "idle") + "\"}";
     } else {
-      json += "{\"mac\":\"\",\"status\":\"none\"}";
+      json += "{\"mac\":\"searching\",\"status\":\"idle\"}";
+    }
+    for (int i = 1; i < ESPNOW_MAX_PEERS; i++) {
+      json += ",{\"mac\":\"\",\"status\":\"none\"}";
     }
   }
   json += "]";
   return json;
-#else
+  #else
   return "[]";
-#endif
+  #endif
 }
