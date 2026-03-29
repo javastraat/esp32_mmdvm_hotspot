@@ -197,10 +197,10 @@ static void onMeshReceive(MeshPacket* packet, uint8_t* senderMac) {
   }
 
   else if (packet->appId == MESH_APP_HEARTBEAT) {
-    if (espnowSenderEnabled) updateNodeEntry(packet->srcMac);
+    if (!espnowSenderEnabled) updateNodeEntry(packet->srcMac);
   }
   else if (packet->appId == MESH_APP_ANNOUNCE) {
-    if (espnowSenderEnabled) {
+    if (!espnowSenderEnabled) {
       updateNodeEntry(packet->srcMac);
       if (espnowDebug && packet->payloadLen > 0) {
         char name[65] = {};
@@ -227,7 +227,7 @@ static void espnowMeshTask(void* param) {
   }
 
   bool isSender = espnowSenderEnabled;
-  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender ? MESH_COORDINATOR : MESH_NODE)) {
+  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender ? MESH_NODE : MESH_COORDINATOR)) {
     addLogMessage("[MESH] Init failed");
     vTaskDelete(nullptr);
     return;
@@ -240,7 +240,7 @@ static void espnowMeshTask(void* param) {
 
   uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-  if (isSender) {
+  if (!isSender) {
     addLogMessage("[MESH] Ready — coordinator (" + nodeName + ")");
     mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
               (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
@@ -256,7 +256,7 @@ static void espnowMeshTask(void* param) {
     mesh.update();
     unsigned long now = millis();
 
-    if (isSender) {
+    if (!isSender) {
       // Coordinator: periodic announce so nodes can refresh their last-seen
       if (now - lastAnnounce >= ANNOUNCE_INTERVAL) {
         lastAnnounce = now;
