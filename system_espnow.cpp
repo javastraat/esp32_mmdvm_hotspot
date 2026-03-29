@@ -7,30 +7,27 @@
  * Roles (runtime):
  *   Coordinator  (espnowSenderEnabled = true)
  *     Broadcasts DMR/POCSAG to all mesh nodes.
- *     Library auto-responds to PING with PONG(role=0x01).
+ *     Library auto-responds to PING with PONG(appId=0xFF).
  *     Tracks node announcements for the status endpoint.
  *     Sends periodic announce broadcast so nodes can refresh last-seen.
  *
  *   Node  (dmrServerEspNow || pocsagServerEspNow)
- *     Broadcasts PING, waits for PONG(role=0x01) to find coordinator.
+ *     Broadcasts PING, waits for PONG(appId=0xFF) to find coordinator.
  *     Enqueues received DMR/POCSAG to espnowDmrNetQueue / espnowPocsagQueue.
  *     Sends heartbeat + announce to coordinator every 60 s.
  *
- * Payload layout (all <= 64 bytes — MeshPacket payload limit):
- *   MESH_APP_DMR       (0x10): byte[0]=len, byte[1..len]=raw DMRD data (max 60)
- *   MESH_APP_POCSAG    (0x11): byte[0..3]=ric(LE), byte[4]=functional,
- *                               byte[5..63]=message null-terminated (max 58 chars)
+ * Payload layout (all <= 200 bytes — MeshPacket payload limit):
+ *   MESH_APP_TEXT      (0x01): JSON {"ric":<uint32>,"func":<uint8>,"msg":"<string>"}
+ *   MESH_APP_RAW       (0x02): raw DMRD bytes (max 60, DMRD frames are fixed ~53-55 bytes)
  *   MESH_APP_HEARTBEAT (0x05): byte[0]=0x01
  *   MESH_APP_ANNOUNCE  (0x06): node name string
- *
- * POCSAG messages longer than 58 chars are truncated — hard limit of the
- * 64-byte MeshPacket payload field.
  */
 
 #include "system/system_espnow.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <esp_wifi.h>
+#include <ArduinoJson.h>
 #include "lib/UniversalMesh/UniversalMesh.h"
 #include "system/system_logger.h"
 #include "system/system_eth.h"
@@ -102,9 +99,9 @@ void initEspNowDiscovery() {
 #define MESH_APP_HEARTBEAT  0x05
 #define MESH_APP_ANNOUNCE   0x06
 
-// POCSAG text format "P:<ric>,<func>,<msg>" in 64 bytes:
-//   "P:" + 10(ric) + "," + 1(func) + "," + msg + null  →  max 48 chars of message
-#define MESH_POCSAG_MSG_MAX 48
+// POCSAG JSON payload: {"ric":<uint32>,"func":<uint8>,"msg":"<string>"}
+// Message capped at POCSAG_MSG_MAX_LEN before serialization.
+#define MESH_POCSAG_MSG_MAX POCSAG_MSG_MAX_LEN
 
 #define ESPNOW_MESH_CHANNEL  0      // 0 = follow current WiFi channel
 #define HEARTBEAT_INTERVAL   60000  // ms: node → coordinator heartbeat
@@ -146,9 +143,9 @@ static void updateNodeEntry(const uint8_t* mac) {
 
 // ── Mesh receive callback ──────────────────────────────────────────────────
 static void onMeshReceive(MeshPacket* packet, uint8_t* senderMac) {
-  // Node mode: coordinator found via PONG with role=0x01
+  // Node mode: coordinator found via PONG with appId=0xFF (new library protocol)
   if (packet->type == MESH_TYPE_PONG &&
-      packet->payloadLen > 0 && packet->payload[0] == 0x01 &&
+      packet->appId == 0xFF &&
       !_coordinatorFound) {
     memcpy(_coordinatorMac, packet->srcMac, 6);
     _coordinatorFound    = true;
@@ -180,30 +177,22 @@ static void onMeshReceive(MeshPacket* packet, uint8_t* senderMac) {
     xQueueSend(espnowDmrNetQueue, &pkt, 0);
   }
 
-  // 0x01 Text → POCSAG: "P:<ric>,<func>,<message>"
+  // 0x01 Text → POCSAG: JSON {"ric":<uint32>,"func":<uint8>,"msg":"<string>"}
   else if (packet->appId == MESH_APP_TEXT) {
     if (!pocsagServerEspNow || espnowPocsagQueue == nullptr) return;
-    if (packet->payloadLen < 4) return;
-    char buf[65] = {};
-    int len = packet->payloadLen > 64 ? 64 : packet->payloadLen;
+    if (packet->payloadLen < 2) return;
+    char buf[201] = {};
+    int len = packet->payloadLen > 200 ? 200 : packet->payloadLen;
     memcpy(buf, packet->payload, len);
-    if (buf[0] != 'P' || buf[1] != ':') return;
+    JsonDocument doc;
+    if (deserializeJson(doc, buf) != DeserializationError::Ok) return;
     EspNowPocsagPacket pkt = {};
-    pkt.type = ESPNOW_TYPE_POCSAG;
-    unsigned long ric = 0;
-    unsigned int  func = 0;
-    int parsed = sscanf(buf + 2, "%lu,%u,", &ric, &func);
-    if (parsed < 2) return;
-    pkt.ric        = (uint32_t)ric;
-    pkt.functional = (uint8_t)func;
-    // Find message start: skip "P:<ric>,<func>,"
-    const char* msgPtr = strchr(buf + 2, ',');
-    if (msgPtr) msgPtr = strchr(msgPtr + 1, ',');
-    if (msgPtr) {
-      msgPtr++;
-      strncpy(pkt.message, msgPtr, POCSAG_MSG_MAX_LEN);
-      pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
-    }
+    pkt.type       = ESPNOW_TYPE_POCSAG;
+    pkt.ric        = doc["ric"].as<uint32_t>();
+    pkt.functional = doc["func"].as<uint8_t>();
+    const char* msg = doc["msg"] | "";
+    strncpy(pkt.message, msg, POCSAG_MSG_MAX_LEN);
+    pkt.message[POCSAG_MSG_MAX_LEN] = '\0';
     xQueueSend(espnowPocsagQueue, &pkt, 0);
   }
 
@@ -238,7 +227,7 @@ static void espnowMeshTask(void* param) {
   }
 
   bool isSender = espnowSenderEnabled;
-  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender)) {
+  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender ? MESH_COORDINATOR : MESH_NODE)) {
     addLogMessage("[MESH] Init failed");
     vTaskDelete(nullptr);
     return;
@@ -261,7 +250,6 @@ static void espnowMeshTask(void* param) {
   }
 
   unsigned long lastHeartbeat = 0;
-  unsigned long lastRetry     = 0;
   unsigned long lastAnnounce  = 0;
 
   for (;;) {
@@ -276,17 +264,10 @@ static void espnowMeshTask(void* param) {
                   (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
       }
     } else if (dmrServerEspNow || pocsagServerEspNow) {
-      // Node: retry coordinator discovery every 10 s until found
-      if (!_coordinatorFound && now - lastRetry >= 10000) {
-        lastRetry = now;
-        mesh.send(broadcast, MESH_TYPE_PING, 0x00, nullptr, 0, 4);
-        addLogMessage("[MESH] Searching for coordinator...");
-      }
+      // Node: coordinator discovery retried automatically by mesh.update() every 10 s
       // Node: heartbeat + re-announce once coordinator is known
       if (_coordinatorFound && now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
         lastHeartbeat = now;
-        uint8_t hb = 0x01;
-        mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_HEARTBEAT, &hb, 1, 4);
         mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
                   (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
       }
@@ -322,13 +303,18 @@ void espnowSendDmrNetPacket(const uint8_t* dmrdPacket, uint8_t len) {
 
 void espnowSendPocsagPacket(uint32_t ric, uint8_t functional, const String& message) {
   if (!_meshReady || !espnowSenderEnabled || !espnowPocsagEnabled) return;
-  // appId 0x01 Text: "P:<ric>,<func>,<message>"
-  char buf[64] = {};
-  String msg = message;
-  if (msg.length() > MESH_POCSAG_MSG_MAX) msg = msg.substring(0, MESH_POCSAG_MSG_MAX);
-  snprintf(buf, sizeof(buf), "P:%lu,%u,%s", (unsigned long)ric, (unsigned int)functional, msg.c_str());
+  // appId 0x01 Text: JSON {"ric":<uint32>,"func":<uint8>,"msg":"<string>"}
+  JsonDocument doc;
+  doc["ric"]  = ric;
+  doc["func"] = functional;
+  doc["msg"]  = message.length() > MESH_POCSAG_MSG_MAX
+                  ? message.substring(0, MESH_POCSAG_MSG_MAX)
+                  : message;
+  String payload;
+  serializeJson(doc, payload);
   uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_TEXT, (const uint8_t*)buf, (uint8_t)strlen(buf), 4);
+  mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_TEXT,
+            (const uint8_t*)payload.c_str(), (uint8_t)payload.length(), 4);
 }
 
 #endif  // ESPNOW_SENDER
