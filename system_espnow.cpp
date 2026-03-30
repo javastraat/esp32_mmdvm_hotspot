@@ -104,8 +104,7 @@ void initEspNowDiscovery() {
 #define MESH_POCSAG_MSG_MAX POCSAG_MSG_MAX_LEN
 
 #define ESPNOW_MESH_CHANNEL  0      // 0 = follow current WiFi channel
-#define HEARTBEAT_INTERVAL   120000  // ms: node → coordinator heartbeat
-#define ANNOUNCE_INTERVAL    60000 // ms: coordinator broadcast announce
+#define HEARTBEAT_INTERVAL   60000  // ms: node → coordinator announce interval
 
 #define ESPNOW_MAX_PEERS     6
 
@@ -235,8 +234,8 @@ static void espnowMeshTask(void* param) {
     return;
   }
 
-  bool isSender = espnowSenderEnabled;
-  if (!mesh.begin(ESPNOW_MESH_CHANNEL, isSender ? MESH_NODE : MESH_COORDINATOR)) {
+  // Always a node — the coordinator is a separate dedicated device
+  if (!mesh.begin(ESPNOW_MESH_CHANNEL, MESH_NODE)) {
     addLogMessage("[MESH] Init failed");
     vTaskDelete(nullptr);
     return;
@@ -249,46 +248,22 @@ static void espnowMeshTask(void* param) {
 
   uint8_t broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-  if (!isSender) {
-    addLogMessage("[MESH] Ready — coordinator (" + nodeName + ")");
-    mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
-              (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
-  } else {
-    addLogMessage("[MESH] Ready — node (" + nodeName + "), searching for coordinator...");
-    mesh.send(broadcast, MESH_TYPE_PING, 0x00, nullptr, 0, 4);
-  }
+  // Include node name in PING so coordinator registers us immediately
+  addLogMessage("[MESH] Ready — node (" + nodeName + "), searching for coordinator...");
+  mesh.send(broadcast, MESH_TYPE_PING, 0x00,
+            (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
 
-  unsigned long lastHeartbeat    = 0;
-  unsigned long lastAnnounce     = 0;
-  unsigned long lastNodeAnnounce = 0;
+  unsigned long lastHeartbeat = 0;
 
   for (;;) {
     mesh.update();
     unsigned long now = millis();
 
-    if (!isSender) {
-      // Coordinator: periodic announce so nodes can refresh their last-seen
-      if (now - lastAnnounce >= ANNOUNCE_INTERVAL) {
-        lastAnnounce = now;
-        mesh.send(broadcast, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
-                  (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
-      }
-    } else if (dmrServerEspNow || pocsagServerEspNow) {
-      // Node: coordinator discovery retried automatically by mesh.update() every 10 s
-      // Node: send heartbeat and announce on independent intervals once coordinator is known
-      if (_coordinatorFound) {
-        if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
-          lastHeartbeat = now;
-          uint8_t heartbeat = 0x01;
-          mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_HEARTBEAT, &heartbeat, 1, 4);
-        }
-
-        if (now - lastNodeAnnounce >= ANNOUNCE_INTERVAL) {
-          lastNodeAnnounce = now;
-          mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
-                    (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
-        }
-      }
+    // All nodes (sender and receiver) announce themselves once coordinator is known
+    if (_coordinatorFound && now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+      lastHeartbeat = now;
+      mesh.send(_coordinatorMac, MESH_TYPE_DATA, MESH_APP_ANNOUNCE,
+                (const uint8_t*)nodeName.c_str(), nodeName.length(), 4);
     }
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
