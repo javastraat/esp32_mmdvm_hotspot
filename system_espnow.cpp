@@ -104,7 +104,7 @@ void initEspNowDiscovery() {
 #define MESH_POCSAG_MSG_MAX POCSAG_MSG_MAX_LEN
 
 #define ESPNOW_MESH_CHANNEL  0      // 0 = follow current WiFi channel
-#define HEARTBEAT_INTERVAL   60000  // ms: node → coordinator announce interval
+#define HEARTBEAT_INTERVAL   120000  // ms: node → coordinator announce interval
 
 #define ESPNOW_MAX_PEERS     6
 
